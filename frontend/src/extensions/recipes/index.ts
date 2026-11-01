@@ -157,8 +157,9 @@ class RecipesPanel {
     setTitle(node, entry.row.description);
     for (const b of Array.from(node.querySelectorAll<HTMLButtonElement>('[data-act]'))) {
       const label = t(b.dataset.act === 'run' ? 'Run' : b.dataset.act === 'remove' ? 'Delete' : 'Install');
+      const named = `${label} ${entry.row.name}`;
       setTitle(b, label);
-      if (b.getAttribute('aria-label') !== label) b.setAttribute('aria-label', label);
+      if (b.getAttribute('aria-label') !== named) b.setAttribute('aria-label', named);
     }
   }
 

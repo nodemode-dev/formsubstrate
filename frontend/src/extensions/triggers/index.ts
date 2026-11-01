@@ -226,8 +226,11 @@ class TriggersPanel {
     const last = tr.last_fired ? `${t('last')} ${clock(tr.last_fired)}` : t('never fired');
     const next = tr.next_fire ? ` · ${t('next')} ${clock(tr.next_fire)}` : '';
     const missed = tr.missed ? ` · ${t('missed while the app was closed')}` : '';
-    const changed = tr.needs_confirm ? ` · ${t('its recipe changed; confirm to run again')}` : '';
-    setText(q(node, '.cv-tg-meta'), `${tr.fires}× · ${last}${next}${missed}${changed}`);
+    const changed = tr.needs_confirm ? `${t('its recipe changed; confirm to run again')} · ` : '';
+    const meta = `${changed}${tr.fires}× · ${last}${next}${missed}`;
+    setText(q(node, '.cv-tg-meta'), meta);
+    setTitle(q(node, '.cv-tg-meta'), meta);
+    setClass(node, 'is-changed', !!tr.needs_confirm);
     const webhook = q<HTMLButtonElement>(node, '[data-act="webhook"]');
     setHidden(webhook, tr.kind !== 'webhook');
     setHidden(q<HTMLButtonElement>(node, '[data-act="confirm"]'), !tr.needs_confirm);
@@ -245,6 +248,9 @@ class TriggersPanel {
     this.value.placeholder = kind === 'interval' ? `${t('seconds, at least')} ${this.minInterval}` : t(VALUE_HINT[kind]);
     this.inputs.placeholder = t('Recipe inputs as JSON (optional)');
     setTitle(this.refreshBtn, t('Refresh'));
+    this.kind.setAttribute('aria-label', t('Trigger kind'));
+    this.recipe.setAttribute('aria-label', t('Recipe'));
+    this.mode.setAttribute('aria-label', t('Run with'));
     setDisabled(this.add, !ws || this.busy || !this.recipe.value);
     patchList(this.list, this.rows, { key: (r) => r.id, create: (r) => { const n = this.makeRow(); this.update(n, r); return n; }, update: (n, r) => this.update(n, r) });
     const msg = !ws ? t('Open a folder to use triggers.') : this.loaded && !this.rows.length ? t('No triggers. They run only while subform is open.') : '';

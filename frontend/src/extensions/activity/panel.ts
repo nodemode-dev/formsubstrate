@@ -47,7 +47,7 @@ export class ActivityPanel {
     this.count = q(host, '.cv-lib-count');
     this.clearBtn = q(host, '.cv-act-clear');
     for (const phase of PHASES) {
-      const chip = el<HTMLButtonElement>(`<button class="cv-act-chip is-on" type="button" data-p="${phase}"></button>`);
+      const chip = el<HTMLButtonElement>(`<button class="cv-act-chip is-on" type="button" aria-pressed="true" data-p="${phase}"></button>`);
       this.chips.set(phase, chip);
       this.filters.append(chip);
     }
@@ -81,7 +81,10 @@ export class ActivityPanel {
     if (hide) this.off.add(phase);
     else this.off.delete(phase);
     const chip = this.chips.get(phase);
-    if (chip) setClass(chip, 'is-on', !hide);
+    if (chip) {
+      setClass(chip, 'is-on', !hide);
+      chip.setAttribute('aria-pressed', String(!hide));
+    }
     for (const row of Array.from(this.feed.querySelectorAll<HTMLElement>(`.cv-act-row[data-p="${phase}"]`))) setHidden(row, hide);
   }
 

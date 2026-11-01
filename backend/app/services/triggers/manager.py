@@ -96,7 +96,6 @@ def _graph_hash(name: str) -> str:
 
 
 def _current_hash(action: dict) -> tuple[str, str]:
-    """The stored hash and the hash of what is on disk now, for the action's target."""
     if action["kind"] == "run_recipe":
         try:
             now = store.content_hash(store.get_recipe(action["name"]))
@@ -160,7 +159,6 @@ class Triggers:
             raise TriggerError(409, "no workspace open")
 
     def set_trust(self, workspace: str, trusted: bool) -> dict:
-        """The window says whether the owner trusts this workspace. Held in memory only, so a restart fails closed."""
         root = ws.current()
         if root is None or not workspace or os.path.realpath(workspace) != os.path.realpath(root):
             return {"trusted": self.trusted()}

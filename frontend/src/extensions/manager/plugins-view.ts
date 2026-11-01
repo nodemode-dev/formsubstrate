@@ -26,6 +26,7 @@ export class PluginsView {
   private readonly refs = new WeakMap<HTMLElement, Refs>();
   private plugins: PluginInfo[] = [];
   private busy = false;
+  private loaded = false;
 
   constructor(host: HTMLElement) {
     host.append(el(
@@ -53,6 +54,7 @@ export class PluginsView {
     } catch {
       this.plugins = [];
     }
+    this.loaded = true;
     this.render();
   }
 
@@ -78,7 +80,7 @@ export class PluginsView {
       update: (node, p) => this.update(node, p),
     });
     setText(this.count, tn(this.plugins.length, '{n} plugin', '{n} plugins'));
-    setHidden(this.empty, this.plugins.length > 0);
+    setHidden(this.empty, this.plugins.length > 0 || !this.loaded);
     setText(this.empty, t('No plugins. Put .py files in .subform/plugins/ in the workspace.'));
   }
 
@@ -116,7 +118,7 @@ export class PluginsView {
     setClass(node, 'is-error', !!info.error);
     setClass(node, 'is-off', !info.enabled);
     setHidden(refs.gear, info.settings_schema.length === 0 || !info.loaded);
-    setToggle(refs.tg, info.enabled, !!info.held, info.held ? t(info.held) : t(info.enabled ? 'Disable' : 'Enable'));
+    setToggle(refs.tg, info.enabled, !!info.held, info.held ? t(info.held) : `${t(info.enabled ? 'Disable' : 'Enable')} ${info.name}`);
     refs.gear.setAttribute('aria-label', t('Settings'));
     setTitle(refs.gear, t('Settings'));
     setText(q(node, '.cv-lib-save'), t('Save and reload'));

@@ -80,7 +80,6 @@ def forget_nonces(tid: str) -> None:
 
 
 def verify(tid: str, raw: bytes, given: str, ts: str, nonce: str, now: float | None = None) -> str:
-    """Returns an empty string when the request is genuine and fresh, else the reason it is refused."""
     secret = reveal(tid)
     if not secret:
         return "bad signature"

@@ -68,3 +68,19 @@ A 500-event ring with a sequence number. `GET /api/activity?since=N` answers eve
 - logged: v0.14.0 · 2026-10-31
 
 Review items 9, 11, 17. (9) A stdio MCP server now gets only PATH, HOME, LANG, LC_*, TMPDIR, USER, SHELL, TERM (plus the Windows profile and temp names) and the variable names its own config lists (`env` in the add body, kept as `env_names`, never any `SUBFORM_*`); the engine's other secrets are no longer inherited. `GET /api/mcp-servers` shows a url as scheme, host and port with `/...` when a path or query exists, and a command as its program name plus an argument count, because both can carry tokens; the full values stay in the data-folder file. (11) `workspace_dir` resolves `.subform/...` through `workspace_root.resolve(write=True, follow=False)` and refuses a symbolic link at any component; collection files and plugin files that are links are refused or skipped. (17) `set_enabled` reuses the last trust flag only when it was recorded for the current workspace root. The session `mcp.json` merge is in services/sessions.py `_mcp_config`: user servers flagged for sessions are added as `user-<name>`; those with secret headers are skipped with a note.
+
+### backend/app/routers/skills.py · built-in skills
+
+- refers-to: backend/app/routers/skills.py :: list_all, builtin_folders
+- kind: rationale
+- logged: v0.15.0 · 2026-11-01
+
+`GET /api/skills` now adds the skills under `backend/skills` (and `skills` in a frozen bundle) with source `built-in`, using the same scanner and front matter reader as project and user skills (services/sessions.py `_scan_skills`, which is not changed). The first one found is `subform-graphs`. A built-in skill with the same name and source is listed once. The window type `Skill.source` in io/sessions.ts still says project or user; the list renders the value as text, so it works, and the type should be widened by the owner of that file.
+
+### frontend/src/extensions/{manager,tools,activity} · layout shift and names
+
+- refers-to: frontend/src/styles/library.css :: .cv-lib-bar .cv-lib-search + .cv-lib-count, .cv-lib-result; frontend/src/extensions/manager/plugins-view.ts :: loaded; frontend/src/extensions/tools/panel.ts :: loaded
+- kind: rationale
+- logged: v0.15.0 · 2026-11-01
+
+The 0.012 shift port-library saw came from three things. The count beside the search box had `flex: none` and no width, so "0 tools" becoming "12 tools" resized the search input; it now has a fixed minimum width, right aligned. The "No tools match" and "No plugins" notes showed before the first answer arrived and then hid; they now wait for the first load. The tool call result box was hidden and appeared after the call, pushing the rows under it; it is now always present in an open tool at a fixed height with its own scroll. Toggles are named "Disable <name>" or "Enable <name>", the recipe row buttons carry the recipe name, the trigger selects have aria-label, and the activity filter chips keep aria-pressed in step with the filter.

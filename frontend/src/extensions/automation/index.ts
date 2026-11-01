@@ -30,7 +30,7 @@ const fires = (triggers: Trigger[]): Fire[] => {
       out.push({ key: `${trigger.id}:${h.at}`, at: h.at, source: h.source, trigger, runId: h.run_id ?? '', error: h.error ?? '', skipped: h.skipped ?? '' });
     }
   }
-  return out.sort((a, b) => b.at - a.at).slice(0, SHOWN);
+  return out.sort((a, b) => b.at - a.at).slice(0, SHOWN).reverse();
 };
 
 class AutomationPanel {
@@ -114,7 +114,10 @@ class AutomationPanel {
   private paint(): void {
     setText(q(this.host, '.cv-au-title'), t('Automation'));
     setTitle(q(this.host, '.cv-au-refresh'), t('Refresh'));
-    patchList(this.list, this.rows, { key: (r) => r.key, create: (r) => { const n = this.makeRow(); this.update(n, r); return n; }, update: (n, r) => this.update(n, r) });
+    const list = this.list;
+    const pinned = !this.loaded || list.scrollHeight - list.scrollTop - list.clientHeight < 8;
+    patchList(list, this.rows, { key: (r) => r.key, create: (r) => { const n = this.makeRow(); this.update(n, r); return n; }, update: (n, r) => this.update(n, r) });
+    if (pinned) list.scrollTop = list.scrollHeight;
     const ws = !!this.ctx.store.workspace;
     setText(this.note, ws ? `${tn(this.active, '{n} trigger on', '{n} triggers on')} · ${t('they run only while subform is open')}` : '');
     const msg = !ws ? t('Open a folder to see automation.') : this.loaded && !this.rows.length ? t('Nothing has fired yet.') : this.problem;

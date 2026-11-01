@@ -53,6 +53,7 @@ export class ToolsPanel {
   private readonly refs = new WeakMap<HTMLElement, Refs>();
   private defs: ToolDef[] = [];
   private open = '';
+  private loaded = false;
 
   constructor(host: HTMLElement) {
     host.append(el(
@@ -79,6 +80,7 @@ export class ToolsPanel {
     } catch {
       this.defs = [];
     }
+    this.loaded = true;
     const split = toBlocks(this.defs);
     replaceGroup('tool', split.tools);
     replaceGroup('mcp', split.mcp);
@@ -94,7 +96,7 @@ export class ToolsPanel {
       update: (node, d) => this.update(node, d),
     });
     setText(this.count, tn(shown.length, '{n} tool', '{n} tools'));
-    setHidden(this.empty, shown.length > 0);
+    setHidden(this.empty, shown.length > 0 || !this.loaded);
     setText(this.empty, t('No tools match'));
   }
 
@@ -103,7 +105,7 @@ export class ToolsPanel {
       '<div class="cv-lib-block" role="listitem"><button class="cv-lib-row cv-lib-tool" type="button">' +
       '<div class="cv-lib-main"><div class="cv-lib-top"><span class="cv-lib-name"></span><span class="cv-lib-chip"></span></div><div class="cv-lib-desc"></div></div></button>' +
       '<div class="cv-lib-form cv-tool-body" hidden><div class="cv-lib-fields"></div>' +
-      '<div class="cv-lib-formbar"><button class="cv-lib-btn cv-tool-call" type="button"></button></div><pre class="cv-lib-result" hidden></pre></div></div>');
+      '<div class="cv-lib-formbar"><button class="cv-lib-btn cv-tool-call" type="button"></button></div><pre class="cv-lib-result"></pre></div></div>');
     const refs: Refs = { name: q(node, '.cv-lib-name'), source: q(node, '.cv-lib-chip'), desc: q(node, '.cv-lib-desc'), head: q(node, '.cv-lib-tool'), body: q(node, '.cv-tool-body'), fields: q(node, '.cv-lib-fields'), result: q(node, '.cv-lib-result'), def, built: false };
     this.refs.set(node, refs);
     refs.head.addEventListener('click', () => this.expand(node, refs));
@@ -159,14 +161,12 @@ export class ToolsPanel {
     for (const input of Array.from(refs.fields.querySelectorAll<HTMLInputElement>('input[data-k]'))) {
       if (input.value !== '') args[input.dataset.k ?? ''] = coerce(props[input.dataset.k ?? ''], input.value);
     }
-    setHidden(refs.result, false);
     setText(refs.result, '...');
     try {
       const out = await library.call(refs.def.function.name, args);
       setText(refs.result, JSON.stringify(out.result, null, 2).slice(0, 4000));
     } catch (err) {
       setText(refs.result, '');
-      setHidden(refs.result, true);
       fail(err, 'Tool call failed');
     }
   }

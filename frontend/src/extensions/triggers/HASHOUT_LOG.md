@@ -28,3 +28,11 @@ Substrata's `run_graph` form field (a saved graph name typed into the small trig
 - logged: v0.14.0 · 2026-10-31
 
 Security review. The extension tells the engine whether the open workspace is trusted at start, on every workspace change and on `TRUST_EVENT` (`POST /api/triggers/trust` with the window token), because workspace trust lives in the window's preferences and the engine has no copy. A row whose recipe changed after the trigger was made shows a check button and a line saying so; the button asks, then calls the confirm route. The webhook dialog now describes the timestamp, nonce and signature headers, and the secret field says 24 or more characters or blank. The check button toggles with `setHidden`, so the row does not change size.
+
+### frontend/src/extensions/triggers/index.ts · row height
+
+- refers-to: frontend/src/styles/recipes.css :: .cv-tg-meta, .cv-tg-acts
+- kind: rationale
+- logged: v0.15.0 · 2026-11-01
+
+Measured at 4x throttle: the meta line wrapped to two lines when it gained the "recipe changed" note, and the hidden confirm and webhook buttons changed the width of the action group. The meta line is now one line with an ellipsis (full text in the title) and the changed note comes first; hidden action buttons keep their space with `visibility: hidden`.

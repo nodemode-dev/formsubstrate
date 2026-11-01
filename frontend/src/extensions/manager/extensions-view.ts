@@ -102,6 +102,6 @@ export class ExtensionsView {
     setText(refs.state, t(state));
     refs.state.dataset.state = state.toLowerCase();
     setClass(node, 'is-off', !item.enabled);
-    setToggle(refs.tg, item.enabled, item.required, item.required ? t('Core extensions stay on') : t(item.enabled ? 'Disable' : 'Enable'));
+    setToggle(refs.tg, item.enabled, item.required, item.required ? t('Core extensions stay on') : `${t(item.enabled ? 'Disable' : 'Enable')} ${t(item.name)}`);
   }
 }

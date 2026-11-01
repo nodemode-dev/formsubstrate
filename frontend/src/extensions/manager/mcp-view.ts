@@ -172,7 +172,7 @@ export class McpView {
     setHidden(refs.tg.root, !user);
     setHidden(refs.refresh, !user);
     setHidden(refs.remove, !user);
-    setToggle(refs.tg, row.enabled, false, t(row.enabled ? 'Disable' : 'Enable'));
+    setToggle(refs.tg, row.enabled, false, `${t(row.enabled ? 'Disable' : 'Enable')} ${row.name}`);
     for (const [btn, label] of [[refs.refresh, 'Reconnect'], [refs.remove, 'Remove']] as const) {
       setTitle(btn, t(label));
       btn.setAttribute('aria-label', t(label));

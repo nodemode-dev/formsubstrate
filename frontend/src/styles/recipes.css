@@ -41,12 +41,13 @@
 .cv-tg-tgl.is-on { background: var(--accent-soft); }
 .cv-tg-tgl.is-on i { background: var(--accent-ink); transform: translateX(var(--space-3)); }
 .cv-tg-main { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; gap: var(--space-0); }
-.cv-tg-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-0) var(--space-1h); min-width: 0; }
-.cv-tg-acts [hidden] { display: none; }
+.cv-tg-top { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--space-0) var(--space-1h); min-width: 0; }
+.cv-tg-acts [hidden] { display: inline-flex; visibility: hidden; }
 .cv-tg-chip { flex: none; padding: 0 var(--space-1h); border: 1px solid var(--line-2); border-radius: var(--radius-pill); color: var(--text-secondary); font-size: var(--fs-10); line-height: var(--size-chip-h); }
 .cv-tg-spec { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-family: var(--font-code); font-size: var(--fs-11); }
 .cv-tg-target { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cv-tg-meta { color: var(--text-muted); font-size: var(--fs-11); }
+.cv-tg-meta { overflow: hidden; min-height: var(--size-row-sm); color: var(--text-muted); font-size: var(--fs-11); line-height: var(--size-row-sm); text-overflow: ellipsis; white-space: nowrap; }
+.cv-tg-row.is-changed .cv-tg-meta { color: var(--warn); }
 .cv-tg-how { margin: var(--space-2) 0 0; line-height: 1.45; }
 
 .cv-ap-card { display: flex; flex-direction: column; gap: var(--space-1h); margin: var(--space-2) var(--space-3); padding: var(--space-2h) var(--space-3); border: 1px solid var(--accent-line); border-radius: var(--radius-md); background: var(--bg-secondary); font-size: var(--fs-12); }
@@ -72,6 +73,8 @@
 .cv-au-run { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-family: var(--font-code); font-size: var(--fs-11); }
 .cv-au-row.is-bad .cv-au-run { color: var(--danger-text); }
 .cv-au-state { flex: none; font-size: var(--fs-11); }
+.cv-au-run, .cv-au-state { min-height: var(--size-row-sm); line-height: var(--size-row-sm); }
+.cv-au-top { min-height: var(--size-chip-h); }
 .cv-au-row[data-state="done"] .cv-au-state { color: var(--ok-soft); }
 .cv-au-row[data-state="failed"] .cv-au-state, .cv-au-row[data-state="cancelled"] .cv-au-state { color: var(--danger-soft); }
 .cv-au-row[data-state="parked"] .cv-au-state, .cv-au-row[data-state="running"] .cv-au-state { color: var(--warn); }
