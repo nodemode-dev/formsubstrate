@@ -5,15 +5,24 @@ const MAX_INDENT = 80;
 const WIDTH_SHARE = 0.4;
 const decos = new Map<number, Decoration>();
 
-function indentOf(text: string, tab: number): number {
+function indentOf(text: string, tab: number): { width: number; tabbed: boolean } {
   let n = 0;
+  let tabbed = false;
   for (const c of text) {
     if (c === ' ') n++;
-    else if (c === '\t') n += tab - (n % tab);
+    else if (c === '\t') { n += tab - (n % tab); tabbed = true; }
     else break;
-    if (n >= MAX_INDENT) return MAX_INDENT;
+    if (n >= MAX_INDENT) return { width: MAX_INDENT, tabbed };
   }
-  return n;
+  return { width: n, tabbed };
+}
+
+function hang(text: string, tab: number, cap: number): number {
+  const { width, tabbed } = indentOf(text, tab);
+  const n = Math.min(width, cap);
+  if (!tabbed) return n;
+  if (width < MAX_INDENT && width % tab !== 0) return 0;
+  return n - (n % tab);
 }
 
 function decoFor(n: number): Decoration {
@@ -34,7 +43,7 @@ function build(view: EditorView): DecorationSet {
     let pos = from;
     while (pos <= to) {
       const line = view.state.doc.lineAt(pos);
-      const n = Math.min(indentOf(line.text, tab), cap);
+      const n = hang(line.text, tab, cap);
       if (n > 0 && n < line.length + tab) out.add(line.from, line.from, decoFor(n));
       pos = line.to + 1;
     }

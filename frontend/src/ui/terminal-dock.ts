@@ -17,6 +17,7 @@ export const DOCK_DEFAULT = 260;
 const KEY_STEP = 16;
 const FONT_WAIT_MS = 1200;
 const EXIT_NOTE_WAIT_MS = 1500;
+const PENDING_CAP = 2 * 1024 * 1024;
 const DEFAULT_COLS = 80;
 const DEFAULT_ROWS = 24;
 const PASS_THROUGH = new Set(['terminal-toggle', 'command-palette', 'agent-new', 'focus-files']);
@@ -34,6 +35,9 @@ interface Tab {
   title: string;
   exited: boolean;
   noted: boolean;
+  code: number;
+  pending: Uint8Array[];
+  pendingSize: number;
   host: HTMLElement | null;
   view: View | null;
 }
@@ -197,9 +201,42 @@ export class TerminalDock {
   }
 
   private addTab(info: TerminalInfo): void {
-    this.tabs.set(info.id, { info, title: info.title, exited: !info.alive, noted: false, host: null, view: null });
+    const tab: Tab = { info, title: info.title, exited: !info.alive, noted: false, code: info.exitCode ?? 0, pending: [], pendingSize: 0, host: null, view: null };
+    this.tabs.set(info.id, tab);
     this.order.push(info.id);
+    this.wire(tab);
   }
+
+  private wire(tab: Tab): void {
+    terminalSocket.attach(tab.info.id, {
+      data: (bytes, written) => this.onData(tab, bytes, written),
+      exit: (code) => this.noteExit(tab, code),
+      title: (title) => { if (title && title !== tab.title) { tab.title = title; this.patchTabs(); } },
+      error: (message) => { if (message) toast(`${tab.title}: ${message}`, 'error'); },
+    }, null);
+    if (!tab.info.alive) window.setTimeout(() => this.noteExit(tab, tab.info.exitCode ?? 0), EXIT_NOTE_WAIT_MS);
+  }
+
+  private onData(tab: Tab, bytes: Uint8Array, written: () => void): void {
+    if (tab.view) { tab.view.term.write(bytes, written); return; }
+    tab.pending.push(bytes.slice());
+    tab.pendingSize += bytes.length;
+    written();
+    while (tab.pendingSize > PENDING_CAP && tab.pending.length > 1) tab.pendingSize -= (tab.pending.shift() as Uint8Array).length;
+  }
+
+  private flush(tab: Tab, term: Terminal): void {
+    if (tab.pending.length > 0) {
+      const all = new Uint8Array(tab.pendingSize);
+      let at = 0;
+      for (const part of tab.pending) { all.set(part, at); at += part.length; }
+      tab.pending = [];
+      tab.pendingSize = 0;
+      term.write(all);
+    }
+    if (tab.exited) this.writeExit(tab);
+  }
+
 
   private tabId(target: EventTarget | null): string | null {
     const node = target instanceof Element ? target.closest<HTMLElement>('.ft-dock-tab') : null;
@@ -362,21 +399,19 @@ export class TerminalDock {
     term.onData((d) => terminalSocket.input(id, d));
     term.onResize(({ cols, rows }) => terminalSocket.resize(id, cols, rows));
     term.attachCustomKeyEventHandler((e) => this.onKey(e, term));
-    terminalSocket.attach(id, {
-      data: (bytes, written) => { term.write(bytes, written); },
-      exit: (code) => this.noteExit(tab, code),
-      title: (title) => { if (title && title !== tab.title) { tab.title = title; this.patchTabs(); } },
-      error: (message) => { if (message) toast(`${tab.title}: ${message}`, 'error'); },
-    }, null);
-    if (!tab.info.alive) window.setTimeout(() => this.noteExit(tab, tab.info.exitCode ?? 0), EXIT_NOTE_WAIT_MS);
+    this.flush(tab, term);
+  }
+
+  private writeExit(tab: Tab): void {
+    if (tab.noted || !tab.view) return;
+    tab.noted = true;
+    tab.view.term.write(`\r\n[${t('process exited with code')} ${tab.code}]\r\n`);
   }
 
   private noteExit(tab: Tab, code: number): void {
+    if (!tab.exited || !tab.noted) tab.code = code;
     tab.exited = true;
-    if (!tab.noted) {
-      tab.noted = true;
-      tab.view?.term.write(`\r\n[${t('process exited with code')} ${code}]\r\n`);
-    }
+    this.writeExit(tab);
     this.patchTabs();
   }
 
@@ -454,6 +489,8 @@ export class TerminalDock {
     await deleteTerminal(id).catch(() => undefined);
     if (!this.tabs.has(id)) return;
     if (tab.view) { this.dropGl(tab.view); tab.view.term.dispose(); }
+    tab.pending = [];
+    tab.pendingSize = 0;
     tab.host?.remove();
     this.tabsEl.querySelector(`[data-key="${id}"]`)?.remove();
     this.tabs.delete(id);

@@ -1,6 +1,6 @@
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, dropCursor, type ViewUpdate } from '@codemirror/view';
 import { EditorState, Compartment, type StateEffect, type Extension, type Text } from '@codemirror/state';
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, indentWithTab, redo, selectAll, undo } from '@codemirror/commands';
 import { bracketMatching, indentOnInput, indentUnit, syntaxHighlighting } from '@codemirror/language';
 import { searchKeymap, highlightSelectionMatches, openSearchPanel, selectNextOccurrence, selectSelectionMatches } from '@codemirror/search';
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
@@ -377,6 +377,23 @@ export class EditorHost {
 
   focus(): void {
     if (this.current) this.view.focus();
+  }
+
+  get hasDoc(): boolean { return this.current !== null; }
+
+  edit(action: string): void {
+    if (!this.current) return;
+    const view = this.view;
+    view.focus();
+    if (action === 'undo') undo(view);
+    else if (action === 'redo') redo(view);
+    else if (action === 'select-all') selectAll(view);
+    else if (action === 'copy' || action === 'cut') document.execCommand(action);
+    else if (action === 'paste') {
+      navigator.clipboard.readText().then((text) => {
+        if (this.current && text) view.dispatch({ ...view.state.replaceSelection(text), userEvent: 'input.paste', scrollIntoView: true });
+      }, () => { this.deps.onStatus(t('Paste was blocked; use the keyboard shortcut')); });
+    }
   }
 
   find(): void {

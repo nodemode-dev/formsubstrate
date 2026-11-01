@@ -1,5 +1,6 @@
 import type { Commands } from './commands';
 import type { MenuDef, MenuItem as MenuSpec } from './menu';
+import { editorFocused } from './editor/bridge';
 import { t } from './i18n';
 
 export const wantsNativeMenus = (): boolean => '__TAURI_INTERNALS__' in window && /Mac/.test(navigator.platform) && !menusInWindow();
@@ -58,7 +59,7 @@ export class NativeMenus {
         if (!cmd) return null;
         const text = t(this.commands.label(cmd)), acc = accelerator(cmd.keys?.[0]);
         const opts = { text, enabled: this.enabled(spec), action: () => {
-          if (TEXT_EDITS.has(spec) && textFieldFocused()) void import('@tauri-apps/api/core').then((m) => m.invoke('text_edit', { action: spec })).catch(() => { document.execCommand(spec === 'select-all' ? 'selectAll' : spec); });
+          if (TEXT_EDITS.has(spec) && textFieldFocused() && !editorFocused()) void import('@tauri-apps/api/core').then((m) => m.invoke('text_edit', { action: spec })).catch(() => { document.execCommand(spec === 'select-all' ? 'selectAll' : spec); });
           else this.commands.run(spec);
           this.refresh();
         } };
