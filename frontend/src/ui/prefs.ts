@@ -37,6 +37,7 @@ export interface Prefs {
   reopenLastWorkspace: boolean;
   hiddenFolders: string[];
   sidebarWidth: number;
+  prefsRevision: number;
 }
 
 export const MENU_COLORS: readonly string[] = ['red', 'orange', 'yellow', 'green', 'blue', 'violet', 'gray'];
@@ -49,9 +50,9 @@ export const DEFAULT_PREFS: Prefs = {
   autoShowHome: true, homeOnLastClose: false, whatsNewAuto: true, whatsNewSeen: '',
   favouriteThemes: [], themeAuto: false, themeLight: 'light', themeDark: 'studio',
   shortcuts: {}, shortcutSets: {}, menuHidden: [], menuColors: {}, dialogValues: {},
-  editorFontSize: 13, editorTabSize: 2, editorWordWrap: false, terminalFontSize: 13,
+  editorFontSize: 13, editorTabSize: 2, editorWordWrap: true, terminalFontSize: 13,
   agentDefaultModel: '', formslotEnabled: true, formslotAutoStart: true, gitSignOnCommit: true, recoveryMinutes: 1,
-  largeTabs: false, reopenLastWorkspace: true, hiddenFolders: [], sidebarWidth: 280,
+  largeTabs: false, reopenLastWorkspace: true, hiddenFolders: [], sidebarWidth: 280, prefsRevision: 2,
 };
 
 const KEY = 'subform.prefs';
@@ -139,7 +140,7 @@ export function loadPrefs(): Prefs {
       dialogValues: cleanDialogValues(r.dialogValues),
       editorFontSize: Math.round(num(r.editorFontSize, 8, 32, d.editorFontSize)),
       editorTabSize: Math.round(num(r.editorTabSize, 1, 8, d.editorTabSize)),
-      editorWordWrap: flag(r.editorWordWrap, d.editorWordWrap),
+      editorWordWrap: num(r.prefsRevision, 0, 99, 0) >= 2 ? flag(r.editorWordWrap, d.editorWordWrap) : d.editorWordWrap,
       terminalFontSize: Math.round(num(r.terminalFontSize, 8, 32, d.terminalFontSize)),
       agentDefaultModel: typeof r.agentDefaultModel === 'string' ? r.agentDefaultModel.slice(0, 120) : d.agentDefaultModel,
       formslotEnabled: flag(r.formslotEnabled, d.formslotEnabled),
@@ -150,6 +151,7 @@ export function loadPrefs(): Prefs {
       reopenLastWorkspace: flag(r.reopenLastWorkspace, d.reopenLastWorkspace),
       hiddenFolders: strings(r.hiddenFolders, 200, 200),
       sidebarWidth: Math.round(num(r.sidebarWidth, 180, 600, d.sidebarWidth)),
+      prefsRevision: d.prefsRevision,
     };
   } catch {
     return { ...d, language: 'en' };

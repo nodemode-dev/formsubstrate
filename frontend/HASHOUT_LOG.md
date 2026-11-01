@@ -1324,6 +1324,14 @@ Ported from formvis app-dialogs.ts SettingsDialog per FORMVIS_SETTINGS_MAP.md: r
 
 Reset removes only localStorage keys starting with subform. plus nodemode_ui_settings, then reloads. The API key field is a password input sent to PUT /api/secrets/anthropic-api-key and cleared; only presence is ever read back; it never reaches prefs or localStorage. With no system keyring the engine answers 503 and the row says so. Custom title bar and menus-in-window rows run the existing commands, which own their keys. Git author name and email are empty read-only fields until the git phase exposes an identity route.
 
+### src/ui/prefs.ts · prefsRevision and the word wrap default
+
+- refers-to: frontend/src/ui/prefs.ts :: loadPrefs
+- kind: rationale
+- logged: v0.5.0 · 2026-10-30
+
+editorWordWrap now defaults to true. Every save writes the whole Prefs object, so a store written before v0.5.0 holds editorWordWrap false whether or not the person ever chose it. prefsRevision (now 2) marks stores written by this version: a store below revision 2 takes the new default once, and from then on the stored value is the person's choice. Bump prefsRevision and add a branch the same way when another default must change for existing stores.
+
 ### src/ui/prefs.ts · fields added in v0.4.0
 
 - refers-to: frontend/src/ui/prefs.ts :: Prefs

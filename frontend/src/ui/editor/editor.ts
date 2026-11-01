@@ -9,6 +9,7 @@ import { t } from '../i18n';
 import { confirmAction } from '../dialogs';
 import { baseName, languageFor } from './languages';
 import { editorHighlight, editorTheme } from './theme';
+import { wordWrap } from './wrap';
 
 export interface EditorDeps {
   load(path: string): Promise<{ text: string; mtime: number }>;
@@ -72,7 +73,7 @@ export class EditorHost {
   private current: Doc | null = null;
   private showSeq = 0;
   private optsRev = 0;
-  private options: EditorOptions = { fontSize: 13, tabSize: 4, wordWrap: false };
+  private options: EditorOptions = { fontSize: 13, tabSize: 4, wordWrap: true };
   private lastPos = '';
 
   constructor(host: HTMLElement, private readonly deps: EditorDeps) {
@@ -95,7 +96,7 @@ export class EditorHost {
   }
 
   private wrapExt(): Extension {
-    return this.options.wordWrap ? EditorView.lineWrapping : [];
+    return this.options.wordWrap ? wordWrap : [];
   }
 
   private buildState(d: Doc, text: string, lang: Extension): EditorState {

@@ -39,6 +39,7 @@ export const editorTheme = EditorView.theme({
   '.cm-scroller': { fontFamily: 'var(--font-code)', lineHeight: '1.55', overscrollBehavior: 'contain' },
   '.cm-content': { caretColor: 'var(--accent-color)', padding: 'var(--space-2) 0' },
   '.cm-line': { padding: '0 var(--space-3) 0 var(--space-2)' },
+  '.cm-line.cv-wrap-line': { textIndent: 'calc(-1 * var(--cv-wrap-indent))', paddingLeft: 'calc(var(--space-2) + var(--cv-wrap-indent))' },
   '.cm-gutters': { backgroundColor: 'var(--bg-primary)', color: 'var(--text-muted)', border: 'none' },
   '.cm-gutterElement': { padding: '0 var(--space-4) 0 var(--space-3)' },
   '.cm-activeLine': { backgroundColor: 'var(--bg-hover)' },

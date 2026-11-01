@@ -2,8 +2,8 @@
 
 Living log for the code editor (editor.ts, languages.ts, theme.ts) and styles/editor.css. Source files stay comment-free; what they would have said lives here. The shell-wide log is frontend/HASHOUT_LOG.md.
 
-Current build version: v0.4.0
-Last updated: 2026-10-30 · Phase F4
+Current build version: v0.5.0
+Last updated: 2026-10-30 · word wrap (turn 4)
 
 ### frontend/src/ui/editor/theme.ts · gutters
 
@@ -116,3 +116,19 @@ loomHighlight from substrata editor.ts, renamed. Every colour is a `var(--syn-*)
 - logged: v0.4.0 · 2026-10-30
 
 `.cv-editor` fills the host with `contain: layout paint` so CodeMirror's measurement can never move siblings. The mount and the empty message are both absolutely positioned and swap by the `hidden` attribute. Scrollbars: scrollbars.css already hides every scrollbar with `scrollbar-width: none !important` and the webkit pseudo-elements; CodeMirror's `.cm-scroller` sets `overflow: auto` only and adds no bar of its own. Checked in Chromium: scroller offsetWidth minus clientWidth is 0, computed scrollbar-width none.
+
+### frontend/src/ui/editor/wrap.ts · wordWrap
+
+- refers-to: frontend/src/ui/editor/wrap.ts :: wordWrap
+- kind: rationale
+- logged: v0.5.0 · 2026-10-30
+
+Word wrap as VS Code has it (the owner's request): on by default, lines wrap at the editor's width, and a wrapped line continues at its own indentation (VS Code's default `wrappingIndent: same`), not at column 0. CodeMirror's lineWrapping alone wraps to column 0, so a view plugin adds a line decoration to each visible indented line carrying `--cv-wrap-indent: <n>ch` (tabs expanded at the tab size, capped at 80 columns); theme.ts turns it into a negative text-indent and an equal extra left padding, so the first row is unchanged and later rows hang under the first non-space character. Decorations are shared per width and rebuilt only on a document, viewport or tab-size change. A line whose indentation is longer than the line itself (whitespace only) is left alone. Measured in Chromium on an indented 300-character line: continuation rows align under the first character of `const`; layout shift 0.
+
+### frontend/src/ui/editor/editor.ts · default wrap
+
+- refers-to: frontend/src/ui/editor/editor.ts :: EditorHost.options
+- kind: explainer
+- logged: v0.5.0 · 2026-10-30
+
+The host starts with wordWrap true so the first file opened before prefs are applied already wraps; app.ts then applies the pref. The command toggle-word-wrap (Alt+Z, View > Word Wrap, the same key VS Code uses) flips the pref, applies it to every open file through setOptions (the wrap compartment is reconfigured per document as it is shown), and says so in the status hint; Preferences > Editor > Word wrap is the same pref.

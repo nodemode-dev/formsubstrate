@@ -18,7 +18,7 @@ import { MenuBar, setMenuStyle, type MenuDef } from './ui/menu';
 import { menusInWindow, MENUS_IN_WINDOW_KEY, NativeMenus, textFieldFocused, wantsNativeMenus } from './ui/native-menu';
 import { installNumberFields } from './ui/number-fields';
 import { openFolderAt, openFolderPrompt } from './ui/open-folder';
-import { applyUiFontSize, autoUiScale, followSystemTheme, loadPrefs, setUiScale, uiScaleChoice, type Prefs } from './ui/prefs';
+import { applyUiFontSize, autoUiScale, followSystemTheme, loadPrefs, setUiScale, uiScaleChoice, updatePrefs, type Prefs } from './ui/prefs';
 import { SettingsDialog } from './ui/settings';
 import { StatusBar } from './ui/status';
 import { Tabs } from './ui/tabs';
@@ -215,6 +215,11 @@ export async function startApp(): Promise<void> {
     { id: 'find', label: 'Find...', keys: ['Mod+F'], enabled: () => !!store.active, run: () => editor?.find() },
     { id: 'select-next', label: 'Add Next Occurrence', keys: ['Mod+D'], enabled: () => !!store.active, run: () => editor?.selectNext() },
     { id: 'select-all-occurrences', label: 'Select All Occurrences', keys: ['Shift+Mod+L'], enabled: () => !!store.active, run: () => editor?.selectAllOccurrences() },
+    { id: 'toggle-word-wrap', label: 'Word Wrap', keys: ['Alt+Z'], checked: () => loadPrefs().editorWordWrap, run: () => {
+      const p = updatePrefs({ editorWordWrap: !loadPrefs().editorWordWrap });
+      editor?.setOptions({ wordWrap: p.editorWordWrap });
+      status.setHint(t(p.editorWordWrap ? 'Word wrap on' : 'Word wrap off'));
+    } },
     { id: 'command-palette', label: 'Command Palette...', keys: ['Shift+Mod+P', 'Mod+K'], run: () => palette.show() },
     { id: 'toggle-theme', label: 'Toggle Light or Dark', run: toggleTheme },
     { id: 'menus-in-window', label: 'Menus in Window', enabled: () => isTauri() && /Mac/.test(navigator.platform), checked: menusInWindow, run: () => {
@@ -251,7 +256,7 @@ export async function startApp(): Promise<void> {
     { label: 'File', items: ['open-folder', 'open-recent', 'clone-repo', 'new-form-app', '-', 'save', 'save-all', '-', 'close-tab', '-', 'settings', '-', 'quit'] },
     { label: 'Edit', items: ['undo', 'redo', '-', 'cut', 'copy', 'paste', '-', 'select-all', '-', 'find', 'search-in-files'] },
     { label: 'Selection', items: ['select-all', '-', 'select-next', 'select-all-occurrences'] },
-    { label: 'View', items: ['home-toggle', 'command-palette', '-', 'toggle-sidebar', 'focus-files', 'focus-search', '-', 'toggle-theme', 'menus-in-window', 'custom-title-bar', '-', 'zoom-in', 'zoom-out', 'zoom-reset'] },
+    { label: 'View', items: ['home-toggle', 'command-palette', '-', 'toggle-sidebar', 'focus-files', 'focus-search', '-', 'toggle-word-wrap', '-', 'toggle-theme', 'menus-in-window', 'custom-title-bar', '-', 'zoom-in', 'zoom-out', 'zoom-reset'] },
     { label: 'Go', items: ['go-to-file', '-', 'next-tab', 'previous-tab'] },
     { label: 'Run', items: ['run-task', 'run-stop'] },
     { label: 'Terminal', items: ['terminal-toggle', 'terminal-new'] },
