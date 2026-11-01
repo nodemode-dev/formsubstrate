@@ -21,6 +21,7 @@ RUN_MCP_SERVERS = ("subform", "formslot")
 KEPT: set[str] = set()
 _live: dict[str, dict] = {}
 _locks: dict[str, asyncio.Lock] = {}
+_writers: dict[str, asyncio.Lock] = {}
 _sweeper: Optional[asyncio.Task] = None
 
 
@@ -103,7 +104,12 @@ def restore(target: str) -> None:
     from app.services.runs.manager import manager
 
     live = manager.runs.get(run_id)
-    state = "working" if live is not None and live.status in ("running", "parked") else "done"
+    if live is not None and live.status in ("running", "parked"):
+        state = "working"
+    else:
+        saved = manager.read_disk(entry["root"], run_id)
+        status = saved.get("status") if saved else None
+        state = "failed" if status == "failed" else "stopped" if status in ("cancelled", "interrupted") else "done"
     sv.register_target(_item(run_id, entry, state, []))
     _start_sweeper()
 
@@ -146,6 +152,26 @@ async def ensure(run: Any) -> dict:
         return current
 
 
+class _Slot:
+    def __init__(self, lock: Optional[asyncio.Lock]) -> None:
+        self.lock = lock
+
+    async def __aenter__(self) -> None:
+        if self.lock is not None:
+            await self.lock.acquire()
+
+    async def __aexit__(self, *exc: object) -> None:
+        if self.lock is not None:
+            self.lock.release()
+
+
+def write_slot(procs: object, cfg: dict) -> _Slot:
+    run = _find_run(procs)
+    if run is None or cfg.get("permission") != "edit" or not needs(run.doc):
+        return _Slot(None)
+    return _Slot(_writers.setdefault(run.id, asyncio.Lock()))
+
+
 async def prepare(procs: object, root: str) -> tuple[str, list[str], dict[str, str]]:
     env = {k: v for k, v in os.environ.items() if k not in STRIPPED_ENV}
     run = _find_run(procs)
@@ -169,14 +195,15 @@ async def discard(run_id: str) -> None:
     sid = session_id(run_id)
     entry = _read().get(run_id)
     path = entry.get("worktree") if isinstance(entry, dict) else None
+    gates.close_session(sid)
     if isinstance(path, str) and os.path.isdir(path):
         code, out, _ = await sv._run([sv._git(), "status", "--porcelain"], cwd=path)
         if code != 0 or out.strip():
             KEPT.add(run_id)
             return
-    gates.close_session(sid)
     _live.pop(run_id, None)
     _locks.pop(run_id, None)
+    _writers.pop(run_id, None)
     sv.drop_target(sid)
     if isinstance(entry, dict):
         repo = entry.get("repo")

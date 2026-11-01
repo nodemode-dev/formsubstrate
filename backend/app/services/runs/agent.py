@@ -63,6 +63,11 @@ def build_argv(exe: str, cfg: dict, role: str, evaluator: bool) -> list[str]:
 
 
 async def run_claude(*, role: str, task: str, context: str, cfg: dict, evaluator: bool, emit: Emit, procs: set) -> str:
+    async with worktree.write_slot(procs, cfg):
+        return await _run_claude(role=role, task=task, context=context, cfg=cfg, evaluator=evaluator, emit=emit, procs=procs)
+
+
+async def _run_claude(*, role: str, task: str, context: str, cfg: dict, evaluator: bool, emit: Emit, procs: set) -> str:
     exe = claude_path()
     if not exe:
         raise AgentError("the claude command was not found on this computer; install Claude Code or run with the simulator")
