@@ -30,7 +30,7 @@ Transitive packages of fastapi and uvicorn[standard] (starlette, pydantic, click
 | --- | --- | --- | --- |
 | @fontsource/inter | 5.3.0 | MIT; font OFL-1.1 | UI font |
 | @fontsource/jetbrains-mono | 5.3.0 | MIT; font OFL-1.1 | code font |
-| @tauri-apps/api | 2.11.1 | Apache-2.0 OR MIT | desktop bridge |
+| @tauri-apps/api | 2.12.4 | Apache-2.0 OR MIT | desktop bridge |
 | @tauri-apps/cli | 2.12.4 | Apache-2.0 OR MIT | build tool only |
 | typescript | 7.0.2 | Apache-2.0 | build tool only |
 | vite | 8.3.5 | MIT | build tool only |
