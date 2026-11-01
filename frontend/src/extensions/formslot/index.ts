@@ -464,11 +464,11 @@ class FormslotPanel {
     const copies: Line[] = (d?.copies ?? []).map((c: SlotCopy, i) => ({
       key: `c:${c.repo ?? ''}:${c.path}:${i}`,
       main: c.path,
-      sub: [c.repo, c.qualified, c.lines ? `${c.lines[0]}-${c.lines[1]}` : ''].filter(Boolean).join(' · '),
-      chip: [c.relation, c.score !== undefined ? c.score.toFixed(2) : ''].filter(Boolean).join(' '),
+      sub: [c.repo, c.qualified, Array.isArray(c.lines) && c.lines.length > 0 ? (c.lines.length > 1 ? `${c.lines[0]}-${c.lines[1]}` : String(c.lines[0])) : ''].filter(Boolean).join(' · '),
+      chip: [c.relation, typeof c.score === 'number' && Number.isFinite(c.score) ? c.score.toFixed(2) : ''].filter(Boolean).join(' '),
       state: c.relation ?? '',
       path: c.path,
-      line: c.lines?.[0] ?? 0,
+      line: Array.isArray(c.lines) && typeof c.lines[0] === 'number' ? c.lines[0] : 0,
     }));
     const drift: Line[] = formslotState.driftFiles.filter((f) => f.slot === open).map((f) => ({ key: `d:${f.path}`, main: f.path, sub: '', chip: t(DRIFT_LABEL[f.state] ?? f.state), state: f.state, path: f.path, line: 0 }));
     for (const [host, items] of [[this.mFiles, files], [this.mCopies, copies], [this.mDrift, drift]] as const) {
@@ -588,7 +588,13 @@ register({
       });
     };
     ctx.store.on('workspace', onWorkspace);
+    const markEnabled = (): void => {
+      const v = formslotState.isEnabled ? 'on' : 'off';
+      if (document.documentElement.dataset.formslot !== v) document.documentElement.dataset.formslot = v;
+    };
+    markEnabled();
     formslotState.on('status', () => {
+      markEnabled();
       if (fresh && fresh === offeredFor) offer(fresh);
       const s = formslotState.status;
       if (autoStarted || !s || !s.installed || s.running || !hasWs() || !formslotState.isEnabled || !loadPrefs().formslotAutoStart) return;

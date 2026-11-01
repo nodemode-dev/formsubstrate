@@ -31,6 +31,10 @@ export function breakpointPaths(): string[] {
   return [...stored.entries()].filter(([, lines]) => lines.length > 0).map(([path]) => path);
 }
 
+export function clearBreakpoints(): void {
+  stored.clear();
+}
+
 export function onBreakpoints(fn: (path: string) => void): () => void {
   watchers.add(fn);
   return () => { watchers.delete(fn); };

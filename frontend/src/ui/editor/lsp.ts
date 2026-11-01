@@ -3,7 +3,8 @@ import { ViewPlugin, type EditorView, type ViewUpdate } from '@codemirror/view';
 import { lintGutter, setDiagnostics, type Diagnostic } from '@codemirror/lint';
 import { LSPClient, LSPPlugin, languageServerExtensions, type Transport, type WorkspaceMapping } from '@codemirror/lsp-client';
 import { lspServers, lspSocketUrl, type LspLang, type LspServers } from '../../io/lsp';
-import { t } from '../i18n';
+import { t, tn } from '../i18n';
+import { toast } from '../toast';
 import { SfWorkspace, type SfFile, type WorkspaceHost } from './lsp-workspace';
 
 export type LspState = 'starting' | 'ready' | 'unavailable' | 'stopped';
@@ -99,18 +100,64 @@ const fileUri = (abs: string): string => {
 
 const joinUri = (rootUri: string, rel: string): string => `${rootUri}/${rel.split('/').map(encodeURIComponent).join('/')}`;
 
+const KEEP_TAGS = new Set(['p', 'pre', 'code', 'em', 'strong', 'b', 'i', 'ul', 'ol', 'li', 'a', 'br', 'span', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td']);
+const DROP_TAGS = new Set(['script', 'style', 'svg', 'math', 'iframe', 'frame', 'frameset', 'object', 'embed', 'applet', 'form', 'template', 'noscript', 'noembed', 'textarea', 'select', 'button', 'input', 'title', 'head', 'img', 'picture', 'video', 'audio', 'source', 'track', 'canvas', 'link', 'meta', 'base', 'xmp', 'plaintext']);
+const SAFE_LINK = /^(https?:|mailto:)/i;
+const SAFE_CLASS = /^language-[A-Za-z0-9_+#-]{1,40}$/;
+
+const copySafe = (from: Node, into: Node, out: Document): void => {
+  for (const child of Array.from(from.childNodes)) {
+    if (child.nodeType === Node.TEXT_NODE) {
+      into.appendChild(out.createTextNode(child.textContent ?? ''));
+      continue;
+    }
+    if (child.nodeType !== Node.ELEMENT_NODE) continue;
+    const src = child as Element;
+    const tag = src.localName.toLowerCase();
+    if (DROP_TAGS.has(tag) || src.namespaceURI !== 'http://www.w3.org/1999/xhtml') continue;
+    if (!KEEP_TAGS.has(tag)) {
+      copySafe(src, into, out);
+      continue;
+    }
+    const dest = out.createElement(tag);
+    if (tag === 'a') {
+      const href = (src.getAttribute('href') ?? '').replace(/[\u0000- ]/g, '');
+      if (SAFE_LINK.test(href)) {
+        dest.setAttribute('href', href);
+        dest.setAttribute('target', '_blank');
+        dest.setAttribute('rel', 'noopener noreferrer');
+      }
+    } else if (tag === 'code') {
+      const cls = src.getAttribute('class');
+      if (cls && SAFE_CLASS.test(cls)) dest.setAttribute('class', cls);
+    }
+    copySafe(src, dest, out);
+    into.appendChild(dest);
+  }
+};
+
 const cleanHtml = (html: string): string => {
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  for (const n of Array.from(doc.querySelectorAll('script,style,iframe,object,embed,link,meta,base,form'))) n.remove();
-  for (const n of Array.from(doc.body.querySelectorAll('*'))) {
-    for (const a of Array.from(n.attributes)) {
-      const name = a.name.toLowerCase();
-      const value = a.value.trim().toLowerCase();
-      const url = name === 'href' || name === 'src' || name === 'xlink:href';
-      if (name.startsWith('on') || (url && /^(javascript|data|vbscript):/.test(value))) n.removeAttribute(a.name);
-    }
-  }
-  return doc.body.innerHTML;
+  const out = document.implementation.createHTMLDocument('');
+  copySafe(doc.body, out.body, out);
+  return out.body.innerHTML;
+};
+
+let linksGuarded = false;
+const guardLinks = (): void => {
+  if (linksGuarded) return;
+  linksGuarded = true;
+  const stop = (e: Event): void => {
+    const target = e.target;
+    if (target instanceof Element && target.closest('.cm-tooltip a')) e.preventDefault();
+  };
+  document.addEventListener('click', stop, true);
+  document.addEventListener('auxclick', stop, true);
+};
+
+const changedUris = (res: unknown): string[] => {
+  const changes = (res as { changes?: Record<string, unknown> } | null)?.changes;
+  return changes && typeof changes === 'object' ? Object.keys(changes) : [];
 };
 
 const clampPos = (doc: EditorState['doc'], pos: RawPos): number => {
@@ -153,6 +200,17 @@ class Session {
       extensions: [...languageServerExtensions(), { editorExtension: mgr.watcher() }],
     });
     this.workspace = this.client.workspace as SfWorkspace;
+    guardLinks();
+    const request = this.client.request.bind(this.client) as (method: string, params: unknown, ...rest: unknown[]) => Promise<unknown>;
+    (this.client as unknown as { request: typeof request }).request = (method, params, ...rest) => {
+      const pending = request(method, params, ...rest);
+      if (method !== 'textDocument/rename') return pending;
+      return pending.then((res) => {
+        const skipped = changedUris(res).filter((u) => !this.workspace.getFile(u)).length;
+        if (skipped > 0) toast(tn(skipped, '{n} file was not changed because it is not open', '{n} files were not changed because they are not open'), 'error');
+        return res;
+      });
+    };
     this.socket = new WebSocket(lspSocketUrl(lang));
     this.socket.addEventListener('open', () => this.onOpen());
     this.socket.addEventListener('message', (e) => this.onMessage(String(e.data)));
@@ -214,9 +272,15 @@ class Session {
     this.set('stopped');
   }
 
+  private clearPulls(): void {
+    for (const id of this.pulls.values()) window.clearTimeout(id);
+    this.pulls.clear();
+  }
+
   private set(state: LspState): void {
     if (this.state === state) return;
     this.state = state;
+    if (state === 'unavailable' || state === 'stopped') this.clearPulls();
     this.mgr.emit('state');
     if (state === 'unavailable' || state === 'stopped') this.mgr.onLost(this);
   }
@@ -409,6 +473,8 @@ export class LspManager {
   }
 
   private parkIdle(session: Session): void {
+    const prev = this.idle.get(session.lang);
+    if (prev !== undefined) window.clearTimeout(prev);
     this.idle.set(session.lang, window.setTimeout(() => {
       this.idle.delete(session.lang);
       if (this.sessions.get(session.lang) !== session || session.workspace.files.length > 0) return;

@@ -279,7 +279,10 @@ export class EditorHost {
     const d = this.docs.get(path);
     if (!d) return;
     if (this.current === d) this.view.dispatch(spec);
-    else d.state = d.state.update(spec).state;
+    else {
+      d.state = d.state.update(spec).state;
+      this.syncDirty(d, d.state.doc);
+    }
   }
 
   private placeCursor(line: number, col?: number): void {

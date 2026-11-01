@@ -576,12 +576,22 @@ class GitPanel {
     });
   }
 
-  fromReview(session: string | null): void {
-    if (session !== this.session) this.retarget(session);
-    this.focusMessage();
-    if (this.hasMessage) {
-      window.setTimeout(() => { if (this.session === session && this.hasMessage) void this.commit(false); }, 0);
+  async fromReview(session: string | null): Promise<void> {
+    const moved = session !== this.session;
+    if (moved) {
+      this.msg.value = '';
+      this.retarget(session);
+    } else {
+      await this.refresh();
     }
+    if (this.session !== session) return;
+    this.focusMessage();
+    if (moved || this.busy || !this.hasMessage) return;
+    if (this.stagedCount === 0) {
+      this.say(t('Nothing is staged to commit'), true);
+      return;
+    }
+    void this.commit(false);
   }
 
   snapshot(): Promise<void> {
@@ -649,7 +659,7 @@ register({
     window.addEventListener(FOCUS_COMMIT, (e) => {
       const d = (e as CustomEvent<{ session?: string | null } | null>).detail;
       section?.reveal();
-      panel?.fromReview(typeof d?.session === 'string' ? d.session : null);
+      void panel?.fromReview(typeof d?.session === 'string' ? d.session : null);
     });
     ctx.commands.add(
       { id: 'git-status', label: 'Git Status', enabled: ws, run: () => { section?.reveal(); void panel?.refresh(); } },

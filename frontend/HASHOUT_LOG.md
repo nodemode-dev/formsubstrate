@@ -1839,3 +1839,11 @@ review5 L9, half: three dead entries at the top of the recent list blocked reope
 - logged: v0.7.0 · 2026-10-30
 
 The flag card matches the other cards: same absolute overlay in the stack, fixed 76px height, warn-coloured border and text from tokens only. Review pane: the fix button sits in the existing notice row.
+
+### frontend/src/styles/formslot.css · reserved badge widths
+
+- refers-to: frontend/src/styles/formslot.css :: .cv-fs-prov, .cv-ss-saved; frontend/src/ui/editor/lsp.ts :: cleanHtml
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+Reserved widths are multiples of the control-height token, so no raw pixel size was added. Reviewer item 19 (existing raw pixel widths in other sheets) is not changed here. Sanitizer rationale is logged in src/ui/editor/HASHOUT_LOG.md.

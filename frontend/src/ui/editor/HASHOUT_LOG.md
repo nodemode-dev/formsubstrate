@@ -172,3 +172,35 @@ lsp-client 6.3.0 only understands push diagnostics. The session handles textDocu
 - logged: v0.7.0 · 2026-10-30
 
 A session per language is created on the first file of that language, is dropped 4 s after its last file closes (closing the socket stops the engine process), and is dropped at once when the workspace changes. A server that was not found removes the plugin from open documents (refreshExtensions); a crashed one marks the status "stopped" and restarts on the next open, never in a loop. window/logMessage from servers goes to console.debug, since the library would print server errors as console errors. Hover HTML from the server is run through a small DOMParser sanitizer (scripts, iframes, on* attributes, javascript: and data: URLs removed). Not done: cross-file rename reaches only open tabs, definitions outside the workspace do nothing, Problems lists open files only, no format-before-save.
+
+### frontend/src/ui/editor/lsp.ts · cleanHtml, copySafe, guardLinks
+
+- refers-to: frontend/src/ui/editor/lsp.ts :: cleanHtml, copySafe, guardLinks, KEEP_TAGS, DROP_TAGS
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+The blocklist sanitizer was bypassable: browsers strip tab, newline and leading control characters from a URL before reading its scheme, and SVG animate could set href. It is now an allowlist that builds a fresh tree: only p, pre, code, em, strong, b, i, ul, ol, li, a, br, span, div, h1 to h6, blockquote, hr and table parts are created, text is copied as text, and unknown wrappers are unwrapped while script, style, svg, math, iframe, form, img and similar subtrees are dropped. Attributes are never copied; an anchor gets href only when the value, after removing every character in U+0000 to U+0020, starts with http:, https: or mailto:, and then also target _blank and rel noopener noreferrer. code keeps a class only if it is language-*. No dependency was added. Links never navigate the webview: a capture-phase click and auxclick handler on the document prevents the default for any anchor inside a CodeMirror tooltip. The codebase has no external-open helper, so a click opens nothing; wiring the Tauri opener is a later step.
+
+### frontend/src/ui/editor/lsp.ts · Session rename wrapper, clearPulls, parkIdle
+
+- refers-to: frontend/src/ui/editor/lsp.ts :: Session constructor, Session.clearPulls, LspManager.parkIdle
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+The library applies rename edits only to files in the workspace, which holds open tabs only. Session wraps client.request for textDocument/rename and, when the reply names URIs that are not open, shows one toast with the count of files left unchanged. Opening them first was not done because it would create tabs the user did not ask for. Entering unavailable or stopped now clears the pending pull timers, and parkIdle clears an earlier idle timer before storing a new id.
+
+### frontend/src/ui/editor/editor.ts · transact
+
+- refers-to: frontend/src/ui/editor/editor.ts :: EditorHost.transact
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+An edit to a document that is open but not shown (LSP rename or format) only replaced its saved state, and the dirty sync runs from the view update, which never fires for it. transact now calls syncDirty for that document, so the tab shows modified, Save All includes it and closing prompts.
+
+### frontend/src/ui/editor/breakpoints.ts · clearBreakpoints
+
+- refers-to: frontend/src/ui/editor/breakpoints.ts :: clearBreakpoints; frontend/src/extensions/debug/index.ts :: DebugPanel
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+Breakpoints live in a module-level map keyed by workspace-relative path, so they leaked into the next workspace. clearBreakpoints empties the map; the debug panel calls it when the workspace path changes. Dots already drawn in an open editor are not removed by it; they leave with that editor when its tab closes.

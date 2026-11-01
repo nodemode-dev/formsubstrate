@@ -36,3 +36,11 @@ A session diff tab is editable when the diff carries an mtime (the file exists) 
 - logged: v0.7.0 · 2026-10-30
 
 Find, Add Next Occurrence and Select All Occurrences acted on the hidden file editor while a diff or review tab was showing. They now go to the shown view when there is one; a view without search (the review pane) leaves them disabled, and with the file editor showing they behave as before.
+
+### frontend/src/ui/review/review-pane.ts, diff-view.ts · provenance badge
+
+- refers-to: frontend/src/ui/review/provenance.ts :: PROVENANCE_HTML; frontend/src/styles/formslot.css :: .cv-fs-prov
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+The badge toggled between display none and shown when drift arrived, which reflowed the file row and the diff bar. The fix is in CSS only: while formslot is enabled the badge in those two places keeps a fixed width and hides with visibility, so the filename never re-truncates. provenance.ts is unchanged.

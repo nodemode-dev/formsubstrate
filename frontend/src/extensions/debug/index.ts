@@ -1,6 +1,6 @@
 import { DapConnection, debugAdapters, frameOf, scopeOf, variableOf, type DapEvent, type DapStackFrame, type DebugAdapter } from '../../io/debug';
 import { el, patchList as patchKeyed, q, setClass, setDisabled, setHidden, setText, setTitle } from '../../ui/dom';
-import { breakpointPaths, breakpointsOf, onBreakpoints, setDebugLocation, toggleBreakpointAtCursor } from '../../ui/editor/breakpoints';
+import { breakpointPaths, breakpointsOf, clearBreakpoints, onBreakpoints, setDebugLocation, toggleBreakpointAtCursor } from '../../ui/editor/breakpoints';
 import { onLanguage, t } from '../../ui/i18n';
 import { icon } from '../../ui/icons';
 import { FOCUS_EVENT } from '../../ui/workbench';
@@ -85,6 +85,9 @@ class DebugPanel {
   private note = '';
   private conn: DapConnection | null = null;
   private root = '';
+  private sessionRoot = '';
+  private wsPath = '';
+  private startSeq = 0;
   private adapter: DebugAdapter | null = null;
   private adapterError = '';
   private threadId = 0;
@@ -144,7 +147,17 @@ class DebugPanel {
     this.bind();
     this.relabel();
     onLanguage(() => { this.relabel(); this.paint(); });
-    ctx.store.on('workspace', () => { void this.refreshAdapter(); });
+    this.wsPath = ctx.store.workspace?.path ?? '';
+    ctx.store.on('workspace', (ws) => {
+      const next = ws?.path ?? '';
+      if (next !== this.wsPath) {
+        this.wsPath = next;
+        clearBreakpoints();
+        this.root = '';
+        if (this.phase !== 'idle') void this.stop();
+      }
+      void this.refreshAdapter();
+    });
     ctx.store.on('active', () => this.paint());
     ctx.store.on('docs', () => this.paint());
     host.addEventListener(FOCUS_EVENT, () => { void this.refreshAdapter(); });
@@ -373,15 +386,15 @@ class DebugPanel {
   }
 
   private toRel(abs: string): string {
-    if (!abs || !this.root) return '';
-    const root = this.root.replace(/[\\/]+$/, '');
+    if (!abs || !this.sessionRoot) return '';
+    const root = this.sessionRoot.replace(/[\\/]+$/, '');
     const flat = abs.replace(/\\/g, '/');
     const base = root.replace(/\\/g, '/');
     return flat.startsWith(`${base}/`) ? flat.slice(base.length + 1) : '';
   }
 
   private absOf(rel: string): string {
-    return `${this.root.replace(/[\\/]+$/, '')}/${rel}`;
+    return `${this.sessionRoot.replace(/[\\/]+$/, '')}/${rel}`;
   }
 
   private waitFor(conn: DapConnection, name: string): Promise<void> {
@@ -407,15 +420,26 @@ class DebugPanel {
     if (!this.canStart()) return;
     const doc = this.ctx.store.active;
     if (!doc) return;
-    if (!(await this.saveFirst(doc.path))) { this.shell.setStatus(t('Save the file before debugging'), 'error'); return; }
+    const seq = ++this.startSeq;
+    this.phase = 'starting';
+    this.note = '';
+    this.paint();
+    const saved = await this.saveFirst(doc.path);
+    if (seq !== this.startSeq) return;
+    if (!saved) {
+      this.reset('');
+      this.shell.setStatus(t('Save the file before debugging'), 'error');
+      return;
+    }
     await this.refreshAdapter();
+    if (seq !== this.startSeq) return;
     const adapter = this.adapter;
     if (!adapter?.available) {
+      this.reset('');
       this.shell.setStatus(adapter?.install ? `${t('debugpy was not found.')} ${t('Install')}: ${adapter.install}` : t('No debug adapter is available'), 'error');
       return;
     }
-    this.phase = 'starting';
-    this.note = '';
+    this.sessionRoot = this.root;
     this.refusal = '';
     this.configured = false;
     this.exitCode = null;
@@ -433,7 +457,8 @@ class DebugPanel {
       await conn.request('initialize', { clientID: 'subform', clientName: 'subform', adapterID: 'python', linesStartAt1: true, columnsStartAt1: true, pathFormat: 'path', supportsVariableType: true });
       const initialized = this.waitFor(conn, 'initialized');
       const launching = conn.request('launch', { program: doc.path, args: splitArgs(this.argsEl.value) }).then(() => '', (err: unknown) => failText(err));
-      await initialized;
+      initialized.catch(() => undefined);
+      await Promise.race([initialized, launching.then((failed) => (failed ? Promise.reject(new Error(failed)) : new Promise<never>(() => undefined)))]);
       this.configured = true;
       for (const path of breakpointPaths()) await this.sendBreakpoints(path, true);
       await conn.request('configurationDone');
@@ -526,7 +551,12 @@ class DebugPanel {
 
   async stop(): Promise<void> {
     if (this.phase === 'idle') return;
+    this.startSeq++;
     this.log('info', t('Debug session stopped'));
+    if (!this.conn) {
+      this.reset(t('Stopped'));
+      return;
+    }
     await this.end(t('Stopped'));
   }
 
@@ -572,7 +602,10 @@ class DebugPanel {
         const node: VarNode = { key: s.name, name: s.name, value: '', type: '', ref: s.variablesReference, depth: 0, scope: true, kids: null };
         return node;
       });
-      for (const n of roots) if (this.open.has(n.key)) await this.fetchKids(conn, n, seq);
+      for (const n of roots) {
+        if (!this.open.has(n.key)) continue;
+        try { await this.fetchKids(conn, n, seq); } catch (err) { if (seq === this.varSeq) this.log('info', failText(err)); }
+      }
       if (seq !== this.varSeq || this.conn !== conn) return;
       this.roots = roots;
       this.paint();
@@ -620,7 +653,10 @@ class DebugPanel {
     if (this.phase !== 'paused' || !conn) return;
     this.phase = 'running';
     this.paint();
-    try { await conn.request('continue', { threadId: this.threadId }); } catch (err) { this.log('info', failText(err)); }
+    try { await conn.request('continue', { threadId: this.threadId }); } catch (err) {
+      this.log('info', failText(err));
+      if (this.conn === conn && this.phase === 'running') { this.phase = 'paused'; this.paint(); }
+    }
   }
 
   async step(kind: StepKind): Promise<void> {
@@ -628,7 +664,10 @@ class DebugPanel {
     if (this.phase !== 'paused' || !conn) return;
     this.phase = 'running';
     this.paint();
-    try { await conn.request(kind, { threadId: this.threadId }); } catch (err) { this.log('info', failText(err)); }
+    try { await conn.request(kind, { threadId: this.threadId }); } catch (err) {
+      this.log('info', failText(err));
+      if (this.conn === conn && this.phase === 'running') { this.phase = 'paused'; this.paint(); }
+    }
   }
 
   async resumeOrStart(): Promise<void> {

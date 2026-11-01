@@ -140,3 +140,27 @@ Outline and Problems are two sidebar sections (rail icons code and warning), pat
 - logged: v0.7.0 · 2026-10-30
 
 Flagging: a session target fetches `/api/git/audit` with the status and snapshots on every refresh. The flag card is an overlay like the other two cards (no layout shift) and is shown only when neither the check card nor the last-commit card is up; it says `commit <short> has a trailer or another identity` (plus how many more), and its button runs Sign and Push (title text says history is rewritten only on the click). Nothing rewrites history by itself. "Accept all and commit": the review pane already dispatched `subform:focus-commit` and nobody listened. The panel now listens: it reveals the section, retargets to the pane's session, focuses the message box and commits when the box has text (a zero-delay timeout lets the retarget settle). With an empty box it only focuses it. Also from review5 L6: discard and rewind capture the target before their confirm and stop if it changed while the dialog was open; commit sets the audit card only if the target is still the same; a refused push shows `Push refused: <check line>`.
+
+### frontend/src/extensions/debug/index.ts · start, stop, workspace handler, loadScopes, resume, step
+
+- refers-to: frontend/src/extensions/debug/index.ts :: DebugPanel.start, DebugPanel.stop, DebugPanel.sessionRoot, DebugPanel.startSeq
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+start() now sets phase starting and paints before its first await, so canStart is false for a second F5, click or Enter; every early return resets to idle, and a start counter makes a start that was stopped meanwhile quit silently. stop() with no connection yet resets directly. The workspace path is remembered; when it changes, breakpoints are cleared, the adapter root is dropped and a session that is not idle is stopped. The root is copied into sessionRoot when a session starts, and path mapping and breakpoint requests use that copy, never the root that refreshAdapter may replace. Waiting for the initialized event is raced against the launch reply, so a launch that fails first ends the start instead of hanging in Starting. A failed variable fetch for one expanded scope is logged and skipped so the rest still load. A failed continue or step puts the phase back to paused.
+
+### frontend/src/extensions/git/index.ts · fromReview
+
+- refers-to: frontend/src/extensions/git/index.ts :: GitPanel.fromReview
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+Accept all and commit could commit a draft written for another target, or nothing when staging had not been read yet. When the review pane names a different session the draft is cleared and only focus moves. For the same session the status is refreshed first, a draft is committed only when files are staged, and a busy panel or an empty stage says so instead of doing nothing.
+
+### frontend/src/extensions/formslot/index.ts · copies manifest, markEnabled
+
+- refers-to: frontend/src/extensions/formslot/index.ts :: FormslotPanel.paint, markEnabled; frontend/src/styles/formslot.css :: .cv-fs-prov, .cv-ss-saved, .cv-gate-slot-path
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+Copy lines and scores come from MCP JSON, so a one-element lines array printed "5-undefined" and a null score threw inside paint. The range needs two entries, a single entry prints alone, and the score must be a finite number. Layout: the provenance badge in review rows and the diff bar and the saved-tokens span in session rows used to appear and push their neighbours. The root element now carries data-formslot on or off; with it on, the badge keeps a fixed width and uses visibility hidden, and the saved span has a minimum width. Slot paths in gate cards are right-to-left so the tail shows; a left-to-right mark before and after the text stops a leading or trailing slash from jumping to the other end.

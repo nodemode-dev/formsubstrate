@@ -26,6 +26,7 @@
 .cv-gate-slot { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; font-family: var(--font-code); font-size: var(--fs-11); }
 .cv-gate-slot-id { flex: none; color: var(--accent-ink); }
 .cv-gate-slot-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); direction: rtl; text-align: left; }
+.cv-gate-slot-path::before, .cv-gate-slot-path::after { content: "\200e"; }
 .cv-gate-err { margin: 0; color: var(--danger-text); font-size: var(--fs-11); }
 .cv-gate-foot { display: flex; align-items: center; gap: var(--space-2); min-height: var(--ctl-sm); }
 .cv-gate-tokens { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ok-soft); font-size: var(--fs-11); }
@@ -94,8 +95,10 @@
 
 .cv-fs-prov { flex: 0 1 auto; max-width: 240px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 var(--space-1h); border: 1px solid var(--line-2); border-radius: var(--radius-pill); color: var(--text-secondary); font-size: var(--fs-10); line-height: 16px; }
 .cv-fs-prov[hidden] { display: none; }
+:root[data-formslot="on"] .cv-rv-file-head .cv-fs-prov, :root[data-formslot="on"] .cv-diff-bar .cv-fs-prov { display: inline-block; box-sizing: border-box; flex: none; width: calc(var(--ctl) * 4); text-align: center; }
+:root[data-formslot="on"] .cv-rv-file-head .cv-fs-prov[hidden], :root[data-formslot="on"] .cv-diff-bar .cv-fs-prov[hidden] { visibility: hidden; }
 .cv-fs-prov[data-state="clean"] { color: var(--ok-soft); }
 .cv-fs-prov[data-state="local"] { color: var(--accent-ink); }
 .cv-fs-prov[data-state="behind"] { color: var(--warn); }
 .cv-fs-prov[data-state="diverged"], .cv-fs-prov[data-state="missing"] { color: var(--danger-soft); }
-.cv-ss-saved { margin-left: auto; flex: none; color: var(--ok-soft); font-size: var(--fs-11); font-variant-numeric: tabular-nums; }
+.cv-ss-saved { margin-left: auto; flex: none; min-width: calc(var(--ctl) * 2); text-align: right; color: var(--ok-soft); font-size: var(--fs-11); font-variant-numeric: tabular-nums; }
