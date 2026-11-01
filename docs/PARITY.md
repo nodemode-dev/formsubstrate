@@ -64,7 +64,7 @@ Ports owned by other agents this turn: port-studio (Studio canvas), port-runs (r
 | mcp.py (substrata as MCP server) | present, different server | routers/mcp.py, services/mcp_tools.py, docs/MCP.md (subform's own MCP server, behind LocalGuard and a bearer token) |
 | mcp_servers.py (client connections) | being ported: port-library (mounted in main.py) | routers/mcp_servers.py; see D3 |
 | plugins.py | being ported: port-library | routers/plugins.py |
-| presets.py (graph and skill presets, plugin catalog) | split | plugin catalog and skill presets follow port-library; graph presets follow port-studio. Not claimed by the parity agent |
+| presets.py (graph and skill presets, plugin catalog) | ported: sf-presets | routers/presets.py over services/presets: one service with four groups (graphs, recipes, plugins, skills) at `/api/presets/{group}`; plugin presets install into .subform/plugins only by an owner action with the workspace trusted, skill presets into .claude/skills by an owner action; `/api/graphs/presets` stays as an alias. Dropped: the navi_notify catalog plugin (a Navi overlay on a fixed port, not a Form family tool), install-from-URL (runs fetched code), and plugin disable, enable and uninstall (already served by `/api/plugins`) |
 | preview.py | present | routers/media.py |
 | recipes.py | being ported: port-recipes | routers/recipes.py |
 | run.py, runs.py | being ported: port-runs | routers/runs (planned) |
@@ -99,7 +99,7 @@ Ports owned by other agents this turn: port-studio (Studio canvas), port-runs (r
 
 ## Summary count
 
-Of 33 substrata frontend extensions: 13 present, 2 ported by the parity agent (system, welcome), 17 being ported by the five other agents (of which graphs and palette are folded into the Studio), 1 not ported (chat). Of 21 backend routers: 7 present, 1 ported by the parity agent (harness), 11 being ported by the other agents, 1 not ported (chat), 1 split and unclaimed (presets). The one shipped skill is ported. The count of "present" rows is by extension or router name, not a measure of depth: subform's git review, terminal and gates are larger than substrata's, while Studio, runs, recipes and triggers did not exist until this turn.
+Of 33 substrata frontend extensions: 13 present, 2 ported by the parity agent (system, welcome), 17 being ported by the five other agents (of which graphs and palette are folded into the Studio), 1 not ported (chat). Of 21 backend routers: 7 present, 1 ported by the parity agent (harness), 11 being ported by the other agents, 1 not ported (chat), 1 ported by sf-presets (presets, now unified). The one shipped skill is ported. The count of "present" rows is by extension or router name, not a measure of depth: subform's git review, terminal and gates are larger than substrata's, while Studio, runs, recipes and triggers did not exist until this turn.
 
 ## Decisions on items nobody else owns
 

@@ -10,10 +10,10 @@ from fastapi.concurrency import run_in_threadpool
 from app.core import workspace_root as ws
 from app.core.local_guard import require_window
 from app.models.graph import ERROR_ROUTE_KINDS, KINDS, ON_ERROR, ROUTES, YIELD_EVENTS, check_doc
+from app.services.presets import store as preset_store
 
 router = APIRouter()
 
-PRESETS = Path(__file__).resolve().parents[1] / "templates" / "graphs"
 FOLDER = ".subform/graphs"
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$")
 BODY_MAX = 2 * 1024 * 1024
@@ -85,14 +85,11 @@ async def _json(request: Request) -> dict:
     return body
 
 
-def _preset_names() -> list[str]:
-    return sorted(p.stem for p in PRESETS.glob("*.json")) if PRESETS.is_dir() else []
-
-
 def _preset(name: str) -> dict:
-    if not NAME_RE.match(name) or name not in _preset_names():
-        raise HTTPException(status_code=404, detail="no graph preset " + name)
-    return json.loads((PRESETS / (name + ".json")).read_text(encoding="utf-8"))
+    try:
+        return preset_store.read("graphs", name)
+    except preset_store.PresetError as err:
+        raise HTTPException(status_code=404 if err.status == 400 else err.status, detail=err.detail)
 
 
 @router.get("/graphs/kinds")
@@ -109,12 +106,7 @@ def kinds() -> dict:
 
 @router.get("/graphs/presets")
 def presets() -> dict:
-    out = []
-    for name in _preset_names():
-        data = _preset(name)
-        doc = data.get("doc", {})
-        out.append({"name": name, "description": data.get("description", ""), "nodes": len(doc.get("nodes", [])), "edges": len(doc.get("edges", []))})
-    return {"presets": out}
+    return {"presets": preset_store.listing("graphs")}
 
 
 @router.get("/graphs/presets/{name}")

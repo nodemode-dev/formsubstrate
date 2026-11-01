@@ -30,6 +30,7 @@ from app.routers import recipes as recipes_router
 from app.routers import triggers as triggers_router
 from app.services.triggers.manager import triggers as trigger_service
 from app.routers import runs as runs_router
+from app.routers import presets as presets_router
 from app.services.runs import manager as runs_manager
 from app.services import create as create_service
 from app.services import sessions as session_service
@@ -106,6 +107,7 @@ app.include_router(git.router, prefix="/api")
 app.include_router(debug.router, prefix="/api")
 app.include_router(lsp_router.router, prefix="/api")
 app.include_router(media_router.router, prefix="/api")
+app.include_router(presets_router.router, prefix="/api")
 app.include_router(graph_router.router, prefix="/api")
 app.include_router(graphs_router.router, prefix="/api")
 app.include_router(create_router.router, prefix="/api")

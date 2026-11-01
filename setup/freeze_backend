@@ -35,6 +35,8 @@ pyinstaller --noconfirm --clean --onedir --name subform-engine \
   --add-data "$dist${sep}frontend_dist" \
   --add-data "$SUBFORM_ROOT/backend/app/templates${sep}app/templates" \
   --add-data "$SUBFORM_ROOT/backend/presets/graphs${sep}presets/graphs" \
+  --add-data "$SUBFORM_ROOT/backend/presets/plugins${sep}presets/plugins" \
+  --add-data "$SUBFORM_ROOT/backend/presets/skills${sep}presets/skills" \
   --add-data "$SUBFORM_ROOT/backend/app/services/recipes/presets${sep}app/services/recipes/presets" \
   --add-data "$SUBFORM_ROOT/backend/app/services/library/bundled${sep}app/services/library/bundled" \
   --add-data "$SUBFORM_ROOT/backend/skills${sep}skills" \

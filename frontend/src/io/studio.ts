@@ -27,7 +27,7 @@ export async function deleteSavedGraph(name: string): Promise<void> {
 }
 
 export async function listPresets(): Promise<GraphPreset[]> {
-  return (await request<{ presets: GraphPreset[] }>('/api/graphs/presets')).presets;
+  return (await request<{ presets: GraphPreset[] }>('/api/presets/graphs')).presets;
 }
 
 export function installPreset(name: string): Promise<{ name: string; path: string; mtime: number }> {
