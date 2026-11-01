@@ -1,3 +1,4 @@
+import glob
 import json
 import os
 import sys
@@ -30,6 +31,17 @@ def selfcheck() -> int:
             print(json.dumps(info))
             return 1
     info["templates"] = "ok"
+    base = resource_dir()
+    groups = {
+        "graph_presets": (os.path.join("presets", "graphs"), "*.json"),
+        "graph_templates": (os.path.join("app", "templates", "graphs"), "*.json"),
+        "recipe_presets": (os.path.join("app", "services", "recipes", "presets"), "*.json"),
+        "bundled_plugins": (os.path.join("app", "services", "library", "bundled"), "*.py"),
+        "skills": ("skills", os.path.join("*", "SKILL.md")),
+    }
+    for key, (folder, pattern) in groups.items():
+        found = len(glob.glob(os.path.join(base, folder, pattern)))
+        info[key] = found if found else f"missing: {folder}"
     try:
         import app.main
         import app.services.gate_hook

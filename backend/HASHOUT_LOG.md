@@ -402,3 +402,11 @@ The Studio's graph model, validation, saved-graph routes (`/api/graphs`) and pre
 - logged: v0.14.0 · 2026-10-31
 
 Recipes (`/api/recipes`) and triggers (`/api/triggers`, the signed webhook `/api/hooks/{id}`) are ported from substrata and mounted under `/api`. `main.py` starts the trigger loop after the sessions reconcile and stops it first at shutdown. Triggers run only while the engine runs; their table is kept in the data folder, not in the workspace. The logs are beside the code in services/recipes and services/triggers.
+
+### setup/freeze_backend · data groups
+
+- refers-to: setup/freeze_backend :: pyinstaller; backend/subform_engine.py :: selfcheck
+- kind: rationale
+- logged: v0.15.0 · 2026-10-30
+
+Four more `--add-data` folders, each placed where its reader looks under `_MEIPASS`: `presets/graphs` (runs/presets.py reads `_MEIPASS/presets/graphs`), `app/services/recipes/presets` and `app/services/library/bundled` (both found through `Path(__file__)`, which sits under `_MEIPASS/app` when frozen) and `skills` (built-in skills). The graph templates already ride along with `app/templates`. New Python modules under services/runs, recipes, triggers, library and cogentics need no hidden imports: `--collect-submodules app` finds them and the selfcheck imports `app.main`. `selfcheck` counts the files of each group and reports `missing: <folder>` (exit 1) for an empty one. Checked on a frozen Linux engine: 4 graph presets, 5 graph templates, 5 recipe presets, 1 bundled plugin, 1 skill; the engine answered `/api/graphs/presets`, `/api/presets/graphs`, `/api/recipes` (its `presets` list) and `/api/plugins` from the frozen folder. `/api/skills` lists project and user skills only (`sessions.list_skills`); nothing reads the bundled `skills` folder yet, so that route lists it only if a copy sits in `~/.claude/skills`.
