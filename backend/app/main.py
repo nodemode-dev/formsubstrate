@@ -2,13 +2,14 @@ import asyncio
 import signal
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core import config, runtime
+from app.core.engine_addr import remember
 from app.core.local_guard import LocalGuard
-from app.routers import git, secrets, sessions, skills, system, terminal, workspace
+from app.routers import formslot, git, secrets, sessions, skills, system, terminal, workspace
 from app.services import sessions as session_service
 
 
@@ -61,7 +62,8 @@ app.include_router(system.router, prefix="/api")
 app.include_router(workspace.router, prefix="/api")
 app.include_router(secrets.router, prefix="/api")
 app.include_router(terminal.router, prefix="/api")
-app.include_router(sessions.router, prefix="/api")
+app.include_router(sessions.router, prefix="/api", dependencies=[Depends(remember)])
+app.include_router(formslot.router, prefix="/api", dependencies=[Depends(remember)])
 app.include_router(skills.router, prefix="/api")
 app.include_router(git.router, prefix="/api")
 

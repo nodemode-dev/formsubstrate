@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
+from app.services import gates
 from app.services import sessions as svc
 
 router = APIRouter()
@@ -41,6 +42,8 @@ async def events() -> StreamingResponse:
             yield "retry: 2000\n\n"
             for item in svc.list_sessions():
                 yield _frame("session", item)
+            for gate in gates.open_list():
+                yield _frame("gate", gate)
             while True:
                 try:
                     event, payload = await asyncio.wait_for(queue.get(), HEARTBEAT)

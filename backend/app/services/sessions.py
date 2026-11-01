@@ -12,6 +12,7 @@ from pathlib import Path
 
 from app.core import config, workspace_root as ws
 from app.core.binres import find_bin
+from app.services import formslot as formslot_service
 from app.services import gitops
 
 REGISTRY_NAME = "sessions.json"
@@ -129,6 +130,7 @@ def public(item: dict) -> dict:
     out["notes"] = list(item.get("notes") or [])
     out["comments"] = len(item.get("comments") or [])
     out["snapshots"] = int(item.get("snapshotCount") or 0)
+    out["tokensSaved"] = int(item.get("tokensSaved") or 0)
     return out
 
 
@@ -297,7 +299,7 @@ async def _mcp_config() -> tuple[dict, list[str]]:
         servers["formMCP"] = {"command": os.path.abspath(formmcp), "args": []}
     else:
         notes.append("formMCP was not found (set FORMMCP_BIN or install formMCP); the session runs without it")
-    formslot = find_bin("formslot")
+    formslot = formslot_service.binary()
     if formslot and await _formslot_has_mcp(formslot):
         servers["formslot"] = {"command": os.path.abspath(formslot), "args": ["mcp"]}
     elif formslot:
@@ -323,7 +325,13 @@ def _write_settings(worktree: Path) -> Path:
     folder.mkdir(parents=True, exist_ok=True)
     target = folder / SETTINGS_NAME
     temp = target.with_name(target.name + ".tmp")
-    temp.write_text(json.dumps(SETTINGS_BODY, indent=2), encoding="utf-8")
+    from app.services import gates
+
+    try:
+        existing = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        existing = {}
+    temp.write_text(json.dumps(gates.merged_settings(existing), indent=2), encoding="utf-8")
     os.replace(temp, target)
     return target
 
@@ -352,9 +360,10 @@ async def _launch(item: dict, argv: list[str], headless: bool) -> str:
     from fastapi import HTTPException
 
     from app.routers.terminal import launch
+    from app.services import gates
 
     try:
-        made = await launch("claude", item["worktree"], item["title"], item["id"], COLS if headless else 120, ROWS if headless else 32, argv=argv)
+        made = await launch("claude", item["worktree"], item["title"], item["id"], COLS if headless else 120, ROWS if headless else 32, argv=argv, env_extra=gates.session_env(item))
     except HTTPException as err:
         raise Refused(err.status_code, str(err.detail))
     terminal_id = made["id"]
@@ -372,11 +381,10 @@ async def _launch(item: dict, argv: list[str], headless: bool) -> str:
 def _mcp_arg(item: dict) -> list[str]:
     worktree = Path(item["worktree"])
     settings = worktree / MCP_DIR / SETTINGS_NAME
-    if not settings.is_file():
-        try:
-            _write_settings(worktree)
-        except OSError:
-            pass
+    try:
+        _write_settings(worktree)
+    except OSError:
+        pass
     return ["--mcp-config", str(worktree / MCP_DIR / MCP_NAME), "--settings", str(settings)]
 
 
@@ -747,8 +755,11 @@ async def _kill_terminal(item: dict) -> None:
 
 
 async def stop(session_id: str) -> dict:
+    from app.services import gates
+
     item = _entry(session_id)
     terminal_id = item.get("terminalId")
+    gates.close_session(session_id)
     item["state"] = "stopped"
     item["lastMessage"] = _clip(item.get("lastMessage") or "Stopped")
     _forget(terminal_id)
@@ -790,7 +801,10 @@ async def _dirty(path: str) -> list[str]:
 
 
 async def delete(session_id: str, remove_worktree: bool, force: bool) -> None:
+    from app.services import gates
+
     item = _entry(session_id)
+    gates.close_session(session_id)
     exists = os.path.isdir(item["worktree"])
     if remove_worktree and exists and not force:
         changes = await _dirty(item["worktree"])
