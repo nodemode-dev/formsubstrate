@@ -13,6 +13,13 @@ FILE_MAX = 400_000
 FILES_MAX = 500
 IMPORT_MAX = 4_000_000
 GROUPS = ("graphs", "recipes", "skills", "plugins", "collections", "triggers", "runs")
+NEVER_IMPORT = ("runs", "cogentics")
+NEEDS_TRUST = ("plugins",)
+
+
+def _group(path: str) -> str:
+    parts = path.split("/")
+    return parts[1] if len(parts) >= 3 else ""
 
 
 def _tree() -> tuple[str, list[str]]:
@@ -71,32 +78,54 @@ class Harness(BaseModel):
     harness: dict
 
 
-@router.post("/harness/import", dependencies=[Depends(require_window)])
-def import_harness(body: Harness) -> dict:
+def _plan(body: Harness, trust: bool) -> tuple[list[dict], list[tuple[str, str]]]:
     files = body.harness.get("files")
     if not isinstance(files, dict):
         raise HTTPException(status_code=400, detail="the harness has no files")
     if len(files) > FILES_MAX:
         raise HTTPException(status_code=413, detail="too many files in the harness")
     total = 0
-    plan: list[tuple[str, str]] = []
+    manifest: list[dict] = []
+    writes: list[tuple[str, str]] = []
     for path, content in files.items():
         if not isinstance(path, str) or not isinstance(content, str):
             raise HTTPException(status_code=400, detail="the harness holds a bad entry")
         if not path.startswith(ROOT + "/"):
+            manifest.append({"path": path, "group": "", "bytes": 0, "action": "skip", "reason": "outside .subform"})
             continue
-        total += len(content.encode("utf-8"))
+        size = len(content.encode("utf-8"))
+        total += size
         if total > IMPORT_MAX:
             raise HTTPException(status_code=413, detail="the harness is too large")
         try:
             real, _ = ws.resolve(path, write=True)
         except ws.Refused as e:
             raise HTTPException(status_code=e.status, detail=e.detail)
-        plan.append((real, content))
-    for real, content in plan:
+        group = _group(path)
+        entry = {"path": path, "group": group, "bytes": size, "action": "overwrite" if os.path.exists(real) else "write", "reason": ""}
+        if group in NEVER_IMPORT:
+            entry.update(action="skip", reason="run records and agent logs are never imported")
+        elif group in NEEDS_TRUST and not trust:
+            entry.update(action="refuse", reason="plugins run code: trust this workspace first")
+        else:
+            writes.append((real, content))
+        manifest.append(entry)
+    return manifest, writes
+
+
+@router.post("/harness/preview", dependencies=[Depends(require_window)])
+def preview(body: Harness, trust: bool = False) -> dict:
+    manifest, writes = _plan(body, trust)
+    return {"entries": manifest, "will_write": len(writes)}
+
+
+@router.post("/harness/import", dependencies=[Depends(require_window)])
+def import_harness(body: Harness, trust: bool = False) -> dict:
+    manifest, writes = _plan(body, trust)
+    for real, content in writes:
         os.makedirs(os.path.dirname(real), exist_ok=True)
         temp = real + ".tmp"
         with open(temp, "w", encoding="utf-8", newline="") as fh:
             fh.write(content)
         os.replace(temp, real)
-    return {"written": len(plan)}
+    return {"written": len(writes), "skipped": sum(1 for e in manifest if e["action"] == "skip"), "refused": [e["path"] for e in manifest if e["action"] == "refuse"]}

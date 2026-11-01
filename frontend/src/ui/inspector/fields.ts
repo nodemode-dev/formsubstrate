@@ -45,7 +45,7 @@ export const FIELDS: readonly Field[] = [
   },
   {
     id: 'approve', label: 'Wait for approval before running', kinds: ['tool'], type: 'check',
-    hint: 'run_shell always waits. Other tools wait only when this is on.',
+    hint: 'Every tool except list_files and read_file always waits for your approval.',
     get: (c) => c.approve === true,
     set: (c, v) => { if (v) c.approve = true; else delete c.approve; return null; },
   },

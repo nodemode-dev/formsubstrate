@@ -60,3 +60,11 @@ User servers are stored in the data folder (library/mcp-servers.json), not in th
 - logged: v0.14.0 · 2026-10-31
 
 A 500-event ring with a sequence number. `GET /api/activity?since=N` answers events after N and `last`; the window polls every 2 s while the panel is visible. Engine code reports with `activity.emit(label, phase, note, source)`; phases are enter, exit, tool, output, delta, skills, loop, yielded, halt, error, compaction. The Studio runner can call `emit` directly, or the window can post to `POST /api/activity` (window token), or dispatch the `subform:run-event` window event, which the panel also takes live.
+
+### backend/app/services/library · review fixes
+
+- refers-to: backend/app/services/library/paths.py :: workspace_dir, refuse_link; backend/app/services/library/mcp_client.py :: ENV_ALLOW, redact_url, redact_command, session_entries; backend/app/services/library/plugins.py :: set_enabled; backend/app/services/sessions.py :: _mcp_config
+- kind: rationale
+- logged: v0.14.0 · 2026-10-31
+
+Review items 9, 11, 17. (9) A stdio MCP server now gets only PATH, HOME, LANG, LC_*, TMPDIR, USER, SHELL, TERM (plus the Windows profile and temp names) and the variable names its own config lists (`env` in the add body, kept as `env_names`, never any `SUBFORM_*`); the engine's other secrets are no longer inherited. `GET /api/mcp-servers` shows a url as scheme, host and port with `/...` when a path or query exists, and a command as its program name plus an argument count, because both can carry tokens; the full values stay in the data-folder file. (11) `workspace_dir` resolves `.subform/...` through `workspace_root.resolve(write=True, follow=False)` and refuses a symbolic link at any component; collection files and plugin files that are links are refused or skipped. (17) `set_enabled` reuses the last trust flag only when it was recorded for the current workspace root. The session `mcp.json` merge is in services/sessions.py `_mcp_config`: user servers flagged for sessions are added as `user-<name>`; those with secret headers are skipped with a note.

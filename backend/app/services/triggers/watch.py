@@ -1,4 +1,5 @@
 import os
+import stat
 from pathlib import PurePosixPath
 
 SKIP = frozenset({".git", "node_modules", "__pycache__", ".venv", "venv", "target", "dist", ".subform"})
@@ -24,8 +25,10 @@ def scan(root: str, glob: str) -> dict[str, tuple[int, int]]:
             if not PurePosixPath(rel).full_match(pattern):
                 continue
             try:
-                info = os.stat(os.path.join(base, name))
+                info = os.lstat(os.path.join(base, name))
             except OSError:
+                continue
+            if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
                 continue
             found[rel] = (info.st_mtime_ns, info.st_size)
             if len(found) >= MAX_FILES:

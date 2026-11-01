@@ -5,6 +5,7 @@ import os
 import shlex
 from dataclasses import dataclass, field
 from typing import Any, Optional
+from urllib.parse import urlsplit
 
 import httpx
 import keyring
@@ -18,8 +19,31 @@ from app.services.library.registry import Tool, tools
 PROTOCOL = "2024-11-05"
 SERVICE = "subform"
 FILE = "mcp-servers.json"
+ENV_ALLOW = frozenset({"PATH", "HOME", "LANG", "TMPDIR", "USER", "SHELL", "TERM", "SYSTEMROOT", "USERPROFILE", "APPDATA", "TEMP", "TMP"})
 RESULT_MAX = 20000
 DETAIL_MAX = 300
+
+
+def redact_url(url: str) -> str:
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return ""
+    if not parts.hostname:
+        return ""
+    port = f":{parts.port}" if parts.port else ""
+    tail = "/..." if parts.path not in ("", "/") or parts.query else ""
+    return f"{parts.scheme}://{parts.hostname}{port}{tail}"
+
+
+def redact_command(command: str) -> str:
+    try:
+        argv = shlex.split(command)
+    except ValueError:
+        return ""
+    if not argv:
+        return ""
+    return os.path.basename(argv[0]) + (f" (+{len(argv) - 1} args)" if len(argv) > 1 else "")
 
 
 def _secret_name(server: str) -> str:
@@ -44,21 +68,23 @@ class McpServerConfig:
     header_names: list = field(default_factory=list)
     enabled: bool = True
     sessions: bool = False
+    env_names: list = field(default_factory=list)
 
     def to_dict(self) -> dict:
-        return {"name": self.name, "transport": self.transport, "url": self.url, "command": self.command, "header_names": self.header_names, "enabled": self.enabled, "sessions": self.sessions}
+        return {"name": self.name, "transport": self.transport, "url": self.url, "command": self.command, "header_names": self.header_names, "enabled": self.enabled, "sessions": self.sessions, "env_names": self.env_names}
 
 
 class _StdioSession:
-    def __init__(self, command: str) -> None:
+    def __init__(self, command: str, env_names: list | None = None) -> None:
         self.command = command
+        self.env_names = [n for n in (env_names or []) if isinstance(n, str)]
         self.proc: Optional[asyncio.subprocess.Process] = None
         self._id = 0
         self._lock = asyncio.Lock()
 
     async def start(self) -> None:
         argv = shlex.split(self.command)
-        env = {k: v for k, v in os.environ.items() if not k.startswith("SUBFORM_")}
+        env = {k: v for k, v in os.environ.items() if (k in ENV_ALLOW or k.startswith("LC_") or k in self.env_names) and not k.startswith("SUBFORM_")}
         cwd = ws.current() or os.path.expanduser("~")
         self.proc = await asyncio.create_subprocess_exec(*argv, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL, env=env, cwd=cwd)
 
@@ -164,7 +190,7 @@ class McpClientManager:
         for item in raw if isinstance(raw, list) else []:
             if not isinstance(item, dict) or not item.get("name"):
                 continue
-            cfg = McpServerConfig(name=str(item["name"]), transport=str(item.get("transport", "http")), url=str(item.get("url", "")), command=str(item.get("command", "")), header_names=list(item.get("header_names", [])), enabled=bool(item.get("enabled", True)), sessions=bool(item.get("sessions", False)))
+            cfg = McpServerConfig(name=str(item["name"]), transport=str(item.get("transport", "http")), url=str(item.get("url", "")), command=str(item.get("command", "")), header_names=list(item.get("header_names", [])), enabled=bool(item.get("enabled", True)), sessions=bool(item.get("sessions", False)), env_names=list(item.get("env_names", [])))
             self.servers[cfg.name] = ConnectedServer(config=cfg)
             if cfg.enabled:
                 await self.connect(cfg.name)
@@ -227,7 +253,7 @@ class McpClientManager:
             if cfg.transport == "stdio":
                 if srv.stdio:
                     await srv.stdio.stop()
-                srv.stdio = _StdioSession(cfg.command)
+                srv.stdio = _StdioSession(cfg.command, cfg.env_names)
                 await srv.stdio.start()
                 await srv.stdio.rpc("initialize", {"protocolVersion": PROTOCOL, "capabilities": {}, "clientInfo": info})
                 await srv.stdio.rpc("notifications/initialized", {}, notification=True)
@@ -284,7 +310,7 @@ class McpClientManager:
         return call
 
     def summary(self) -> list[dict]:
-        return [{"name": s.config.name, "transport": s.config.transport, "url": s.config.url, "command": s.config.command, "header_names": s.config.header_names, "enabled": s.config.enabled, "sessions": s.config.sessions, "status": s.status, "detail": s.detail, "tools": len(s.tools), "origin": "user"} for s in self.servers.values()]
+        return [{"name": s.config.name, "transport": s.config.transport, "url": redact_url(s.config.url), "command": redact_command(s.config.command), "env_names": s.config.env_names, "header_names": s.config.header_names, "enabled": s.config.enabled, "sessions": s.config.sessions, "status": s.status, "detail": s.detail, "tools": len(s.tools), "origin": "user"} for s in self.servers.values()]
 
     def session_entries(self) -> tuple[dict, list[str]]:
         entries: dict[str, dict] = {}

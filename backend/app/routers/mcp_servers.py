@@ -1,4 +1,5 @@
 import os
+import re
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,10 +11,11 @@ from app.core.local_guard import require_window
 from app.routers import tools as tools_router
 from app.services import mcp_tools
 from app.services import formslot as formslot_service
-from app.services.library.mcp_client import McpServerConfig, mcp_clients, valid_name
+from app.services.library.mcp_client import McpServerConfig, mcp_clients, redact_command, valid_name
 
 router = APIRouter(prefix="/mcp-servers")
 
+ENV_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 HEADER_NAME_MAX = 64
 HEADER_VALUE_MAX = 2048
 HEADERS_MAX = 16
@@ -27,6 +29,7 @@ class ServerBody(BaseModel):
     headers: dict[str, str] = Field(default_factory=dict)
     enabled: bool = True
     sessions: bool = False
+    env: list[str] = Field(default_factory=list)
 
 
 class EnabledBody(BaseModel):
@@ -38,11 +41,11 @@ def builtin_rows() -> list[dict]:
     from app.core import config
 
     launcher = config.REPO_DIR / ("subform.bat" if os.name == "nt" else "subform")
-    rows.append({"name": "subform launcher", "origin": "builtin", "transport": "stdio", "url": "", "command": f"{launcher} mcp" if launcher.is_file() else "", "status": "connected" if launcher.is_file() else "missing", "detail": "written into session mcp.json" if launcher.is_file() else "not next to the engine", "tools": len(mcp_tools.TOOLS), "enabled": True})
+    rows.append({"name": "subform launcher", "origin": "builtin", "transport": "stdio", "url": "", "command": redact_command(f"{launcher} mcp") if launcher.is_file() else "", "status": "connected" if launcher.is_file() else "missing", "detail": "written into session mcp.json" if launcher.is_file() else "not next to the engine", "tools": len(mcp_tools.TOOLS), "enabled": True})
     formmcp = os.environ.get("FORMMCP_BIN") or find_bin("formmcp")
-    rows.append({"name": "formMCP", "origin": "builtin", "transport": "stdio", "url": "", "command": os.path.abspath(formmcp) if formmcp and os.path.isfile(formmcp) else "", "status": "connected" if formmcp and os.path.isfile(formmcp) else "missing", "detail": "written into session mcp.json" if formmcp else "not found", "tools": 0, "enabled": True})
+    rows.append({"name": "formMCP", "origin": "builtin", "transport": "stdio", "url": "", "command": os.path.basename(formmcp) if formmcp and os.path.isfile(formmcp) else "", "status": "connected" if formmcp and os.path.isfile(formmcp) else "missing", "detail": "written into session mcp.json" if formmcp else "not found", "tools": 0, "enabled": True})
     slot = formslot_service.binary()
-    rows.append({"name": "formslot", "origin": "builtin", "transport": "stdio", "url": "", "command": f"{slot} mcp" if slot else "", "status": "connected" if slot else "missing", "detail": "written into session mcp.json" if slot else "not found", "tools": 0, "enabled": True})
+    rows.append({"name": "formslot", "origin": "builtin", "transport": "stdio", "url": "", "command": redact_command(f"{slot} mcp") if slot else "", "status": "connected" if slot else "missing", "detail": "written into session mcp.json" if slot else "not found", "tools": 0, "enabled": True})
     return rows
 
 
@@ -69,7 +72,7 @@ async def add_server(body: ServerBody) -> dict:
         raise HTTPException(400, "a stdio server needs a command")
     if len(body.headers) > HEADERS_MAX or any(not k or len(k) > HEADER_NAME_MAX or len(v) > HEADER_VALUE_MAX or "\n" in k + v for k, v in body.headers.items()):
         raise HTTPException(400, "headers are at most 16 short single-line pairs")
-    cfg = McpServerConfig(name=name, transport=body.transport, url=body.url.strip(), command=body.command.strip(), enabled=body.enabled, sessions=body.sessions)
+    cfg = McpServerConfig(name=name, transport=body.transport, url=body.url.strip(), command=body.command.strip(), enabled=body.enabled, sessions=body.sessions, env_names=[n for n in body.env if ENV_NAME.fullmatch(n) and not n.startswith("SUBFORM_")][:16])
     try:
         srv = await mcp_clients.add(cfg, body.headers)
     except Exception as error:

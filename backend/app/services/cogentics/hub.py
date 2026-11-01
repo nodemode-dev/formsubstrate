@@ -2,6 +2,7 @@ import asyncio
 from pathlib import Path
 from typing import Optional
 
+from app.core import workspace_root as ws
 from app.services.cogentics import llm as llm_mod
 from app.services.cogentics.agent import Tools
 from app.services.cogentics.compose import ComposeMixin
@@ -18,7 +19,7 @@ class CodexHub(StoreMixin, RosterMixin, RouteMixin, ComposeMixin, ToolsMixin, Gr
     def __init__(self) -> None:
         self.llm = llm_mod.client
         self.tools = Tools()
-        self.trusted = False
+        self._trusted_root: Optional[str] = None
         self._root: Optional[Path] = None
         self._approvals: dict[tuple, asyncio.Future] = {}
         self._channels: dict[str, Channel] = {}
@@ -27,6 +28,20 @@ class CodexHub(StoreMixin, RosterMixin, RouteMixin, ComposeMixin, ToolsMixin, Gr
         self._busy: dict[tuple, bool] = {}
         self._inbox: dict[tuple, list[dict]] = {}
         self._register_search_tool()
+
+    @property
+    def trusted(self) -> bool:
+        try:
+            return self._trusted_root is not None and self._trusted_root == ws.real_root()
+        except ws.Refused:
+            return False
+
+    @trusted.setter
+    def trusted(self, value: bool) -> None:
+        try:
+            self._trusted_root = ws.real_root() if value else None
+        except ws.Refused:
+            self._trusted_root = None
 
     async def shutdown(self) -> None:
         for fut in list(self._approvals.values()):

@@ -8,7 +8,7 @@ from typing import Any, Awaitable, Callable, Optional
 from app.core import workspace_root as ws
 from app.services.cogentics import checkpoints, usage
 from app.services.cogentics.llm import Client
-from app.services.cogentics.paths import root as ws_root
+from app.services.cogentics.paths import root as ws_root, safe_target
 
 Emit = Callable[[str, Optional[str]], Awaitable[None]]
 ToolExec = Callable[[str, dict], Awaitable[Any]]
@@ -41,9 +41,8 @@ def read_file(path: str, max_bytes: int = 200_000) -> str:
 
 
 def write_file(path: str, content: str) -> dict:
-    real, rel = ws.resolve(path, write=True)
+    target, rel = safe_target(path)
     checkpoints.record_change(ws_root(), rel, "write")
-    target = Path(real)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(content, encoding="utf-8")
     return {"written": rel}

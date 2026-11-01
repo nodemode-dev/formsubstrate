@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import types
 from typing import Any
@@ -67,11 +68,51 @@ def doc_to_dict(doc: types.SimpleNamespace) -> dict:
     }
 
 
+def has_tools(doc: Any) -> bool:
+    return any(n.kind == "tool" for n in doc.nodes)
+
+
+def glob_regex(pattern: str) -> "re.Pattern[str]":
+    out = []
+    i = 0
+    while i < len(pattern):
+        if pattern.startswith("**/", i):
+            out.append("(?:.*/)?")
+            i += 3
+        elif pattern.startswith("**", i):
+            out.append(".*")
+            i += 2
+        elif pattern[i] == "*":
+            out.append("[^/]*")
+            i += 1
+        elif pattern[i] == "?":
+            out.append("[^/]")
+            i += 1
+        else:
+            out.append(re.escape(pattern[i]))
+            i += 1
+    return re.compile("^" + "".join(out) + "$")
+
+
+def plain_path(rel: str, write: bool = False) -> str:
+    try:
+        base = ws.real_root()
+        real, clean = ws.resolve(rel, write=write, follow=False)
+    except ws.Refused as err:
+        raise GraphError(err.detail)
+    walk = base
+    for part in clean.split("/"):
+        walk = os.path.join(walk, part)
+        if os.path.islink(walk):
+            raise GraphError("symbolic links are refused in the .subform folder")
+    return real
+
+
 def load_saved_graph(name: str) -> types.SimpleNamespace:
     safe = safe_name(name)
     if not safe:
         raise GraphError("call_graph needs a saved graph name")
-    real, _ = ws.resolve(f"{GRAPHS_DIR}/{safe}.json")
+    real = plain_path(f"{GRAPHS_DIR}/{safe}.json")
     try:
         with open(real, "r", encoding="utf-8") as fh:
             data = json.load(fh)

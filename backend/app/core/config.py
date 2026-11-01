@@ -35,6 +35,16 @@ OLD_NAME = "substrataform"
 OLD_ENV_PREFIX = "SUBSTRATAFORM_"
 NEW_ENV_PREFIX = "SUBFORM_"
 MARKER_NAME = ".migrated-from-substrataform.json"
+USER_DATA = (
+    "recent.json",
+    "secrets-index.json",
+    "identity.json",
+    "allowed_signers",
+    "library",
+    "triggers",
+    "cogentics-provider.json",
+    "cogentics-models.json",
+)
 DEPRECATED_ENV: list[str] = []
 MIGRATION_NOTES: list[str] = []
 
@@ -85,9 +95,19 @@ def _copy_old_data(old: Path, new: Path) -> None:
     if staging.exists():
         shutil.rmtree(staging, ignore_errors=True)
     new.parent.mkdir(parents=True, exist_ok=True)
+    kept: list[str] = []
     try:
-        shutil.copytree(old, staging, symlinks=True, ignore=shutil.ignore_patterns("engine.lock", "*.sock"))
-        marker = {"from": str(old), "at": datetime.now(timezone.utc).isoformat(), "copied": True, "old_left_in_place": True}
+        staging.mkdir()
+        for name in USER_DATA:
+            source = old / name
+            if source.is_symlink() or not source.exists():
+                continue
+            if source.is_dir():
+                shutil.copytree(source, staging / name, symlinks=True)
+            else:
+                shutil.copy2(source, staging / name)
+            kept.append(name)
+        marker = {"from": str(old), "at": datetime.now(timezone.utc).isoformat(), "copied": kept, "old_left_in_place": True}
         (staging / MARKER_NAME).write_text(json.dumps(marker), encoding="utf-8")
         os.replace(staging, new)
     except OSError as error:

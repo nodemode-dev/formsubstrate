@@ -4,16 +4,18 @@ import re
 import threading
 
 import keyring
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from keyring.errors import KeyringError, PasswordDeleteError
 
 from app.core import config
+from app.core.local_guard import require_window
 
 router = APIRouter()
 
 SERVICE = "subform"
 OLD_SERVICE = "substrataform"
 KEYRING_MARKER = ".keyring-migrated-from-substrataform"
+RESERVED = ("mcp.", "plugin.", "cogentics-", "webhook-")
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_.-]{0,63}$")
 INDEX_NAME = "secrets-index.json"
 VALUE_MAX = 65536
@@ -58,27 +60,65 @@ def _old_names() -> list[str]:
     return [item for item in items if isinstance(item, str) and NAME_RE.fullmatch(item)]
 
 
+def _read_json(file) -> object:
+    try:
+        return json.loads(file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def _candidates() -> list[tuple[str, str]]:
+    found: list[tuple[str, str]] = [(SERVICE, name) for name in sorted({*_names(), *_old_names()})]
+    found.append((SERVICE, "cogentics-api-key"))
+    folders = [config.data_dir()]
+    old = config.old_data_dir()
+    if old is not None:
+        folders.append(old)
+    servers: set[str] = set()
+    triggers: set[str] = set()
+    for folder in folders:
+        listed = _read_json(folder / "library" / "mcp-servers.json")
+        for item in listed if isinstance(listed, list) else []:
+            if isinstance(item, dict) and isinstance(item.get("name"), str):
+                servers.add(item["name"])
+        try:
+            files = sorted((folder / "triggers").glob("*.json"))
+        except OSError:
+            files = []
+        for file in files:
+            doc = _read_json(file)
+            table = doc.get("triggers") if isinstance(doc, dict) else None
+            for item in (table.values() if isinstance(table, dict) else table or []):
+                if isinstance(item, dict) and item.get("kind") == "webhook" and isinstance(item.get("id"), str):
+                    triggers.add(item["id"])
+    found.extend((SERVICE, f"mcp.{name}.headers") for name in sorted(servers))
+    found.extend((f"{SERVICE}.triggers", f"webhook-{tid}") for tid in sorted(triggers))
+    return found
+
+
 def migrate_keyring() -> list[str]:
     marker = config.data_dir() / KEYRING_MARKER
     if marker.exists():
         return []
     notes: list[str] = []
     copied: list[str] = []
-    for name in sorted({*_names(), *_old_names()}):
+    for service, name in _candidates():
         try:
-            if keyring.get_password(SERVICE, name) is not None:
+            if keyring.get_password(service, name) is not None:
                 continue
-            value = keyring.get_password(OLD_SERVICE, name)
+            value = keyring.get_password(service.replace(SERVICE, OLD_SERVICE, 1), name)
             if value is None:
                 continue
-            keyring.set_password(SERVICE, name, value)
+            keyring.set_password(service, name, value)
             copied.append(name)
         except Exception as error:
             notes.append(f"keychain migration stopped at secret '{name}': {error.__class__.__name__}; it will be tried again at the next start")
             return notes
     if copied:
-        with _lock:
-            _save([*_names(), *copied])
+        indexed = [name for name in copied if NAME_RE.fullmatch(name) and not name.startswith(RESERVED)]
+        if indexed:
+            with _lock:
+                _save([*_names(), *indexed])
         notes.append(f"copied {len(copied)} secret(s) from the old keychain service to the new one: {', '.join(copied)}; the old entries were left in place")
     else:
         notes.append("keychain migration: nothing to copy from the old service")
@@ -92,6 +132,8 @@ def migrate_keyring() -> list[str]:
 def _check(name: str) -> None:
     if not NAME_RE.fullmatch(name):
         raise HTTPException(status_code=400, detail="bad secret name")
+    if name.startswith(RESERVED):
+        raise HTTPException(status_code=400, detail="this secret name belongs to another part of the app")
 
 
 def _unavailable() -> HTTPException:
@@ -112,7 +154,7 @@ def present(name: str) -> dict:
         raise _unavailable()
 
 
-@router.put("/secrets/{name}", status_code=204)
+@router.put("/secrets/{name}", status_code=204, dependencies=[Depends(require_window)])
 async def put_secret(name: str, request: Request) -> Response:
     _check(name)
     try:
@@ -131,7 +173,7 @@ async def put_secret(name: str, request: Request) -> Response:
     return Response(status_code=204)
 
 
-@router.delete("/secrets/{name}", status_code=204)
+@router.delete("/secrets/{name}", status_code=204, dependencies=[Depends(require_window)])
 def delete_secret(name: str) -> Response:
     _check(name)
     try:

@@ -83,10 +83,12 @@ class ApprovalsPanel {
 
   private async decide(runId: string, approved: boolean): Promise<void> {
     if (this.deciding.has(runId)) return;
+    const row = this.rows.find((r) => r.run_id === runId);
+    if (!row) return;
     this.deciding.add(runId);
     this.paint();
     try {
-      await approvalsApi.decide(runId, approved);
+      await approvalsApi.decide(runId, row.id, approved);
       this.rows = this.rows.filter((r) => r.run_id !== runId);
       toast(t(approved ? 'Approved. The run continues.' : 'Denied. The step is skipped.'));
     } catch (err) {

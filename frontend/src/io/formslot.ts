@@ -139,7 +139,7 @@ async function tool<T>(name: string, args: Record<string, unknown>): Promise<T> 
 
 export const formslot = {
   status: (): Promise<FormslotStatus> => call<FormslotStatus>('/api/formslot/status'),
-  onboard: (): Promise<FormslotOnboard> => call<FormslotOnboard>('/api/formslot/onboard'),
+  onboard: (): Promise<FormslotOnboard> => owner<FormslotOnboard>('/api/formslot/onboard'),
   start: (): Promise<FormslotStatus> => owner<FormslotStatus>('/api/formslot/start', post()),
   index: (path?: string): Promise<ActionResult> => owner<ActionResult>('/api/formslot/index', post(path ? { path } : {})),
   install: (mode: InstallMode): Promise<ActionResult> => owner<ActionResult>('/api/formslot/install', post({ mode })),

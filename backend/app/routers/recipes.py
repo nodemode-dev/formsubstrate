@@ -20,6 +20,7 @@ class RecipeBody(BaseModel):
 class RunBody(BaseModel):
     inputs: dict = Field(default_factory=dict)
     mode: str = "simulate"
+    trust: bool = False
 
 
 def _fail(err: store.RecipeError) -> HTTPException:
@@ -66,7 +67,7 @@ async def delete(name: str) -> dict:
 @router.post("/recipes/{name}/run", dependencies=[Depends(require_window)])
 async def run(name: str, body: RunBody | None = None) -> dict:
     try:
-        return await launch.run_recipe(name, body.inputs if body else {}, body.mode if body else "simulate")
+        return await launch.run_recipe(name, body.inputs if body else {}, body.mode if body else "simulate", body.trust if body else False)
     except store.RecipeError as err:
         raise _fail(err)
 

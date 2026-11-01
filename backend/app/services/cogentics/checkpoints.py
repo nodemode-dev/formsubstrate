@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from app.services.cogentics.paths import state_dir
+from app.services.cogentics.paths import has_symlink, state_dir
 
 _scope: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
     "subform_checkpoint_scope", default=None)
@@ -53,6 +53,8 @@ def record_change(ws_root: Path, rel: str, op: str) -> None:
     mf, man = _manifest(ws_root, scope_id)
     entry = man["files"].get(rel)
     src = ws_root / rel
+    if has_symlink(rel, ws_root):
+        return
     if entry is None:
         pre_dir = mf.parent / "pre"
         if src.exists() and src.is_file():
@@ -135,12 +137,14 @@ def revert(ws_root: Path, scope_id: str, rel: str) -> dict:
     if entry is None:
         return {"error": f"not tracked by this scope: {rel}"}
     cur = ws_root / rel
+    if has_symlink(rel, ws_root):
+        return {"error": f"refused: symlinked path {rel}"}
     if entry.get("pre") == "absent":
-        if cur.exists():
+        if cur.is_file():
             cur.unlink()
         return {"reverted": rel, "action": "removed"}
     pre_p = _root_dir(ws_root) / _safe_id(scope_id) / "pre" / rel
-    if not pre_p.exists():
+    if not pre_p.is_file() or pre_p.is_symlink():
         return {"error": f"pre-image missing for {rel}"}
     cur.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(pre_p, cur)

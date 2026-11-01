@@ -50,7 +50,7 @@ async def changes(scope: str) -> dict:
     return {"scope": scope, "changes": checkpoints.changes(ws_root(), scope)}
 
 
-@router.get("/scopes/{scope}/file")
+@router.get("/scopes/{scope}/file", dependencies=[Depends(require_window)])
 async def file_versions(scope: str, path: str) -> dict:
     _known(scope)
     rel = _path(path)

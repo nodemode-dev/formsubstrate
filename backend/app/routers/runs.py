@@ -35,25 +35,36 @@ class StartRun(BaseModel):
     task: str = Field(default="", max_length=100_000)
     mode: str = "simulate"
     inputs: dict = Field(default_factory=dict)
+    trusted: bool = False
+
+
+class RerunBody(BaseModel):
+    trusted: bool = False
 
 
 class ResumeBody(BaseModel):
     payload: Optional[dict] = None
+    park: Optional[str] = None
 
 
 class Decision(BaseModel):
     approved: bool
+    approval: str
 
 
-def _begin(doc, task: str, mode: str, inputs: dict) -> dict:
+def _begin(doc, task: str, mode: str, inputs: dict, trusted: bool) -> dict:
     if mode not in MODES:
         raise HTTPException(status_code=400, detail="mode must be simulate or claude")
     if not any(n.kind == "start" for n in doc.nodes):
         raise HTTPException(status_code=422, detail="graph has no start node")
+    if not trusted and (mode == "claude" or rt.has_tools(doc)):
+        raise HTTPException(status_code=403, detail="trust this workspace in Preferences to run Claude or tool nodes")
     if not agent.mode_available(mode):
         raise HTTPException(status_code=409, detail="the claude command was not found on this computer; install Claude Code or use the simulator")
-    manager.sync()
-    run = manager.start(doc, task, inputs, mode)
+    try:
+        run = manager.start(doc, task, inputs, mode, trusted)
+    except rt.GraphError as err:
+        raise HTTPException(status_code=403, detail=str(err))
     return {"run_id": run.id, "status": run.status, "mode": mode}
 
 
@@ -69,32 +80,26 @@ async def list_tools() -> dict:
 
 @router.get("/runs/approvals")
 def approvals() -> dict:
-    root = _root()
-    out = []
-    for r in manager.runs.values():
-        if r.root == root and r.status == "parked" and (r.parked_on or {}).get("type") == "approval":
-            out.append({"run_id": r.id, "tool": r.parked_on.get("tool"), "args": r.parked_on.get("args"), "diff": r.parked_on.get("diff"), "task": r.task[:120]})
-    return {"approvals": out}
+    return {"approvals": manager.approvals(_root())}
 
 
 @router.post("/runs/approvals/{run_id}", dependencies=[Depends(require_window)])
 def decide(run_id: str, body: Decision) -> dict:
-    run = manager.runs.get(run_id)
-    if run is None or (run.parked_on or {}).get("type") != "approval" or not manager.resume(run_id, {"approved": body.approved}):
-        raise HTTPException(status_code=404, detail="no pending approval for that run")
-    return {"approved": body.approved}
+    _root()
+    if not manager.decide(run_id, body.approval, body.approved):
+        raise HTTPException(status_code=404, detail="no such pending approval")
+    return {"approved": body.approved, "approval": body.approval}
 
 
 @router.post("/runs", dependencies=[Depends(require_window)])
 async def start_run(body: StartRun) -> dict:
     _root()
-    return _begin(_doc(body.doc), body.task, body.mode, body.inputs)
+    return _begin(_doc(body.doc), body.task, body.mode, body.inputs, body.trusted)
 
 
 @router.get("/runs")
 def list_runs() -> dict:
     root = _root()
-    manager.sync()
     return {"runs": manager.history(root)}
 
 
@@ -111,7 +116,7 @@ def _detail(run_id: str) -> dict:
     return {"id": data.get("id", run_id), "status": data.get("status", "?"), "task": data.get("task", ""),
             "name": data.get("name", ""), "mode": data.get("mode", ""), "created": data.get("created", 0),
             "events": data.get("events", []), "nodes": data.get("nodes", {}), "doc": data.get("doc"),
-            "parked_on": data.get("parked_on"), "usage": data.get("usage")}
+            "parked_on": None, "parks": [], "usage": data.get("usage")}
 
 
 @router.get("/runs/{run_id}")
@@ -162,18 +167,18 @@ async def run_stream(run_id: str):
 
 
 @router.post("/runs/{run_id}/rerun", dependencies=[Depends(require_window)])
-async def rerun(run_id: str, body: Optional[StartRun] = None) -> dict:
+async def rerun(run_id: str, body: Optional[RerunBody] = None) -> dict:
     d = _detail(run_id)
     if not d.get("doc"):
         raise HTTPException(status_code=404, detail="no stored graph to run again")
-    out = _begin(_doc(d["doc"]), d.get("task", ""), d.get("mode") or "simulate", {})
+    out = _begin(_doc(d["doc"]), d.get("task", ""), d.get("mode") or "simulate", {}, bool(body and body.trusted))
     out["rerun_of"] = run_id
     return out
 
 
 @router.post("/runs/{run_id}/resume", dependencies=[Depends(require_window)])
 def resume_run(run_id: str, body: Optional[ResumeBody] = None) -> dict:
-    if not manager.resume(run_id, (body.payload if body else None) or {}):
+    if not manager.resume(run_id, (body.payload if body else None) or {}, body.park if body else None):
         raise HTTPException(status_code=409, detail="run is not parked")
     return {"status": "running"}
 
@@ -212,6 +217,8 @@ def install_preset(name: str) -> dict:
         rel = presets.install(name)
     except ws.Refused as err:
         raise HTTPException(status_code=err.status, detail=err.detail)
+    except rt.GraphError as err:
+        raise HTTPException(status_code=403, detail=str(err))
     if rel is None:
         raise HTTPException(status_code=404, detail=f"no graph preset {name}")
     return {"installed": rel}

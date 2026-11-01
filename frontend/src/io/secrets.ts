@@ -1,4 +1,5 @@
 import { request } from './api';
+import { owner } from './window-token';
 
 const path = (name: string): string => `/api/secrets/${encodeURIComponent(name)}`;
 
@@ -13,9 +14,9 @@ export async function hasSecret(name: string): Promise<boolean> {
 }
 
 export async function saveSecret(name: string, value: string): Promise<void> {
-  await request<void>(path(name), { method: 'PUT', body: JSON.stringify({ value }) });
+  await owner<void>(path(name), { method: 'PUT', body: JSON.stringify({ value }) });
 }
 
 export async function removeSecret(name: string): Promise<void> {
-  await request<void>(path(name), { method: 'DELETE' });
+  await owner<void>(path(name), { method: 'DELETE' });
 }

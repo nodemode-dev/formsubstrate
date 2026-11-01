@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import re
@@ -21,21 +22,38 @@ class RecipeError(Exception):
         self.detail = detail
 
 
-def folder() -> Path:
+def safe_path(rel: str, write: bool = False) -> Path:
     try:
-        return Path(ws.real_root()) / ".subform" / "recipes"
+        real, flat = ws.resolve(rel, write=write, follow=False)
+        cur = ws.real_root()
     except ws.Refused as err:
         raise RecipeError(err.status, err.detail) from err
+    for part in flat.split("/"):
+        cur = os.path.join(cur, part)
+        if os.path.islink(cur):
+            raise RecipeError(403, "a symbolic link in the path is refused")
+    return Path(real)
 
 
-def _path(name: str) -> Path:
+def folder(write: bool = False) -> Path:
+    return safe_path(".subform/recipes", write)
+
+
+def _path(name: str, write: bool = False) -> Path:
     if not SAFE_NAME.match(name or ""):
         raise RecipeError(400, "a recipe name is letters, digits, dashes and underscores")
-    return folder() / f"{name}.json"
+    return safe_path(f".subform/recipes/{name}.json", write)
+
+
+def content_hash(recipe: dict) -> str:
+    body = {k: recipe.get(k) for k in ("name", "doc", "task_template", "inputs", "skills")}
+    return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
 def _read(path: Path) -> dict | None:
     try:
+        if path.is_symlink():
+            return None
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
@@ -133,7 +151,7 @@ def _check_doc(doc: object) -> dict:
 
 def save_recipe(body: dict, replace: bool = True) -> dict:
     name = str(body.get("name") or "")
-    path = _path(name)
+    path = _path(name, True)
     if not replace and path.exists():
         raise RecipeError(409, f"a recipe named {name} already exists")
     recipe = {
@@ -149,15 +167,17 @@ def save_recipe(body: dict, replace: bool = True) -> dict:
     if len(text.encode("utf-8")) > MAX_BYTES:
         raise RecipeError(413, "the recipe is larger than 1 MB")
     path.parent.mkdir(parents=True, exist_ok=True)
-    temp = path.with_name(path.name + ".tmp")
-    temp.write_text(text, encoding="utf-8")
+    temp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o644)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(text)
     os.replace(temp, path)
     return recipe
 
 
 def delete_recipe(name: str) -> None:
-    path = _path(name)
-    if not path.is_file():
+    path = _path(name, True)
+    if path.is_symlink() or not path.is_file():
         raise RecipeError(404, f"no recipe named {name}")
     path.unlink()
 
@@ -169,6 +189,12 @@ def install_preset(name: str) -> dict:
     if data is None:
         raise RecipeError(404, f"no preset recipe {name}")
     return save_recipe(data, replace=False)
+
+
+def as_data(value: object) -> str:
+    text = value if isinstance(value, str) else json.dumps(value, default=str, ensure_ascii=False)
+    text = "".join(ch for ch in text if ch in "\n\t" or ord(ch) >= 32)[:2000]
+    return text.replace("{", "｛").replace("}", "｝")
 
 
 def render_task(recipe: dict, inputs: dict | None = None) -> str:

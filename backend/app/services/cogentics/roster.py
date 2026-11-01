@@ -2,6 +2,7 @@ import asyncio
 import time
 import uuid
 
+from app.services.cogentics.paths import valid_ref
 from app.services.cogentics.model import WORKER_KINDS, HANDLE_RE, Channel, Member, is_worker, parse_body
 
 
@@ -20,6 +21,8 @@ class RosterMixin:
             raise ValueError(f"kind must be one of {WORKER_KINDS}")
         if handle in ("all", "system") or ch.member(handle):
             raise ValueError(f"handle taken or reserved: {handle}")
+        if model and not valid_ref(model):
+            raise ValueError("model: letters, digits and . _ : / @ - only, no leading dash")
         m = Member(handle=handle, kind=kind, role_prompt=role_prompt,
                    full_access=full_access, model=model)
         ch.members.append(m)

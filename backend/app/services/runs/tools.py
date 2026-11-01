@@ -1,5 +1,6 @@
 import asyncio
 import difflib
+import json
 import os
 from typing import Any
 
@@ -11,7 +12,15 @@ WRITE_MAX = 2_000_000
 SHELL_TIMEOUT = 60
 SHELL_OUT = 20_000
 SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", "target", "dist", ".subform"}
-ALWAYS_APPROVE = {"run_shell"}
+READ_ONLY = {"list_files", "read_file"}
+ALWAYS_APPROVE = {"write_file", "run_shell"}
+PROTECTED = {".git", ".subform", ".claude", ".mcp.json", "package.json", ".husky", ".gitmodules", ".envrc"}
+DIFF_MAX = 200_000
+ARGS_MAX = 8_000
+
+
+class Refusal(Exception):
+    pass
 
 DEFINITIONS = [
     {"name": "list_files", "description": "List files in the workspace.", "args": {}},
@@ -26,7 +35,17 @@ def names() -> list[str]:
 
 
 def needs_approval(name: str, cfg: dict) -> bool:
-    return name in ALWAYS_APPROVE or bool(cfg.get("approve"))
+    return name not in READ_ONLY
+
+
+def protected_target(path: str) -> tuple[str, str]:
+    real, rel = ws.resolve(path, write=True)
+    base = ws.real_root()
+    inner = os.path.relpath(real, base).replace(os.sep, "/")
+    for part in rel.split("/") + inner.split("/"):
+        if part.lower() in PROTECTED:
+            raise Refusal(f"{part} is protected and cannot be written from a graph tool")
+    return real, rel
 
 
 def _list() -> list[str]:
@@ -50,9 +69,10 @@ def _read(path: str) -> str:
 def _write(path: str, content: str) -> dict:
     if len(content) > WRITE_MAX:
         return {"error": "content is too large"}
-    real, rel = ws.resolve(path, write=True)
-    if rel.split("/")[0] == ".subform":
-        return {"error": "the .subform folder is not writable from a graph tool"}
+    try:
+        real, rel = protected_target(path)
+    except Refusal as err:
+        return {"error": str(err)}
     os.makedirs(os.path.dirname(real), exist_ok=True)
     with open(real, "w", encoding="utf-8") as fh:
         fh.write(content)
@@ -73,16 +93,30 @@ async def _shell(command: str) -> dict:
     return {"exit": proc.returncode, "output": out.decode("utf-8", "replace")[-SHELL_OUT:]}
 
 
-def preview_diff(args: dict) -> str | None:
+def preview_diff(args: dict) -> str:
     path = args.get("path")
-    if not isinstance(path, str):
-        return None
-    try:
-        before = _read(path)
-    except (OSError, ws.Refused):
-        before = ""
-    lines = difflib.unified_diff(before.splitlines(keepends=True), str(args.get("content") or "").splitlines(keepends=True), fromfile=f"a/{path}", tofile=f"b/{path}", n=3)
-    return "".join(lines)[:40_000]
+    content = args.get("content")
+    if not isinstance(path, str) or not isinstance(content, str):
+        raise Refusal("write_file needs a path and content as text")
+    if len(content) > WRITE_MAX:
+        raise Refusal("content is too large to review")
+    real, _ = protected_target(path)
+    before = ""
+    if os.path.isfile(real):
+        if os.path.getsize(real) > READ_MAX:
+            raise Refusal("the existing file is too large to show a full diff")
+        with open(real, "r", encoding="utf-8", errors="replace") as fh:
+            before = fh.read()
+    lines = difflib.unified_diff(before.splitlines(keepends=True), content.splitlines(keepends=True), fromfile=f"a/{path}", tofile=f"b/{path}", n=3)
+    text = "".join(lines) or "(no textual difference)"
+    if len(text) > DIFF_MAX:
+        raise Refusal("the change is too large to review in full; split it into smaller writes")
+    return text
+
+
+def check_args(args: dict) -> None:
+    if len(json.dumps(args, default=str)) > ARGS_MAX:
+        raise Refusal("the arguments are too long to review in full")
 
 
 async def call(name: str, args: dict, simulate: bool) -> Any:

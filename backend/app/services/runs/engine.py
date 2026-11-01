@@ -3,48 +3,47 @@ import json
 import time
 from typing import Any, Optional
 
+from app.core import workspace_root as ws
 from app.services.runs import agent as agent_mod
 from app.services.runs import tools
+from app.services.runs.park import Park
 from app.services.runs.rt import (GraphError, MAX_PARALLEL, MAX_STEPS, eval_expr,
                                   label_of, load_saved_graph, pick_edge, render_template)
 
 
 class Engine:
     async def park(self, run, on: dict, node=None) -> dict:
-        if run.pre_resumed is not None:
-            payload = run.pre_resumed
-            run.pre_resumed = None
-            self.emit(run, node, "resumed", json.dumps(payload)[:300])
-            return payload
-        on = {**on, "parked_at": time.time()}
+        park = Park(node_id=getattr(node, "id", ""), label=getattr(node, "label", ""), on={**on, "parked_at": time.time()})
+        run.parks[park.id] = park
         run.status = "parked"
-        run.parked_on = on
-        run.checkpoint = {"node_id": getattr(node, "id", None), "context": run.cur_context}
-        run.resume_event.clear()
-        self.emit(run, node, "parked", json.dumps(on)[:300])
+        self.emit(run, node, "parked", json.dumps({**park.on, "park": park.id})[:300])
         self.persist(run)
-        self.arm(run, on)
-        await run.resume_event.wait()
-        self.stop_watchers(run)
-        run.status = "running"
-        run.parked_on = None
-        run.checkpoint = None
-        payload = run.resume_payload or {}
-        run.resume_payload = None
+        self.arm(run, park)
+        try:
+            payload = await park.future
+        finally:
+            if park.watcher is not None:
+                park.watcher.cancel()
+            run.parks.pop(park.id, None)
+            if not run.parks and run.status == "parked":
+                run.status = "running"
         self.emit(run, node, "resumed", json.dumps(payload)[:300])
         self.persist(run)
         return payload
 
     async def exec_tool(self, run, node, name: str, args: dict) -> Any:
-        cfg = node.config or {}
-        if tools.needs_approval(name, cfg):
+        if not run.trusted:
+            return {"error": "this workspace is not trusted, so tools are not run"}
+        if tools.needs_approval(name, node.config or {}):
             payload: dict = {"type": "approval", "tool": name, "args": args}
-            if name == "write_file":
-                diff = await asyncio.to_thread(tools.preview_diff, args)
-                if diff is not None:
-                    payload["diff"] = diff
+            try:
+                tools.check_args(args)
+                if name == "write_file":
+                    payload["diff"] = await asyncio.to_thread(tools.preview_diff, args)
+            except (tools.Refusal, ws.Refused, OSError) as err:
+                return {"error": str(getattr(err, "detail", err))}
             verdict = await self.park(run, payload, node)
-            if not verdict.get("approved"):
+            if verdict.get("approved") is not True:
                 return {"error": f"tool call denied by user: {name}"}
         return await tools.call(name, args, run.mode == "simulate")
 
@@ -86,8 +85,19 @@ class Engine:
         return f"[{node.label} tool result]\n{text[:4000]}", None, None, None, text
 
     async def node_yield(self, run, node, cfg, context, item):
-        on = cfg.get("event") if isinstance(cfg.get("event"), dict) else {"type": "manual"}
-        payload = await self.park(run, dict(on), node)
+        raw = cfg.get("event") if isinstance(cfg.get("event"), dict) else {}
+        kind = raw.get("type") if raw.get("type") in ("manual", "delay", "watch", "approval") else "manual"
+        on: dict = {"type": kind}
+        if kind == "delay":
+            on["seconds"] = raw.get("seconds") if isinstance(raw.get("seconds"), (int, float)) and not isinstance(raw.get("seconds"), bool) else 60
+        elif kind == "watch":
+            on["glob"] = str(raw.get("glob") or "**/*")[:200]
+        elif kind == "approval":
+            on["tool"] = "continue"
+            on["args"] = {"node": node.label}
+        payload = await self.park(run, on, node)
+        if kind == "approval" and payload.get("approved") is not True:
+            raise GraphError("continuation was denied")
         out = context + f"\n[{node.label} resumed]\n{json.dumps(payload)[:1000]}"
         return out, None, None, None, json.dumps(payload)
 

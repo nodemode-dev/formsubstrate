@@ -1,3 +1,4 @@
+import { TRUST_EVENT, workspaceTrusted } from '../../io/trust';
 import { detailOf } from '../../io/workspace';
 import { confirmAction } from '../../ui/dialogs';
 import { el, mountOnce, patchList, q, setClass, setDisabled, setHidden, setText, setTitle } from '../../ui/dom';
@@ -25,7 +26,7 @@ const VALUE_HINT: Record<TriggerKind, string> = {
   interval: 'seconds, at least 10',
   delay: 'seconds',
   watch: 'pattern, e.g. src/**',
-  webhook: 'secret, or blank to generate',
+  webhook: 'secret of 24+ characters, or blank to generate',
 };
 
 const spec = (tr: Trigger): string => {
@@ -185,7 +186,10 @@ class TriggersPanel {
     if (!row) return;
     try {
       if (act === 'toggle') await triggersApi.enable(id, !row.enabled);
-      else if (act === 'fire') {
+      else if (act === 'confirm') {
+        if (!(await confirmAction('Confirm changed recipe', t('The recipe changed after this trigger was made. Confirm to let the trigger run the recipe as it is now.'), 'Confirm', false))) return;
+        await triggersApi.confirm(id);
+      } else if (act === 'fire') {
         const r = await triggersApi.fire(id);
         toast(r.error ? r.error : r.run_id ? `${t('Run started')}: ${r.run_id}` : t('Nothing started'), r.error ? 'error' : 'info');
       } else if (act === 'webhook') {
@@ -209,7 +213,7 @@ class TriggersPanel {
   }
 
   private makeRow(): HTMLElement {
-    return el(`<div class="cv-tg-row" role="listitem"><button class="cv-wb-tool cv-tg-tgl" type="button" data-act="toggle"><i></i></button><span class="cv-tg-main"><span class="cv-tg-top"><span class="cv-tg-chip"></span><span class="cv-tg-spec"></span></span><span class="cv-tg-target"></span><span class="cv-tg-meta"></span></span><span class="cv-tg-acts"><button class="cv-wb-tool" type="button" data-act="fire">${icon('play', 12)}</button><button class="cv-wb-tool" type="button" data-act="webhook">${icon('link', 12)}</button><button class="cv-wb-tool" type="button" data-act="remove">${icon('delete', 12)}</button></span></div>`);
+    return el(`<div class="cv-tg-row" role="listitem"><button class="cv-wb-tool cv-tg-tgl" type="button" data-act="toggle"><i></i></button><span class="cv-tg-main"><span class="cv-tg-top"><span class="cv-tg-chip"></span><span class="cv-tg-spec"></span></span><span class="cv-tg-target"></span><span class="cv-tg-meta"></span></span><span class="cv-tg-acts"><button class="cv-wb-tool" type="button" data-act="confirm">${icon('check', 12)}</button><button class="cv-wb-tool" type="button" data-act="fire">${icon('play', 12)}</button><button class="cv-wb-tool" type="button" data-act="webhook">${icon('link', 12)}</button><button class="cv-wb-tool" type="button" data-act="remove">${icon('delete', 12)}</button></span></div>`);
   }
 
   private update(node: HTMLElement, tr: Trigger): void {
@@ -222,10 +226,12 @@ class TriggersPanel {
     const last = tr.last_fired ? `${t('last')} ${clock(tr.last_fired)}` : t('never fired');
     const next = tr.next_fire ? ` · ${t('next')} ${clock(tr.next_fire)}` : '';
     const missed = tr.missed ? ` · ${t('missed while the app was closed')}` : '';
-    setText(q(node, '.cv-tg-meta'), `${tr.fires}× · ${last}${next}${missed}`);
+    const changed = tr.needs_confirm ? ` · ${t('its recipe changed; confirm to run again')}` : '';
+    setText(q(node, '.cv-tg-meta'), `${tr.fires}× · ${last}${next}${missed}${changed}`);
     const webhook = q<HTMLButtonElement>(node, '[data-act="webhook"]');
     setHidden(webhook, tr.kind !== 'webhook');
-    for (const [act, label] of [['fire', 'Run now'], ['webhook', 'Webhook details'], ['remove', 'Delete']] as const) {
+    setHidden(q<HTMLButtonElement>(node, '[data-act="confirm"]'), !tr.needs_confirm);
+    for (const [act, label] of [['confirm', 'Confirm the changed recipe'], ['fire', 'Run now'], ['webhook', 'Webhook details'], ['remove', 'Delete']] as const) {
       const b = q<HTMLButtonElement>(node, `[data-act="${act}"]`);
       setTitle(b, t(label));
     }
@@ -256,6 +262,13 @@ register({
   name: 'Triggers',
   description: 'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while subform is open.',
   setup(ctx: ExtensionContext, shell: Shell): void {
+    const announce = (): void => {
+      const path = ctx.store.workspace?.path;
+      if (path) void triggersApi.trust(path, workspaceTrusted()).catch(() => undefined);
+    };
+    ctx.store.on('workspace', announce);
+    window.addEventListener(TRUST_EVENT, announce);
+    announce();
     const section: SidebarSection = shell.sidebarSection({
       id: 'triggers',
       title: 'Triggers',

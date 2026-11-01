@@ -57,8 +57,8 @@ class ComposeMixin:
         search_hint = (
             "Use the channel_search tool to recover unseen context."
             if m.kind == "agent" else
-            f"The full history is .subform/cogentics/{ch.name}.messages.jsonl "
-            "in your working directory; grep it to recover unseen context.")
+            "The recent ledger is included in your briefing; ask in the channel "
+            "if you need older context.")
         if not conventions:
             return f"\n[roster:\n{roster}\n]\n"
         return (

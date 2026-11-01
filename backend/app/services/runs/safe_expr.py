@@ -1,9 +1,15 @@
 import ast
 import json
 import operator
+import re
+import time
 
 MAX_NODES = 400
-MAX_REPEAT = 100_000
+MAX_REPEAT = 1_000_000
+MAX_RESULT = 1_000_000
+MAX_TOTAL = 8_000_000
+DEADLINE = 2.0
+PERCENT_WIDTH = re.compile(r"%[^a-zA-Z%]*(?:\*|\d{5,})")
 MAX_RANGE = 100_000
 MAX_COMP = 100_000
 
@@ -38,7 +44,7 @@ METHODS = {
     "get", "keys", "values", "items", "lower", "upper", "strip", "lstrip",
     "rstrip", "split", "splitlines", "startswith", "endswith", "join",
     "replace", "count", "index", "find", "title", "isdigit", "isalpha",
-    "format", "removeprefix", "removesuffix",
+    "removeprefix", "removesuffix",
 }
 METHOD_OWNERS = (str, dict, list, tuple)
 BINOPS = {
@@ -59,15 +65,50 @@ class _Eval:
         self.names = names
         self.count = 0
         self.comp = 0
+        self.spent = 0
+        self.deadline = time.monotonic() + DEADLINE
 
     def run(self, node, scope: dict):
         self.count += 1
         if self.count > MAX_NODES * 50:
             raise ExprError("expression took too many steps")
+        if time.monotonic() > self.deadline:
+            raise ExprError("expression took too long")
         method = getattr(self, "n_" + type(node).__name__, None)
         if method is None:
             raise ExprError(f"{type(node).__name__} is not allowed in expressions")
-        return method(node, scope)
+        return self.charge(method(node, scope))
+
+    def charge(self, value):
+        if isinstance(value, (str, bytes, list, tuple, dict, set)):
+            size = len(value)
+            if size > MAX_RESULT:
+                raise ExprError("result is too large")
+            self.spent += size
+            if self.spent > MAX_TOTAL:
+                raise ExprError("expression used too much memory")
+        return value
+
+    def guard_call(self, func, args, kwargs):
+        owner = getattr(func, "__self__", None)
+        name = getattr(func, "__name__", "")
+        if isinstance(owner, str) and name == "replace" and len(args) >= 2 and isinstance(args[0], str) and isinstance(args[1], str):
+            old, new = args[0], args[1]
+            limit = args[2] if len(args) > 2 and isinstance(args[2], int) and args[2] >= 0 else None
+            if old:
+                hits = owner.count(old)
+                if limit is not None:
+                    hits = min(hits, limit)
+            else:
+                hits = len(owner) + 1
+                if limit is not None:
+                    hits = min(hits, limit)
+            if len(owner) + hits * max(0, len(new) - len(old)) > MAX_RESULT:
+                raise ExprError("result is too large")
+        elif isinstance(owner, str) and name == "join" and len(args) == 1:
+            items = list(args[0]) if not isinstance(args[0], (list, tuple)) else args[0]
+            if len(items) * len(owner) + sum(len(i) for i in items if isinstance(i, str)) > MAX_RESULT:
+                raise ExprError("result is too large")
 
     def n_Expression(self, node, scope):
         return self.run(node.body, scope)
@@ -131,6 +172,7 @@ class _Eval:
             if k.arg is None:
                 raise ExprError("star arguments are not allowed")
             kwargs[k.arg] = self.run(k.value, scope)
+        self.guard_call(func, args, kwargs)
         return func(*args, **kwargs)
 
     def n_BoolOp(self, node, scope):
@@ -168,6 +210,10 @@ class _Eval:
             for seq, n in ((a, b), (b, a)):
                 if isinstance(seq, (str, list, tuple)) and isinstance(n, int) and n * max(len(seq), 1) > MAX_REPEAT:
                     raise ExprError("repeat is too large")
+        if isinstance(node.op, ast.Mod) and isinstance(a, (str, bytes)):
+            text = a if isinstance(a, str) else a.decode("latin-1")
+            if PERCENT_WIDTH.search(text):
+                raise ExprError("format width is too large")
         try:
             return op(a, b)
         except (TypeError, ZeroDivisionError, ValueError) as err:

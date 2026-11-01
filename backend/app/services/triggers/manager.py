@@ -73,14 +73,42 @@ def _clean_action(action: object) -> dict:
             "kind": kind,
             "name": name,
             "mode": mode,
+            "recipe_hash": store.content_hash(store.get_recipe(name)),
             "inputs": {str(k)[:40]: str(v)[:20000] for k, v in inputs.items()},
             "inputs_from_payload": [str(k)[:40] for k in pulled][:20] if isinstance(pulled, list) else [],
         }
-    return {"kind": kind, "name": name, "mode": mode, "task": str(action.get("task") or "")[:20000]}
+    return {"kind": kind, "name": name, "mode": mode, "task": str(action.get("task") or "")[:20000], "graph_hash": _graph_hash(name)}
+
+
+def _graph_text(name: str) -> str | None:
+    try:
+        path = store.safe_path(f".subform/graphs/{name}.json")
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > store.MAX_BYTES:
+            return None
+        return path.read_text(encoding="utf-8")
+    except (OSError, store.RecipeError):
+        return None
+
+
+def _graph_hash(name: str) -> str:
+    text = _graph_text(name)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest() if text is not None else ""
+
+
+def _current_hash(action: dict) -> tuple[str, str]:
+    """The stored hash and the hash of what is on disk now, for the action's target."""
+    if action["kind"] == "run_recipe":
+        try:
+            now = store.content_hash(store.get_recipe(action["name"]))
+        except store.RecipeError:
+            now = ""
+        return str(action.get("recipe_hash") or ""), now
+    return str(action.get("graph_hash") or ""), _graph_hash(action["name"])
 
 
 class Triggers:
     def __init__(self) -> None:
+        self._trusted: set[str] = set()
         self._root: str | None = None
         self._table: dict[str, dict] = {}
         self._anchor: dict[str, float] = {}
@@ -131,6 +159,37 @@ class Triggers:
         if not self._bind():
             raise TriggerError(409, "no workspace open")
 
+    def set_trust(self, workspace: str, trusted: bool) -> dict:
+        """The window says whether the owner trusts this workspace. Held in memory only, so a restart fails closed."""
+        root = ws.current()
+        if root is None or not workspace or os.path.realpath(workspace) != os.path.realpath(root):
+            return {"trusted": self.trusted()}
+        key = os.path.realpath(root)
+        if trusted:
+            self._trusted.add(key)
+        else:
+            self._trusted.discard(key)
+        return {"trusted": trusted}
+
+    def trusted(self) -> bool:
+        root = ws.current()
+        return root is not None and os.path.realpath(root) in self._trusted
+
+    def confirm(self, tid: str) -> dict:
+        self._need()
+        trig = self._table.get(tid)
+        if trig is None:
+            raise TriggerError(404, "unknown trigger")
+        action = trig["action"]
+        if action["kind"] in ("run_recipe", "run_graph"):
+            _, now = _current_hash(action)
+            if not now:
+                raise TriggerError(404, f"{action['name']} no longer exists")
+            action["recipe_hash" if action["kind"] == "run_recipe" else "graph_hash"] = now
+        trig.pop("needs_confirm", None)
+        self._save()
+        return self._present(trig)
+
     def _present(self, trig: dict) -> dict:
         row = dict(trig)
         row["next_fire"] = self._next(trig)
@@ -176,6 +235,8 @@ class Triggers:
                 secret = hooks.create(tid, str(spec.get("secret") or ""))
             except hooks.NoKeyring as err:
                 raise TriggerError(503, str(err)) from err
+            except hooks.WeakSecret as err:
+                raise TriggerError(422, str(err)) from err
             clean = {"signed": True}
         trig = {"id": tid, "kind": kind, "spec": clean, "action": clean_action, "created": now, "fires": 0, "enabled": True, "last_fired": None, "history": []}
         if kind == "delay":
@@ -219,27 +280,37 @@ class Triggers:
         secret = hooks.reveal(tid)
         if secret is None:
             raise TriggerError(503, "the webhook secret is not in the keyring")
-        return {"path": f"/api/hooks/{tid}", "header": hooks.HEADER, "secret": secret}
+        return {"path": f"/api/hooks/{tid}", "header": hooks.HEADER, "timestamp_header": hooks.TS_HEADER, "nonce_header": hooks.NONCE_HEADER, "secret": secret, "signed": "sha256=HMAC(secret, timestamp + '.' + nonce + '.' + body)", "window": hooks.WINDOW}
 
-    async def _act(self, action: dict, payload: dict) -> dict:
+    async def _act(self, trig: dict, payload: dict) -> dict:
+        action = trig["action"]
         kind = action["kind"]
         if kind == "resume":
+            if runs_bridge.awaiting_approval(action["run_id"]):
+                raise TriggerError(403, "a run waiting for an approval is answered by the owner in the window, never by a trigger")
             ok = runs_bridge.resume(action["run_id"], payload)
             return {"run_id": action["run_id"], "resumed": ok}
+        stored, now = _current_hash(action)
+        if not now or stored != now:
+            trig["needs_confirm"] = True
+            raise TriggerError(409, f"{action['name']} changed since this trigger was made; confirm it to run again")
+        trusted = self.trusted()
         if kind == "run_recipe":
             inputs = dict(action.get("inputs") or {})
             for key in action.get("inputs_from_payload") or []:
                 if key in payload:
-                    inputs[key] = payload[key]
-            result = await launch.run_recipe(action["name"], inputs, action["mode"])
+                    inputs[key] = store.as_data(payload[key])
+            result = await launch.run_recipe(action["name"], inputs, action["mode"], trusted)
             return {"run_id": result["run_id"]}
-        path = Path(ws.real_root()) / ".subform" / "graphs" / f"{action['name']}.json"
+        text = _graph_text(action["name"])
         try:
-            doc = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError) as err:
-            raise TriggerError(404, f"no saved graph {action['name']}") from err
+            doc = json.loads(text) if text is not None else None
+        except ValueError:
+            doc = None
+        if not isinstance(doc, dict):
+            raise TriggerError(404, f"no saved graph {action['name']}")
         try:
-            run = runs_bridge.start(doc, str(action.get("task") or ""), action["mode"], {})
+            run = runs_bridge.start(doc, str(action.get("task") or ""), action["mode"], {}, trusted)
         except runs_bridge.RunRefused as err:
             raise TriggerError(err.status, err.detail) from err
         return {"run_id": run.id}
@@ -256,11 +327,13 @@ class Triggers:
         busy = False
         if prior and not force:
             busy = runs_bridge.status(prior) in runs_bridge.ACTIVE
-        if busy:
+        if trig.get("needs_confirm"):
+            entry["skipped"] = "its target changed since it was made; the owner has to confirm it"
+        elif busy:
             entry["skipped"] = "the run this trigger started last is still going"
         else:
             try:
-                entry.update(await self._act(trig["action"], payload or {}))
+                entry.update(await self._act(trig, payload or {}))
             except (TriggerError, store.RecipeError) as err:
                 entry["error"] = err.detail
             except Exception as err:

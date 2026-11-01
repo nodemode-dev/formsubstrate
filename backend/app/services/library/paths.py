@@ -9,11 +9,24 @@ FOLDER = ".subform"
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 
 
+def refuse_link(path: Path) -> Path:
+    if path.is_symlink():
+        raise ws.Refused(403, "a symbolic link inside .subform is refused")
+    return path
+
+
 def workspace_dir(*parts: str) -> Path:
-    root = ws.current()
-    if not root:
-        raise ws.Refused(409, "open a folder first")
-    return Path(root, FOLDER, *parts)
+    base = ws.real_root()
+    rel = "/".join([FOLDER, *parts])
+    real, clean = ws.resolve(rel, write=True, follow=False)
+    walked = base
+    for part in clean.split("/"):
+        walked = os.path.join(walked, part)
+        if os.path.islink(walked):
+            raise ws.Refused(403, "a symbolic link inside .subform is refused")
+    if os.path.realpath(real) != os.path.join(base, *clean.split("/")):
+        raise ws.Refused(403, "a symbolic link inside .subform is refused")
+    return Path(real)
 
 
 def library_dir() -> Path:

@@ -2,6 +2,7 @@ import { request } from '../../io/api';
 import { owner } from '../../io/window-token';
 
 export interface Approval {
+  id: string;
   run_id: string;
   tool: string;
   args: Record<string, unknown> | null;
@@ -13,8 +14,8 @@ export const APPROVALS_CHANGED = 'subform:approvals-changed';
 
 export const approvalsApi = {
   list: (): Promise<{ approvals: Approval[] }> => request<{ approvals: Approval[] }>('/api/runs/approvals'),
-  decide: (runId: string, approved: boolean): Promise<{ approved: boolean }> =>
-    owner(`/api/runs/approvals/${encodeURIComponent(runId)}`, { method: 'POST', body: JSON.stringify({ approved }) }),
+  decide: (runId: string, approval: string, approved: boolean): Promise<{ approved: boolean }> =>
+    owner(`/api/runs/approvals/${encodeURIComponent(runId)}`, { method: 'POST', body: JSON.stringify({ approved, approval }) }),
 };
 
 export function contextOf(a: Approval): string {

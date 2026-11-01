@@ -174,7 +174,7 @@ def reload(trust: bool) -> list[PluginInfo]:
         folder = None
     if folder is not None and folder.is_dir():
         for py in sorted(folder.glob("*.py")):
-            if py.name.startswith("_"):
+            if py.name.startswith("_") or py.is_symlink():
                 continue
             if trust:
                 found.append(_load_one(py, "workspace"))
@@ -195,6 +195,7 @@ def set_enabled(name: str, on: bool, trust: bool) -> list[dict]:
     if not any(p.name == name for p in _loaded):
         raise ws.Refused(404, f"no plugin named {name}")
     state.set_member(DISABLED_KEY, name, not on)
-    reload(bool(_key and _key[1]) or trust)
+    same = _key is not None and _key[0] == _root()
+    reload(bool(same and _key[1]) if not trust else True)
     activity.emit(f"plugin {name}", "enter" if on else "exit", "enabled" if on else "disabled", "plugins")
     return [asdict(p) for p in _loaded]

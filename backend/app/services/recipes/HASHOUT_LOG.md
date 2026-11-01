@@ -36,3 +36,11 @@ The only file that touches the run engine (backend/app/services/runs, ported by 
 - logged: v0.14.0 · 2026-10-31
 
 Reads (list, get) need LocalGuard only. Save, delete, run and preset install need the window token (`require_window`): running a recipe starts an agent that can write files and ask to run commands, so only the window may start it. The run body takes `mode` (`simulate` or `claude`, default `simulate`) so the owner chooses between the built-in simulator and Claude Code on each run. The `run_recipe` agent tool substrata registered for its own agents is not ported: the tool registry belongs to the run engine.
+
+### backend/app/services/recipes/store.py · workspace paths and trust
+
+- refers-to: backend/app/services/recipes/store.py :: safe_path
+- kind: security
+- logged: v0.14.0 · 2026-10-31
+
+Security review (11 MED, 4 HIGH recipe part). Every recipe path goes through `ws.resolve(..., write=True)` for writes and rejects a symbolic link in any component below the workspace root (`safe_path`), so `.subform/recipes` pointing outside the workspace is refused for list, get, save and delete; a recipe file that is a link reads as missing, and the temp file is made with O_EXCL and O_NOFOLLOW under a per-process name before `os.replace`. `content_hash` is the fingerprint triggers store. `as_data` turns a value from outside (a webhook body) into inert text. The run body takes `trust` (the window's workspace trust) and `runs_bridge.start` refuses mode `claude` and `tool` or `call_graph` nodes without it. `runs_bridge` now builds the document first and passes `trusted` to the run engine's `manager.start`, matching the run router; the earlier `manager.sync()` call went away with the engine rewrite.

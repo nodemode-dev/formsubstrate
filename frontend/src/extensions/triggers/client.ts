@@ -13,6 +13,7 @@ export interface Trigger {
   fires: number;
   enabled: boolean;
   missed?: boolean;
+  needs_confirm?: boolean;
   last_fired: number | null;
   next_fire: number | null;
   history: HistoryEntry[];
@@ -33,7 +34,9 @@ export const triggersApi = {
   enable: (id: string, enabled: boolean): Promise<Trigger> => owner<Trigger>(`/api/triggers/${id}`, { method: 'PATCH', ...json({ enabled }) }),
   remove: (id: string): Promise<unknown> => owner(`/api/triggers/${id}`, { method: 'DELETE' }),
   fire: (id: string): Promise<HistoryEntry> => owner<HistoryEntry>(`/api/triggers/${id}/fire`, { method: 'POST' }),
-  webhook: (id: string): Promise<{ path: string; header: string; secret: string }> => owner(`/api/triggers/${id}/webhook`),
+  confirm: (id: string): Promise<Trigger> => owner<Trigger>(`/api/triggers/${id}/confirm`, { method: 'POST' }),
+  trust: (workspace: string, trusted: boolean): Promise<unknown> => owner('/api/triggers/trust', { method: 'POST', ...json({ workspace, trusted }) }),
+  webhook: (id: string): Promise<{ path: string; header: string; timestamp_header: string; nonce_header: string; secret: string }> => owner(`/api/triggers/${id}/webhook`),
 };
 
 export function clock(ts: number | null | undefined): string {

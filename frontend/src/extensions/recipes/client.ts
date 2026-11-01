@@ -1,4 +1,5 @@
 import { request } from '../../io/api';
+import { workspaceTrusted } from '../../io/trust';
 import { owner } from '../../io/window-token';
 
 export interface RecipeInput { name: string; label?: string; type?: string; default?: string; required?: boolean; placeholder?: string }
@@ -37,7 +38,7 @@ export const recipesApi = {
     owner(`/api/recipes/${encodeURIComponent(recipe.name)}`, { method: 'PUT', ...json(recipe) }),
   remove: (name: string): Promise<unknown> => owner(`/api/recipes/${encodeURIComponent(name)}`, { method: 'DELETE' }),
   run: (name: string, inputs: Record<string, string>, mode: string): Promise<RunStarted> =>
-    owner<RunStarted>(`/api/recipes/${encodeURIComponent(name)}/run`, { method: 'POST', ...json({ inputs, mode }) }),
+    owner<RunStarted>(`/api/recipes/${encodeURIComponent(name)}/run`, { method: 'POST', ...json({ inputs, mode, trust: workspaceTrusted() }) }),
   install: (name: string): Promise<unknown> => owner(`/api/recipes/presets/${encodeURIComponent(name)}/install`, { method: 'POST' }),
   graphs: (): Promise<{ graphs: GraphRow[] }> => request<{ graphs: GraphRow[] }>('/api/graphs'),
   graph: (name: string): Promise<{ text: string }> => request<{ text: string }>(`/api/graphs/${encodeURIComponent(name)}`),

@@ -1,7 +1,8 @@
 import { ApiError, request, systemStatus, type SystemStatus } from '../../io/api';
+import { workspaceTrusted } from '../../io/trust';
 import { owner } from '../../io/window-token';
 import { Dialog } from '../../ui/dialogs';
-import { el, q, setDisabled, setText } from '../../ui/dom';
+import { el, patchList, q, setDisabled, setText } from '../../ui/dom';
 import { t } from '../../ui/i18n';
 import { toast } from '../../ui/toast';
 import { register, type ExtensionContext } from '../registry';
@@ -22,12 +23,62 @@ const ROWS: ReadonlyArray<readonly [string, string]> = [
 
 const message = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
+interface ManifestEntry { path: string; group: string; bytes: number; action: 'write' | 'overwrite' | 'skip' | 'refuse'; reason: string }
+interface Preview { entries: ManifestEntry[]; will_write: number }
+
+class ManifestDialog extends Dialog {
+  private readonly note = el('<p class="cv-note"></p>');
+  private readonly list = el('<div class="cv-harness-list"></div>');
+  private readonly go: HTMLButtonElement;
+  private resolve: ((v: boolean) => void) | null = null;
+
+  constructor() {
+    super('Import harness', 560);
+    this.body.append(this.note, this.list);
+    this.button('Cancel', 'ghost', () => this.finish(false));
+    this.go = this.button('Import', 'primary', () => this.finish(true));
+    this.onClose = () => this.finish(false);
+  }
+
+  ask(p: Preview, trusted: boolean): Promise<boolean> {
+    this.resolve?.(false);
+    this.resolve = null;
+    const refused = p.entries.filter((e) => e.action === 'refuse').length;
+    const skipped = p.entries.filter((e) => e.action === 'skip').length;
+    setText(this.note, `${p.will_write} ${t('files will be written')}, ${skipped} ${t('skipped')}, ${refused} ${t('refused')}${trusted ? '' : ` (${t('plugins need a trusted workspace')})`}. ${t('Imported graphs, recipes and skills can steer agents: read the list first.')}`);
+    const fill = (n: HTMLElement, e: ManifestEntry): void => {
+      setText(q(n, 'span'), t(e.action === 'overwrite' ? 'Overwrite' : e.action === 'write' ? 'New' : e.action === 'skip' ? 'Skip' : 'Refuse'));
+      setText(q(n, '.cv-note'), `${e.path}${e.reason ? ` (${t(e.reason)})` : ''}`);
+    };
+    patchList(this.list, p.entries, {
+      key: (e) => e.path,
+      create: (e) => {
+        const n = el('<div class="cv-dialog-row"><span></span><span class="cv-note"></span></div>');
+        fill(n, e);
+        return n;
+      },
+      update: fill,
+    });
+    setDisabled(this.go, p.will_write === 0);
+    this.open(this.go);
+    return new Promise<boolean>((resolve) => { this.resolve = resolve; });
+  }
+
+  private finish(v: boolean): void {
+    const done = this.resolve;
+    this.resolve = null;
+    if (this.isOpen) this.close();
+    done?.(v);
+  }
+}
+
 class SystemDialog extends Dialog {
   private readonly values = new Map<string, HTMLElement>();
   private readonly exportBtn: HTMLButtonElement;
   private readonly importBtn: HTMLButtonElement;
   private readonly file = el<HTMLInputElement>('<input type="file" accept="application/json,.json" hidden>');
   private run = 0;
+  private manifest: ManifestDialog | null = null;
 
   constructor(private readonly ctx: ExtensionContext) {
     super('System', 480);
@@ -95,7 +146,12 @@ class SystemDialog extends Dialog {
       const parsed: unknown = JSON.parse(await f.text());
       const harness = parsed && typeof parsed === 'object' && 'files' in parsed ? parsed : (parsed as { harness?: unknown }).harness;
       if (!harness || typeof harness !== 'object') throw new Error(t('Not a harness file'));
-      const r = await owner<{ written: number }>('/api/harness/import', { method: 'POST', body: JSON.stringify({ harness }) });
+      const body = JSON.stringify({ harness });
+      const trust = workspaceTrusted() ? '?trust=1' : '';
+      const preview = await owner<Preview>(`/api/harness/preview${trust}`, { method: 'POST', body });
+      this.manifest ??= new ManifestDialog();
+      if (!(await this.manifest.ask(preview, !!trust))) return;
+      const r = await owner<{ written: number }>(`/api/harness/import${trust}`, { method: 'POST', body });
       toast(`${t('Harness imported')}: ${r.written}`);
       window.dispatchEvent(new CustomEvent('subform:harness-imported'));
       void this.refresh();

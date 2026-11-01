@@ -321,6 +321,13 @@ async def _mcp_config() -> tuple[dict, list[str]]:
         }
     else:
         notes.append("the subform launcher was not found next to the engine; the session runs without the subform MCP server")
+    from app.services.library.mcp_client import mcp_clients
+
+    await mcp_clients.ensure_loaded()
+    mine, mine_notes = mcp_clients.session_entries()
+    for key, entry in mine.items():
+        servers.setdefault(key, entry)
+    notes.extend(mine_notes)
     return {"mcpServers": servers}, notes
 
 

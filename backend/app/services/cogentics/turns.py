@@ -7,7 +7,7 @@ from typing import Any, Optional
 from app.services.cogentics import agent as agent_mod
 from app.services.cogentics import checkpoints
 from app.services.cogentics.model import ACK, CLAUDE_TURN_TIMEOUT, Channel, Member, parse_body
-from app.services.cogentics.paths import root as ws_root
+from app.services.cogentics.paths import root as ws_root, valid_ref
 
 
 class TurnsMixin:
@@ -97,9 +97,9 @@ class TurnsMixin:
         cmd = ["claude", "-p", payload, "--output-format", "stream-json", "--verbose",
                "--append-system-prompt", sys_prompt, "--permission-mode",
                "bypassPermissions" if m.full_access else "acceptEdits"]
-        if m.model:
+        if m.model and valid_ref(m.model):
             cmd += ["--model", m.model]
-        if m.session_ref:
+        if m.session_ref and valid_ref(m.session_ref):
             cmd += ["--resume", m.session_ref]
         return cmd
 
@@ -152,7 +152,7 @@ class TurnsMixin:
             self._finalize_run(ch, run, "", error=f"timeout after {CLAUDE_TURN_TIMEOUT}s, killed")
             self._system(ch, f"@{m.handle} turn timed out after {CLAUDE_TURN_TIMEOUT}s and was killed")
             return
-        if state["session"]:
+        if state["session"] and valid_ref(str(state["session"])):
             m.session_ref = state["session"]
             self._save(ch)
         final = state["result"] or "\n".join(state["texts"]).strip()

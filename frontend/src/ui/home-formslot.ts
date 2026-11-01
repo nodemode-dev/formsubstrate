@@ -20,7 +20,9 @@ const WATCH_LIMIT_MS = 10 * 60 * 1000;
 const SOCKET_WAIT_MS = 4000;
 const windows = /win/i.test(navigator.platform);
 
-const SAFE = /^[^"\r\n\0`$]+$/;
+const PLAIN = /^[\p{L}\p{N} _.\-/:@+,=~#()[\]{}]+$/u;
+const PLAIN_WIN = /^[\p{L}\p{N} _.\-/\\:@+,=~#()[\]{}]+$/u;
+const SAFE = { test: (p: string): boolean => (windows ? PLAIN_WIN.test(p) && !p.endsWith('\\') : PLAIN.test(p)) };
 
 const readCheckout = (): string => {
   try { return localStorage.getItem(CHECKOUT_KEY) ?? ''; } catch { return ''; }
@@ -177,12 +179,12 @@ export class HomeFormslot {
       title = t('formslot is installed, not set up');
       sub = t('Setup walks through six short steps: it checks this computer, starts the service and connects your projects.');
       label = t('Set up formslot');
-      note = cmd ? cmd.text : '';
+      note = cmd ? cmd.text : t('That path cannot be used in a terminal command.');
     } else if (st === 'add') {
       title = t('formslot is set up. This project is not added yet.');
       sub = ws ? ws.name : '';
       label = t('Add this project');
-      note = cmd ? cmd.text : '';
+      note = cmd ? cmd.text : t('That path cannot be used in a terminal command.');
     } else if (s) {
       const n = s.corpora.length;
       const saved = sessionsClient.tokensSavedTotal();

@@ -49,3 +49,23 @@ The walker, node handlers (agent, evaluator, tool, yield, transform, branch, cal
 - logged: v0.14.0 · 2026-10-30
 
 `run.py` and `runs.py` are merged under `/api/runs`: start, list, detail (events plus per-node visits), events after seq, per-node view, an ndjson stream (replay then live, with token deltas), rerun, resume, cancel, delete, and `/api/runs/approvals` with its decision route (the approvals extension reads these). The old simulate-only `POST /run` and the inline `/run/stream` are gone: the simulator is a run mode. Every state change needs the window token. `harness.py` is not here: `routers/harness.py` already carries export, import and summary for `.subform`. `presets.py` is reduced to graph presets (`/api/presets/graphs`, copied from substrata into `backend/presets/graphs`); the studio router serves its own preset list from `app/templates/graphs`, and the plugin and skill presets belong to the plugin and skill ports. The frozen build must bundle `backend/presets` (see the report).
+
+### backend/app/services/runs · security review round (supersedes recovery, `.subform/runs` and one approval per run above)
+
+- refers-to: backend/app/services/runs/manager.py :: RunManager, Run, runs_dir; backend/app/services/runs/park.py :: Park; backend/app/services/runs/engine.py :: park, exec_tool, node_yield
+- kind: warning-context
+- logged: v0.14.0 · 2026-10-30
+
+Run history is no longer read from the workspace. It lives in `config.data_dir()/runs/<sha1 of the real workspace path, 16 hex>/<id>.json`, so a committed `.subform/runs/*.json` is never listed, resumed or turned into an approval card. There is no recovery and no checkpoint: a run found on disk as running or parked (the engine stopped) is shown as `interrupted` and can only be read, rerun or deleted; `shutdown` writes that state for live runs. Run ids must match `^[a-f0-9]{10}$` before any file is opened. Every park is its own `Park` (id, future, node, label, the `on` built by the engine from the node's own config, never from stored data), so parallel branches no longer share one approval; the approval list names each park id, and `decide` and `resume` settle exactly that park. Resume only settles non-approval parks and decide only approval parks. The shown tool, arguments and full diff are the ones the park resumes with. Claude mode and any node set that includes a tool node are refused when the request is not `trusted` (the window passes the Preferences flag, the way the language server routes take it; it is a client flag, not engine state). Child `claude` processes get `--setting-sources user --strict-mcp-config --disable-slash-commands`, so repo hooks, project settings, `.mcp.json` and project slash commands do not apply.
+
+- refers-to: backend/app/services/runs/tools.py :: needs_approval, protected_target, preview_diff, check_args; backend/app/services/runs/rt.py :: plain_path, glob_regex
+- kind: warning-context
+- logged: v0.14.0 · 2026-10-30
+
+Every tool except list_files and read_file waits for approval whatever the node says; the node `approve` setting no longer matters. write_file refuses `.git`, `.subform`, `.claude`, `.mcp.json`, `package.json`, `.husky`, `.gitmodules` and `.envrc`, checked case-insensitively against both the requested path and the resolved real path (so a symlink into a protected folder is refused), and it refuses instead of parking when the content, the existing file or the diff is too large to show in full or the arguments exceed 8000 characters. Paths under `.subform` (saved graphs, installed presets) go through `rt.plain_path`, which resolves with the workspace resolver and refuses any symlinked component. The watch glob walks with `followlinks=False`, skips symlinked directories and `.git`/`node_modules`, and matches relative paths only, so it cannot leave the workspace.
+
+- refers-to: backend/app/services/runs/safe_expr.py :: _Eval, guard_call, charge
+- kind: warning-context
+- logged: v0.14.0 · 2026-10-30
+
+`format` is removed from the allowed string methods: `'{0.__globals__}'.format(json.loads)` walked attributes outside the evaluator's rules and could read the environment, including the window token. Result sizes are capped at 1 MB each and 8 MB per evaluation (replace, join, `%` with huge or starred widths, repeats), and an evaluation has a 2 second deadline and a step limit.

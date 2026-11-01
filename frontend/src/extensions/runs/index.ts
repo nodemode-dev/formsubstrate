@@ -1,5 +1,6 @@
 import { detailOf } from '../../io/workspace';
 import { fmtUsage, RUN_SELECTED, RUN_STARTED, runsApi, tailRun, type ParkedOn, type RunDetail, type RunEvent, type RunMode, type RunSummary } from '../../io/runs';
+import { workspaceTrusted } from '../../io/trust';
 import { confirmAction } from '../../ui/dialogs';
 import { mountOnce, patchList, q, setClass, setDisabled, setHidden, setText, setTitle } from '../../ui/dom';
 import { onLanguage, t } from '../../ui/i18n';
@@ -151,7 +152,7 @@ class RunsPanel {
     try {
       studio.clearStatus();
       const mode: RunMode = this.mode.value === 'claude' ? 'claude' : 'simulate';
-      const res = await runsApi.start(doc, this.task.value, mode);
+      const res = await runsApi.start(doc, this.task.value, mode, workspaceTrusted());
       window.dispatchEvent(new CustomEvent(RUN_STARTED, { detail: { id: res.run_id } }));
       this.live.clear();
       this.select(res.run_id, true);
@@ -321,7 +322,7 @@ class RunsPanel {
       if (act === 'cancel') await runsApi.cancel(id);
       else if (act === 'rerun') {
         studio.clearStatus();
-        const res = await runsApi.rerun(id);
+        const res = await runsApi.rerun(id, workspaceTrusted());
         this.live.clear();
         await this.refresh();
         this.select(res.run_id, true);
@@ -344,7 +345,9 @@ class RunsPanel {
     const id = this.selected;
     if (!btn || !id) return;
     const act = btn.dataset.act;
-    const call = act === 'resume' ? runsApi.resume(id) : runsApi.decide(id, act === 'approve');
+    const park = this.current?.parks?.[0]?.id;
+    if (!park) return;
+    const call = act === 'resume' ? runsApi.resume(id, park) : runsApi.decide(id, park, act === 'approve');
     void call.then(() => this.scheduleDetail()).catch((err: unknown) => toast(detailOf(err), 'error'));
   }
 
@@ -357,14 +360,17 @@ class RunsPanel {
     this.dChip.dataset.state = d.status;
     const usage = fmtUsage(d.usage);
     setText(this.dMeta, [d.mode === 'claude' ? 'claude' : t('simulator'), d.task ? d.task.slice(0, 80) : '', usage].filter(Boolean).join(' · '));
-    const parked = d.status === 'parked' && !!d.parked_on;
+    const first = d.parks?.[0];
+    const parked = d.status === 'parked' && !!first;
     setHidden(this.park, !parked);
-    if (parked) {
-      const on = d.parked_on;
-      const approval = on?.type === 'approval';
-      setText(this.parkText, parkedText(on ?? null));
-      setHidden(this.parkDiff, !(approval && on?.diff));
-      setText(this.parkDiff, on?.diff ?? '');
+    if (parked && first) {
+      const on = first.on;
+      const approval = on.type === 'approval';
+      const more = (d.parks?.length ?? 0) > 1 ? ` (1/${d.parks?.length})` : '';
+      setText(this.parkText, `${first.label}${more}: ${parkedText(on)}`);
+      const full = approval ? (on.diff ?? JSON.stringify(on.args ?? {}, null, 1)) : '';
+      setHidden(this.parkDiff, !full);
+      setText(this.parkDiff, full);
       setHidden(this.bResume, approval);
       setHidden(this.bApprove, !approval);
       setHidden(this.bDeny, !approval);

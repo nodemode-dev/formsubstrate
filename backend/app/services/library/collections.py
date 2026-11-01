@@ -4,7 +4,7 @@ from pathlib import Path
 
 from app.core import workspace_root as ws
 from app.services.library import activity, scoring
-from app.services.library.paths import atomic_write, clean_name, workspace_dir
+from app.services.library.paths import atomic_write, clean_name, refuse_link, workspace_dir
 
 TEXT_MAX = 100_000
 META_MAX = 8_000
@@ -18,7 +18,7 @@ def _folder() -> Path:
 
 
 def _file(collection: str) -> Path:
-    return _folder() / f"{clean_name(collection, 'collection name')}.jsonl"
+    return refuse_link(_folder() / f"{clean_name(collection, 'collection name')}.jsonl")
 
 
 def _read(path: Path) -> list[dict]:
@@ -64,6 +64,8 @@ def list_collections() -> list[dict]:
         return []
     out = []
     for path in sorted(folder.glob("*.jsonl")):
+        if path.is_symlink():
+            continue
         out.append({"name": path.stem, "docs": len(_read(path)), "updated": path.stat().st_mtime})
     return out
 

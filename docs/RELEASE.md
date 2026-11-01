@@ -124,8 +124,8 @@ No certificate, `.p8` key, app-specific password, keychain profile, thumbprint o
 
 The app was renamed from substrataform to subform and every name changed. The first start of the new build copies the old data across once; nothing old is moved or deleted, so the old install can be removed by hand later.
 
-- Data folder: if the new folder does not exist and the old one does, the old one is copied (`~/Substrataform`, the per-OS `substrataform` folder, or `SubstrataformData` in portable mode) and a marker `.migrated-from-substrataform.json` records where it came from. If both exist, nothing is copied and the engine log says the old one was left alone. `SUBFORM_DATA_DIR` is never migrated.
-- Keychain: each stored secret missing under service `subform` is copied from service `substrataform` once. The old entries stay.
+- Data folder: if the new folder does not exist and the old one does, your data (recent workspaces, identity, library, triggers, secrets index, Cogentics settings) is copied; sessions, worktrees and other runtime state are not. The old folder is `~/Substrataform`, the per-OS `substrataform` folder, or `SubstrataformData` in portable mode, and a marker `.migrated-from-substrataform.json` records where it came from. If both exist, nothing is copied and the engine log says the old one was left alone. `SUBFORM_DATA_DIR` is never migrated.
+- Keychain: each stored secret (API keys, Cogentics key, MCP server headers, webhook secrets) missing under service `subform` is copied from service `substrataform` once. The old entries stay. Plugin secrets must be entered again.
 - Environment: `SUBSTRATAFORM_*` names still work for this release as fallbacks (`SUBFORM_*` wins) and log a deprecation warning. Rename them before the next release.
 - Window: `substrataform.*` localStorage keys are copied to `subform.*` once, before first paint. On macOS the new bundle id gives the web view a new storage area, so these may be empty.
 - Desktop shell (macOS and Linux): window position and size are copied from the old bundle id's config folder when the new one is empty.

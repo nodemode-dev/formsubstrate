@@ -55,6 +55,24 @@ async def remove_trigger(tid: str) -> dict:
     return {"removed": tid}
 
 
+class TrustBody(BaseModel):
+    workspace: str = ""
+    trusted: bool = False
+
+
+@router.post("/triggers/trust", dependencies=[Depends(require_window)])
+async def announce_trust(body: TrustBody) -> dict:
+    return triggers.set_trust(body.workspace, body.trusted)
+
+
+@router.post("/triggers/{tid}/confirm", dependencies=[Depends(require_window)])
+async def confirm(tid: str) -> dict:
+    try:
+        return triggers.confirm(tid)
+    except TriggerError as err:
+        raise _fail(err)
+
+
 @router.post("/triggers/{tid}/fire", dependencies=[Depends(require_window)])
 async def fire_now(tid: str) -> dict:
     try:
@@ -80,8 +98,15 @@ async def fire_hook(tid: str, request: Request) -> dict:
     raw = await request.body()
     if len(raw) > 262144:
         raise HTTPException(status_code=413, detail="the body is larger than 256 KB")
-    if not hooks.verify(tid, raw, request.headers.get(hooks.HEADER, "")):
-        raise HTTPException(status_code=401, detail="bad signature")
+    refusal = hooks.verify(
+        tid,
+        raw,
+        request.headers.get(hooks.HEADER, ""),
+        request.headers.get(hooks.TS_HEADER, ""),
+        request.headers.get(hooks.NONCE_HEADER, ""),
+    )
+    if refusal:
+        raise HTTPException(status_code=429 if refusal.startswith("too many") else 401, detail=refusal)
     try:
         payload = json.loads(raw) if raw else {}
     except ValueError:

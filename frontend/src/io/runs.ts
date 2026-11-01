@@ -1,7 +1,9 @@
 import { request } from './api';
 import { owner } from './window-token';
 
-export type RunStatus = 'running' | 'parked' | 'done' | 'failed' | 'cancelled';
+export type RunStatus = 'running' | 'parked' | 'done' | 'failed' | 'cancelled' | 'interrupted';
+
+export interface Park { id: string; node_id: string; label: string; on: ParkedOn; since: number }
 export type RunMode = 'simulate' | 'claude';
 
 export interface RunUsage { prompt_tokens: number; completion_tokens: number; cost: number; calls: number }
@@ -15,6 +17,7 @@ export interface RunSummary {
   created: number;
   events: number;
   parked_on: ParkedOn | null;
+  parks?: Park[];
   usage?: RunUsage;
 }
 
@@ -63,13 +66,13 @@ export const runsApi = {
   tools: (): Promise<{ tools: ToolInfo[]; approval: string[] }> => request('/api/runs/tools'),
   list: (): Promise<{ runs: RunSummary[] }> => request('/api/runs'),
   detail: (id: string): Promise<RunDetail> => request<RunDetail>(`/api/runs/${encodeURIComponent(id)}`),
-  start: (doc: unknown, task: string, mode: RunMode): Promise<{ run_id: string; status: string; mode: string }> =>
-    owner('/api/runs', { method: 'POST', body: JSON.stringify({ doc, task, mode }) }),
-  rerun: (id: string): Promise<{ run_id: string }> => owner(`/api/runs/${encodeURIComponent(id)}/rerun`, { method: 'POST', body: '{}' }),
-  resume: (id: string): Promise<unknown> => owner(`/api/runs/${encodeURIComponent(id)}/resume`, { method: 'POST', body: '{}' }),
+  start: (doc: unknown, task: string, mode: RunMode, trusted: boolean): Promise<{ run_id: string; status: string; mode: string }> =>
+    owner('/api/runs', { method: 'POST', body: JSON.stringify({ doc, task, mode, trusted }) }),
+  rerun: (id: string, trusted: boolean): Promise<{ run_id: string }> => owner(`/api/runs/${encodeURIComponent(id)}/rerun`, { method: 'POST', body: JSON.stringify({ trusted }) }),
+  resume: (id: string, park: string): Promise<unknown> => owner(`/api/runs/${encodeURIComponent(id)}/resume`, { method: 'POST', body: JSON.stringify({ park }) }),
   cancel: (id: string): Promise<unknown> => owner(`/api/runs/${encodeURIComponent(id)}/cancel`, { method: 'POST' }),
   remove: (id: string): Promise<unknown> => owner(`/api/runs/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  decide: (id: string, approved: boolean): Promise<unknown> => owner(`/api/runs/approvals/${encodeURIComponent(id)}`, { method: 'POST', body: JSON.stringify({ approved }) }),
+  decide: (id: string, approval: string, approved: boolean): Promise<unknown> => owner(`/api/runs/approvals/${encodeURIComponent(id)}`, { method: 'POST', body: JSON.stringify({ approval, approved }) }),
   graphs: (): Promise<{ graphs: Array<{ name: string }> }> => request('/api/graphs'),
 };
 

@@ -49,7 +49,7 @@ def build_prompt(task: str, context: str) -> str:
 def build_argv(exe: str, cfg: dict, role: str, evaluator: bool) -> list[str]:
     perm = cfg.get("permission")
     mode, tools = PERMISSIONS.get(perm if isinstance(perm, str) else "", PERMISSIONS[DEFAULT_PERMISSION])
-    argv = [exe, "-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages", "--no-session-persistence", "--permission-mode", mode, "--tools", tools]
+    argv = [exe, "-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages", "--no-session-persistence", "--setting-sources", "user", "--strict-mcp-config", "--disable-slash-commands", "--permission-mode", mode, "--tools", tools]
     model = cfg.get("model")
     if isinstance(model, str) and model.strip():
         argv += ["--model", model.strip()]

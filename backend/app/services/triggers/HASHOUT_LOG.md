@@ -44,3 +44,19 @@ A webhook is always signed (substrata signed only when a secret was typed). The 
 - logged: v0.14.0 · 2026-10-31
 
 This router has no approvals routes. The run engine already serves GET /api/runs/approvals and the window-token POST /api/runs/approvals/{run_id}, and a second pair would only drift; the window's approvals panel uses those. A denied approval returns the engine's tool-denied error and the run continues, as in substrata.
+
+### backend/app/services/triggers/hooks.py · replay and weak secrets
+
+- refers-to: backend/app/services/triggers/hooks.py :: verify
+- kind: security
+- logged: v0.14.0 · 2026-10-31
+
+Security review (8 MED). The signature now covers `timestamp.nonce.body` (HMAC-SHA256 keyed with the secret) and the request must carry `X-Subform-Timestamp` (unix seconds, refused when more than 300 seconds from the engine clock either way) and `X-Subform-Nonce` (8 to 64 of letters, digits, dash, underscore). A signature that checks out is then looked up in a per-trigger nonce cache held for 10 minutes, so a captured request cannot be sent again inside or after the window; the cache holds at most 2000 live nonces per trigger and answers 429 when full, and it is dropped when the trigger is removed. The order is freshness, signature, then nonce, so an unsigned request cannot fill the cache. A typed secret needs at least 24 characters (422 otherwise) and a generated one is `token_urlsafe(32)`, 32 random bytes. The cache is in memory: an engine restart empties it, which is safe because the 5 minute window still bounds a replay. The old body-only signature is refused.
+
+### backend/app/services/triggers/manager.py · trust, hash, data
+
+- refers-to: backend/app/services/triggers/manager.py :: Triggers
+- kind: security
+- logged: v0.14.0 · 2026-10-31
+
+Security review (4 HIGH trigger part, 8 MED, 11 MED). Trust: the window announces `POST /api/triggers/trust` (window token) with the workspace path and whether the owner trusts it; the engine keeps that set in memory only and ignores a path that is not the open workspace, so a restart fails closed until the window announces again. Trigger and recipe runs pass `trusted` to `runs_bridge.start`, which refuses mode `claude` and graphs with `tool` or `call_graph` nodes when it is false, and the run engine repeats the check. Content hash: a `run_recipe` action stores `recipe_hash` (sha256 of name, doc, task template, inputs and skills) and a `run_graph` action stores `graph_hash` of the file; if the target differs or is gone the trigger does not fire (manual fire included), sets `needs_confirm` and shows one collapsed skipped entry until the owner calls `POST /api/triggers/{id}/confirm` (window token), which stores the current hash. A trigger from before this change has no hash, so it asks to be confirmed once. Resume: `approved` is dropped from any payload and a run parked on an approval is never resumed by a trigger or a webhook; approvals are answered only by the window at `/api/runs/approvals`. Payload data: `inputs_from_payload` values go through `store.as_data` (text, control characters removed, 2000 characters, braces replaced by full-width ones) so a body cannot add a placeholder or an expression to a recipe. Paths: the saved graph is read through `store.safe_path` (workspace resolve, no symlinked part); the watch scan uses `lstat` and skips symlinks. Left as is: the hash is checked just before the run is built, not atomically with it, so an edit in that gap runs the new text once; the owner who can edit the file is the owner who confirms.

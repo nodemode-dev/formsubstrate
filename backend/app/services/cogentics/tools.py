@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from app.core import workspace_root as ws
-from app.services.cogentics import checkpoints
+from app.services.cogentics import checkpoints, paths
 from app.services.cogentics.model import Channel, Member
 
 DEFAULT_GATED = ["run_shell"]
@@ -44,7 +44,8 @@ class ToolsMixin:
 
     def _make_tool_exec(self, ch: Channel, m: Member, run: dict):
         async def tool_exec(name: str, args: dict) -> Any:
-            if name in self.gated_tools(ch):
+            sensitive = name == "write_file" and (not isinstance(args.get("path"), str) or paths.is_sensitive(args["path"]))
+            if name in self.gated_tools(ch) or sensitive:
                 ok = await self._await_approval(ch, m, run, name, args)
                 if not ok:
                     return {"error": f"tool call denied by a human: {name}"}
@@ -52,8 +53,12 @@ class ToolsMixin:
         return tool_exec
 
     async def _await_approval(self, ch: Channel, m: Member, run: dict, tool: str, args: dict) -> bool:
-        card: dict = {"tool": tool, "args": json.dumps(args, default=str)[:400]}
+        shown = args
+        if tool == "write_file":
+            shown = {**args, "content": f"({len(str(args.get('content') or ''))} chars, see diff)"}
+        card: dict = {"tool": tool, "args": json.dumps(shown, default=str)}
         if tool == "write_file" and isinstance(args.get("path"), str):
+            card["sensitive"] = paths.is_sensitive(args["path"])
             try:
                 real, rel = ws.resolve(args["path"])
                 before = Path(real).read_text(encoding="utf-8", errors="replace") if Path(real).is_file() else ""

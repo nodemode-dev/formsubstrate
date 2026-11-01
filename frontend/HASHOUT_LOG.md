@@ -2042,6 +2042,14 @@ Supersedes the limitation in the GateCards entry ("not placed inside the termina
 
 The formslot card on Home (between the hero and Quick actions) is built once and only patches text, hidden flags, disabled and data-state. Four states from GET /api/formslot/onboard: missing (no binary), setup (binary found, no data folder or no corpora and no service), add (set up, but this workspace is not indexed or not connected) and ready (service, project count, tokens saved from the sessions client). The card has a min-height of five space-8 steps, the tallest state (field row shown), and the text rows have min-heights, so a state change moves nothing. Buttons run commands in a shell terminal made through the existing /api/terminals route and typed into it over the terminal socket: the checkout's `./formslot_oc_install`, `formslot setup`, and `formslot setup --yes --repo WS --no-path; exit` (the last exits so the card knows it is done). While the launched terminal is alive the card re-reads the status every 3 s (10 min cap) and once more when it is gone. Paths with quotes, backticks, dollar signs or newlines are refused. The checkout/binary path is kept in localStorage `subform.formslot.checkout` because Preferences (prefs.ts, settings.ts) is not in this unit; moving it there is a todo. A terminal needs an open workspace (terminal.py confines the cwd), so with no folder open the button is disabled and the card says to open one; an engine-side home-folder cwd for this case is a todo. Home passes `openTerminal` through HomeDeps, which app.ts should bind to `dock.reveal`.
 
+### frontend/src/ui/home-formslot.ts · SAFE
+
+- refers-to: frontend/src/ui/home-formslot.ts :: SAFE, HomeFormslot.command
+- kind: warning-context
+- logged: v0.14.0 · 2026-10-31
+
+Review follow-up. The command is typed into a shell, so a path is accepted only from an allow-list: letters, digits, space and `_ . - / : @ + , = ~ # ( ) [ ] { }`. Control characters (a crafted folder name holding Ctrl-U would erase the line and let the rest run), quotes, backtick, `$`, `!`, `%` and `^` are refused, and so is any backslash on macOS and Linux. On Windows a backslash is allowed except at the end of the path, where it would escape the closing quote. A refused path disables the button and the note says so. The terminal route takes no command, so typing remains the way to run it.
+
 ### frontend/src/extensions/formslot/index.ts · offer
 
 - refers-to: frontend/src/extensions/formslot/index.ts :: register

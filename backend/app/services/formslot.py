@@ -5,6 +5,7 @@ import re
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 
 import httpx
@@ -206,7 +207,23 @@ async def _connected(found: str, root: str) -> bool:
     return "would be written" not in text and ".mcp.json: would change (created" not in text
 
 
+ONBOARD_TTL = 2.0
+_onboard_cache: dict = {"key": None, "at": 0.0, "value": None}
+_onboard_lock = asyncio.Lock()
+
+
 async def onboard() -> dict:
+    key = (binary(), ws.current(), os.environ.get("FORMSLOT_DATA_DIR"))
+    async with _onboard_lock:
+        now = time.monotonic()
+        if _onboard_cache["key"] == key and now - _onboard_cache["at"] < ONBOARD_TTL:
+            return dict(_onboard_cache["value"])
+        value = await _onboard()
+        _onboard_cache.update(key=key, at=time.monotonic(), value=value)
+        return dict(value)
+
+
+async def _onboard() -> dict:
     found = binary()
     folder = data_folder()
     current = ws.current()

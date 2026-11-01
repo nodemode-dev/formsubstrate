@@ -268,6 +268,14 @@ The whole `CLAUDE_CODE_` prefix was dropped, which also removed the user's own c
 
 GET /api/formslot/onboard is read-only (LocalGuard only). It reports the binary (the existing resolver), its version (`--version`, cached by path and mtime), the service (existing discovery), the data folder and whether it exists, corpus names, and for the open workspace `indexed` (a corpus path contains it, false while the service is down) and `connected`. Connected is not read from `formslot install --dry-run` alone: v0.13.0 prints "would change" for the hooks of an already connected repository, and exits 1 ("the merge would change the existing value of hooks") when the installed hooks differ from what it would write (a different binary path after setup), so the exit code and the hooks lines mean nothing here. Connected needs the repository's `.claude/settings.json` to hold formslot hooks, `.mcp.json` to list the formslot server, and the dry run not to report the `.mcp.json` as created. The dry run writes nothing.
 
+### backend/app/routers/formslot.py · onboard token and cache
+
+- refers-to: backend/app/routers/formslot.py :: onboard; backend/app/services/formslot.py :: onboard, _onboard
+- kind: rationale
+- logged: v0.14.0 · 2026-10-31
+
+Review follow-up. The route now needs the window token (require_window; the window calls it through `owner`), because each call can spawn `formslot --version` and `formslot install --dry-run`. The answer is cached for 2 s per (binary, workspace, data folder) behind a lock, so a burst of Home refreshes runs the subprocesses once. 2 s is short enough that the refresh after a launched terminal exits sees the new state.
+
 ### backend/app/routers/harness.py · harness export and import
 
 - refers-to: backend/app/routers/harness.py :: export, import_harness, summary
@@ -283,3 +291,17 @@ Ported from substrata `backend/app/routers/harness.py` (MIT, the owner's) with t
 - logged: v0.14.0 · 2026-10-30
 
 Merges substrata's `run.py` and `runs.py` under `/api/runs` and adds `/api/presets/graphs` from `presets.py`. Reads are open to the local window and agents; every change (start, rerun, resume, cancel, delete, approve or deny, preset install) needs the window token, because starting a run spends the user's claude quota and may write files. The reasoning for the engine, the model call and the expression evaluator is in `backend/app/services/runs/HASHOUT_LOG.md`.
+
+### backend/app/routers/harness.py · import preview and group rules
+
+- refers-to: backend/app/routers/harness.py :: _plan, preview, import_harness
+- kind: warning-context
+- logged: v0.14.0 · 2026-10-30
+
+Review finding: the first import wrote anything under `.subform/`, but other features execute or trust parts of that tree (plugins run code, runs and cogentics hold records the engine trusts as its own). Import is now two steps over one planner `_plan`: `POST /api/harness/preview` returns the manifest (path, group, bytes, action write, overwrite, skip or refuse, reason) and writes nothing; the window shows it in a dialog and only a click on Import sends `POST /api/harness/import`, which recomputes the same plan and writes it, so a stale preview cannot widen what is written. Groups `runs` and `cogentics` are skipped always. Group `plugins` is refused unless the request carries `trust=1`; trust is a window preference (`io/trust.ts`), not engine state, so the window passes it the way the plugins and cogentics routes already take it. Entries outside `.subform/` are listed as skipped. Path confinement, size limits and atomic validation before the first write are unchanged.
+
+- refers-to: backend/app/routers/runs.py :: StartRun, RerunBody, Decision, _begin, decide, approvals
+- kind: warning-context
+- logged: v0.14.0 · 2026-10-30
+
+Security review changes to `/api/runs`: the start and rerun bodies carry `trusted`, and claude mode or any graph with a tool node answers 403 without it (checked in `_begin`, server side). `GET /api/runs/approvals` lists every pending park (id, run_id, node, tool, arguments, diff); `POST /api/runs/approvals/{run_id}` needs `{approval: <park id>, approved}` and answers 404 for an unknown park; a body without `approval` is a 422, which breaks the older callers in `extensions/approvals` and the recipes bridge until they send the id. `POST /runs/{id}/resume` takes an optional `park`. Graph errors from path checks answer 403. History is read from the data directory, not the workspace; the earlier note about `.subform/runs` is superseded.

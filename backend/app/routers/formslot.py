@@ -62,7 +62,7 @@ async def status() -> dict:
     return await svc.status()
 
 
-@router.get("/formslot/onboard")
+@router.get("/formslot/onboard", dependencies=[Depends(require_window)])
 async def onboard() -> dict:
     return await svc.onboard()
 

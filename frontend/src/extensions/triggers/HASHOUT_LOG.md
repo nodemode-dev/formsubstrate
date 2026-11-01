@@ -20,3 +20,11 @@ Ported from substrata frontend/src/extensions/triggers/index.ts and automation/i
 - logged: v0.14.0 · 2026-10-31
 
 Substrata's `run_graph` form field (a saved graph name typed into the small triggers panel) is not offered; the engine still accepts the action. Its "open runs" row button is not ported because the runs panel is another extension's.
+
+### frontend/src/extensions/triggers/index.ts · trust and confirm
+
+- refers-to: frontend/src/extensions/triggers/index.ts :: TriggersPanel
+- kind: security
+- logged: v0.14.0 · 2026-10-31
+
+Security review. The extension tells the engine whether the open workspace is trusted at start, on every workspace change and on `TRUST_EVENT` (`POST /api/triggers/trust` with the window token), because workspace trust lives in the window's preferences and the engine has no copy. A row whose recipe changed after the trigger was made shows a check button and a line saying so; the button asks, then calls the confirm route. The webhook dialog now describes the timestamp, nonce and signature headers, and the secret field says 24 or more characters or blank. The check button toggles with `setHidden`, so the row does not change size.

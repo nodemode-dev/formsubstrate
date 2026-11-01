@@ -20,3 +20,11 @@ Ported from substrata frontend/src/extensions/recipes/index.ts (MIT, owner's). A
 - logged: v0.14.0 · 2026-10-31
 
 Every colour, space and radius comes from tokens.css. The note line under each toolbar has a fixed height so a message appearing or clearing does not move the list; the lists are absolutely positioned inside a flex body, so their content never changes the panel's size.
+
+### frontend/src/extensions/recipes/client.ts · trust on run
+
+- refers-to: frontend/src/extensions/recipes/client.ts :: recipesApi
+- kind: security
+- logged: v0.14.0 · 2026-10-31
+
+`recipesApi.run` sends `trust: workspaceTrusted()` with the inputs and mode, so the engine can refuse Claude Code mode and tool nodes in a workspace the owner has not trusted. The engine answers 403 with a message that the existing run dialog shows.

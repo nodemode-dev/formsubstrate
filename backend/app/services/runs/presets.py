@@ -41,7 +41,8 @@ def install(name: str) -> str | None:
     data = read_preset(name)
     if data is None:
         return None
-    real, rel = ws.resolve(f"{rt.GRAPHS_DIR}/{rt.safe_name(name)}.json", write=True)
+    rel = f"{rt.GRAPHS_DIR}/{rt.safe_name(name)}.json"
+    real = rt.plain_path(rel, write=True)
     os.makedirs(os.path.dirname(real), exist_ok=True)
     with open(real, "w", encoding="utf-8") as fh:
         json.dump(data["doc"], fh, indent=1)
