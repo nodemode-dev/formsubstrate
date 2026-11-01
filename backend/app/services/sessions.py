@@ -703,8 +703,9 @@ def record_comment(session_id: str, path: str, line: int | None, hunk: str | Non
 
 async def send_feedback(session_id: str, text: str) -> str:
     item = _entry(session_id)
+    text = gitops.CONTROL_RE.sub("", text)
     terminal_id = item.get("terminalId")
-    if item["mode"] == "interactive" and item["state"] in LIVE_STATES and terminal_id and terminal_id in _terminal_owner:
+    if item["mode"] == "interactive" and item["state"] == "working" and terminal_id and terminal_id in _terminal_owner:
         try:
             host = _host()
             await host.send({"op": "write", "id": terminal_id, "data": base64.b64encode((PASTE_START + text + PASTE_END).encode("utf-8")).decode("ascii")})

@@ -92,7 +92,9 @@ async def review(session: str | None = None) -> dict:
 @router.post("/git/hunks")
 async def hunks(body: HunksBody) -> dict:
     try:
-        return await gitops.hunks_action(await gitops.resolve_target(body.session), body.path, body.hunks, body.action)
+        t = await gitops.resolve_target(body.session)
+        async with gitops.lock_for(t):
+            return await gitops.hunks_action(t, body.path, body.hunks, body.action)
     except gitops.Refused as err:
         raise _fail(err)
 
@@ -100,7 +102,9 @@ async def hunks(body: HunksBody) -> dict:
 @router.post("/git/stage")
 async def stage(body: PathsBody) -> dict:
     try:
-        return await gitops.stage(await gitops.resolve_target(body.session), body.paths)
+        t = await gitops.resolve_target(body.session)
+        async with gitops.lock_for(t):
+            return await gitops.stage(t, body.paths)
     except gitops.Refused as err:
         raise _fail(err)
 
@@ -108,7 +112,9 @@ async def stage(body: PathsBody) -> dict:
 @router.post("/git/unstage")
 async def unstage(body: PathsBody) -> dict:
     try:
-        return await gitops.unstage(await gitops.resolve_target(body.session), body.paths)
+        t = await gitops.resolve_target(body.session)
+        async with gitops.lock_for(t):
+            return await gitops.unstage(t, body.paths)
     except gitops.Refused as err:
         raise _fail(err)
 
@@ -116,7 +122,9 @@ async def unstage(body: PathsBody) -> dict:
 @router.post("/git/discard")
 async def discard(body: PathsBody) -> dict:
     try:
-        return await gitops.discard(await gitops.resolve_target(body.session), body.paths, body.untracked)
+        t = await gitops.resolve_target(body.session)
+        async with gitops.lock_for(t):
+            return await gitops.discard(t, body.paths, body.untracked)
     except gitops.Refused as err:
         raise _fail(err)
 
@@ -124,7 +132,9 @@ async def discard(body: PathsBody) -> dict:
 @router.post("/git/commit")
 async def commit(body: CommitBody) -> dict:
     try:
-        return await gitops.commit(await gitops.resolve_target(body.session), body.message, body.amend, body.all)
+        t = await gitops.resolve_target(body.session)
+        async with gitops.lock_for(t):
+            return await gitops.commit(t, body.message, body.amend, body.all)
     except gitops.Refused as err:
         raise _fail(err)
 
@@ -161,7 +171,9 @@ async def snapshots(session: str | None = None) -> dict:
 @router.post("/git/snapshots")
 async def snapshot(body: SnapshotBody) -> dict:
     try:
-        return await gitops.snapshot_create(await gitops.resolve_target(body.session), body.label)
+        t = await gitops.resolve_target(body.session)
+        async with gitops.lock_for(t):
+            return await gitops.snapshot_create(t, body.label)
     except gitops.Refused as err:
         raise _fail(err)
 
@@ -169,7 +181,9 @@ async def snapshot(body: SnapshotBody) -> dict:
 @router.post("/git/rewind")
 async def rewind(body: RewindBody) -> dict:
     try:
-        return await gitops.rewind(await gitops.resolve_target(body.session), body.n)
+        t = await gitops.resolve_target(body.session)
+        async with gitops.lock_for(t):
+            return await gitops.rewind(t, body.n)
     except gitops.Refused as err:
         raise _fail(err)
 
@@ -180,7 +194,7 @@ async def comments(body: CommentBody) -> dict:
         target = await gitops.resolve_target(body.session or None)
         if target.session is None:
             raise gitops.Refused(400, "comments need a session")
-        text = body.text.strip()
+        text = gitops.CONTROL_RE.sub("", body.text).strip()
         if not 1 <= len(text) <= TEXT_MAX:
             raise gitops.Refused(400, "the comment must be 1 to 4000 characters")
         path = gitops.clean_path(target.root, body.path)
@@ -198,7 +212,9 @@ async def comments(body: CommentBody) -> dict:
 @router.post("/git/push")
 async def push(body: PushBody) -> dict:
     try:
-        return await gitops.push(await gitops.resolve_target(body.session), body.remote, body.branch)
+        t = await gitops.resolve_target(body.session)
+        async with gitops.lock_for(t):
+            return await gitops.push(t, body.remote, body.branch)
     except gitops.Refused as err:
         raise _fail(err)
 
@@ -206,7 +222,9 @@ async def push(body: PushBody) -> dict:
 @router.post("/git/sign-and-push")
 async def sign_and_push(body: PushBody):
     try:
-        return await gitops.sign_and_push(await gitops.resolve_target(body.session), body.remote, body.branch)
+        t = await gitops.resolve_target(body.session)
+        async with gitops.lock_for(t):
+            return await gitops.sign_and_push(t, body.remote, body.branch)
     except gitops.Refused as err:
         if err.extra:
             return JSONResponse(status_code=err.status, content={"detail": err.detail, **err.extra})
