@@ -16,6 +16,18 @@ export interface FormslotStatus {
   note: string;
 }
 
+export interface FormslotOnboard {
+  binary: string | null;
+  version: string | null;
+  running: boolean;
+  dataFolder: string;
+  dataFolderExists: boolean;
+  corpora: string[];
+  workspace: string | null;
+  indexed: boolean | null;
+  connected: boolean | null;
+}
+
 export interface GateSlot { id: string; path: string; line: number }
 export type GateChoice = 'use' | 'adapt' | 'write';
 
@@ -127,6 +139,7 @@ async function tool<T>(name: string, args: Record<string, unknown>): Promise<T> 
 
 export const formslot = {
   status: (): Promise<FormslotStatus> => call<FormslotStatus>('/api/formslot/status'),
+  onboard: (): Promise<FormslotOnboard> => call<FormslotOnboard>('/api/formslot/onboard'),
   start: (): Promise<FormslotStatus> => owner<FormslotStatus>('/api/formslot/start', post()),
   index: (path?: string): Promise<ActionResult> => owner<ActionResult>('/api/formslot/index', post(path ? { path } : {})),
   install: (mode: InstallMode): Promise<ActionResult> => owner<ActionResult>('/api/formslot/install', post({ mode })),

@@ -174,6 +174,66 @@ async def status() -> dict:
     return out
 
 
+_version_cache: dict[str, tuple[float, str | None]] = {}
+
+
+async def _version(found: str) -> str | None:
+    try:
+        stamp = os.path.getmtime(found)
+    except OSError:
+        return None
+    hit = _version_cache.get(found)
+    if hit and hit[0] == stamp:
+        return hit[1]
+    code, out, _ = await _split([found, "--version"], 15)
+    words = out.strip().split()
+    value = words[-1] if code == 0 and words else None
+    _version_cache[found] = (stamp, value)
+    return value
+
+
+async def _connected(found: str, root: str) -> bool:
+    if not _plugin_installed(root):
+        return False
+    try:
+        servers = json.loads((Path(root) / ".mcp.json").read_text(encoding="utf-8")).get("mcpServers")
+    except (OSError, ValueError, AttributeError):
+        return False
+    if not isinstance(servers, dict) or "formslot" not in servers:
+        return False
+    code, out, err = await _split([found, "install", root, "--dry-run"], 30)
+    text = out + err
+    return "would be written" not in text and ".mcp.json: would change (created" not in text
+
+
+async def onboard() -> dict:
+    found = binary()
+    folder = data_folder()
+    current = ws.current()
+    root = os.path.realpath(current) if current and os.path.isdir(current) else None
+    out = {
+        "binary": found,
+        "version": None,
+        "running": False,
+        "dataFolder": str(folder),
+        "dataFolderExists": folder.is_dir(),
+        "corpora": [],
+        "workspace": root,
+        "indexed": None,
+        "connected": None,
+    }
+    if not found:
+        return out
+    out["version"] = await _version(found)
+    info = await status()
+    out["running"] = bool(info["running"])
+    out["corpora"] = [c["name"] for c in info["corpora"] if isinstance(c.get("name"), str)]
+    if root:
+        out["indexed"] = info["workspaceCorpus"] is not None if info["running"] else False
+        out["connected"] = await _connected(found, root)
+    return out
+
+
 async def start() -> dict:
     found = _need_binary()
     async with _start_lock:

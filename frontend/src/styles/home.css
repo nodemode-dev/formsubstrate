@@ -139,3 +139,21 @@
 .cv-home-tile-title { overflow: hidden; color: var(--text-primary); font-size: var(--fs-13); text-overflow: ellipsis; white-space: nowrap; }
 .cv-home-tile-sub { overflow: hidden; color: var(--text-muted); font-size: var(--fs-11); text-overflow: ellipsis; white-space: nowrap; }
 .cv-home-tile .cv-home-keys { grid-column: 2; min-height: 0; }
+.cv-hfs { margin-top: var(--space-6); }
+.cv-hfs-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: var(--space-4); min-height: calc(var(--space-8) * 5); padding: var(--space-4) var(--space-5); border: 1px solid var(--line-1); border-radius: var(--radius-xl); background: var(--surface-0); }
+.cv-hfs-icon { display: inline-grid; place-items: center; width: 40px; height: 40px; border: 1px solid var(--line-1); border-radius: var(--radius-md); background: var(--surface-1); color: var(--accent-color); }
+.cv-hfs-text { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.cv-hfs-title { min-height: 20px; color: var(--text-primary); font-size: var(--fs-14); font-weight: 600; line-height: 20px; }
+.cv-hfs-sub { min-height: 36px; max-width: 620px; color: var(--text-secondary); font-size: var(--fs-13); line-height: 18px; }
+.cv-hfs-field { display: flex; gap: var(--space-2); max-width: 520px; }
+.cv-hfs-field[hidden] { display: flex; visibility: hidden; }
+.cv-hfs-input { flex: 1; min-width: 0; height: 30px; padding: 0 var(--space-2h); border: 1px solid var(--line-1); border-radius: var(--radius); background: var(--surface-1); color: var(--text-primary); font: inherit; font-size: var(--fs-12); user-select: text; -webkit-user-select: text; }
+.cv-hfs-input:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 1px; }
+.cv-hfs-note { min-height: 16px; overflow: hidden; color: var(--text-muted); font-family: var(--font-code); font-size: var(--fs-11); line-height: 16px; text-overflow: ellipsis; white-space: nowrap; user-select: text; -webkit-user-select: text; }
+.cv-hfs-actions { display: flex; flex: none; width: 244px; justify-content: flex-end; }
+.cv-hfs-actions .cv-home-action[hidden] { display: flex; visibility: hidden; }
+.cv-hfs-actions .cv-home-action { flex: 1; padding-right: var(--space-3); }
+@media (max-width: 900px) {
+  .cv-hfs-card { grid-template-columns: auto minmax(0, 1fr); }
+  .cv-hfs-actions { grid-column: 1 / -1; justify-content: flex-start; }
+}

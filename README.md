@@ -14,6 +14,10 @@ subform opens Form repositories, edits code with language servers and a debugger
 
 ## Quick start
 
+New users: double-click `Install subform.command` on macOS (the first time, right-click it and choose Open, because macOS asks before it runs a downloaded file) or `Install subform.bat` on Windows. The window installs subform, then offers to start it and stays open. On Home, the formslot card then installs and sets up formslot for you, and adds each project you open with one click.
+
+From a terminal:
+
 ```bash
 ./subform_oc_install     # backend venv and frontend packages
 ./subform                # engine on 127.0.0.1:5655, window on localhost:5650

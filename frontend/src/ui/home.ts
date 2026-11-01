@@ -1,6 +1,7 @@
 import type { Commands } from './commands';
 import { el, isMac, patchList, q, setClass, setHidden, setHtml, setText, setTitle } from './dom';
 import { HomeFiles, type HomeFilesDeps, type RecentEntry } from './home-files';
+import { HomeFormslot } from './home-formslot';
 import { t } from './i18n';
 import { icon } from './icons';
 import { loadPrefs } from './prefs';
@@ -13,6 +14,7 @@ export interface HomeDeps {
   recent(): Promise<RecentEntry[]>;
   openPath(path: string): Promise<void>;
   forget(path: string): Promise<void>;
+  openTerminal?(id: string): void;
 }
 
 export type SessionState = 'needs-input' | 'working' | 'done';
@@ -131,6 +133,7 @@ export class Home {
   private readonly typedInput = q<HTMLInputElement>(this.el, '.cv-home-typed-input');
   private readonly recentLists: HomeFiles[] = [];
   private readonly workspaceList: HomeFiles;
+  private readonly formslotCard: HomeFormslot;
   private readonly startSessions = new HomeSessions();
   private readonly allSessions = new HomeSessions();
   private page: Page = 'start';
@@ -152,6 +155,8 @@ export class Home {
     const startRecent = new HomeFiles(files, { kind: 'recent', limit: START_LIMIT, compact: true });
     const recent = new HomeFiles(files, { kind: 'recent', onCount: count('recent') });
     this.workspaceList = new HomeFiles(files, { kind: 'workspaces', onCount: count('workspaces') });
+    this.formslotCard = new HomeFormslot(store, commands, { openTerminal: d.openTerminal });
+    q(this.el, '.cv-home-hero').after(this.formslotCard.root);
     this.recentLists.push(startRecent, recent);
     mount('start-recent', startRecent.root);
     mount('recent', recent.root);
@@ -248,6 +253,7 @@ export class Home {
     const run = ++this.run;
     let entries: RecentEntry[] | null = null;
     try { entries = await this.d.recent(); } catch { entries = null; }
+    void this.formslotCard.refresh();
     if (run !== this.run) return;
     if (entries) this.entries = entries;
     const current = this.store.workspace?.path ?? '';

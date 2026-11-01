@@ -39,6 +39,8 @@ class NoteBody(BaseModel):
     tool: str = Field(default="Bash", max_length=200)
     path: str = Field(default="", max_length=4000)
     slot: str = Field(default="", max_length=200)
+    kind: str = Field(default="", max_length=20)
+    reason: str = Field(default="", max_length=300)
     message: str = Field(default="", max_length=gates.MESSAGE_BODY_MAX)
 
 
@@ -58,6 +60,11 @@ def window_token(request: Request) -> dict:
 @router.get("/formslot/status")
 async def status() -> dict:
     return await svc.status()
+
+
+@router.get("/formslot/onboard")
+async def onboard() -> dict:
+    return await svc.onboard()
 
 
 @router.post("/formslot/start", dependencies=[Depends(require_window)])

@@ -769,10 +769,10 @@ register({
       if (readOffered().has(path)) return;
       markOffered(path);
       const name = ctx.store.workspace?.name ?? path;
-      toast(`${t('Install formslot for this repository')}: ${name}. ${t('Agents are warned before writing code that already exists.')}`, 'info', {
+      toast(`${t('Add this project to formslot')}: ${name}. ${t('Agents are warned before writing code that already exists.')}`, 'info', {
         ms: 0,
         actions: [
-          { label: t('Install'), run: () => { void formslot.install('warn').then((r) => { toast(lastLine(r.output) || t(r.ok ? 'Installed.' : 'Install failed.'), r.ok ? 'info' : 'error'); return formslotState.refresh(); }).catch((err: unknown) => toast(detailOf(err), 'error')); } },
+          { label: t('Open Home'), run: () => { if (!formslotState.status?.installed) return; ctx.commands.run('home-toggle'); } },
           { label: t('Not now'), run: () => undefined },
         ],
       });
