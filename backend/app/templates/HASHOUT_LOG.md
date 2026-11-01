@@ -34,3 +34,27 @@ The plan says the template comes from formslot slots once S5 has them. Until the
 - logged: v0.10.0 · 2026-10-30
 
 review L8. The new app's rules said every commit is by `nodemode-ai`, but the first commit uses the identity stored in Preferences when there is one and `nodemode-ai` only as the fallback. Both files now say "the owner's identity or nodemode-ai".
+
+### backend/app/templates/common/src-tauri · compiled shell
+
+- refers-to: backend/app/templates/common/src-tauri/tauri.conf.json :: app.security.csp
+- kind: rationale
+- logged: v0.11.0 · 2026-10-30
+
+Supersedes the "not compiled" warning above: both scaffolded shells were built with `cargo build` (Tauri 2, debug) and run under xvfb; a window appeared for each. The CSP is `default-src 'self'` with `connect-src` limited to `ipc:`, `http://ipc.localhost` and the engine port on 127.0.0.1 and localhost, no `unsafe-eval`, and `style-src 'unsafe-inline'` only because the placeholder page has one inline style block. subform's own tauri.conf.json has `csp: null` (its window is a remote origin served by the engine, which Tauri's CSP does not govern), so there was nothing to copy; the Python kind instead sends the same policy as a header from the engine (`app/main.py :: security_headers`). `devUrl` was removed because nothing serves the window dev port and a debug build otherwise tried localhost and showed a connection error.
+
+### backend/app/templates/common/src-tauri/icons · placeholder mark
+
+- refers-to: backend/app/templates/common/src-tauri/icons/icon.svg
+- kind: explainer
+- logged: v0.11.0 · 2026-10-30
+
+An original letter F (every Form app name starts with `form`) drawn as three rounded bars in the family paint gradient on a dark rounded square, not subform's artwork. The PNG, ICO and ICNS files were produced from `icon.svg` by `npx tauri icon` (tauri-cli from subform's frontend) and only the files the bundle list names plus icon.png are kept. Binary files cannot carry a name initial because they are copied byte for byte: `create.py :: RAW_SUFFIXES` (.png, .ico, .icns) joins `RAW_FILES` so they are never decoded or rendered.
+
+### backend/app/templates/{rust,python}/src-tauri/src/main.rs · minimal shells
+
+- refers-to: backend/app/templates/rust/src-tauri/src/main.rs :: cli_banner; backend/app/templates/python/src-tauri/src/main.rs :: spawn_engine
+- kind: explainer
+- logged: v0.11.0 · 2026-10-30
+
+`main.rs` moved from `common/` into each kind folder. Rust kind: runs the built `{{name}}-cli version` from `../target` and uses its output as the window title; the window shows `frontend/`. Python kind: spawns `backend/venv` python (else python3) with uvicorn on the engine port using std::process only (no shell plugin, so no extra permissions), polls the port, navigates the window to the engine and kills the child on exit. Subform's token handshake, port 0 discovery, splash and packaged engine are deliberately left out; the engine is not yet LocalGuard-protected in the Python template. Dev paths come from `CARGO_MANIFEST_DIR`, so the shell runs from the scaffolded tree only.

@@ -45,6 +45,7 @@ GIT_STEP_TIMEOUT = 60
 INSTALL_TIMEOUT = 60
 FALLBACK_IDENTITY = {"name": "nodemode-ai", "email": "mackin@nodemode.ai"}
 RAW_FILES = ("LICENSE",)
+RAW_SUFFIXES = (".png", ".ico", ".icns")
 EXEC_NAME = "__name__"
 KINDS = {
     "rust": {
@@ -442,7 +443,7 @@ def _write_tree(target: Path, kind: str, tokens: dict[str, str]) -> list[str]:
             rel = source.relative_to(source_root)
             out = target / _target_rel(rel, tokens)
             out.parent.mkdir(parents=True, exist_ok=True)
-            if source.name in RAW_FILES:
+            if source.name in RAW_FILES or source.suffix.lower() in RAW_SUFFIXES:
                 shutil.copyfile(source, out)
             else:
                 out.write_text(_render(source.read_text(encoding="utf-8"), tokens), encoding="utf-8", newline="\n")
