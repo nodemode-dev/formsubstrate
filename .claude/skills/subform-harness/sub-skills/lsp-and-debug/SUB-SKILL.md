@@ -14,6 +14,7 @@ Language servers and debuggers are found on the system, never bundled. The engin
 - Routes: `GET /api/lsp/servers` reports what is installed, with install hints; `WS /api/lsp/ws?lang=[id]&trust=1` relays. If no server runs, the socket sends `subform/serverUnavailable` with install commands, then closes; busy closes with code 4409.
 - The relay answers a few client requests itself (`client/registerCapability`, `workspace/configuration`, work-done progress) so servers do not stall.
 - Window side: `frontend/src/ui/editor/lsp.ts`, `lsp-workspace.ts`, `extensions/lsp/index.ts` (Outline and Problems sections), built on `@codemirror/lsp-client`.
+- Palette symbol search (`@` file, `#` workspace) consumes the same servers: `symbolHub` in `frontend/src/io/lsp.ts` asks them for document and workspace symbols, and `frontend/src/ui/palette/symbols.ts` shows a note instead of rows when no server runs ("Trust this workspace to run the ones installed in it" when the workspace is untrusted, via `workspaceTrusted`). It uses `searchWorkspace` only to pick a file that warms a server for `#`. There is no non-LSP symbol fallback.
 - A new language: add an entry to `LANGS` with `label`, `exts`, `install` hints and ordered `candidates` (`name`, `exe`, `args`, `kind`); add the editor language in `ui/editor/languages.ts`.
 
 ## Debug

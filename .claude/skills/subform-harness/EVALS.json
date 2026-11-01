@@ -37,6 +37,18 @@
         "Uses the identity nodemode-ai <mackin@nodemode.ai> for author and committer",
         "Leaves .claude/settings.json attribution empty and does not push"
       ]
+    },
+    {
+      "id": 4,
+      "name": "gate-a-new-bash-write-form",
+      "prompt": "The permission gate lets `cp` through but misses `ln -f src dst` overwriting an existing file. Gate it, and keep a retry after the owner's Write new anyway working.",
+      "files": [],
+      "expected_behavior": [
+        "Edits the SCRIPT string in backend/app/services/gate_hook.py by hand, reading the region first, with no comments and no run of the command",
+        "Does not store the waiver in a file; leaves the engine-held waiver in gates.py keyed on content",
+        "Runs the real sf_gate.py with a PreToolUse payload against a scratch engine and shows the denial and a sf_gate.log line for any fail-open",
+        "Logs a rationale entry at the end of backend/app/services/HASHOUT_LOG.md and proposes the new form for the Gates bullet in CLAUDE.md in its report instead of editing it"
+      ]
     }
   ],
   "trigger_evals": [
@@ -44,6 +56,7 @@
     { "query": "subform engine: need a new route behind localguard + window token", "should_trigger": true },
     { "query": "how do i run the subform backend on a scratch port and check layout shift with playwright", "should_trigger": true },
     { "query": "the existing-slot card in this workbench flickers when a gate arrives, fix it", "should_trigger": true },
+    { "query": "terminal_tail returns garbled text from a Claude Code tab, fix the pty-host screen model", "should_trigger": true },
     { "query": "use subform to open my project and start a Claude Code session", "should_trigger": false },
     { "query": "add a filter to formvis and bump its version", "should_trigger": false },
     { "query": "write a CodeMirror extension for my own unrelated website", "should_trigger": false },

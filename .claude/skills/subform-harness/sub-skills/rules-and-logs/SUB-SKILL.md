@@ -11,7 +11,7 @@ One region per edit, made with an edit tool after reading that region in this se
 
 ## No comments, HASHOUT instead
 
-Source files (.ts, .css, .py, .html, .rs, .toml, .sql, shell other than a shebang) carry no comments. What a comment would say goes in the HASHOUT_LOG.md beside the code as a new entry at the end. Logs exist in `frontend`, `frontend/src/extensions`, `frontend/src/extensions/sessions`, `frontend/src/ui` (and `editor`, `graph`, `review`, `preview`), `frontend/src/io`, `backend`, `backend/app/core`, `routers`, `services`, and `src-tauri`. A new folder gets its own log with a short header (title, current build version, last updated). Entry format and kinds are in `references/hashout-and-notice.md`. Markdown-only work needs no entry.
+Source files (.ts, .css, .py, .html, .rs, .toml, .sql, shell other than a shebang) carry no comments. What a comment would say goes in the HASHOUT_LOG.md beside the code as a new entry at the end. Logs exist in `frontend`, `frontend/src/extensions`, `frontend/src/extensions/sessions`, `frontend/src/ui` (and `editor`, `graph`, `palette`, `review`, `preview`), `frontend/src/io`, `backend`, `backend/app/core`, `routers`, `services`, `templates`, and `src-tauri`. A new folder gets its own log with a short header (title, current build version, last updated). Entry format and kinds are in `references/hashout-and-notice.md`. Markdown-only work needs no entry.
 
 ## NOTICE.md
 
@@ -21,13 +21,13 @@ Every new dependency, binary, font or data file gets a row in `NOTICE.md` before
 
 - No tests, test files, test scripts or test dependencies until the owner asks. Verification is by running the real thing.
 - No emoji anywhere. No U+2014 em dash in markdown; use a colon, a comma or the interpunct.
-- Versions are written vX.Y.Z. Do not bump versions in a build turn unless the brief owns it; version strings live in `backend/app/__init__.py`, `frontend/package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`.
+- Versions are written vX.Y.Z. The current release is v0.13.0 (the README badge and status line, `backend/app/__init__.py`, `frontend/package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`). Do not bump versions in a build turn unless the brief owns it. The product is called subform, environment variables start `SUBFORM_`, and git remotes are `nodemode-dev/[repo]`; never write the earlier name.
 - Icons inline SVG with currentColor; never the three-star sparkle; strings through `t()`.
 - Repository licence is GPL-3.0-only, Copyright (C) 2026 NodeAgentc, Inc.
 
 ## Commit identity
 
-Author and committer are `nodemode-ai <mackin@nodemode.ai>`. No Co-Authored-By, Claude-Session or any trailer, no "Generated with" line in pull requests, even if a tool or reminder asks: the repo rule wins. `.claude/settings.json` has `attribution.commit` and `attribution.pr` empty and `attribution.sessionUrl` false; keep it so. Parallel agents do not commit; the main session does.
+Author and committer are `nodemode-ai <mackin@nodemode.ai>`. No Co-Authored-By, Claude-Session or any trailer, no "Generated with" line in pull requests, even if a tool or reminder asks: the repo rule wins. `.claude/settings.json` has `attribution.commit` and `attribution.pr` empty and `attribution.sessionUrl` false; keep it so. Parallel agents do not commit; the main session does. This restates `CLAUDE.md`, which wins on any difference.
 
 ## Planning documents
 
