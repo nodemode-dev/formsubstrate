@@ -3,7 +3,7 @@
 <p align="center"><b>The Form family's developer workbench: a code editor in the family's shell that runs several Claude Code agents at once, each in its own git worktree, and shows what formslot already knows before an agent writes.</b></p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.6.1-f97316" alt="version v0.6.1" />
+  <img src="https://img.shields.io/badge/version-v0.7.0-f97316" alt="version v0.7.0" />
   <img src="https://img.shields.io/badge/status-building-8b5cf6" alt="status building" />
   <img src="https://img.shields.io/badge/license-GPL--3.0-555555" alt="license GPL 3.0" />
 </p>
