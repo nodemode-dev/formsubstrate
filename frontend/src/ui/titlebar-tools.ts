@@ -2,7 +2,7 @@ import type { Commands } from './commands';
 import { el, patchList, q, setClass, setDisabled, setHidden, setText } from './dom';
 import { t } from './i18n';
 import { icon } from './icons';
-import { readChoice, setTheme } from './themes';
+import { THEMES, readChoice, setTheme } from './themes';
 
 const SHOWN = 8;
 
@@ -27,7 +27,7 @@ export class TitleTools {
     const search = el<HTMLButtonElement>(`<button class="cv-tt-btn" type="button" title="${t('Search commands')}" aria-label="${t('Search commands')}">${icon('search', 16)}</button>`);
     this.agent = el<HTMLButtonElement>(`<button class="cv-tt-btn" type="button" title="${t('Claude Code')}" aria-label="${t('Claude Code')}">${icon('agent', 16)}</button>`);
     this.terminal = el<HTMLButtonElement>(`<button class="cv-tt-btn" type="button" title="${t('Show Terminal')}" aria-label="${t('Show Terminal')}">${icon('terminal', 16)}</button>`);
-    this.theme.addEventListener('click', () => { setTheme(readChoice().theme === 'light' ? 'studio' : 'light'); this.syncTheme(); });
+    this.theme.addEventListener('click', () => { setTheme(THEMES[readChoice().theme]?.light ? 'studio' : 'light'); this.syncTheme(); });
     this.agent.addEventListener('click', () => { commands.run('agent-new'); });
     this.terminal.addEventListener('click', () => { commands.run('terminal-toggle'); });
     search.addEventListener('click', () => this.open());
@@ -70,7 +70,7 @@ export class TitleTools {
   close(): void { setHidden(this.pop, true); }
 
   private syncTheme(): void {
-    const light = readChoice().theme === 'light';
+    const light = !!THEMES[readChoice().theme]?.light;
     setHidden(this.sun, light);
     setHidden(this.moon, !light);
     this.theme.setAttribute('aria-pressed', String(light));

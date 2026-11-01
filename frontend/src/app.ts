@@ -12,7 +12,7 @@ import { menusInWindow, MENUS_IN_WINDOW_KEY, NativeMenus, textFieldFocused, want
 import { applyUiFontSize, autoUiScale, loadPrefs, setUiScale, uiScaleChoice, type Prefs } from './ui/prefs';
 import { StatusBar } from './ui/status';
 import { Tabs } from './ui/tabs';
-import { applyTheme, readChoice, setTheme } from './ui/themes';
+import { THEMES, applyTheme, readChoice, setTheme } from './ui/themes';
 import { TitleTools } from './ui/titlebar-tools';
 import { toast } from './ui/toast';
 import { workspace as store } from './ui/workspace-store';
@@ -136,9 +136,10 @@ export async function startApp(): Promise<void> {
 
   let lastField: HTMLElement | null = null;
   document.addEventListener('focusin', (e) => { if (textFieldFocused() && e.target instanceof HTMLElement) lastField = e.target; }, true);
-  const editable = (): boolean => textFieldFocused() || !!lastField?.isConnected;
+  const usable = (): boolean => !!lastField?.isConnected && lastField.getClientRects().length > 0;
+  const editable = (): boolean => textFieldFocused() || usable();
   const editAction = (id: string): void => {
-    if (!textFieldFocused() && lastField?.isConnected) lastField.focus();
+    if (!textFieldFocused() && usable()) lastField?.focus();
     if (!textFieldFocused()) return;
     const fallback = (): void => { document.execCommand(id === 'select-all' ? 'selectAll' : id); };
     if (isTauri()) void import('@tauri-apps/api/core').then((m) => m.invoke('text_edit', { action: id })).catch(fallback);
@@ -156,7 +157,7 @@ export async function startApp(): Promise<void> {
     const docs = store.docs, at = docs.findIndex((d) => d.id === store.active?.id);
     if (docs.length > 1 && at >= 0) store.setActive(docs[(at + by + docs.length) % docs.length].id);
   };
-  const toggleTheme = (): void => { setTheme(readChoice().theme === 'light' ? 'studio' : 'light'); };
+  const toggleTheme = (): void => { setTheme(THEMES[readChoice().theme]?.light ? 'studio' : 'light'); };
 
   const about = new AboutDialog();
   const palette = new CommandPalette(commands, () => menus);
@@ -171,15 +172,15 @@ export async function startApp(): Promise<void> {
     soon({ id: 'settings', label: 'Preferences...', keys: ['Mod+,'], run: () => undefined }),
     { id: 'quit', label: 'Quit', run: () => { if (isTauri()) void useWindow((w) => w.close()); else window.close(); } },
     edit('undo', 'Undo', ['Mod+Z']),
-    edit('redo', 'Redo', ['Mod+Shift+Z']),
+    edit('redo', 'Redo', ['Shift+Mod+Z']),
     edit('cut', 'Cut', ['Mod+X']),
     edit('copy', 'Copy', ['Mod+C']),
     edit('paste', 'Paste', ['Mod+V']),
     edit('select-all', 'Select All', ['Mod+A']),
     soon({ id: 'find', label: 'Find...', keys: ['Mod+F'], run: () => undefined }),
     soon({ id: 'select-next', label: 'Add Next Occurrence', keys: ['Mod+D'], run: () => undefined }),
-    soon({ id: 'select-all-occurrences', label: 'Select All Occurrences', keys: ['Mod+Shift+L'], run: () => undefined }),
-    { id: 'command-palette', label: 'Command Palette...', keys: ['Mod+Shift+P', 'Mod+K'], run: () => palette.show() },
+    soon({ id: 'select-all-occurrences', label: 'Select All Occurrences', keys: ['Shift+Mod+L'], run: () => undefined }),
+    { id: 'command-palette', label: 'Command Palette...', keys: ['Shift+Mod+P', 'Mod+K'], run: () => palette.show() },
     { id: 'toggle-theme', label: 'Toggle Light or Dark', run: toggleTheme },
     { id: 'menus-in-window', label: 'Menus in Window', enabled: () => isTauri() && /Mac/.test(navigator.platform), checked: menusInWindow, run: () => {
       keep(MENUS_IN_WINDOW_KEY, menusInWindow() ? '0' : '1');
@@ -192,11 +193,11 @@ export async function startApp(): Promise<void> {
     soon({ id: 'go-to-file', label: 'Go to File...', keys: ['Mod+P'], run: () => undefined }),
     { id: 'next-tab', label: 'Next Tab', keys: ['Alt+Mod+Right'], enabled: () => store.docs.length > 1, run: () => stepTab(1) },
     { id: 'previous-tab', label: 'Previous Tab', keys: ['Alt+Mod+Left'], enabled: () => store.docs.length > 1, run: () => stepTab(-1) },
-    soon({ id: 'run-task', label: 'Run Task...', keys: ['Mod+Shift+B'], run: () => undefined }),
+    soon({ id: 'run-task', label: 'Run Task...', keys: ['Shift+Mod+B'], run: () => undefined }),
     soon({ id: 'run-stop', label: 'Stop Task', run: () => undefined }),
     soon({ id: 'terminal-toggle', label: 'Toggle Terminal', keys: ['Mod+J'], run: () => undefined }),
     soon({ id: 'terminal-new', label: 'New Terminal', run: () => undefined }),
-    soon({ id: 'agent-new', label: 'New Claude Code Session', keys: ['Mod+Shift+A'], run: () => undefined }),
+    soon({ id: 'agent-new', label: 'New Claude Code Session', keys: ['Shift+Mod+A'], run: () => undefined }),
     soon({ id: 'agent-sessions', label: 'Agent Sessions', run: () => undefined }),
     soon({ id: 'git-status', label: 'Git Status', run: () => undefined }),
     soon({ id: 'git-commit', label: 'Commit...', run: () => undefined }),
