@@ -32,7 +32,8 @@ QUERY_MAX = 500
 TEXT_MAX = 4000
 BLOCKED_PARTS = (".subform",)
 SESSION_ID = re.compile(r"^[a-z0-9]{16}$")
-ENV_NAME = re.compile(r"^\.env(\..*)?$", re.IGNORECASE)
+ENV_NAME = re.compile(r"^(\.env(\..*)?|.*\.env)$", re.IGNORECASE)
+SEARCH_EXCLUDES = (".env*", "*.env", ".subform", ".git")
 
 P_SESSION = {"type": "string", "description": "Session id (16 lowercase letters and digits). Omit it to use your own session, or the open workspace for the app window."}
 P_CURSOR = {"type": "string", "description": "Opaque cursor from the previous page of the same call; omit for the first page."}
@@ -265,14 +266,33 @@ def _confined(root: str, rel: str) -> tuple[str, str]:
     parts = [p for p in flat.split("/") if p not in ("", ".")]
     if ".." in parts:
         raise ToolError("path must stay inside the workspace")
-    if any(p.lower() in ws.HIDDEN_NAMES[:1] + BLOCKED_PARTS for p in parts):
-        raise ToolError("the git folder and the .subform folder are not readable")
-    if parts and ENV_NAME.match(parts[-1]):
-        raise ToolError("dotenv files are not readable through MCP")
+    _refuse_parts(parts)
+    cursor = root
+    for part in parts:
+        cursor = os.path.join(cursor, part)
+        if os.path.islink(cursor):
+            raise ToolError("symbolic links are not followed through MCP")
     real = os.path.realpath(os.path.join(root, *parts))
     if real != root and not real.startswith(root.rstrip(os.sep) + os.sep):
         raise ToolError("path leaves the workspace")
+    _refuse_parts([p for p in os.path.relpath(real, root).replace(os.sep, "/").split("/") if p not in ("", ".")])
     return real, "/".join(parts)
+
+
+def _refuse_parts(parts: list[str]) -> None:
+    if any(p.lower() in ws.HIDDEN_NAMES[:1] + BLOCKED_PARTS for p in parts):
+        raise ToolError("the git folder and the .subform folder are not readable")
+    if any(ENV_NAME.match(p) for p in parts):
+        raise ToolError("dotenv files are not readable through MCP")
+
+
+def _hit_allowed(root: str, rel: str) -> bool:
+    parts = [p for p in rel.replace("\\", "/").split("/") if p not in ("", ".")]
+    try:
+        _confined(root, "/".join(parts))
+    except ToolError:
+        return False
+    return bool(parts)
 
 
 async def workspace_info(who: dict, args: dict) -> dict:
@@ -308,10 +328,12 @@ def _search(root: str, args: dict) -> tuple[list[dict], str]:
     rg = find_bin("rg")
     try:
         if rg:
-            return wsr._rg_search(rg, root, query, regex, case, glob, SEARCH_POOL)[:SEARCH_POOL], "rg"
+            found = wsr._rg_search(rg, root, query, regex, case, glob, SEARCH_POOL, SEARCH_EXCLUDES)
+            return [h for h in found if _hit_allowed(root, h["path"])][:SEARCH_POOL], "rg"
         if regex:
             raise ToolError("regular expression search needs ripgrep (rg) on this system; search plain text or install ripgrep")
-        return wsr._py_search(root, query, regex, case, glob, SEARCH_POOL)[:SEARCH_POOL], "python"
+        found = wsr._py_search(root, query, regex, case, glob, SEARCH_POOL)
+        return [h for h in found if _hit_allowed(root, h["path"])][:SEARCH_POOL], "python"
     except HTTPException as err:
         raise ToolError(f"search failed: {err.detail}")
 

@@ -547,3 +547,43 @@ Clone runs `git` from an argv list, never a shell. The address is checked before
 - logged: v0.10.0 · 2026-10-30
 
 Name: `form` plus 1 to 28 lowercase letters or digits. Ports: a block of 10 starting at a multiple of 10 inside 5600 to 5999, refused when it is in `KNOWN_BLOCKS` (formMCP 5620, formskills 5630, formslot 5640, subform 5650; 5600 and 5610 are held back for family services), when a sibling folder of the destination names a port of the block in its CLAUDE.md, README.md or AGENTS.md (at most 60 siblings, 64 KB each), or when any of its 10 ports cannot be bound on 127.0.0.1 now. formvis uses 5190, outside the range. The suggestion is the first block that passes. Steps: write the template tree into the new folder, `git init -b main`, `formslot install <repo>` when `formslot.binary()` finds it (before the commit, so the first commit already holds the hooks, `.mcp.json` and `slots.lock.json` and the tree is clean; failure is reported in the result and is not fatal), `git add -A`, then one commit with `--no-verify`, hooks path disabled and `commit.gpgsign` forced to the stored choice. Identity is the one stored in Preferences, Git and Identity (`gitops._stored_identity`); when none is stored it is `nodemode-ai <mackin@nodemode.ai>`. The computer's global git identity is deliberately not used, because on a machine set up for an agent it would be the agent. The message is a subject and one body line with no trailer. Any failure removes the new folder; the folder never existed before the call (a name clash is 409).
+
+### backend/app/services/mcp_tools.py · _confined, _refuse_parts, _hit_allowed, _search
+
+- refers-to: backend/app/services/mcp_tools.py :: _confined, _refuse_parts, _hit_allowed, _search
+- kind: warning-context
+- logged: v0.10.0 · 2026-10-30
+
+review M1 and M2. `_confined` checked only the parts the caller typed, so an in-tree symlink `notes.txt -> .env` or `gitlink -> .git` followed by `gitlink/config` returned secrets. It now refuses when the final component or any parent inside the root is a symlink, and after `realpath` it re-runs the `.git`, `.subform` and dotenv checks on the path relative to the root. The dotenv pattern now covers `.env`, `.env.*` and `*.env` and applies to every part. `workspace_search` runs ripgrep with `--hidden --no-ignore`, which returned `.env` contents; the MCP call now passes `SEARCH_EXCLUDES` (`.env*`, `*.env`, `.subform`, `.git`) as extra globs (`workspace._rg_search` gained an optional `excludes` argument; the window's own search is unchanged) and drops every hit whose path fails `_confined`, which also covers the Python search used without ripgrep. Before: `file_read notes.txt` and `file_read gitlink/config` answered with content and a search for a secret returned `.env` and `plain/.env`. After: the reads are refused and the search returns 0 hits.
+
+### backend/app/services/MCP launcher and gate hook · proxy bypass
+
+- refers-to: backend/app/services/gate_hook.py :: SCRIPT (OPENER, call); backend/subform_mcp.py :: OPENER
+- kind: warning-context
+- logged: v0.10.0 · 2026-10-30
+
+review M4. `urllib.request.urlopen` honours `http_proxy` and sends the bearer or gate token to the proxy. Both the stdio launcher and the hook script now use an opener built with `ProxyHandler({})`, so a call to the engine on 127.0.0.1 never goes through a proxy.
+
+### backend/app/services/create.py · _scan_sibling_blocks, _read_plain, check_block, suggest_block
+
+- refers-to: backend/app/services/create.py :: _scan_sibling_blocks, _read_plain, check_block, suggest_block; backend/app/routers/create.py :: port
+- kind: warning-context
+- logged: v0.10.0 · 2026-10-30
+
+review M5. The port check opened `CLAUDE.md`, `README.md` and `AGENTS.md` of each sibling folder with a blocking `open`, so a planted symlink to a FIFO blocked the thread forever, and the route ran on the event loop, so the whole engine stopped answering. `_read_plain` opens with `O_RDONLY | O_NONBLOCK | O_NOFOLLOW`, takes `fstat` and accepts regular files only, and reads at most 64 KiB. The `/create/port` route now runs in the threadpool, and `suggest_block` scans the siblings once and passes the result to `check_block` instead of once per candidate block. Before: the call hung and `/api/system/status` timed out. After: the call answers at once.
+
+### backend/app/services/create.py · shutdown, _run_clone, _git_env, _read_progress, create_app
+
+- refers-to: backend/app/services/create.py :: shutdown, _run_clone, _git_env, _read_progress, create_app; backend/app/main.py :: lifespan
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+review M6, L2 to L5. `create.shutdown()` runs in the lifespan: it marks running jobs cancelled, kills each process group with the shielded reap, cancels the tasks and waits for them, and the cancelled branch of `_run_clone` reaps shielded and removes the partial folder in a thread. Before: stopping the engine left `git clone` running and the half-cloned folder in place. After: both are gone within the stop. The partial folder is removed only when the clone started on a path that did not exist (`owned`), and `create_app` makes the folder outside its `try`, so a lost race (409) can never delete a folder the engine did not create. `_drop_partial` runs through `asyncio.to_thread`. `_read_progress` keeps at most 64 KiB of an unfinished stderr line. `USER_RE` is anchored to a letter or digit first, so a user part cannot start with `-`. `_git_env` reads `core.sshCommand` (or an existing `GIT_SSH_COMMAND`) and appends `-o BatchMode=yes`, because `GIT_SSH_COMMAND` replaces the user's setting. The formslot install child and `formslot._split` now start in their own session so a timeout kills the whole group.
+
+### backend/app/services/mcp_tools.py · correction: the MCP server is live
+
+- refers-to: backend/app/services/HASHOUT_LOG.md :: sessions mcp.json entry ("left out until F9")
+- kind: explainer
+- logged: v0.10.0 · 2026-10-30
+
+Correcting an older entry: the sentence "subform's own server is always left out until F9" in the entry on the per-session `mcp.json` is out of date. The server exists (`POST /mcp`, mounted without the `/api` prefix, tools in `mcp_tools.py`) and `_mcp_config` adds the `subform` entry whenever the launcher script sits in the repository folder above the engine. In a packaged app it is not found, the session note says so, and the entry is left out. The older entry is kept as written.

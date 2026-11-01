@@ -4,6 +4,7 @@ import re
 import secrets
 import shutil
 import socket
+import stat
 import time
 from datetime import date
 from pathlib import Path
@@ -23,7 +24,7 @@ URL_MAX = 2048
 NAME_RE = re.compile(r"^form[a-z0-9]{1,28}$")
 FOLDER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
 HOST_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$")
-USER_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+USER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 URL_CHARS_RE = re.compile(r"^[A-Za-z0-9._~%+@:/-]+$")
 SCP_RE = re.compile(r"^([A-Za-z0-9._-]{1,64})@([A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?):([A-Za-z0-9._~/-]{1,1000})$")
 PROGRESS_RE = re.compile(r"(Receiving objects|Resolving deltas):\s+(\d+)%")
@@ -39,6 +40,7 @@ PORT_SCAN_RE = re.compile(r"\b(5[6-9]\d\d)\b")
 SCAN_FILES = ("CLAUDE.md", "README.md", "AGENTS.md")
 SCAN_SIBLINGS = 60
 SCAN_BYTES = 65536
+LINE_BUFFER_MAX = 65536
 GIT_STEP_TIMEOUT = 60
 INSTALL_TIMEOUT = 60
 FALLBACK_IDENTITY = {"name": "nodemode-ai", "email": "mackin@nodemode.ai"}
@@ -177,11 +179,17 @@ async def start_clone(url_raw: object, dest_raw: object, folder_raw: object) -> 
     return _view(job)
 
 
-def _git_env() -> dict:
-    env = {}
-    if not os.environ.get("GIT_SSH_COMMAND") and not os.environ.get("GIT_SSH"):
-        env["GIT_SSH_COMMAND"] = "ssh -o BatchMode=yes"
-    return env
+async def _git_env(git: str, dest: str) -> dict:
+    if os.environ.get("GIT_SSH") and not os.environ.get("GIT_SSH_COMMAND"):
+        return {}
+    base = os.environ.get("GIT_SSH_COMMAND", "").strip()
+    if not base:
+        code, out, _ = await gitops._exec([git, "config", "--get", "core.sshCommand"], dest, timeout=GIT_STEP_TIMEOUT)
+        base = out.decode("utf-8", "replace").strip() if code == 0 else ""
+    base = base or "ssh"
+    if "batchmode" not in base.lower():
+        base += " -o BatchMode=yes"
+    return {"GIT_SSH_COMMAND": base}
 
 
 async def _read_progress(job: dict, stream: asyncio.StreamReader, tail: list[str]) -> None:
@@ -190,7 +198,7 @@ async def _read_progress(job: dict, stream: asyncio.StreamReader, tail: list[str
         chunk = await stream.read(2048)
         if not chunk:
             break
-        buffer += chunk
+        buffer = (buffer + chunk)[-LINE_BUFFER_MAX:]
         pieces = re.split(rb"[\r\n]", buffer)
         buffer = pieces.pop()
         for piece in pieces:
@@ -220,8 +228,11 @@ def _finish(job: dict, state: str, error: str = "") -> None:
 async def _run_clone(job: dict, git: str, url: str, dest: str, target: str) -> None:
     argv = [git, "-c", "protocol.allow=never", "-c", "protocol.https.allow=always", "-c", "protocol.ssh.allow=always", "-c", "core.askPass=", "clone", "--progress", "--", url, target]
     tail: list[str] = []
+    proc = None
+    owned = not os.path.lexists(target)
     try:
-        proc = await asyncio.create_subprocess_exec(*argv, cwd=dest, env=gitops._env(_git_env()), stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE, start_new_session=os.name == "posix")
+        env = gitops._env(await _git_env(git, dest))
+        proc = await asyncio.create_subprocess_exec(*argv, cwd=dest, env=env, stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE, start_new_session=os.name == "posix")
         job["proc"] = proc
         if job["cancel"]:
             await gitops._reap(proc)
@@ -235,21 +246,28 @@ async def _run_clone(job: dict, git: str, url: str, dest: str, target: str) -> N
         await reader
         code = proc.returncode or 0
     except asyncio.CancelledError:
-        _drop_partial(target)
+        if proc is not None and proc.returncode is None:
+            await asyncio.shield(gitops._reap(proc))
+        if owned:
+            await asyncio.shield(asyncio.to_thread(_drop_partial, target))
         _finish(job, "cancelled", "cancelled")
         raise
-    except OSError as err:
-        _drop_partial(target)
+    except (OSError, gitops.Refused) as err:
+        if owned:
+            await asyncio.to_thread(_drop_partial, target)
         _finish(job, "failed", f"git could not be started: {err}")
         return
     if job["cancel"]:
-        _drop_partial(target)
+        if owned:
+            await asyncio.to_thread(_drop_partial, target)
         _finish(job, "cancelled", "cancelled")
     elif timed_out:
-        _drop_partial(target)
+        if owned:
+            await asyncio.to_thread(_drop_partial, target)
         _finish(job, "failed", "the clone took longer than 15 minutes and was stopped")
     elif code != 0:
-        _drop_partial(target)
+        if owned:
+            await asyncio.to_thread(_drop_partial, target)
         message = next((line for line in reversed(tail) if line.startswith(("fatal", "error", "remote"))), tail[-1] if tail else "git clone failed")
         _finish(job, "failed", message)
     else:
@@ -273,6 +291,20 @@ async def cancel_job(job_id: str) -> dict:
     return _view(job)
 
 
+async def shutdown() -> None:
+    running = [j for j in _jobs.values() if j["state"] == "running"]
+    for job in running:
+        job["cancel"] = True
+        proc = job["proc"]
+        if proc is not None and proc.returncode is None:
+            await asyncio.shield(gitops._reap(proc))
+    tasks = [j["task"] for j in running if j["task"] is not None and not j["task"].done()]
+    for task in tasks:
+        task.cancel()
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
 def _bindable(port: int) -> bool:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -282,6 +314,17 @@ def _bindable(port: int) -> bool:
         return False
     finally:
         sock.close()
+
+
+def _read_plain(path: str) -> str:
+    flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(path, flags)
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            return ""
+        return os.read(fd, SCAN_BYTES).decode("utf-8", "replace")
+    finally:
+        os.close(fd)
 
 
 def _scan_sibling_blocks(dest: str) -> dict[int, str]:
@@ -295,8 +338,7 @@ def _scan_sibling_blocks(dest: str) -> dict[int, str]:
             continue
         for name in SCAN_FILES:
             try:
-                with open(os.path.join(entry.path, name), "r", encoding="utf-8", errors="replace") as handle:
-                    text = handle.read(SCAN_BYTES)
+                text = _read_plain(os.path.join(entry.path, name))
             except OSError:
                 continue
             for match in PORT_SCAN_RE.finditer(text):
@@ -314,10 +356,10 @@ def used_blocks(dest: str | None) -> dict[int, str]:
     return blocks
 
 
-def check_block(base: int, dest: str | None) -> str:
+def check_block(base: int, dest: str | None, blocks: dict[int, str] | None = None) -> str:
     if not PORT_LOW <= base <= PORT_HIGH - 9 or base % 10:
         return f"the port block must start at a multiple of 10 from {PORT_LOW} to {PORT_HIGH - 9}"
-    owner = used_blocks(dest).get(base)
+    owner = (blocks if blocks is not None else used_blocks(dest)).get(base)
     if owner:
         return f"{base} to {base + 9} belongs to {owner}"
     busy = [p for p in range(base, base + 10) if not _bindable(p)]
@@ -327,8 +369,9 @@ def check_block(base: int, dest: str | None) -> str:
 
 
 def suggest_block(dest: str | None) -> int | None:
+    blocks = used_blocks(dest)
     for base in range(PORT_LOW, PORT_HIGH - 8, 10):
-        if not check_block(base, dest):
+        if not check_block(base, dest, blocks):
             return base
     return None
 
@@ -411,7 +454,7 @@ def _write_tree(target: Path, kind: str, tokens: dict[str, str]) -> list[str]:
 
 async def _run_formslot(found: str, root: str) -> tuple[bool, str]:
     try:
-        proc = await asyncio.create_subprocess_exec(found, "install", root, stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT, env=dict(os.environ))
+        proc = await asyncio.create_subprocess_exec(found, "install", root, stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT, env=dict(os.environ), start_new_session=os.name == "posix")
         try:
             out, _ = await asyncio.wait_for(proc.communicate(), INSTALL_TIMEOUT)
         except asyncio.TimeoutError:
@@ -444,6 +487,11 @@ async def create_app(name_raw: object, kind_raw: object, dest_raw: object, port_
     root = str(target)
     try:
         target.mkdir()
+    except FileExistsError:
+        raise Refused(409, f"{name} already exists in the destination folder")
+    except OSError as err:
+        raise Refused(500, f"the folder could not be created: {err.strerror or err}")
+    try:
         tokens = _tokens(name, kind, port_raw)
         files = await run_in_threadpool(_write_tree, target, kind, tokens)
         await gitops.must(root, ["init", "-q", "-b", "main"], timeout=GIT_STEP_TIMEOUT)

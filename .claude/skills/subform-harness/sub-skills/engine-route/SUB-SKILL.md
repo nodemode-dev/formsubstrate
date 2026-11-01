@@ -9,9 +9,9 @@ The engine is `backend/app`: `main.py` wires it, `core/` holds process-level hel
 
 ## Existing shape
 
-- `main.py`: `LocalGuard` and CORS are added as middleware, then `include_router(..., prefix="/api")` for system, workspace, secrets, terminal, sessions, formslot, skills, git, debug, lsp, media and graph. The sessions and formslot routers add `Depends(remember)` so the engine learns its own port. The built window is mounted at `/` last.
+- `main.py`: `LocalGuard` and CORS are added as middleware, then `include_router(..., prefix="/api")` for system, workspace, secrets, terminal, sessions, formslot, skills, git, debug, lsp, media, graph and create (the New Form app and clone routes, all behind `require_window`); the MCP router is included without a prefix. The sessions and formslot routers add `Depends(remember)` so the engine learns its own port. The built window is mounted at `/` last.
 - `core/config.py`: ports (window 5650, engine 5655), `data_dir()` (override `SUBFORM_DATA_DIR`, else portable, else `~/Subform` if present, else the platform data folder), `dist_dir()` (`SUBFORM_DIST`), `cors_origins()`, `window_origins()`, `is_desktop()`.
-- `core/local_guard.py`: `LocalGuard` ASGI middleware, `WINDOW_TOKEN`, `hand_out_token`, `require_window`.
+- `core/local_guard.py`: `LocalGuard` ASGI middleware, `WINDOW_TOKEN` (the value of `SUBFORM_WINDOW_TOKEN` when the desktop shell supplies it, else minted at start), `hand_out_token` (404 when the shell supplied the token), `require_window`.
 - `core/workspace_root.py`: the process-wide workspace root; use `real_root()` and its `Refused`.
 - `core/binres.py` `find_bin`: the single choke point for locating programs the engine runs (git, claude, formslot, language servers, ripgrep).
 
@@ -20,7 +20,7 @@ The engine is `backend/app`: `main.py` wires it, `core/` holds process-level hel
 1. Put logic in `services/[name].py`; raise a service `Refused(status, detail)`.
 2. Create `routers/[name].py` with `router = APIRouter()`; translate `Refused` to `HTTPException`. Validate bodies with pydantic models and `Field(max_length=...)`.
 3. Register it in `main.py` with `prefix="/api"`. LocalGuard already covers every HTTP and WebSocket route, so a new route is behind it by construction; do not add routes to a second app or bypass the middleware.
-4. For an owner-only state change (anything that starts a process, writes outside the session's own scope, installs, or answers a prompt) add `dependencies=[Depends(require_window)]`. The window sends `X-Subform-Window` obtained from `POST /api/window-token`; in the frontend use the `owner()` wrapper pattern in `io/formslot.ts` (fetch token once, retry once on 403).
+4. For an owner-only state change (anything that starts a process, writes outside the session's own scope, installs, or answers a prompt) add `dependencies=[Depends(require_window)]`. The window sends `X-Subform-Window`; in the frontend call `owner()` from `io/window-token.ts` (it takes the token from the Tauri `window_token` command, falls back to `POST /api/window-token` in a browser development build, caches it, and retries once on a 403 status).
 5. For calls made by an agent session itself (the gate hook), use the per-session token in the `X-Subform-Session` header, verified by `gates.verify`; never the window token.
 6. Bind only 127.0.0.1. Never accept a path without resolving it through the workspace root helpers; refuse symlink escapes.
 7. Secrets only through the keyring (`routers/secrets.py`); never in a file, log, env of a session or error body.
@@ -32,7 +32,7 @@ Note: today the git routes and most others are guarded by LocalGuard alone; only
 
 ## The MCP route
 
-Another agent is adding subform's own MCP server at `POST /mcp` and `./subform mcp` (a stdio launcher that forwards to the engine, as formvis does with `setup/mcp_stdio.py`). Read its code and HASHOUT entries before touching it. Rules that already apply: it sits behind LocalGuard, tools that change state must be gated by consent or the window token, and the per-session MCP config written by `services/sessions.py` (`_mcp_config`) is where the server is offered to sessions.
+subform's own MCP server is live: `routers/mcp.py` mounts `POST /mcp` on the app without the `/api` prefix (`include_router(mcp_router.router)`), the tools are in `services/mcp_tools.py`, and `./subform mcp` (`backend/subform_mcp.py`) is a stdio launcher that forwards to the engine. See `docs/MCP.md` and the HASHOUT entries before touching it. Rules that apply: it sits behind LocalGuard and a bearer token (the window token or one session's gate token), file paths go through `_confined` (no symlinks, no `.git`, `.subform` or dotenv files, search results filtered the same way), tools that change state must be gated by consent or the window token, and the per-session MCP config written by `services/sessions.py` (`_mcp_config`) is where the server is offered to sessions.
 
 ## Gate
 

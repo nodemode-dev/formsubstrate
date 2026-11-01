@@ -1,4 +1,4 @@
-import { request } from './api';
+import { owner } from './window-token';
 
 export type AppKind = 'rust' | 'python';
 export type JobState = 'running' | 'done' | 'failed' | 'cancelled';
@@ -18,33 +18,6 @@ export interface NewAppResult {
   identity: { name: string; email: string };
   signed: boolean;
   formslot: { installed: boolean; note: string };
-}
-
-const WINDOW_HEADER = 'X-Subform-Window';
-let windowToken: Promise<string> | null = null;
-
-function ensureToken(): Promise<string> {
-  if (!windowToken) {
-    const fresh = request<{ token: string }>('/api/window-token', { method: 'POST' }).then((r) => r.token);
-    windowToken = fresh;
-    fresh.catch(() => { if (windowToken === fresh) windowToken = null; });
-  }
-  return windowToken;
-}
-
-async function owner<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const send = async (): Promise<T> => {
-    const headers = new Headers(init.headers);
-    headers.set(WINDOW_HEADER, await ensureToken());
-    return request<T>(path, { ...init, headers });
-  };
-  try {
-    return await send();
-  } catch (err) {
-    if (!(err instanceof Error) || !err.message.startsWith('403')) throw err;
-    windowToken = null;
-    return send();
-  }
 }
 
 const post = (body?: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body ?? {}) });

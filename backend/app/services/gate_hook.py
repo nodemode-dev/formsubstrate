@@ -8,6 +8,7 @@ import sys
 import urllib.error
 import urllib.request
 
+OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 WAIT_DEFAULT = 120
 WAIT_MAX = 120
 LINE_TOKENS = 10
@@ -59,7 +60,7 @@ def engine_base():
 def call(method, url, body=None, timeout=10):
     data = json.dumps(body).encode("utf-8") if body is not None else None
     request = urllib.request.Request(url, data=data, method=method, headers={"Content-Type": "application/json", "X-Subform-Session": os.environ.get("SUBFORM_GATE_TOKEN", "")})
-    with urllib.request.urlopen(request, timeout=timeout) as reply:
+    with OPENER.open(request, timeout=timeout) as reply:
         return json.loads(reply.read().decode("utf-8"))
 
 

@@ -29,6 +29,13 @@ for arg in "$@"; do
   esac
 done
 
+safe_rm() {
+  local expected="$1" path="${2%/}"
+  [ -n "$path" ] && [ "$path" != "/" ] && [ "$path" != "${HOME%/}" ] || sf_die "refusing to remove '$2'"
+  [ "$(basename "$path")" = "$expected" ] || sf_die "refusing to remove $path: the folder must be named $expected"
+  rm -rf "$path"
+}
+
 log="$SUBFORM_ROOT/build_app.log"
 : > "$log"
 exec > >(tee -a "$log") 2>&1
@@ -68,7 +75,9 @@ export SUBFORM_FRONTEND_DIST="$dist" SUBFORM_ENGINE_OUT="$engine_out"
 if [ "$clean" = 1 ]; then
   step "cleaning earlier builds"
   ( cd src-tauri && cargo clean )
-  rm -rf "${SUBFORM_FREEZE_WORK:-backend}/build/pyinstaller" "${SUBFORM_FREEZE_WORK:-backend}/dist-engine" "$engine_out"
+  safe_rm pyinstaller "${SUBFORM_FREEZE_WORK:-backend}/build/pyinstaller"
+  safe_rm dist-engine "${SUBFORM_FREEZE_WORK:-backend}/dist-engine"
+  safe_rm engine "$engine_out"
 fi
 
 step "building the window"
@@ -76,9 +85,15 @@ step "building the window"
 step "freezing the engine"
 setup/freeze_backend
 
-mac_identity=""
-if [ "$os" = macos ] && [ -z "${APPLE_SIGNING_IDENTITY:-}" ]; then mac_identity=",\"macOS\":{\"signingIdentity\":\"-\"}"; fi
-tauri_args=(build --config "{\"build\":{\"frontendDist\":\"$dist\"},\"bundle\":{\"resources\":{\"$engine_out\":\"engine\"}$mac_identity}}")
+adhoc=0
+if [ "$os" = macos ] && [ -z "${APPLE_SIGNING_IDENTITY:-}" ]; then adhoc=1; fi
+tauri_config="$("$py" -c 'import json, sys
+dist, engine, adhoc = sys.argv[1], sys.argv[2], sys.argv[3] == "1"
+bundle = {"resources": {engine: "engine"}}
+if adhoc:
+    bundle["macOS"] = {"signingIdentity": "-"}
+print(json.dumps({"build": {"frontendDist": dist}, "bundle": bundle}))' "$dist" "$engine_out" "$adhoc")"
+tauri_args=(build --config "$tauri_config")
 case "$os" in
   macos) tauri_args+=(--bundles app) ;;
   linux) tauri_args+=(--bundles "${SUBFORM_BUNDLES:-deb}") ;;

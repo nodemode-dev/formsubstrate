@@ -311,3 +311,11 @@ src-tauri/
 - logged: v0.10.0 · 2026-10-30
 
 The third candidate `../lib/subform/engine` is where a `.deb` or AppImage places the bundle resources, so a Linux package finds its frozen engine; macOS (`../Resources/engine`) and a bare binary with `engine/` beside it are unchanged.
+
+### src-tauri/src/window_token.rs · WindowToken, window_token
+
+- refers-to: src-tauri/src/window_token.rs :: WindowToken, window_token; src-tauri/src/main.rs :: setup
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+review M3. At setup the shell mints 32 random bytes (hex) with `getrandom` (already in the dependency tree through Tauri; now a direct dependency, NOTICE row added), keeps them in Tauri state and passes them to the engine in `SUBFORM_WINDOW_TOKEN` on both the packaged and the development spawn (both go through `engine_command`). The window asks for the token with the `window_token` command, which refuses any window except `main`; the command has an `allow-window-token` permission in `capabilities/default.json` and is listed in `build.rs`. A Tauri command cannot be invoked by another local process, unlike the old HTTP route. No initialization script is used, so no token sits in page scripts until the window asks. If the random source fails the shell shows the engine failure dialog instead of starting without a token. Limit: the variable is visible to the same user in the engine's process environment.

@@ -19,6 +19,7 @@
     "core:window:allow-set-decorations",
     "allow-set-window-title",
     "allow-app-ready",
-    "allow-text-edit"
+    "allow-text-edit",
+    "allow-window-token"
   ]
 }

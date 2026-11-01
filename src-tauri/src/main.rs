@@ -13,6 +13,7 @@ mod reveal;
 mod text_edit;
 mod traffic_lights;
 mod window_state;
+mod window_token;
 
 struct Backend(Mutex<Option<CommandChild>>);
 
@@ -92,7 +93,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             traffic_lights::set_window_title,
             reveal::app_ready,
-            text_edit::text_edit
+            text_edit::text_edit,
+            window_token::window_token
         ])
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
@@ -101,7 +103,14 @@ fn main() {
         .setup(|app| {
             let handle = app.handle().clone();
             reveal::round_splash(&handle);
-            let spawned = engine_command(&handle).and_then(|engine| engine.env("SUBFORM_PORT", "0").spawn().ok());
+            let Some(token) = window_token::WindowToken::mint() else {
+                tauri::async_runtime::spawn(async move { engine_failed(&handle) });
+                return Ok(());
+            };
+            let secret = token.value().to_string();
+            app.manage(token);
+            let spawned = engine_command(&handle)
+                .and_then(|engine| engine.env("SUBFORM_PORT", "0").env(window_token::ENV, secret).spawn().ok());
             let Some((mut rx, child)) = spawned else {
                 tauri::async_runtime::spawn(async move { engine_failed(&handle) });
                 return Ok(());

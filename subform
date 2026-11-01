@@ -14,6 +14,7 @@ usage: ./subform [command] [options]
   frontend            boot the frontend only
   serve               serve the built frontend from the backend on 127.0.0.1:5655
   doctor              check the toolchain, installs and ports
+  mcp                 the stdio MCP server for agents (forwards to the running engine)
   clean [--all]       remove build output (--all also venv and node_modules)
   version             the version and build (also --version)
   help                this text

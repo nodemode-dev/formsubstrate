@@ -76,3 +76,11 @@ review LOW 7: `phase` is `unreachable` whenever the last poll failed, not only b
 - logged: v0.7.1 · 2026-10-30
 
 review LOW 12: a repeated `gate` event for an id already open updates the stored gate and no longer re-emits, so reconnects do not repeat desktop notifications; a `gate` event that already carries a choice closes that gate.
+
+### frontend/src/io/window-token.ts · owner, windowToken
+
+- refers-to: frontend/src/io/window-token.ts :: owner, windowToken, forgetWindowToken
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+review M3. One token helper replaces the two copies in `formslot.ts` and `create.ts`. `windowToken()` asks the Tauri shell (`invoke('window_token')`) first and falls back to `POST /api/window-token`, which only the browser development build answers; the promise is cached and a failed fetch clears it. `owner()` sets `X-Subform-Window` and, on an `ApiError` whose status is 403, drops the cache and retries once. `formslot.ts` wraps it to keep its `FormslotError` mapping; `create.ts` uses it directly.

@@ -23,6 +23,13 @@ def selfcheck() -> int:
 
     info["subform"] = __version__
     info["dist_bundled"] = os.path.isdir(os.path.join(resource_dir(), "frontend_dist"))
+    templates = os.path.join(resource_dir(), "app", "templates")
+    for part in ("common", "python", "rust"):
+        if not os.path.isdir(os.path.join(templates, part)):
+            info["templates"] = f"missing: {part}"
+            print(json.dumps(info))
+            return 1
+    info["templates"] = "ok"
     try:
         import app.main
         import app.services.gate_hook
@@ -69,7 +76,7 @@ def sweep_stale_unpacks() -> None:
         except ProcessLookupError:
             return False
         except PermissionError:
-            return False
+            return True
         return True
 
     def run() -> None:

@@ -8,12 +8,17 @@ backend/
   subform_ptyhost.py     separate PTY host process so terminals survive an engine restart
   boot_backend, oc_install     venv and run scripts
   app/
-    main.py                    FastAPI app, LocalGuard, routers under /api, static window at /
+    main.py                    FastAPI app, LocalGuard, routers under /api (the MCP router at /mcp, no
+                               prefix), static window at /
     core/                      config, runtime (log, pid), local_guard, engine_addr, workspace_root,
                                binres, lsp, debug
     routers/                   system, workspace, secrets, terminal, sessions, formslot (+ gates),
-                               skills, git, debug, lsp, media, graph
-    services/                  sessions, gitops, formslot, gates, gate_hook, graph, ptyhost_client
+                               skills, git, debug, lsp, media, graph, create, mcp
+    services/                  sessions, gitops, formslot, gates, gate_hook, graph, ptyhost_client,
+                               create (clone jobs, New Form app), mcp_tools (the eight MCP tools)
+    templates/                 common, python, rust: files the New Form app writes (bundled by
+                               setup/freeze_backend as app/templates)
+  subform_mcp.py         stdio launcher behind ./subform mcp
 frontend/
   index.html                   critical style and pre-paint theme boot
   public/                      splash.html and static files
@@ -21,12 +26,14 @@ frontend/
   src/extensions/              registry.ts plus debug, files, formslot, git, lsp, search, sessions
   src/ui/                      shell modules, editor/, graph/, panels/, preview/, review/, i18n
   src/io/                      engine clients: api, workspace, git, sessions, terminals, formslot,
-                               lsp, debug, graph, secrets, trust
+                               lsp, debug, graph, secrets, trust, create, window-token
   src/styles/                  tokens.css and per-area CSS
 src-tauri/                     Tauri 2 shell: main, packaged, reveal, text_edit, traffic_lights,
-                               window_state; tauri.conf.json, capabilities, entitlements
-setup/                         install_all, boot_all, boot_backend, boot_frontend, serve, doctor, clean, lib.sh
-subform                  root dispatcher (install, boot, backend, frontend, serve, doctor, clean, version)
+                               window_state, window_token; tauri.conf.json, capabilities, entitlements
+setup/                         install_all, boot_all, boot_backend, boot_frontend, serve, doctor, clean,
+                               freeze_backend (PyInstaller engine folder), lib.sh
+build_app, build_app.bat       window, frozen engine and Tauri bundle in one run (see docs/RELEASE.md)
+subform                  root dispatcher (install, boot, backend, frontend, serve, doctor, mcp, clean, version)
 ```
 
 ## Dependency direction
@@ -53,6 +60,7 @@ Window action, `io/[x].ts` request, router validates and translates, service doe
 | `SUBFORM_BIN_DIR` | first place `find_bin` looks |
 | `SUBFORM_PORTABLE=1` | data beside the executable |
 | `SUBFORM_DESKTOP=1` | set by the Tauri shell |
+| `SUBFORM_WINDOW_TOKEN` | the window token, made by the Tauri shell and read once by the engine |
 | `FORMSLOT_BIN`, `FORMSLOT_DATA_DIR`, `FORMMCP_BIN` | external tool locations |
 
 ## Phases

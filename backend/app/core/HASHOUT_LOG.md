@@ -118,3 +118,11 @@ review M6: the recorded debuggee pid is cleared on the `exited` and `terminated`
 - logged: v0.7.1 · 2026-10-30
 
 review LOW: the relay forwards only the DAP requests in `ALLOWED` (launch is rewritten as before); attach, restart, runInTerminal, startDebugging, writeMemory and anything unknown are answered with a failure response. Messages that are not requests from the window are dropped. A header line over 64 KB raises `HeaderTooLong`; the relay sends `subform/adapterError` and closes with 4500 instead of ending silently. The adapter, and so the debuggee, starts with the minimal environment, so a program that needs other variables will not see them.
+
+### backend/app/core/local_guard.py · WINDOW_TOKEN, hand_out_token, token_mode
+
+- refers-to: backend/app/core/local_guard.py :: WINDOW_TOKEN, INJECTED, hand_out_token, token_mode
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+review M3. The route-handed token was forgeable: any local process could send `Origin: http://localhost:5650` to `POST /api/window-token` and get the token that unlocks the owner routes, `/api/create/*` and every session at `/mcp`. The desktop shell now makes a random token, starts the engine with it in `SUBFORM_WINDOW_TOKEN` and gives it to the window through the `window_token` Tauri command. The engine reads the variable once at import and removes it from its own environment so the sessions and terminals it starts do not inherit it, and `hand_out_token` answers 404. Without the variable (browser development build) behaviour is as before and `token_mode()` says so in the log at start: a development convenience, not a security boundary. Known limit: the variable stays readable by the same user in `/proc/[pid]/environ` or `ps eww` of the engine process; the token defends against agent sessions that lack that access path and against web pages, not against a hostile same-user process. Before: spoofed Origin got 200 and a token. After, with the variable set: 404.

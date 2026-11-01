@@ -81,6 +81,7 @@ Frozen with PyInstaller, these are the packages the engine folder carries beside
 | tauri-plugin-notification | 2.8.0 | Apache-2.0 OR MIT |
 | notify-rust (via tauri-plugin-notification) | 4.18.2 | MIT OR Apache-2.0 |
 | regex | 1.13.1 | MIT OR Apache-2.0 |
+| getrandom | 0.3.4 | MIT OR Apache-2.0 |
 | serde | 1.0.229 | MIT OR Apache-2.0 |
 | serde_json | 1.0.154 | MIT OR Apache-2.0 |
 | objc2 (macOS) | 0.6.5 | MIT |

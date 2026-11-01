@@ -1,3 +1,4 @@
+import os
 import secrets
 from urllib.parse import urlsplit
 
@@ -5,7 +6,17 @@ from fastapi import Header, HTTPException, Request
 
 LOOPBACK = {"127.0.0.1", "localhost", "::1"}
 WINDOW_HEADER = "X-Subform-Window"
-WINDOW_TOKEN = secrets.token_urlsafe(32)
+TOKEN_ENV = "SUBFORM_WINDOW_TOKEN"
+_given = os.environ.pop(TOKEN_ENV, "").strip()
+INJECTED = len(_given) >= 32
+WINDOW_TOKEN = _given if INJECTED else secrets.token_urlsafe(32)
+del _given
+
+
+def token_mode() -> str:
+    if INJECTED:
+        return "window token supplied by the desktop shell; POST /api/window-token answers 404"
+    return "window token minted by the engine and given to any local page with a window Origin at POST /api/window-token: a development convenience, not a security boundary"
 
 
 def _host_of(value: str) -> str:
@@ -79,6 +90,8 @@ def window_origin_ok(request: Request) -> bool:
 
 
 def hand_out_token(request: Request) -> str:
+    if INJECTED:
+        raise HTTPException(status_code=404, detail="Not Found")
     if not window_origin_ok(request):
         raise HTTPException(status_code=403, detail="the window token is given to the app window only")
     return WINDOW_TOKEN

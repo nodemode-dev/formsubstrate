@@ -18,10 +18,10 @@ if /i "%CMD%"=="mcp" (
 if /i "%CMD%"=="clean" ( call setup\clean.bat %ARG% & exit /b )
 if /i "%CMD%"=="help" (
   echo subform.bat [command]
-  echo   boot ^| install ^| backend ^| frontend ^| serve ^| doctor ^| clean [--all] ^| help
+  echo   boot ^| install ^| backend ^| frontend ^| serve ^| doctor ^| mcp ^| clean [--all] ^| help
   exit /b 0
 )
 echo [subform] unknown command: %CMD%
 echo subform.bat [command]
-echo   boot ^| install ^| backend ^| frontend ^| serve ^| doctor ^| clean [--all] ^| help
+echo   boot ^| install ^| backend ^| frontend ^| serve ^| doctor ^| mcp ^| clean [--all] ^| help
 exit /b 2

@@ -211,3 +211,19 @@ Read-only bytes for the preview tabs. The path goes through `workspace_root.reso
 - logged: v0.10.0 · 2026-10-30
 
 Every route of the Create actions sits behind `require_window`, so a local agent or script without the window token cannot clone, scaffold or probe ports; the window gets the token from `POST /api/window-token` like the formslot actions. `POST /api/create/clone` starts a job and returns it, `GET /api/create/jobs/{id}` is the poll, `POST /api/create/jobs/{id}/cancel` stops it. `GET /api/create/options?dest=` gives the kinds, a suggested free port block, whether formslot was found and the identity the first commit will use; `GET /api/create/port?base=&dest=` checks one block; `POST /api/create/app` scaffolds. Failures are `Refused` from the service mapped to HTTP status codes.
+
+### backend/app/routers/workspace.py · _rg_search excludes
+
+- refers-to: backend/app/routers/workspace.py :: _rg_search
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+`_rg_search` takes an optional `excludes` tuple of extra `--glob '!x'` patterns. The window's search passes none and behaves as before; the MCP search passes dotenv and metadata patterns (see the services log, M2).
+
+### backend/app/routers/create.py · port
+
+- refers-to: backend/app/routers/create.py :: port
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+The port route resolves the destination and checks the block in the threadpool, because both touch the disk and the sibling scan could block (see the services log, M5). The `/create/*` routes still depend on `require_window`, so they are behind the window token like the formslot actions.

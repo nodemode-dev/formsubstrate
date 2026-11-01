@@ -5,7 +5,7 @@ This page is for the owner's Mac (and later a Windows machine). Nothing here is 
 ## What `./build_app` makes
 
 1. `vite build` writes the window to `frontend/dist`.
-2. `setup/freeze_backend` freezes the engine with PyInstaller (6.22.3, one-folder, from `backend/requirements_build.txt`) into `src-tauri/engine/`. The window is inside it as `frontend_dist`; the gate hook script is a string constant in `app/services/gate_hook.py`, so it needs no data file.
+2. `setup/freeze_backend` freezes the engine with PyInstaller (6.22.3, one-folder, from `backend/requirements_build.txt`) into `src-tauri/engine/`. Two data folders go inside it: the window as `frontend_dist` and the New Form app templates as `app/templates` (`--add-data` in `setup/freeze_backend` and its `.bat`; without them a packaged app cannot scaffold). `--selfcheck` fails when the templates are missing. The gate hook script is a string constant in `app/services/gate_hook.py`, so it needs no data file.
 3. `tauri build` bundles that folder as the resource `engine` (`Contents/Resources/engine` on macOS) and compiles the shell. The shell finds it through `src-tauri/src/packaged.rs`.
 4. macOS: `subform.app` and a `.dmg` under `src-tauri/target/release/bundle/`. Linux: a `.deb` (set `SUBFORM_BUNDLES` for others). Windows: `build_app.bat`.
 
@@ -92,7 +92,7 @@ Tauri can also notarize during `tauri build` when `APPLE_API_ISSUER`, `APPLE_API
 
 The plist is the only one; the engine, the pty host and the shell all inherit it from the signing commands above. If the notary log or the first launch reports a missing entitlement, add the key to that file, note why in `src-tauri/HASHOUT_LOG.md`, and sign again.
 
-Apple's own pages were not readable when this was researched (see B04 open question 3), so the nested-signing order and the entitlement pair above come from how the PyInstaller and Tauri tools behave, not from Apple's text. Read the first notarization log (`notarytool log`) before trusting this section, and correct it here.
+Apple's own pages were not readable when this was written, so the nested-signing order and the entitlement pair above come from how the PyInstaller and Tauri tools behave, not from Apple's text. Read the first notarization log (`notarytool log`) before trusting this section, and correct it here.
 
 ## Checks after signing
 
@@ -114,7 +114,7 @@ Apple's own pages were not readable when this was researched (see B04 open quest
 
 ## Linux
 
-The `.deb` is unsigned. To publish through an apt repository sign the repository metadata with a GPG key that stays off the repository. Before a Linux package can start its engine, `packaged.rs` must look for the engine in `../lib/subform/engine` as well (see the build report); until then a `.deb` or AppImage cannot find it.
+The `.deb` is unsigned. To publish through an apt repository sign the repository metadata with a GPG key that stays off the repository. `packaged.rs` already looks for the engine in `../lib/subform/engine` (the `.deb` layout, beside `../Resources/engine` and `engine`), so a `.deb` finds the frozen engine without further setup. An AppImage has not been built or checked.
 
 ## Secrets rule
 

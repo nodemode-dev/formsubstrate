@@ -4,6 +4,7 @@ import sys
 import urllib.error
 import urllib.request
 
+OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 DEFAULT_PORT = 5655
 TIMEOUT = 60
 NOT_RUNNING = "subform is not running: open subform, then try again"
@@ -59,7 +60,7 @@ def forward(base: str, token: str, line: str) -> None:
         headers["Authorization"] = "Bearer " + token
     request = urllib.request.Request(base + "/mcp", data=line.encode("utf-8"), method="POST", headers=headers)
     try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT) as reply:
+        with OPENER.open(request, timeout=TIMEOUT) as reply:
             body = reply.read().decode("utf-8")
             status = reply.status
     except urllib.error.HTTPError as err:

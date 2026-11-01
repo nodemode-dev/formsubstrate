@@ -3359,6 +3359,7 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 name = "subform"
 version = "0.8.0"
 dependencies = [
+ "getrandom 0.3.4",
  "objc2",
  "objc2-app-kit",
  "regex",

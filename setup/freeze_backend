@@ -20,12 +20,20 @@ extra=()
 if [ "$(sf_os)" = macos ] && [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
   extra+=(--codesign-identity "$APPLE_SIGNING_IDENTITY" --osx-entitlements-file "$SUBFORM_ROOT/src-tauri/entitlements.plist")
 fi
+safe_rm() {
+  local expected="$1" path="${2%/}"
+  [ -n "$path" ] && [ "$path" != "/" ] && [ "$path" != "${HOME%/}" ] || sf_die "refusing to remove '$2'"
+  [ "$(basename "$path")" = "$expected" ] || sf_die "refusing to remove $path: the folder must be named $expected"
+  rm -rf "$path"
+}
 mkdir -p "$work"
-rm -rf "$work/build/pyinstaller" "$work/dist-engine"
+safe_rm pyinstaller "$work/build/pyinstaller"
+safe_rm dist-engine "$work/dist-engine"
 cd "$SUBFORM_ROOT/backend"
 pyinstaller --noconfirm --clean --onedir --name subform-engine \
   --distpath "$work/dist-engine" --workpath "$work/build/pyinstaller" --specpath "$work/build/pyinstaller" \
   --add-data "$dist${sep}frontend_dist" \
+  --add-data "$SUBFORM_ROOT/backend/app/templates${sep}app/templates" \
   --collect-submodules app --collect-submodules uvicorn --collect-submodules keyring \
   --copy-metadata keyring \
   --hidden-import subform_ptyhost --hidden-import ptyprocess \
@@ -33,7 +41,7 @@ pyinstaller --noconfirm --clean --onedir --name subform-engine \
   --exclude-module tkinter \
   ${extra[@]+"${extra[@]}"} \
   "$SUBFORM_ROOT/backend/subform_engine.py"
-rm -rf "$out"
+safe_rm engine "$out"
 mkdir -p "$(dirname "$out")"
 cp -R "$work/dist-engine/subform-engine" "$out"
 "$out/subform-engine$ext" --selfcheck

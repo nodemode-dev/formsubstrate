@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
 from app.core.local_guard import require_window
@@ -59,10 +60,10 @@ async def options(dest: str | None = Query(default=None, max_length=4096)) -> di
 @router.get("/create/port")
 async def port(base: int, dest: str | None = Query(default=None, max_length=4096)) -> dict:
     try:
-        clean = svc._clean_dest(dest) if dest else None
+        clean = await run_in_threadpool(svc._clean_dest, dest) if dest else None
     except svc.Refused as err:
         raise _fail(err)
-    problem = svc.check_block(base, clean)
+    problem = await run_in_threadpool(svc.check_block, base, clean)
     return {"ok": not problem, "problem": problem}
 
 

@@ -26,3 +26,11 @@ The shell is a bare Tauri 2 window over `frontend/`. Its Cargo.toml carries its 
 - logged: v0.10.0 · 2026-10-30
 
 The plan says the template comes from formslot slots once S5 has them. Until then the files here are the template. Moving them to slots changes only `_write_tree`'s source, not the placeholders or the steps after it.
+
+### backend/app/templates/common/CLAUDE.md · Commits wording
+
+- refers-to: backend/app/templates/common/CLAUDE.md :: Commits; backend/app/templates/common/AGENTS.md
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+review L8. The new app's rules said every commit is by `nodemode-ai`, but the first commit uses the identity stored in Preferences when there is one and `nodemode-ai` only as the fallback. Both files now say "the owner's identity or nodemode-ai".

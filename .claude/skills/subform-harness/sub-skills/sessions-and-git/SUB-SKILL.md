@@ -8,7 +8,7 @@ description: Work on subform's agent sessions, worktrees, review pane, hunks, sn
 ## Sessions
 
 - `backend/app/services/sessions.py` keeps a registry (`sessions.json` in the data folder; a corrupt file is set aside, not deleted). States: working, needs-input, done, failed, stopped. Modes: interactive (a Claude Code tab in the terminal dock) and headless (`claude -p --output-format stream-json`, prompt after `--` so a leading dash is safe).
-- Creating a session adds a worktree on branch `sf/[session id]` under the data folder's `worktrees` folder, writes the per-session `mcp.json` (formMCP, formslot, and subform's own server once it exists) and a `settings.json` with attribution off plus the gate hook, then configures worktree identity and the commit-msg hook.
+- Creating a session adds a worktree on branch `sf/[session id]` under the data folder's `worktrees` folder, writes the per-session `mcp.json` (formMCP, formslot and subform's own server; the last only when the `subform` launcher sits beside the engine's repository folder, so a packaged app leaves it out and says so in the session notes) and a `settings.json` with attribution off plus the gate hook, then configures worktree identity and the commit-msg hook.
 - PTYs live in a separate process (`backend/subform_ptyhost.py`, client `services/ptyhost_client.py`) so killing the engine leaves terminals alive; the window reconnects and replays scrollback by offset. Resume uses `claude --resume [id]` in the recorded worktree.
 - Window side: `extensions/sessions/`, `io/sessions.ts` (SSE from `GET /api/sessions/events`), `ui/terminal-dock.ts`, `ui/chat-pane.ts`, `ui/new-session.ts`.
 

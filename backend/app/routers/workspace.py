@@ -443,9 +443,9 @@ def _trim(text: str) -> str:
     return text.strip()[:TEXT_MAX]
 
 
-def _rg_search(rg: str, base: str, q: str, regex: bool, case: bool, glob: str, cap: int) -> list[dict]:
+def _rg_search(rg: str, base: str, q: str, regex: bool, case: bool, glob: str, cap: int, excludes: tuple[str, ...] = ()) -> list[dict]:
     args = [rg, "--json", "--hidden", "--no-ignore", "--no-messages", "--max-columns", "2000", "--max-filesize", "4M", "--case-sensitive" if case else "--ignore-case"]
-    for name in ws.HIDDEN_NAMES:
+    for name in ws.HIDDEN_NAMES + excludes:
         args += ["--glob", f"!{name}"]
     if glob:
         args += ["--glob", glob]

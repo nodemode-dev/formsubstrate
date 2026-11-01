@@ -77,11 +77,17 @@ def _clip(data: bytes) -> str:
 
 
 async def _split(argv: list[str], timeout: int = COMMAND_TIMEOUT) -> tuple[int, str, str]:
-    proc = await asyncio.create_subprocess_exec(*argv, stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, env=dict(os.environ))
+    proc = await asyncio.create_subprocess_exec(*argv, stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, env=dict(os.environ), start_new_session=os.name == "posix")
     try:
         out, err = await asyncio.wait_for(proc.communicate(), timeout)
     except asyncio.TimeoutError:
-        proc.kill()
+        try:
+            if os.name == "posix":
+                os.killpg(proc.pid, 9)
+            else:
+                proc.kill()
+        except (ProcessLookupError, PermissionError):
+            proc.kill()
         await proc.wait()
         return 124, "", "timed out"
     return proc.returncode or 0, out.decode("utf-8", "replace"), _clip(err)

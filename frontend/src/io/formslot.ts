@@ -1,4 +1,5 @@
 import { request } from './api';
+import { owner as ownerCall } from './window-token';
 
 export interface FormslotCorpus { name: string; path: string; head: string }
 
@@ -91,30 +92,11 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   }
 }
 
-const WINDOW_HEADER = 'X-Subform-Window';
-let windowToken: Promise<string> | null = null;
-
-function ensureToken(): Promise<string> {
-  if (!windowToken) {
-    const fresh = request<{ token: string }>('/api/window-token', { method: 'POST' }).then((r) => r.token);
-    windowToken = fresh;
-    fresh.catch(() => { if (windowToken === fresh) windowToken = null; });
-  }
-  return windowToken;
-}
-
 async function owner<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const send = async (): Promise<T> => {
-    const headers = new Headers(init.headers);
-    headers.set(WINDOW_HEADER, await ensureToken());
-    return call<T>(path, { ...init, headers });
-  };
   try {
-    return await send();
+    return await ownerCall<T>(path, init);
   } catch (err) {
-    if (asError(err).status !== 403) throw err;
-    windowToken = null;
-    return send();
+    throw asError(err);
   }
 }
 

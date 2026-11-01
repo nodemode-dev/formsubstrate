@@ -13,9 +13,14 @@ This stops other websites and other machines. It does not stop another local pro
 
 ## 2. Window token (owner-only state changes)
 
-`WINDOW_TOKEN` is minted at engine start and held in memory. `POST /api/window-token` returns it only when the request carries an Origin that passes the window-origin rule (a POST always carries one; a same-origin GET may not). Owner routes depend on `require_window`, which compares `X-Subform-Window` in constant time. A restart mints a new token; the window refetches once on 403. Never put it in a file, log, session environment or error body.
+Two modes, logged once when the engine starts.
 
-Today it guards: formslot start, index, install, mcp, confirm, drift, and gate answer.
+- Desktop app (the real boundary): the Tauri shell makes a random token (`src-tauri/src/window_token.rs`), passes it to the engine in the environment variable `SUBFORM_WINDOW_TOKEN`, and serves it to the window through the `window_token` Tauri command (allowed in `capabilities/default.json` for the main window only). The engine removes the variable from its own environment at import, so sessions and terminals it spawns do not inherit it, and `POST /api/window-token` answers 404. Another local process cannot call a Tauri command. Limit: the variable stays readable by the same user through `/proc/[pid]/environ` or `ps eww` for the life of the engine, so the token defends against agent sessions and web pages, not against a hostile process running as the same user.
+- Browser development build (no shell): the engine mints `WINDOW_TOKEN` at start and `POST /api/window-token` returns it to any request whose Origin passes the window-origin rule. A local process can send that Origin, so this route is a development convenience and not a security boundary.
+
+Owner routes depend on `require_window`, which compares `X-Subform-Window` in constant time. A restart gives a new token (the shell restarts the engine with its own token); the window refetches once on 403. Never put it in a file, log, session environment or error body. The window code is `frontend/src/io/window-token.ts`.
+
+It guards: formslot start, index, install, mcp, confirm, drift, gate answer, and every `/api/create/*` route (clone, jobs, options, port, app). It is also accepted as the bearer token at `POST /mcp`, where it sees every session; a session gate token sees only its own.
 
 ## 3. Session token (agent to engine)
 

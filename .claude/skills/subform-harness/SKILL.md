@@ -20,7 +20,7 @@ Each sub-skill lives at `sub-skills/[name]/SUB-SKILL.md` beside this file.
 | --- | --- |
 | Run the engine or the window, build into a scratch folder, typecheck, Playwright at 4x throttle, measure layout shift | `run-and-verify` |
 | A new sidebar panel, command, menu entry, search provider or extension in the window; keyed lists; strings, icons, tokens, z-index | `window-extension` |
-| A new engine route or service, LocalGuard, the window token, the session token, config and data folder, the future MCP route | `engine-route` |
+| A new engine route or service, LocalGuard, the window token, the session token, config and data folder, the MCP route at /mcp | `engine-route` |
 | formslot status, the bridge client, the existing-slot card, the gate hook, tokens-saved meter | `formslot-bridge` |
 | Language servers, the LSP relay, the debug adapter relay, workspace trust | `lsp-and-debug` |
 | Sessions, worktrees, the review pane, hunks, snapshots, the commit wrapper, sign and push, git safety | `sessions-and-git` |

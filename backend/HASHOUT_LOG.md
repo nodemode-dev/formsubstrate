@@ -346,3 +346,27 @@ The package now holds ptyhost_client.py and sessions.py (Phase F5); their entrie
 - logged: v0.10.0 · 2026-10-30
 
 A frozen engine is one program, so the pty-host is started as `subform-engine --ptyhost --data-dir X`; main now hands that to `subform_ptyhost.main()` before claiming the engine lock, which reads its own arguments. Without it the frozen app started a second full engine and its terminals did not work. The selfcheck also imports the gate hook module and the pty-host so a freeze that misses them fails its check.
+
+### backend/subform_engine.py · selfcheck, alive
+
+- refers-to: backend/subform_engine.py :: selfcheck, sweep_stale_unpacks.alive
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+review M7 and L10. `New Form app` reads its files from `app/templates`, which the freeze did not bundle (`--add-data` added to `setup/freeze_backend` and its `.bat`), so a packaged app could not scaffold. `selfcheck` now fails with `templates: missing: <folder>` unless `common`, `python` and `rust` exist under the resource folder. `alive()` in the stale-unpack sweep treated `PermissionError` from `os.kill(pid, 0)` as dead; it means the process exists but belongs to someone else, so it is alive and its unpack folder is kept.
+
+### backend/subform_mcp.py · OPENER
+
+- refers-to: backend/subform_mcp.py :: OPENER, forward
+- kind: warning-context
+- logged: v0.10.0 · 2026-10-30
+
+review M4. The launcher sends the bearer token with `urllib`, which uses `http_proxy` from the environment. It now opens the request with an opener holding `ProxyHandler({})`, so the token goes only to the engine.
+
+### setup/freeze_backend and build_app · safe_rm, tauri config
+
+- refers-to: setup/freeze_backend :: safe_rm; build_app :: safe_rm, tauri_config
+- kind: warning-context
+- logged: v0.10.0 · 2026-10-30
+
+review L9, L1. `rm -rf` on paths built from `SUBFORM_FREEZE_WORK` and `SUBFORM_ENGINE_OUT` could remove the wrong folder when a variable is wrong. `safe_rm` refuses an empty path, `/` and `$HOME`, and requires the folder name to be the expected one (`pyinstaller`, `dist-engine`, `engine`). `build_app` now builds the `tauri build --config` JSON with `json.dumps` in Python instead of string interpolation, so a path with a quote or backslash cannot break or alter it. `subform` and `subform.bat` list `mcp` in their usage text. The Windows scripts keep their plain `rmdir` and string config; they are not changed beyond `--add-data` (M7).
