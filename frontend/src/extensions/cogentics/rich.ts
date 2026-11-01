@@ -1,4 +1,17 @@
+import { patchList, type PatchListOptions } from '../../ui/dom';
 import { icon } from '../../ui/icons';
+
+export function patchFilled<T>(container: HTMLElement, items: T[], opts: PatchListOptions<T>): void {
+  patchList(container, items, {
+    key: opts.key,
+    update: opts.update,
+    create: (item) => {
+      const node = opts.create(item);
+      opts.update(node, item);
+      return node;
+    },
+  });
+}
 
 const TOKEN = /@([A-Za-z0-9_-]+)|#(\d+)|\[\[([^[\]\n]{1,64})\]\]/g;
 

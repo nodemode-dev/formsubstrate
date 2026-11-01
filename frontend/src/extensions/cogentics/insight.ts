@@ -6,7 +6,7 @@ import { t, tn } from '../../ui/i18n';
 import { icon } from '../../ui/icons';
 import { toast } from '../../ui/toast';
 import type { ExtensionContext } from '../registry';
-import { paintDiff, fmtTok } from './rich';
+import { paintDiff, fmtTok, patchFilled } from './rich';
 
 interface Pair { key: string; name: string; b: UsageBucket }
 
@@ -161,7 +161,7 @@ export class InsightPanel {
   }
 
   private rows(host: HTMLElement, list: Pair[]): void {
-    patchList(host, list, {
+    patchFilled(host, list, {
       key: (p) => p.key,
       create: () => el<HTMLElement>('<div class="ix-row"><span class="ix-row-name"></span><span class="ix-row-val"></span></div>'),
       update: (node, p) => {
@@ -173,7 +173,11 @@ export class InsightPanel {
   }
 
   private paintUsage(): void {
-    for (const b of this.range) setClass(b, 'is-on', Number(b.dataset.days) === this.days);
+    for (const b of this.range) {
+      const on = Number(b.dataset.days) === this.days;
+      setClass(b, 'is-on', on);
+      if (b.getAttribute('aria-pressed') !== String(on)) b.setAttribute('aria-pressed', String(on));
+    }
     const s = this.summary;
     if (!s) {
       setText(this.total, '');
@@ -186,7 +190,7 @@ export class InsightPanel {
     setText(this.total, `${tn(tt.calls, '{n} call', '{n} calls')} · ${fmtTok(tok(tt))} tok · ${money(tt.cost)}`);
     const days = Object.keys(s.by_day).sort();
     const max = Math.max(1, ...days.map((d) => tok(s.by_day[d])));
-    patchList(this.bars, days.map((d) => ({ d, v: tok(s.by_day[d]) })), {
+    patchFilled(this.bars, days.map((d) => ({ d, v: tok(s.by_day[d]) })), {
       key: (x) => x.d,
       create: () => el<HTMLElement>('<i class="ix-bar-col"></i>'),
       update: (node, x) => {
@@ -206,7 +210,7 @@ export class InsightPanel {
     setHidden(this.noScopes, inScope || this.scopes.length > 0);
     setHidden(this.fileList, !inScope);
     setHidden(this.noFiles, !inScope || this.changes.length > 0);
-    patchList(this.scopeList, this.scopes, {
+    patchFilled(this.scopeList, this.scopes, {
       key: (s) => s.id,
       create: () => el<HTMLElement>('<button type="button" class="ix-scope"><span class="ix-scope-name"></span><span class="ix-scope-meta"></span></button>'),
       update: (node, s) => {
@@ -214,7 +218,7 @@ export class InsightPanel {
         setText(q(node, '.ix-scope-meta'), `${tn(s.files, '{n} file', '{n} files')} · ${when(s.last)}`);
       },
     });
-    patchList(this.fileList, this.changes, {
+    patchFilled(this.fileList, this.changes, {
       key: (c) => c.path,
       create: () => el<HTMLElement>(`<div class="ix-file" tabindex="0"><span class="ix-file-k"></span><span class="ix-file-name"></span><button type="button" class="cv-btn ix-revert">${t('Revert')}</button></div>`),
       update: (node, c) => {

@@ -1,10 +1,10 @@
 import { ApiError, systemStatus, type SystemStatus } from '../../io/api';
 import { cogentics, insight, type CogStatus, type PendingApproval, type ProviderInfo, type ScopeInfo, type UsageSummary } from '../../io/cogentics';
-import { el, patchList, q, setClass, setDisabled, setHidden, setText, setTitle, setValue } from '../../ui/dom';
+import { el, q, setClass, setDisabled, setHidden, setText, setTitle, setValue } from '../../ui/dom';
 import { enhanceSelect } from '../../ui/dropdown';
 import { t, tn } from '../../ui/i18n';
 import { toast } from '../../ui/toast';
-import { paintDiff, fmtTok } from '../cogentics/rich';
+import { paintDiff, fmtTok, patchFilled } from '../cogentics/rich';
 import type { ExtensionContext } from '../registry';
 
 const REFRESH_MS = 4000;
@@ -46,19 +46,19 @@ export class ConsolePane {
 
   constructor(private readonly host: HTMLElement, private readonly ctx: ExtensionContext) {
     const root = el<HTMLElement>(`<div class="cn">
-<div class="cn-nav" role="tablist">${PAGES.map(([id, label]) => `<button type="button" class="cn-tab" role="tab" data-page="${id}">${t(label)}<span class="cn-badge" hidden></span></button>`).join('')}</div>
+<div class="cn-nav" role="tablist">${PAGES.map(([id, label]) => `<button type="button" class="cn-tab" role="tab" id="cn-tab-${id}" aria-controls="cn-page-${id}" data-page="${id}">${t(label)}<span class="cn-badge" hidden></span></button>`).join('')}</div>
 <div class="cn-body">
-<section class="cn-page" data-page="dashboard"><div class="cn-cards">${CARDS.map((c) => `<div class="cn-card" data-card="${c}"><div class="cn-card-top"><span>${t(CARD_LABEL[c])}</span><i class="cn-lamp"></i></div><div class="cn-card-value"></div><div class="cn-card-sub"></div></div>`).join('')}</div>
+<section class="cn-page" id="cn-page-dashboard" role="tabpanel" aria-labelledby="cn-tab-dashboard" data-page="dashboard"><div class="cn-cards">${CARDS.map((c) => `<div class="cn-card" data-card="${c}"><div class="cn-card-top"><span>${t(CARD_LABEL[c])}</span><i class="cn-lamp"></i></div><div class="cn-card-value"></div><div class="cn-card-sub"></div></div>`).join('')}</div>
 <div class="cn-head">${t('Recent turns with tracked changes')}</div><div class="cn-recent"></div><p class="cn-none cn-recent-none cv-note">${t('Nothing yet. Turns that write files are listed here.')}</p></section>
-<section class="cn-page" data-page="approvals" hidden><div class="cn-approvals"></div><p class="cn-none cn-approvals-none cv-note">${t('Nothing pending. Gated tools wait here for your decision.')}</p></section>
-<section class="cn-page" data-page="providers" hidden><div class="cn-presets">${PRESETS.map((p, i) => `<button type="button" class="cv-btn" data-preset="${i}">${p.name}</button>`).join('')}</div>
+<section class="cn-page" id="cn-page-approvals" role="tabpanel" aria-labelledby="cn-tab-approvals" data-page="approvals" hidden><div class="cn-approvals"></div><p class="cn-none cn-approvals-none cv-note">${t('Nothing pending. Gated tools wait here for your decision.')}</p></section>
+<section class="cn-page" id="cn-page-providers" role="tabpanel" aria-labelledby="cn-tab-providers" data-page="providers" hidden><div class="cn-presets">${PRESETS.map((p, i) => `<button type="button" class="cv-btn" data-preset="${i}">${p.name}</button>`).join('')}</div>
 <div class="cn-form"><label class="cn-field"><span>${t('Provider')}</span><select class="cn-prov"><option value="openrouter">OpenRouter</option><option value="ollama">Ollama</option><option value="lmstudio">LM Studio</option><option value="custom">${t('Custom OpenAI compatible')}</option></select></label>
 <label class="cn-field"><span>${t('Base URL')}</span><input class="cv-input cn-url" placeholder="https://openrouter.ai/api/v1"></label>
 <label class="cn-field"><span>${t('Model')}</span><input class="cv-input cn-model" placeholder="openrouter/auto"></label>
 <label class="cn-field"><span>${t('API key')}</span><input class="cv-input cn-key" type="password" autocomplete="off" placeholder="${t('Stored in the system keyring')}"></label>
 <div class="cn-actions"><button type="button" class="cv-btn cv-btn-primary cn-save">${t('Apply provider')}</button><button type="button" class="cv-btn cn-test">${t('Test connection')}</button><button type="button" class="cv-btn cn-forget">${t('Forget key')}</button></div>
 <p class="cn-prov-note cv-note"></p><p class="cn-test-note cv-note"></p></div></section>
-<section class="cn-page" data-page="health" hidden><div class="cn-health"></div></section>
+<section class="cn-page" id="cn-page-health" role="tabpanel" aria-labelledby="cn-tab-health" data-page="health" hidden><div class="cn-health"></div></section>
 </div></div>`);
     host.append(root);
     for (const [id] of PAGES) {
@@ -80,6 +80,20 @@ export class ConsolePane {
     root.querySelector('.cn-nav')?.addEventListener('click', (e) => {
       const id = e.target instanceof Element ? e.target.closest<HTMLElement>('.cn-tab')?.dataset.page : undefined;
       if (id) this.show(id as Page);
+    });
+    root.querySelector('.cn-nav')?.addEventListener('keydown', (e) => {
+      const key = (e as KeyboardEvent).key;
+      const ids = PAGES.map(([id]) => id);
+      const at = ids.indexOf(this.page);
+      let next = -1;
+      if (key === 'ArrowRight' || key === 'ArrowDown') next = (at + 1) % ids.length;
+      else if (key === 'ArrowLeft' || key === 'ArrowUp') next = (at - 1 + ids.length) % ids.length;
+      else if (key === 'Home') next = 0;
+      else if (key === 'End') next = ids.length - 1;
+      if (next < 0) return;
+      e.preventDefault();
+      this.show(ids[next]);
+      this.tabs.get(ids[next])?.focus();
     });
     this.approvalsEl.addEventListener('click', (e) => {
       const target = e.target instanceof Element ? e.target : null;
@@ -117,6 +131,8 @@ export class ConsolePane {
       const on = id === this.page;
       setClass(tab, 'is-on', on);
       if (tab.getAttribute('aria-selected') !== String(on)) tab.setAttribute('aria-selected', String(on));
+      const roving = on ? '0' : '-1';
+      if (tab.getAttribute('tabindex') !== roving) tab.setAttribute('tabindex', roving);
       setHidden(this.pages.get(id) as HTMLElement, !on);
     }
   }
@@ -161,7 +177,7 @@ export class ConsolePane {
     this.card('channels', ws ? { value: String(channels), sub: tn(channels, '{n} channel', '{n} channels'), tone: channels ? 'ok' : 'muted' } : { value: '-', sub: '', tone: 'muted' });
     this.card('approvals', { value: String(pending.length), sub: pending.length ? t('awaiting your decision') : t('nothing pending'), tone: pending.length ? 'warn' : 'muted' });
     this.badge(pending.length);
-    patchList(this.recent, scopes.slice(0, 8), {
+    patchFilled(this.recent, scopes.slice(0, 8), {
       key: (s) => s.id,
       create: () => el<HTMLElement>('<div class="cn-run"><span class="cn-run-name"></span><span class="cn-run-meta"></span></div>'),
       update: (node, s) => {
@@ -186,7 +202,7 @@ export class ConsolePane {
     }
     this.badge(this.pending.length);
     setHidden(this.approvalsNone, this.pending.length > 0);
-    patchList(this.approvalsEl, this.pending, {
+    patchFilled(this.approvalsEl, this.pending, {
       key: (a) => `${a.channel}:${a.seq}`,
       create: () => el<HTMLElement>(`<div class="cn-appr"><div class="cn-appr-head"><span class="cn-appr-who"></span><code class="cn-appr-tool"></code></div><pre class="cn-appr-pre cx-card-pre"></pre><div class="cn-actions"><button type="button" class="cv-btn cv-btn-primary" data-decide="1">${t('Allow')}</button><button type="button" class="cv-btn" data-decide="0">${t('Deny')}</button></div></div>`),
       update: (node, a) => {
@@ -276,7 +292,7 @@ export class ConsolePane {
         rows.push([t('Model'), '-']);
       }
     }
-    patchList(this.healthRows, rows.map(([k, v]) => ({ k, v })), {
+    patchFilled(this.healthRows, rows.map(([k, v]) => ({ k, v })), {
       key: (r) => r.k,
       create: () => el<HTMLElement>('<div class="cn-row"><em></em><span></span></div>'),
       update: (node, r) => {

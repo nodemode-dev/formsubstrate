@@ -28,3 +28,19 @@ substrata's console extension was the operator chrome of its window: grouped nav
 - logged: v0.14.0 · 2026-10-31
 
 All reads use `request`; every call that changes state uses `owner` (window token header, one retry after a 403). The event stream is a plain `EventSource`; it is a read.
+
+### frontend/src/extensions/cogentics/rich.ts · patchFilled
+
+- refers-to: frontend/src/extensions/cogentics/rich.ts :: patchFilled
+- kind: removed-code
+- logged: v0.15.0 · 2026-11-01
+
+`patchList` (ui/dom.ts) never calls `update` on a node it just created, so every list here that built an empty row in `create` showed blank rows until the next refresh (Insight scopes, files, usage rows, console Health, Recent turns and Approvals, member rows, channel and completion options). `patchFilled` wraps it and runs `update` on the new node before it is inserted, so a row is complete the moment it appears and nothing is painted twice. Found by the Playwright run at 4x throttle: the Health page stayed empty because it is not polled.
+
+### frontend/src/extensions/console/pane.ts and cogentics/insight.ts · tab and range semantics
+
+- refers-to: frontend/src/extensions/console/pane.ts :: ConsolePane; frontend/src/extensions/cogentics/insight.ts :: InsightPanel.paintUsage
+- kind: rationale
+- logged: v0.15.0 · 2026-11-01
+
+Console tabs carry ids and `aria-controls`, the panels are `tabpanel` with `aria-labelledby`, only the selected tab is in the tab order (`tabindex` 0, others -1) and Arrow keys, Home and End move selection and focus. The 7 and 30 day buttons keep `aria-pressed` in step with `is-on`.

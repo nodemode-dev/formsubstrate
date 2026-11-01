@@ -1,8 +1,8 @@
 import type { CatalogGroup, Member } from '../../io/cogentics';
-import { el, patchList, q, setClass, setHidden, setText, setTitle } from '../../ui/dom';
+import { el, q, setClass, setHidden, setText, setTitle } from '../../ui/dom';
 import { t } from '../../ui/i18n';
 import { icon } from '../../ui/icons';
-import { fmtTok } from './rich';
+import { fmtTok, patchFilled } from './rich';
 
 export interface Live { state?: string; depth?: number; held?: number }
 export interface Spent { tok: number; cost: number }
@@ -55,7 +55,7 @@ export class MemberRail {
   }
 
   private paint(): void {
-    patchList(this.host, this.members, {
+    patchFilled(this.host, this.members, {
       key: (m) => m.handle,
       create: (m) => {
         const row = el<HTMLElement>(`<div class="cx-member">

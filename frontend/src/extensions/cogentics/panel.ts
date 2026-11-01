@@ -2,7 +2,7 @@ import { ApiError } from '../../io/api';
 import { cogentics, insight, type CatalogGroup, type ChannelDoc, type ChannelInfo, type Member, type Msg } from '../../io/cogentics';
 import { workspaceTrusted } from '../../io/trust';
 import { confirmAction, promptName } from '../../ui/dialogs';
-import { el, patchList, q, setClass, setDisabled, setHidden, setText, setTitle, setValue } from '../../ui/dom';
+import { el, q, setClass, setDisabled, setHidden, setText, setTitle, setValue } from '../../ui/dom';
 import { enhanceSelect } from '../../ui/dropdown';
 import { onLanguage, t, tn } from '../../ui/i18n';
 import { icon } from '../../ui/icons';
@@ -10,7 +10,7 @@ import { toast } from '../../ui/toast';
 import type { ExtensionContext, Shell } from '../registry';
 import { Ledger } from './ledger';
 import { fillModels, MemberRail, type Spent } from './members';
-import { blankCode, fmtTok } from './rich';
+import { blankCode, fmtTok, patchFilled } from './rich';
 
 const ACTIVE_KEY = 'subform.cogentics.active';
 const SEEN_KEY = 'subform.cogentics.seen.';
@@ -172,7 +172,7 @@ export class CogenticsPanel {
       this.cli = models.cli_models;
       fillModels(this.modelSel, this.catalog, this.cli, this.kindSel.value);
       this.modelSel.title = `${t('Catalog verified')} ${models.verified}`;
-      patchList(this.presetSel, presets.presets, {
+      patchFilled(this.presetSel, presets.presets, {
         key: (p) => p.name,
         create: () => document.createElement('option'),
         update: (node, p) => { const o = node as HTMLOptionElement; o.value = p.name; setText(o, p.label); setTitle(o, p.note); },
@@ -217,7 +217,7 @@ export class CogenticsPanel {
   }
 
   private paintChannels(): void {
-    patchList(this.chanSel, this.channels, {
+    patchFilled(this.chanSel, this.channels, {
       key: (c) => c.name,
       create: () => document.createElement('option'),
       update: (node, c) => {
@@ -447,7 +447,7 @@ export class CogenticsPanel {
 
   private paintAc(): void {
     setHidden(this.acEl, false);
-    patchList(this.acEl, this.acItems, {
+    patchFilled(this.acEl, this.acItems, {
       key: (i) => i.key,
       create: () => el<HTMLElement>('<button type="button" class="cx-ac-item" role="option"><b></b><span></span></button>'),
       update: (node, i) => {

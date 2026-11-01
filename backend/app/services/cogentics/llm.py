@@ -117,6 +117,8 @@ class Client:
 
     async def test_connection(self) -> dict:
         self._load()
+        if not self.configured:
+            return {"ok": False, "detail": "no key saved for this provider"}
         try:
             async with httpx.AsyncClient(timeout=8) as client:
                 res = await client.get(f"{self.base_url}/models", headers=self.headers())
