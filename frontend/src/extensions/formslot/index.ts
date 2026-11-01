@@ -383,13 +383,15 @@ class FormslotPanel {
     } else if (on && s) {
       if (s.running) sub.push(`${s.version ?? ''}`.trim());
       sub.push(`${s.corpora.length} ${t(s.corpora.length === 1 ? 'corpus' : 'corpora')}`);
-      if (ws) sub.push(s.workspaceCorpus ? `${t('this workspace')}: ${s.workspaceCorpus}` : t('this workspace is not indexed'));
+      if (ws) sub.push(s.workspaceCorpus ? `${t('this workspace')}: ${s.workspaceCorpus}` : t('this workspace is not indexed (no gates)'));
     } else if (on && formslotState.problem) sub.push(formslotState.problem);
     setText(this.stateSub, sub.filter(Boolean).join(' · '));
     setTitle(this.stateSub, s?.binary ?? '');
+    setClass(this.stateSub, 'is-warn', !!(on && s?.installed && ws && !s.workspaceCorpus));
 
     setText(q(this.startBtn, '.cv-fs-bt'), t('Start'));
-    setText(q(this.indexBtn, '.cv-fs-bt'), t('Index'));
+    setText(q(this.indexBtn, '.cv-fs-bt'), t('Index workspace'));
+    setClass(this.indexBtn, 'is-attn', !!(running && ws && s && !s.workspaceCorpus));
     setTitle(this.indexBtn, t('Index this workspace for formslot'));
     setText(q(this.installBtn, '.cv-fs-bt'), t('Install plugin'));
     setDisabled(this.startBtn, !on || this.busy || !s?.installed || s.running);

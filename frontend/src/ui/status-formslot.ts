@@ -1,6 +1,7 @@
 import { compact, FORMSLOT_OPEN, formslotState, type FormslotPhase } from '../io/formslot';
 import { sessionsClient } from '../io/sessions';
 import { q, setClass, setText, setTitle } from './dom';
+import { workspace } from './workspace-store';
 import { onLanguage, t } from './i18n';
 
 const LABEL: Record<FormslotPhase, string> = {
@@ -22,6 +23,7 @@ export class FormslotStatusItem {
     formslotState.on('status', () => this.schedule());
     formslotState.on('active', () => this.schedule());
     sessionsClient.on('sessions', () => this.schedule());
+    workspace.on('workspace', () => this.schedule());
     onLanguage(() => this.schedule());
     this.paint();
   }
@@ -43,6 +45,7 @@ export class FormslotStatusItem {
     else if (s) {
       if (s.running) tip.push(`${t('Version')} ${s.version ?? '?'}${s.port ? ` · ${t('port')} ${s.port}` : ''}${s.pid ? ` · pid ${s.pid}` : ''}`);
       tip.push(`${s.corpora.length} ${t(s.corpora.length === 1 ? 'corpus' : 'corpora')}${s.workspaceCorpus ? ` · ${s.workspaceCorpus}` : ''}`);
+      if (workspace.workspace && s.installed && !s.workspaceCorpus) tip.push(t('This workspace is not indexed, so no gates run here. Open the panel and choose Index this workspace.'));
       if (s.note) tip.push(s.note);
     } else if (formslotState.problem) tip.push(formslotState.problem);
     tip.push(t('Open the formslot panel'));
