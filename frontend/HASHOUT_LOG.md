@@ -1324,6 +1324,22 @@ Ported from formvis app-dialogs.ts SettingsDialog per FORMVIS_SETTINGS_MAP.md: r
 
 Reset removes only localStorage keys starting with subform. plus nodemode_ui_settings, then reloads. The API key field is a password input sent to PUT /api/secrets/anthropic-api-key and cleared; only presence is ever read back; it never reaches prefs or localStorage. With no system keyring the engine answers 503 and the row says so. Custom title bar and menus-in-window rows run the existing commands, which own their keys. Git author name and email are empty read-only fields until the git phase exposes an identity route.
 
+### src/ui/terminal-dock.ts · terminal dock (F5)
+
+- refers-to: frontend/src/ui/terminal-dock.ts :: TerminalDock; frontend/src/io/terminals.ts :: TerminalSocket; frontend/src/styles/terminal.css :: .ft-dock
+- kind: rationale
+- logged: v0.5.0 · 2026-10-30
+
+Ported in shape from formvis terminal-dock.ts and terminal.css (Apache-2.0, owner's) without the Chat tab, ask bar, Agent Connect and the index.html boot script; xterm 6.0.0, @xterm/addon-fit 0.11.0, @xterm/addon-webgl 0.19.0. The grip, head, tab strip and stage are built once; tabs are patchList rows keyed by terminal id; opening writes --ft-dock-h on .cv-app and data-ft-dock on the root (Home's dock-aware bottom rule moved here from home.css), so only the existing grid row re-lays out. Nothing is created at startup: the first open adopts every terminal the engine still has (the pty-host owns them, so they survive a reload) and seeds one shell only when there are none; `reveal(id)` adopts terminals created later. WebGL is attached only to the visible terminal and dropped when hidden, closed or on context loss (DOM renderer otherwise; xterm 6 has no canvas renderer). Theme colours are resolved from tokens through a probe once per nm:ui-settings-changed; the 16 ANSI colours are --ft-ansi-* tokens with a light set. Copy and paste act only inside the terminal (Ctrl+Shift+C/V, Cmd+C/V on macOS); plain Ctrl+C stays with the shell. Exited tabs stay with "[process exited with code n]". Height is the pref terminalDockHeight (120 to 800, default 260); open state is not persisted, so no pre-paint script is needed.
+
+### src/io/terminals.ts · socket, replay and acks (F5)
+
+- refers-to: frontend/src/io/terminals.ts :: TerminalSocket.onOutput
+- kind: rationale
+- logged: v0.5.0 · 2026-10-30
+
+One multiplexed WebSocket per window (the F5 contract). Output frames are 0x01, a 16-byte id, an 8-byte big-endian offset, then bytes; each terminal keeps next = last offset + length rendered, and a replayed frame that starts before next is trimmed so no byte is written twice. Acks are the incremental byte count since the last ack, sent after xterm's write callback about every 32 KiB; the engine router and the pty-host both subtract them, so the two sides agree. Reconnect waits 250 ms doubling to 5 s and re-attaches each live terminal from next. F5 exit check with the real engine: kill -9 of the engine left the pty-host and the three claude sessions running, the dock showed Reconnecting, and after the restart the terminals carried on and a replay from 0 contained output written while the engine was down.
+
 ### src/ui/prefs.ts · prefsRevision and the word wrap default
 
 - refers-to: frontend/src/ui/prefs.ts :: loadPrefs
