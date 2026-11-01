@@ -133,9 +133,9 @@ def add_gate_note(body: NoteBody, session_token: str | None = Header(default=Non
         raise _fail(err)
 
 
-@router.get("/gates/notes")
-def list_gate_notes(session: str) -> dict:
-    return {"notes": gates.notes_for(session)}
+@router.get("/gates/notes", dependencies=[Depends(require_window)])
+async def list_gate_notes(session: str) -> dict:
+    return {"notes": await gates.live_notes(session)}
 
 
 @router.post("/gates/{gate_id}/answer", dependencies=[Depends(require_window)])

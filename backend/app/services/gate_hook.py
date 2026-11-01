@@ -27,7 +27,20 @@ POST_BYTES = 262144
 WRAPPERS = ("sudo", "env", "command", "builtin", "exec", "nohup", "time", "nice", "stdbuf")
 SHELLS = ("bash", "sh", "zsh", "dash")
 INTERP = re.compile(r"^(python[0-9.]*|node|nodejs|bun|deno|ruby)$")
-OPS = ("<<<", "<<-", "&>>", ">>", ">|", ">&", "<&", "&>", "&&", "||", ";;", "<<", ">", "<", "|", ";", "&", "(", ")")
+OPS3 = ("<<<", "<<-", "&>>")
+OPS2 = (">>", ">|", ">&", "<&", "&>", "&&", "||", ";;", "<<")
+OPS1 = "><|;&()"
+PLAIN = re.compile(r"[^ \t\n\\'\"$`<>&|;()#]+")
+ASSIGN_NUM = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=.*[0-9)]$")
+FALLBACK_REDIR = re.compile(r"(?<![-=<>&|])(?:&?>>?|>\|)[ \t]*([\"']?)([^\s\"'<>|&;()$`*?{}\\]+)\1")
+FALLBACK_TEE = re.compile(r"\btee[ \t]+(?:-a[ \t]+)?([\"']?)([^\s\"'<>|&;()$`*?{}\\-][^\s\"'<>|&;()$`*?{}\\]*)\1")
+CMD_CAP = 65536
+CMD_STEPS = 2000
+FOUND_CAP = 512
+CODE_CAP = 65536
+WRITE_WINDOW = 4096
+LEX_DEPTH = 40
+GIT = ["git", "--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null"]
 SEPS = (";", "&&", "||", "|", "&", ";;", "(", ")")
 ESC = {"n": "\n", "t": "\t", "r": "\r", "\\": "\\", "'": "'", '"': '"', "a": "\a", "0": "\0"}
 DQ = r'"(?:[^"\\\n]|\\.)*"'
@@ -194,9 +207,11 @@ def unesc(text):
 
 def heredoc_bodies(text, i, pend, out):
     n = len(text)
+    closed = True
     for index, delim in pend:
         strip = out[index - 1][1] == "<<-"
         lines = []
+        found = False
         while i < n:
             j = text.find("\n", i)
             end = n if j < 0 else j
@@ -204,10 +219,91 @@ def heredoc_bodies(text, i, pend, out):
             i = end + 1
             probe = line.lstrip("\t") if strip else line
             if probe == delim:
+                found = True
                 break
             lines.append(probe if strip else line)
+        closed = closed and found
         out[index] = ("heredoc", "".join(item + "\n" for item in lines), False)
-    return min(i, n)
+    return min(i, n) if closed else -1
+
+
+def skip_dq(text, j, level, budget):
+    n = len(text)
+    if level > LEX_DEPTH:
+        return -1
+    while j < n:
+        budget[0] -= 1
+        if budget[0] < 0:
+            return -1
+        c = text[j]
+        if c == "\\":
+            j += 2
+        elif c == '"':
+            return j + 1
+        elif c == "$" and text[j + 1 : j + 2] == "(":
+            k = skip_paren(text, j + 1, level + 1, budget)
+            if k < 0:
+                return -1
+            j = k + 1
+        else:
+            j += 1
+    return -1
+
+
+def skip_paren(text, j, level, budget):
+    n = len(text)
+    if level > LEX_DEPTH:
+        return -1
+    depth = 0
+    while j < n:
+        budget[0] -= 1
+        if budget[0] < 0:
+            return -1
+        c = text[j]
+        if c == "\\":
+            j += 2
+            continue
+        if c == "'":
+            k = text.find("'", j + 1)
+            if k < 0:
+                return -1
+            budget[0] -= k - j
+            j = k + 1
+            continue
+        if c == '"':
+            j = skip_dq(text, j + 1, level + 1, budget)
+            if j < 0:
+                return -1
+            continue
+        if c == "(":
+            depth += 1
+        elif c == ")":
+            depth -= 1
+            if depth == 0:
+                return j
+        j += 1
+    return -1
+
+
+def op_at(text, i):
+    if text[i : i + 3] in OPS3:
+        return text[i : i + 3]
+    if text[i : i + 2] in OPS2:
+        return text[i : i + 2]
+    return text[i] if text[i] in OPS1 else None
+
+
+def heredoc_ok(text, i, op, word):
+    k = i + len(op)
+    n = len(text)
+    while k < n and text[k] in " \t":
+        k += 1
+    if k >= n:
+        return False
+    ch = text[k]
+    if not (ch.isalpha() or ch in "_'\"\\"):
+        return False
+    return not (word and ASSIGN_NUM.match("".join(word)))
 
 
 def lex(text):
@@ -216,6 +312,7 @@ def lex(text):
     state = {"word": None, "dyn": False, "delim": False}
     n = len(text)
     i = 0
+    budget = [12 * n + 1000]
 
     def add(chunk):
         if state["word"] is None:
@@ -236,7 +333,11 @@ def lex(text):
     while i < n:
         c = text[i]
         nxt = text[i + 1 : i + 2]
-        if c in " \t":
+        plain = PLAIN.match(text, i)
+        if plain:
+            add(plain.group())
+            i = plain.end()
+        elif c in " \t":
             put()
             i += 1
         elif c == "\n":
@@ -245,6 +346,8 @@ def lex(text):
             if pend:
                 i = heredoc_bodies(text, i, pend, out)
                 pend.clear()
+                if i < 0:
+                    return None
             out.append(("op", ";", None))
         elif c == "\\":
             if nxt == "\n":
@@ -293,17 +396,8 @@ def lex(text):
             add("".join(buf))
             i = j + 1
         elif c == "$" and nxt == "(":
-            depth = 0
-            j = i + 1
-            while j < n:
-                if text[j] == "(":
-                    depth += 1
-                elif text[j] == ")":
-                    depth -= 1
-                    if depth == 0:
-                        break
-                j += 1
-            if j >= n:
+            j = skip_paren(text, i + 1, 0, budget)
+            if j < 0:
                 return None
             add(text[i : j + 1])
             state["dyn"] = True
@@ -323,10 +417,21 @@ def lex(text):
             j = text.find("\n", i)
             i = n if j < 0 else j
         else:
-            op = next((o for o in OPS if text.startswith(o, i)), None)
+            op = op_at(text, i)
             if op is None:
                 add(c)
                 i += 1
+                continue
+            if op == "(" and nxt == "(" and state["word"] is None and (not out or out[-1][0] == "op"):
+                k = skip_paren(text, i, 0, budget)
+                inner = text[i:k] if k > 0 else ""
+                if k > i + 3 and text[k - 1] == ")" and not any(ch in inner for ch in ";|\n"):
+                    out.append(("word", text[i : k + 1], True))
+                    i = k + 1
+                    continue
+            if op in ("<<", "<<-") and not heredoc_ok(text, i, op, state["word"]):
+                add(op)
+                i += len(op)
                 continue
             fd = None
             if op[0] in "<>" and state["word"] is not None and not state["dyn"] and "".join(state["word"]).isdigit():
@@ -338,8 +443,8 @@ def lex(text):
             if op in ("<<", "<<-"):
                 state["delim"] = True
     put()
-    if pend:
-        heredoc_bodies(text, n, pend, out)
+    if pend and heredoc_bodies(text, n, pend, out) < 0:
+        return None
     return out
 
 
@@ -466,12 +571,19 @@ def lit(raw):
 
 def code_writes(code, ctx):
     cwd = ctx["cwd"]
+    code = code[:CODE_CAP]
     for m in re.finditer(r"open\(\s*(" + STR + r")\s*,\s*(?:mode\s*=\s*)?(" + STR + r")", code):
         path = lit(m.group(1))
         mode = lit(m.group(2))
         if not path or not mode or not re.search(r"[wax]", mode):
             continue
-        parts = [lit(x) for x in re.findall(r"\.write\(\s*(" + STR + r")", code[m.end():])]
+        if len(ctx["found"]) > FOUND_CAP:
+            return
+        limit = m.end() + WRITE_WINDOW
+        following = code.find("open(", m.end(), limit)
+        if following >= 0:
+            limit = following
+        parts = [lit(x) for x in re.findall(r"\.write\(\s*(" + STR + r")", code[m.end() : limit])]
         text = "".join(parts) if parts and all(p is not None for p in parts) else None
         target = resolve(path, False, cwd)
         if target:
@@ -788,12 +900,31 @@ def run_simple(cmd, ctx, pipe_in, depth):
     return None if stdout_taken else produced
 
 
+def fallback(text, ctx):
+    for m in FALLBACK_REDIR.finditer(text):
+        path = resolve(m.group(2), False, ctx["cwd"])
+        if path:
+            add_write(ctx, path, m.group(0).lstrip("&").startswith(">>"), None)
+        if len(ctx["found"]) > FOUND_CAP:
+            return
+    for m in FALLBACK_TEE.finditer(text):
+        path = resolve(m.group(2), False, ctx["cwd"])
+        if path:
+            add_write(ctx, path, "-a" in m.group(0).split(None, 2)[:2], None)
+
+
 def walk(text, ctx, depth):
+    if len(text) > CMD_CAP:
+        return
     tokens = lex(text)
     if tokens is None:
+        fallback(text, ctx)
         return
     carry = None
     for cmd in commands(tokens):
+        ctx["steps"] += 1
+        if ctx["steps"] > CMD_STEPS or len(ctx["found"]) > FOUND_CAP or time.monotonic() > ctx["until"]:
+            return
         carry = run_simple(cmd, ctx, carry, depth)
         if cmd["sep"] != "|":
             carry = None
@@ -820,10 +951,10 @@ def bash_targets(command, event):
     if not root:
         return []
     cwd = event.get("cwd")
-    ctx = {"root": os.path.normpath(root), "cwd": os.path.normpath(cwd) if isinstance(cwd, str) and cwd else os.path.normpath(root), "known": {}, "found": []}
+    ctx = {"root": os.path.normpath(root), "cwd": os.path.normpath(cwd) if isinstance(cwd, str) and cwd else os.path.normpath(root), "known": {}, "found": [], "steps": 0, "until": time.monotonic() + 0.6}
     try:
         walk(command, ctx, 0)
-    except (ValueError, IndexError, KeyError, TypeError, re.error):
+    except (ValueError, IndexError, KeyError, TypeError, re.error, RecursionError):
         return []
     keep = []
     seen = set()
@@ -846,7 +977,7 @@ def payload_for(event, item):
 
 def worktree_state(root):
     try:
-        done = subprocess.run(["git", "-C", root, "status", "--porcelain=v1", "-z", "--untracked-files=all"], capture_output=True, text=True, encoding="utf-8", errors="surrogateescape", timeout=1.5)
+        done = subprocess.run(GIT + ["-C", root, "status", "--porcelain=v1", "-z", "--untracked-files=all"], capture_output=True, text=True, encoding="utf-8", errors="surrogateescape", timeout=1.5)
     except (OSError, subprocess.SubprocessError):
         return None
     if done.returncode != 0:
@@ -942,7 +1073,7 @@ def post_payload(root, rel, code, event):
     tracked = code.strip() in ("M", "MM", "R", "RM") or code in (" M", "M ", "MM")
     if tracked:
         try:
-            done = subprocess.run(["git", "-C", root, "diff", "HEAD", "-U0", "--no-color", "--", rel], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=1)
+            done = subprocess.run(GIT + ["-C", root, "diff", "--no-ext-diff", "--no-textconv", "HEAD", "-U0", "--no-color", "--", rel], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=1)
         except (OSError, subprocess.SubprocessError):
             return None
         found = diff_targets(done.stdout, 1)

@@ -235,3 +235,11 @@ The port route resolves the destination and checks the block in the threadpool, 
 - logged: v0.11.0 · 2026-10-30
 
 `POST /api/gates/notes` takes the per-session token like `POST /api/gates` (the Bash PostToolUse hook records a file written by Bash that overlaps a slot). `GET /api/gates/notes?session=` has LocalGuard only, like `GET /api/gates`, and returns repository-relative paths, slot ids and the formslot text; nothing owner-only changes state. See the services log, gate_hook.py (Bash tool, PostToolUse).
+
+### backend/app/routers/formslot.py · list_gate_notes
+
+- refers-to: backend/app/routers/formslot.py :: list_gate_notes
+- kind: rationale
+- logged: v0.11.0 · 2026-10-30
+
+review L7. `GET /api/gates/notes` now needs the window token (`require_window`) and answers `gates.live_notes`, which drops notes whose file is clean or committed. The earlier entry above that says it has LocalGuard only is superseded. Caller change needed outside this scope: `bashNotes` in frontend/src/io/sessions.ts must use the `owner` helper from io/window-token.ts instead of `request`, or the badge text reads as none.

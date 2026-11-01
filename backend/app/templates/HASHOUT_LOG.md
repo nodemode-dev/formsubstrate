@@ -58,3 +58,11 @@ An original letter F (every Form app name starts with `form`) drawn as three rou
 - logged: v0.11.0 · 2026-10-30
 
 `main.rs` moved from `common/` into each kind folder. Rust kind: runs the built `{{name}}-cli version` from `../target` and uses its output as the window title; the window shows `frontend/`. Python kind: spawns `backend/venv` python (else python3) with uvicorn on the engine port using std::process only (no shell plugin, so no extra permissions), polls the port, navigates the window to the engine and kills the child on exit. Subform's token handshake, port 0 discovery, splash and packaged engine are deliberately left out; the engine is not yet LocalGuard-protected in the Python template. Dev paths come from `CARGO_MANIFEST_DIR`, so the shell runs from the scaffolded tree only.
+
+### backend/app/templates/python · main.py LocalGuard, src-tauri/src/main.rs spawn_engine
+
+- refers-to: backend/app/templates/python/backend/app/main.py :: LocalGuard; backend/app/templates/python/src-tauri/src/main.rs :: spawn_engine
+- kind: rationale
+- logged: v0.11.0 · 2026-10-30
+
+review L6. The Python template's engine now has a small LocalGuard-style ASGI middleware outside CORS: the Host header must be a loopback name (127.0.0.1, localhost, ::1) with one of the three ports of the app's block, and an Origin header, when present, must be one of the app's own window origins; a request without Origin is refused when the browser marks it cross-site. A rebinding page (Host evil.com) and a foreign Origin answer 403; checked on a rendered copy: Host 127.0.0.1:6611 and localhost:6611 200, evil.com:6611 and 127.0.0.1:9999 403, Origin http://evil.com 403, own origin 200. The shell no longer falls back to a system `python3`: without `backend/venv` it fails setup with a message naming the missing environment, so a foreign interpreter is never run with the app's engine module. The earlier sentence above about the template engine not being LocalGuard-protected is superseded; there is still no window token handshake in this template.

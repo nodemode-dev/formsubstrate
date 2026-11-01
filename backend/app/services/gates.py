@@ -115,6 +115,38 @@ def notes_for(session_id: str) -> list[dict]:
     return list(_notes.get(session_id, []))
 
 
+async def live_notes(session_id: str) -> list[dict]:
+    from app.services import gitops
+
+    notes = notes_for(session_id)
+    item = svc._sessions.get(session_id)
+    root = item.get("worktree") if item else None
+    if not notes or not root:
+        return []
+    paths = [n["path"] for n in notes if n["path"] and "\0" not in n["path"] and not n["path"].startswith("-")]
+    try:
+        code, out, _ = await gitops.run(root, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--", *paths], configs=["core.fsmonitor=false", "core.hooksPath=/dev/null"], timeout=5)
+    except gitops.Refused:
+        return notes
+    if code != 0:
+        return notes
+    dirty = set()
+    parts = out.split("\0")
+    k = 0
+    while k < len(parts):
+        entry = parts[k]
+        k += 1
+        if len(entry) < 4:
+            continue
+        dirty.add(entry[3:])
+        if entry[0] in "RC":
+            k += 1
+    kept = [n for n in notes if n["path"] in dirty]
+    if len(kept) != len(notes):
+        _notes[session_id] = kept
+    return kept
+
+
 def _mint(session_id: str) -> str:
     _tokens[session_id] = secrets.token_urlsafe(24)
     return _tokens[session_id]

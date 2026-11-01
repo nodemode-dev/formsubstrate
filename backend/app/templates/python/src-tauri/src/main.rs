@@ -12,16 +12,18 @@ const PORT: u16 = {{port_engine}};
 
 struct Engine(Mutex<Option<Child>>);
 
-fn spawn_engine() -> Option<Child> {
+fn spawn_engine() -> Result<Child, String> {
     let backend = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("backend");
-    let venv = if cfg!(windows) { backend.join("venv/Scripts/python.exe") } else { backend.join("venv/bin/python") };
-    let python = if venv.is_file() { venv } else { PathBuf::from(if cfg!(windows) { "python" } else { "python3" }) };
+    let python = if cfg!(windows) { backend.join("venv/Scripts/python.exe") } else { backend.join("venv/bin/python") };
+    if !python.is_file() {
+        return Err(format!("{{name}} needs its Python environment at {}; run the app's setup script first", python.display()));
+    }
     Command::new(python)
         .args(["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", &PORT.to_string()])
         .current_dir(backend)
         .stdin(Stdio::null())
         .spawn()
-        .ok()
+        .map_err(|err| format!("{{name}} could not start its engine: {err}"))
 }
 
 fn engine_up() -> bool {
@@ -33,7 +35,7 @@ fn main() {
     let app = tauri::Builder::default()
         .manage(Engine(Mutex::new(None)))
         .setup(|app| {
-            *app.state::<Engine>().0.lock().unwrap() = spawn_engine();
+            *app.state::<Engine>().0.lock().unwrap() = Some(spawn_engine()?);
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 for _ in 0..150 {
