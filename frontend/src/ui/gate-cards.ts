@@ -10,11 +10,26 @@ import { toast } from './toast';
 const MAX_CARDS = 3;
 const MAX_SLOTS = 3;
 
-const CHOICES: ReadonlyArray<readonly [GateChoice, string, string]> = [
+export const CHOICES: ReadonlyArray<readonly [GateChoice, string, string]> = [
   ['use', 'Use', 'Tell the agent to reuse the existing slot'],
   ['adapt', 'Adapt', 'Tell the agent to adapt the existing slot instead of writing a parallel copy'],
   ['write', 'Write new anyway', 'Let the write go ahead'],
 ];
+
+export async function answerOpenGate(id: string, choice: GateChoice): Promise<string> {
+  try {
+    await sessionsClient.answerGate(id, choice);
+    return '';
+  } catch (err) {
+    if (statusOf(err) === 404 || statusOf(err) === 410) {
+      sessionsClient.closeGate(id);
+      return '';
+    }
+    const detail = detailOf(err);
+    toast(detail, 'error');
+    return detail;
+  }
+}
 
 export class GateCards {
   readonly root = el<HTMLElement>(`<div class="cv-gates" id="gate-root" role="region" aria-live="polite"><div class="cv-gates-more" hidden></div><div class="cv-gates-list"></div></div>`);
@@ -67,21 +82,11 @@ export class GateCards {
     this.busy.add(id);
     this.failed.delete(id);
     this.paint();
-    try {
-      await sessionsClient.answerGate(id, choice);
-      this.busy.delete(id);
-      this.paint();
-      if (hadFocus) this.restoreFocus();
-    } catch (err) {
-      this.busy.delete(id);
-      if (statusOf(err) === 404 || statusOf(err) === 410) {
-        sessionsClient.closeGate(id);
-      } else {
-        this.failed.set(id, detailOf(err));
-        toast(detailOf(err), 'error');
-      }
-      this.paint();
-    }
+    const failure = await answerOpenGate(id, choice);
+    this.busy.delete(id);
+    if (failure) this.failed.set(id, failure);
+    this.paint();
+    if (!failure && hadFocus) this.restoreFocus();
   }
 
   private restoreFocus(): void {

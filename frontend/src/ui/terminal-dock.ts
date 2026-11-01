@@ -2,9 +2,12 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { Terminal, type ITheme } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
+import type { Gate, GateChoice } from '../io/formslot';
+import { sessionsClient } from '../io/sessions';
 import { createTerminal, deleteTerminal, listTerminals, terminalSocket, type TerminalInfo, type TerminalKind } from '../io/terminals';
 import type { Commands } from './commands';
-import { el, isMac, patchList, q, setClass, setHidden, setStyleVar, setText, setTitle } from './dom';
+import { el, isMac, patchList, q, setClass, setDisabled, setHidden, setStyleVar, setText, setTitle } from './dom';
+import { CHOICES, answerOpenGate } from './gate-cards';
 import { t } from './i18n';
 import { icon } from './icons';
 import { PopupMenu } from './menu';
@@ -64,7 +67,8 @@ export class TerminalDock {
 <button type="button" class="cv-tt-btn ft-dock-max" title="${t('Maximize')}" aria-label="${t('Maximize')}">${icon('maximize', 15)}</button>
 <button type="button" class="cv-tt-btn ft-dock-hide" title="${t('Hide Terminal')} (${isMac ? 'Cmd' : 'Ctrl'}+J)" aria-label="${t('Hide Terminal')}">${icon('chevronDown', 15)}</button>
 </div>
-<div class="ft-dock-stage"><p class="ft-dock-empty cv-note" hidden>${t('No terminal is open. Start one with the plus button.')}</p></div>
+<div class="ft-dock-stage"><p class="ft-dock-empty cv-note" hidden>${t('No terminal is open. Start one with the plus button.')}</p>
+<div class="ft-dock-gate" role="region" aria-live="polite" hidden><span class="ft-dock-gate-mark">${icon('slot', 14)}</span><span class="ft-dock-gate-text"></span><span class="ft-dock-gate-more" hidden></span><span class="ft-dock-gate-btns">${CHOICES.map(([c]) => `<button class="cv-gate-btn${c === 'use' ? ' is-primary' : ''}" type="button" data-choice="${c}"></button>`).join('')}</span></div></div>
 <span class="ft-dock-probe" hidden></span>
 </section>`);
   private readonly grip = q(this.root, '.ft-dock-grip');
@@ -75,6 +79,12 @@ export class TerminalDock {
   private readonly newBtn = q<HTMLButtonElement>(this.root, '.ft-dock-new');
   private readonly maxBtn = q<HTMLButtonElement>(this.root, '.ft-dock-max');
   private readonly probe = q(this.root, '.ft-dock-probe');
+  private readonly gateBar = q(this.root, '.ft-dock-gate');
+  private readonly gateText = q(this.root, '.ft-dock-gate-text');
+  private readonly gateMore = q(this.root, '.ft-dock-gate-more');
+  private readonly gateBusy = new Set<string>();
+  private gateId = '';
+  private gateFrame = 0;
   private readonly menu: PopupMenu;
   private readonly tabs = new Map<string, Tab>();
   private order: string[] = [];
@@ -111,6 +121,15 @@ export class TerminalDock {
       if (id) { e.preventDefault(); void this.close(id); }
     });
     this.tabsEl.addEventListener('keydown', (e) => this.onTabKey(e));
+    this.gateBar.addEventListener('mousedown', (e) => {
+      if (e.target instanceof Element && e.target.closest('.cv-gate-btn')) e.preventDefault();
+    });
+    this.gateBar.addEventListener('click', (e) => {
+      const choice = e.target instanceof Element ? e.target.closest<HTMLElement>('.cv-gate-btn')?.dataset.choice : undefined;
+      if (choice === 'use' || choice === 'adapt' || choice === 'write') void this.answerGate(choice);
+    });
+    sessionsClient.on('gates', () => this.scheduleGates());
+    sessionsClient.on('sessions', () => this.scheduleGates());
     new ResizeObserver(() => this.scheduleFit()).observe(this.stage);
     document.addEventListener('nm:ui-settings-changed', () => this.restyle());
     terminalSocket.onState((up) => setHidden(this.conn, up || !terminalSocket.waiting));
@@ -129,6 +148,7 @@ export class TerminalDock {
     this.open = on;
     document.documentElement.setAttribute('data-ft-dock', on ? 'open' : 'closed');
     this.applyHeight();
+    this.paintGate();
     if (on) {
       void this.boot().then(async () => {
         if (this.open && this.order.length === 0) await this.spawn('shell');
@@ -294,7 +314,7 @@ export class TerminalDock {
     const items = this.order.map((id) => this.tabs.get(id) as Tab);
     patchList(this.tabsEl, items, {
       key: (tab) => tab.info.id,
-      create: (tab) => el<HTMLElement>(`<div class="ft-dock-tab is-${tab.info.kind}" role="tab" tabindex="-1">${icon(tab.info.kind === 'claude' ? 'agent' : 'terminal', 14)}<span class="ft-dock-tab-title"></span><button type="button" class="ft-dock-tab-x" tabindex="-1" aria-label="${t('Close terminal')}" title="${t('Close terminal')}">${icon('close', 10)}</button></div>`),
+      create: (tab) => el<HTMLElement>(`<div class="ft-dock-tab is-${tab.info.kind}" role="tab" tabindex="-1">${icon(tab.info.kind === 'claude' ? 'agent' : 'terminal', 14)}<span class="ft-dock-tab-title"></span><span class="ft-dock-tab-gate" hidden></span><button type="button" class="ft-dock-tab-x" tabindex="-1" aria-label="${t('Close terminal')}" title="${t('Close terminal')}">${icon('close', 10)}</button></div>`),
       update: (node, tab) => {
         setText(q(node, '.ft-dock-tab-title'), tab.title);
         setClass(node, 'is-on', tab.info.id === this.active);
@@ -304,9 +324,55 @@ export class TerminalDock {
         const want = tab.info.id === this.active ? '0' : '-1';
         if (node.getAttribute('tabindex') !== want) node.setAttribute('tabindex', want);
         setTitle(node, tab.info.cwd ? `${tab.title} · ${tab.info.cwd}` : tab.title);
+        const waiting = this.gatesFor(tab).length > 0;
+        const badge = q(node, '.ft-dock-tab-gate');
+        setHidden(badge, !waiting);
+        setTitle(badge, waiting ? t('subform is waiting for your answer') : '');
       },
     });
     this.syncEmpty();
+    this.paintGate();
+  }
+
+  private gatesFor(tab: Tab): Gate[] {
+    const sid = tab.info.sessionId;
+    return sid ? sessionsClient.gates.filter((g) => g.session === sid) : [];
+  }
+
+  private scheduleGates(): void {
+    if (this.gateFrame) return;
+    this.gateFrame = requestAnimationFrame(() => { this.gateFrame = 0; this.patchTabs(); });
+  }
+
+  private paintGate(): void {
+    const tab = this.active ? this.tabs.get(this.active) : undefined;
+    const list = tab ? this.gatesFor(tab) : [];
+    const g = list[0];
+    setHidden(this.gateBar, !g || !this.open);
+    if (!g) { this.gateId = ''; return; }
+    this.gateId = g.id;
+    const slot = g.slots[0]?.id ?? '';
+    setText(this.gateText, slot ? `${t('subform is waiting for your answer')} · ${t('slot')} ${slot}` : t('subform is waiting for your answer'));
+    setTitle(this.gateText, g.message);
+    setText(this.gateMore, list.length > 1 ? `+${list.length - 1}` : '');
+    setHidden(this.gateMore, list.length < 2);
+    const working = this.gateBusy.has(g.id);
+    for (const [c, label, tip] of CHOICES) {
+      const b = q<HTMLButtonElement>(this.gateBar, `[data-choice="${c}"]`);
+      setText(b, t(label));
+      setTitle(b, t(tip));
+      setDisabled(b, working);
+    }
+  }
+
+  private async answerGate(choice: GateChoice): Promise<void> {
+    const id = this.gateId;
+    if (!id || this.gateBusy.has(id)) return;
+    this.gateBusy.add(id);
+    this.paintGate();
+    await answerOpenGate(id, choice);
+    this.gateBusy.delete(id);
+    this.paintGate();
   }
 
   private syncEmpty(): void {

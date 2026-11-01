@@ -26,7 +26,15 @@
 .ft-dock-tab-x { display: inline-grid; place-items: center; width: 16px; height: 16px; padding: 0; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-muted); cursor: pointer; }
 .ft-dock-tab-x:hover { background: var(--bg-hover); color: var(--text-primary); }
 .ft-dock-head .cv-tt-btn { width: var(--ctl-sm); height: var(--ctl-sm); flex: none; }
-.ft-dock-stage { position: relative; flex: 1; min-height: 0; padding: var(--space-1) var(--space-2) 0; overflow: hidden; background: var(--bg-primary); }
+.ft-dock-stage { position: relative; isolation: isolate; flex: 1; min-height: 0; padding: var(--space-1) var(--space-2) 0; overflow: hidden; background: var(--bg-primary); }
+.ft-dock-gate { position: absolute; top: var(--space-1); left: var(--space-2); right: var(--space-2); z-index: var(--z-raised); display: flex; align-items: center; gap: var(--space-2); min-width: 0; min-height: var(--ctl-lg); box-sizing: border-box; padding: 0 var(--space-2); border: 1px solid var(--accent-line); border-radius: var(--radius-md); background: var(--bg-secondary); box-shadow: var(--shadow-lg); color: var(--text-primary); font-size: var(--fs-12); user-select: none; -webkit-user-select: none; }
+.ft-dock-gate[hidden], .ft-dock-gate-more[hidden], .ft-dock-tab-gate[hidden] { display: none; }
+.ft-dock-gate-mark { display: inline-flex; flex: none; color: var(--accent-ink); }
+.ft-dock-gate-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ft-dock-gate-more { flex: none; padding: 0 var(--space-2h); border: 1px solid var(--line-2); border-radius: var(--radius-pill); color: var(--text-secondary); font-size: var(--fs-11); line-height: 20px; }
+.ft-dock-gate-btns { display: inline-flex; flex: none; gap: var(--space-1h); }
+.ft-dock-tab { position: relative; }
+.ft-dock-tab-gate { position: absolute; top: 2px; left: 2px; width: 8px; height: 8px; border-radius: var(--radius-pill); background: var(--accent-color); box-shadow: 0 0 0 2px var(--bg-secondary); pointer-events: none; }
 .ft-term { height: 100%; user-select: text; -webkit-user-select: text; }
 .ft-term[hidden] { display: none; }
 .ft-term .xterm { height: 100%; }
