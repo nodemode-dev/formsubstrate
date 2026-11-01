@@ -4,27 +4,9 @@ import { el, patchList, q, setClass, setHidden, setHtml, setText, setTitle } fro
 import { t } from './i18n';
 import { icon } from './icons';
 import type { MenuDef, MenuItem } from './menu';
-
-export function fuzzyScore(query: string, text: string): number | null {
-  const qs = Array.from(query.toLowerCase()), raw = Array.from(text), ts = raw.map((c) => c.toLowerCase()), m = qs.length, n = ts.length;
-  if (!m) return 0;
-  if (m > n) return null;
-  const opens = (j: number): boolean => j === 0 || /[\s>\-/(.,:]/.test(raw[j - 1]) || (raw[j] !== ts[j] && raw[j - 1] === ts[j - 1] && /[a-z]/.test(ts[j - 1]));
-  let prev = new Float64Array(n).fill(-Infinity), row = new Float64Array(n);
-  for (let i = 0; i < m; i++) {
-    let earlier = -Infinity;
-    for (let j = 0; j < n; j++) {
-      if (j >= 2) earlier = Math.max(earlier, prev[j - 2]);
-      if (ts[j] !== qs[i]) { row[j] = -Infinity; continue; }
-      const own = 1 + (opens(j) ? 5 : 0) - j * 0.01, before = i === 0 ? 0 : Math.max(j >= 1 ? prev[j - 1] + 7 : -Infinity, earlier);
-      row[j] = before === -Infinity ? -Infinity : before + own;
-    }
-    [prev, row] = [row, prev];
-  }
-  let best = -Infinity;
-  for (let j = 0; j < n; j++) best = Math.max(best, prev[j]);
-  return best === -Infinity ? null : Math.round(best) - Math.floor(n / 8);
-}
+import { fuzzyScore } from './palette/fuzzy';
+import { filterFileSymbols, loadFileSymbols, scopeOf, searchWorkspaceSymbols, type FileSymbols, type SymbolRow, type SymbolScope, type SymbolView } from './palette/symbols';
+import { isAbort } from '../io/lsp';
 
 function pathsOf(menus: MenuDef[]): Map<string, string> {
   const out = new Map<string, string>();
@@ -39,9 +21,13 @@ function pathsOf(menus: MenuDef[]): Map<string, string> {
   return out;
 }
 
-interface Hit { key: string; label: string; meta: string; icon: string; enabled: boolean; why?: string; score: number; on?: boolean; run: () => void }
+interface Hit { key: string; label: string; meta: string; icon: string; enabled: boolean; why?: string; score: number; on?: boolean; sym?: SymbolRow; gap?: boolean; run: () => void }
 
 const SHOWN = 12;
+const DEBOUNCE_MS = 140;
+const SLOW_MS = 250;
+const RETRY_MS = 1200;
+const RETRIES = 5;
 export const PALETTE_CHORD = 'subform:palette-chord';
 
 export class CommandPalette extends Dialog {
@@ -52,9 +38,20 @@ export class CommandPalette extends Dialog {
   private selected = 0;
   private paths = new Map<string, string>();
   private recent: string[] = [];
+  onOpenSymbol: ((path: string, line: number, col: number) => void) | null = null;
+  private scope: SymbolScope | null = null;
+  private fileAll: FileSymbols | null = null;
+  private fileSerial = 0;
+  private abort: AbortController | null = null;
+  private timer = 0;
+  private slow = 0;
+  private tries = 0;
+  private lastQuery = '';
+  private pool = 0;
 
   constructor(private readonly commands: Commands, private readonly menus: () => MenuDef[]) {
     super('Search', 560);
+    this.onClose = () => this.stopSymbols();
     const box = el('<div class="cv-palette-box"></div>');
     box.append(this.list, this.empty);
     this.body.append(this.input, box);
@@ -77,10 +74,14 @@ export class CommandPalette extends Dialog {
     });
   }
 
-  show(): void {
-    if (this.isOpen) return;
+  show(prefix = ''): void {
+    if (this.isOpen) {
+      if (prefix) { this.input.value = prefix; this.selected = 0; this.render(); this.input.focus(); }
+      return;
+    }
     this.paths = pathsOf(this.menus());
-    this.input.value = '';
+    this.input.value = prefix;
+    this.input.placeholder = t('Search commands, @ for file symbols, # for workspace symbols');
     this.selected = 0;
     this.render();
     this.open(this.input);
@@ -89,12 +90,93 @@ export class CommandPalette extends Dialog {
   private runHit(i: number): void {
     const h = this.hits[i];
     if (!h?.enabled) return;
-    this.recent = [h.key, ...this.recent.filter((k) => k !== h.key)].slice(0, SHOWN);
+    if (!h.sym) this.recent = [h.key, ...this.recent.filter((k) => k !== h.key)].slice(0, SHOWN);
     this.close();
     h.run();
   }
 
+  private stopSymbols(): void {
+    this.abort?.abort();
+    this.abort = null;
+    window.clearTimeout(this.timer);
+    window.clearTimeout(this.slow);
+    this.fileSerial++;
+    this.scope = null;
+    this.fileAll = null;
+    this.lastQuery = '';
+  }
+
+  private symbolHit(r: SymbolRow): Hit {
+    return { key: r.key, label: r.name, meta: r.where, icon: '', enabled: true, why: `${r.path}:${r.line}`, score: r.score, sym: r, run: () => { this.onOpenSymbol?.(r.path, r.line, r.col); } };
+  }
+
+  private showView(view: SymbolView): void {
+    window.clearTimeout(this.slow);
+    this.hits = view.rows.map((r) => this.symbolHit(r));
+    this.selected = Math.max(0, Math.min(this.selected, this.hits.length - 1));
+    this.paint();
+    setText(this.empty, view.note);
+    setHidden(this.empty, this.hits.length > 0 || !view.note);
+  }
+
+  private pending(): void {
+    window.clearTimeout(this.slow);
+    this.slow = window.setTimeout(() => {
+      if (this.hits.length || !this.scope) return;
+      setText(this.empty, t('Searching...'));
+      setHidden(this.empty, false);
+    }, SLOW_MS);
+  }
+
+  private renderSymbols(scope: SymbolScope, query: string): void {
+    if (scope !== this.scope) {
+      this.stopSymbols();
+      this.scope = scope;
+      this.showView({ rows: [], note: '', again: false });
+    }
+    if (query !== this.lastQuery) this.tries = 0;
+    this.lastQuery = query;
+    if (scope === 'file') {
+      if (this.fileAll) { this.showView(filterFileSymbols(this.fileAll, query)); return; }
+      const serial = ++this.fileSerial;
+      this.pending();
+      void loadFileSymbols().then((all) => {
+        if (serial !== this.fileSerial || this.scope !== 'file') return;
+        if (all.rows.length) this.fileAll = all;
+        this.showView(filterFileSymbols(all, scopeOf(this.input.value).query));
+      });
+      return;
+    }
+    window.clearTimeout(this.timer);
+    if (!query) {
+      this.abort?.abort();
+      this.showView({ rows: [], note: t('Type a symbol name'), again: false });
+      return;
+    }
+    this.timer = window.setTimeout(() => { void this.runWorkspace(query); }, DEBOUNCE_MS);
+  }
+
+  private async runWorkspace(query: string): Promise<void> {
+    this.abort?.abort();
+    const ac = new AbortController();
+    this.abort = ac;
+    this.pending();
+    try {
+      const view = await searchWorkspaceSymbols(query, ac.signal);
+      if (ac.signal.aborted || this.scope !== 'workspace') return;
+      this.showView(view);
+      if (view.again && this.tries++ < RETRIES) this.timer = window.setTimeout(() => { void this.runWorkspace(query); }, RETRY_MS);
+    } catch (e) {
+      if (isAbort(e) || ac.signal.aborted || this.scope !== 'workspace') return;
+      this.showView({ rows: [], note: t('Symbols could not be searched'), again: false });
+    }
+  }
+
   private render(): void {
+    const mode = scopeOf(this.input.value);
+    if (mode.scope) { this.renderSymbols(mode.scope, mode.query); return; }
+    if (this.scope) this.stopSymbols();
+    setText(this.empty, t('No command matches.'));
     const query = this.input.value.trim(), hits: Hit[] = [];
     const first = (key: string): number => { const i = this.recent.indexOf(key); return query || i < 0 ? 0 : 1000 - i; };
     for (const c of this.commands.all()) {
@@ -109,22 +191,32 @@ export class CommandPalette extends Dialog {
     hits.sort((a, b) => b.score - a.score || a.label.localeCompare(b.label));
     this.hits = hits.slice(0, SHOWN);
     this.selected = Math.max(0, Math.min(this.selected, this.hits.length - 1));
-    patchList(this.list, this.hits, {
-      key: (h) => String(this.hits.indexOf(h)),
+    this.paint();
+    setHidden(this.empty, this.hits.length > 0);
+  }
+
+  private paint(): void {
+    this.pool = Math.max(this.pool, this.hits.length);
+    const items: Hit[] = Array.from({ length: this.pool }, (_, i) => this.hits[i] ?? { key: '', label: '', meta: '', icon: '', enabled: false, score: 0, gap: true, run: () => undefined });
+    patchList(this.list, items, {
+      key: (h) => String(items.indexOf(h)),
       create: (h) => {
-        const n = el<HTMLButtonElement>('<button class="cv-list-row cv-palette-row" type="button" role="option" tabindex="-1"><span class="cv-palette-icon"></span><span class="cv-list-name"></span><span class="cv-list-meta"></span></button>');
+        const n = el<HTMLButtonElement>('<button class="cv-list-row cv-palette-row" type="button" role="option" tabindex="-1"><span class="cv-palette-icon"></span><span class="cv-palette-kind"></span><span class="cv-list-name"></span><span class="cv-palette-badge"></span><span class="cv-list-meta"></span></button>');
         this.fill(n, h);
         return n;
       },
       update: (n, h) => this.fill(n, h),
     });
-    setHidden(this.empty, this.hits.length > 0);
     this.mark();
   }
 
   private fill(n: HTMLElement, h: Hit): void {
     setText(q(n, '.cv-list-name'), h.label);
     setText(q(n, '.cv-list-meta'), h.meta);
+    setHidden(n, !!h.gap);
+    setClass(n, 'is-symbol', !!h.sym);
+    setText(q(n, '.cv-palette-kind'), h.sym?.kind ?? '');
+    setText(q(n, '.cv-palette-badge'), h.sym?.badge ?? '');
     setClass(n, 'is-off', !h.enabled);
     setClass(n, 'is-on', !!h.on);
     if (h.why || n.title) setTitle(n, h.why ?? '');
@@ -137,5 +229,10 @@ export class CommandPalette extends Dialog {
       setClass(n, 'is-selected', i === this.selected);
       if (n.getAttribute('aria-selected') !== String(i === this.selected)) n.setAttribute('aria-selected', String(i === this.selected));
     });
+    const row = this.list.children[this.selected] as HTMLElement | undefined;
+    if (!row || !this.scope) return;
+    const top = row.offsetTop, bottom = top + row.offsetHeight, view = this.list.clientHeight;
+    if (top < this.list.scrollTop) this.list.scrollTop = top;
+    else if (bottom > this.list.scrollTop + view) this.list.scrollTop = bottom - view;
   }
 }

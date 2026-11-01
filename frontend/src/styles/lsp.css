@@ -68,3 +68,12 @@
 body.animations-disabled .cm-editor .cm-lintRange { transition: none; }
 @keyframes cv-tip-ready { from { visibility: hidden; } to { visibility: visible; } }
 .cm-editor .cm-tooltip, .cm-tooltip { animation: cv-tip-ready 0s linear 140ms both; }
+
+.cv-palette-list { position: relative; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+.cv-palette-row[hidden] { display: none; }
+.cv-palette-kind, .cv-palette-badge { display: none; }
+.cv-palette-row.is-symbol { grid-template-columns: var(--size-field) minmax(0, 1fr) 5ch minmax(0, 0.8fr); }
+.cv-palette-row.is-symbol .cv-palette-icon { display: none; }
+.cv-palette-row.is-symbol .cv-palette-kind { display: inline-flex; align-items: center; justify-content: center; height: var(--size-icon-sm); border-radius: var(--radius-sm); background: var(--bg-tertiary); color: var(--accent-ink); font-family: var(--font-mono); font-size: var(--fs-10); font-weight: 600; }
+.cv-palette-row.is-symbol .cv-palette-badge { display: block; overflow: hidden; color: var(--text-muted); font-size: var(--fs-10); text-align: center; white-space: nowrap; }
+.cv-palette-row.is-symbol .cv-list-name { color: var(--text-primary); }
