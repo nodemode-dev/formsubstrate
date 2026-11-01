@@ -1,6 +1,7 @@
 import { activateAll } from './extensions/registry';
 import { PATHS_CHANGED, type PathsChanged } from './extensions/files';
 import './extensions/search';
+import './extensions/git';
 import { setTerminalHook } from './extensions/sessions';
 import { systemStatus } from './io/api';
 import { sessionsClient } from './io/sessions';
@@ -12,6 +13,7 @@ import { brandMark } from './ui/brand';
 import { anyDialogOpen, confirmAction, Dialog } from './ui/dialogs';
 import { el, mountOnce, q, revealApp, setClass, setDisabled, setHidden, setText, setTitle } from './ui/dom';
 import { enhanceAllSelects } from './ui/dropdown';
+import { editorFocused, editorWasFocused, trackEditorFocus } from './ui/editor/bridge';
 import { EditorHost } from './ui/editor/editor';
 import { Home } from './ui/home';
 import { onLanguage, startLanguage, startPageTranslator, t } from './ui/i18n';
@@ -20,6 +22,7 @@ import { MenuBar, setMenuStyle, type MenuDef } from './ui/menu';
 import { menusInWindow, MENUS_IN_WINDOW_KEY, NativeMenus, textFieldFocused, wantsNativeMenus } from './ui/native-menu';
 import { installNumberFields } from './ui/number-fields';
 import { openFolderAt, openFolderPrompt } from './ui/open-folder';
+import { reopenLastWorkspace } from './ui/reopen';
 import { applyUiFontSize, autoUiScale, followSystemTheme, loadPrefs, setUiScale, uiScaleChoice, updatePrefs, type Prefs } from './ui/prefs';
 import { SettingsDialog } from './ui/settings';
 import { StatusBar } from './ui/status';
@@ -29,6 +32,7 @@ import { THEMES, applyTheme, readChoice, setTheme } from './ui/themes';
 import { TitleTools } from './ui/titlebar-tools';
 import { toast } from './ui/toast';
 import { Workbench } from './ui/workbench';
+import { installReview } from './ui/review/index';
 import { workspace as store } from './ui/workspace-store';
 
 const APP = 'subform';
@@ -159,16 +163,20 @@ export async function startApp(): Promise<void> {
   wb.editorArea.append(empty);
 
   const commands = new Commands();
+  const views = installReview(store, commands, wb.editorArea, wb.editorHost);
   const later = new Set<string>();
   const soon = (cmd: Command): Command => { later.add(cmd.id); return { ...cmd, enabled: () => false }; };
   commands.blocked = (cmd) => (later.has(cmd.id) ? t('Not available yet') : '');
   const dock = new TerminalDock(root, commands);
 
   let lastField: HTMLElement | null = null;
-  document.addEventListener('focusin', (e) => { if (textFieldFocused() && e.target instanceof HTMLElement) lastField = e.target; }, true);
+  trackEditorFocus();
+  document.addEventListener('focusin', (e) => { if (textFieldFocused() && e.target instanceof HTMLElement && !editorFocused()) lastField = e.target; }, true);
   const usable = (): boolean => !!lastField?.isConnected && lastField.getClientRects().length > 0;
-  const editable = (): boolean => textFieldFocused() || usable();
+  const editorOn = (): boolean => !!editor?.hasDoc && (editorFocused() || editorWasFocused());
+  const editable = (): boolean => editorOn() || (textFieldFocused() && !editorFocused()) || usable();
   const editAction = (id: string): void => {
+    if (editorOn()) { editor?.edit(id); return; }
     if (!textFieldFocused() && usable()) lastField?.focus();
     if (!textFieldFocused()) return;
     const fallback = (): void => { document.execCommand(id === 'select-all' ? 'selectAll' : id); };
@@ -191,7 +199,7 @@ export async function startApp(): Promise<void> {
   const toggleTheme = (): void => { setTheme(THEMES[readChoice().theme]?.light ? 'studio' : 'light'); };
 
   const about = new AboutDialog();
-  const settings = new SettingsDialog({ commands, onPrefs: (p) => { applyUiPrefs(p); followSystemTheme(p); editor?.setOptions({ fontSize: p.editorFontSize, tabSize: p.editorTabSize, wordWrap: p.editorWordWrap }); dock.refreshFont(); } });
+  const settings = new SettingsDialog({ commands, onPrefs: (p) => { applyUiPrefs(p); followSystemTheme(p); editor?.setOptions({ fontSize: p.editorFontSize, tabSize: p.editorTabSize, wordWrap: p.editorWordWrap }); views.setOptions({ fontSize: p.editorFontSize, tabSize: p.editorTabSize, wordWrap: p.editorWordWrap }); dock.refreshFont(); } });
   const palette = new CommandPalette(commands, () => menus);
   let captionButtons: CaptionButtons;
 
@@ -202,13 +210,13 @@ export async function startApp(): Promise<void> {
     { id: 'home-back', label: 'Back', keys: ['Escape'], enabled: () => home.isOpen && !!store.workspace && !textFieldFocused(), run: () => home.hide() },
     soon({ id: 'clone-repo', label: 'Clone Repo...', run: () => undefined }),
     soon({ id: 'new-form-app', label: 'New Form App', run: () => undefined }),
-    { id: 'save', label: 'Save', keys: ['Mod+S'], enabled: () => !!store.active, run: () => { void editor?.save(); } },
-    { id: 'save-all', label: 'Save All', keys: ['Alt+Mod+S'], enabled: () => store.docs.some((d) => d.modified), run: () => { void editor?.saveAll(); } },
+    { id: 'save', label: 'Save', keys: ['Mod+S'], enabled: () => !!store.active, run: () => { if (!views.save()) void editor?.save(); } },
+    { id: 'save-all', label: 'Save All', keys: ['Alt+Mod+S'], enabled: () => store.docs.some((d) => d.modified), run: () => { void editor?.saveAll(); views.saveAll(); } },
     { id: 'close-tab', label: 'Close Tab', keys: ['Mod+W'], enabled: () => !!store.active, run: () => { if (store.active) void requestClose(store.active.id); } },
     { id: 'settings', label: 'Preferences...', keys: ['Mod+,'], run: () => settings.open() },
     { id: 'quit', label: 'Quit', run: () => { void (async () => {
       if (store.docs.some((d) => d.modified) && !(await confirmAction('Quit without saving', t('Some files have unsaved changes.'), 'Quit', true))) return;
-      if (isTauri()) void useWindow((w) => w.close()); else window.close();
+      if (isTauri()) void useWindow((w) => w.destroy()); else window.close();
     })(); } },
     edit('undo', 'Undo', ['Mod+Z']),
     edit('redo', 'Redo', ['Shift+Mod+Z']),
@@ -222,6 +230,7 @@ export async function startApp(): Promise<void> {
     { id: 'toggle-word-wrap', label: 'Word Wrap', keys: ['Alt+Z'], checked: () => loadPrefs().editorWordWrap, run: () => {
       const p = updatePrefs({ editorWordWrap: !loadPrefs().editorWordWrap });
       editor?.setOptions({ wordWrap: p.editorWordWrap });
+      views.setOptions({ wordWrap: p.editorWordWrap });
       status.setHint(t(p.editorWordWrap ? 'Word wrap on' : 'Word wrap off'));
     } },
     { id: 'command-palette', label: 'Command Palette...', keys: ['Shift+Mod+P', 'Mod+K'], run: () => palette.show() },
@@ -242,8 +251,6 @@ export async function startApp(): Promise<void> {
     { id: 'terminal-toggle', label: 'Toggle Terminal', keys: ['Mod+J'], checked: () => dock.isOpen, run: () => dock.toggle() },
     { id: 'terminal-new', label: 'New Terminal', run: () => { void dock.create('shell'); } },
     { id: 'terminal-new-claude', label: 'New Claude Code Terminal', run: () => { void dock.create('claude'); } },
-    soon({ id: 'git-status', label: 'Git Status', run: () => undefined }),
-    soon({ id: 'git-commit', label: 'Commit...', run: () => undefined }),
     { id: 'minimize', label: 'Minimize', keys: ['Mod+M'], enabled: isTauri, run: () => { void useWindow((w) => w.minimize()); } },
     { id: 'zoom', label: 'Zoom', enabled: isTauri, run: () => { void useWindow((w) => w.toggleMaximize()); } },
     soon({ id: 'help', label: 'Help', keys: ['F1'], run: () => undefined }),
@@ -264,7 +271,7 @@ export async function startApp(): Promise<void> {
     { label: 'Run', items: ['run-task', 'run-stop'] },
     { label: 'Terminal', items: ['terminal-toggle', '-', 'terminal-new', 'terminal-new-claude'] },
     { label: 'Agents', items: ['agent-new', 'agent-sessions'] },
-    { label: 'Git', items: ['git-status', 'git-commit'] },
+    { label: 'Git', items: ['git-status', 'git-commit', 'git-commit-all', '-', 'git-snapshot', 'git-review', '-', 'git-push', 'git-sign-push'] },
     { label: 'Window', items: ['minimize', 'zoom'] },
     { label: 'Help', items: ['help', 'about', '-', 'report-issue'] },
   ];
@@ -303,7 +310,7 @@ export async function startApp(): Promise<void> {
     onStatus: (s) => status.setHint(s),
   });
   editor.setOptions({ fontSize: pr.editorFontSize, tabSize: pr.editorTabSize, wordWrap: pr.editorWordWrap });
-  store.on('active', (id) => { if (id) editor?.show(id); });
+  store.on('active', (id) => { if (id && !views.show(id)) editor?.show(id); });
   window.addEventListener(PATHS_CHANGED, (e) => {
     const { from } = (e as CustomEvent<PathsChanged>).detail;
     for (const d of [...store.docs]) {
@@ -321,6 +328,15 @@ export async function startApp(): Promise<void> {
     for (const d of [...store.docs]) { editor?.close(d.path); store.closeDoc(d.id); }
   });
   window.addEventListener('beforeunload', (e) => { if (store.docs.some((d) => d.modified)) e.preventDefault(); });
+  let asking = false;
+  void useWindow((w) => w.onCloseRequested(async (e) => {
+    if (!store.docs.some((d) => d.modified)) return;
+    if (asking) { e.preventDefault(); return; }
+    asking = true;
+    const leave = await confirmAction('Quit without saving', t('Some files have unsaved changes.'), 'Quit', true);
+    asking = false;
+    if (!leave) e.preventDefault();
+  }));
 
   let native: NativeMenus | null = null;
   if (wantsNativeMenus()) {
@@ -392,6 +408,7 @@ export async function startApp(): Promise<void> {
   installNumberFields();
   enhanceAllSelects();
   startPageTranslator();
-  await fontsReady();
+  const [, last] = await Promise.all([fontsReady(), reopenLastWorkspace()]);
+  if (last && !store.workspace) store.setWorkspace(last);
   revealApp();
 }
