@@ -26,6 +26,9 @@ export interface Session {
   tokensSaved?: number;
 }
 
+export interface GateNote { path: string; kind: 'slot' | 'skipped'; slot: string; reason: string; detail: string }
+const OLD_SKIP = 'unchecked, gate skipped:';
+
 export interface SessionNotice { sessionId: string; kind: NoticeKind; text: string }
 export interface NewSessionBody { title: string; mode: SessionMode; prompt?: string; base?: string; permissionMode?: 'default' | 'acceptEdits' | 'plan' }
 export interface Skill { name: string; description: string; path: string; source: 'project' | 'user' }
@@ -206,12 +209,21 @@ export class SessionsClient {
     this.emit('gates', this.gates);
   }
 
-  async bashNotes(session: string): Promise<Array<{ path: string; slot: string }>> {
+  async bashNotes(session: string): Promise<GateNote[]> {
     const r = await owner<{ notes?: unknown }>(`/api/gates/notes?session=${encodeURIComponent(session)}`);
-    const out: Array<{ path: string; slot: string }> = [];
+    const out: GateNote[] = [];
     for (const n of Array.isArray(r.notes) ? r.notes : []) {
-      const o = n as { path?: unknown; slot?: unknown };
-      if (typeof o.path === 'string' && typeof o.slot === 'string') out.push({ path: o.path, slot: o.slot });
+      const o = n as { path?: unknown; slot?: unknown; kind?: unknown; reason?: unknown; message?: unknown };
+      if (typeof o.path !== 'string') continue;
+      const slot = typeof o.slot === 'string' ? o.slot : '';
+      const message = typeof o.message === 'string' ? o.message : '';
+      const old = slot.startsWith(OLD_SKIP);
+      if (o.kind === 'skipped' || old) {
+        const reason = typeof o.reason === 'string' && o.reason ? o.reason : old ? slot.slice(OLD_SKIP.length).trim() : '';
+        out.push({ path: o.path, kind: 'skipped', slot: '', reason, detail: message });
+      } else if (slot) {
+        out.push({ path: o.path, kind: 'slot', slot, reason: '', detail: message });
+      }
     }
     return out;
   }

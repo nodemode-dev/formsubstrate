@@ -1,6 +1,6 @@
 import { formslotState } from '../../io/formslot';
 import { git, type FileReview, type FlaggedCommit, type Hunk, type Review } from '../../io/git';
-import { sessionsClient } from '../../io/sessions';
+import { sessionsClient, type GateNote } from '../../io/sessions';
 import { detailOf, statusOf } from '../../io/workspace';
 import { confirmAction } from '../dialogs';
 import { delayedIndicator, el, patchList, q, setClass, setDisabled, setHidden, setText, setTitle } from '../dom';
@@ -45,6 +45,7 @@ export class ReviewPane implements ViewDoc {
 <div class="cv-rv-bar">
 <div class="cv-rv-heading"><span class="cv-rv-title"></span><span class="cv-rv-target cv-note"></span></div>
 <span class="cv-rv-summary cv-note"></span>
+<span class="cv-rv-skips" data-on="0"></span>
 <div class="cv-rv-tools">
 <button class="cv-wb-tool cv-rv-refresh" type="button">${icon('refresh', 14)}</button>
 <button class="cv-btn cv-btn-primary cv-rv-all" type="button">${icon('check', 14)}<span class="cv-rv-all-t"></span></button>
@@ -57,6 +58,7 @@ export class ReviewPane implements ViewDoc {
   private readonly title = q(this.root, '.cv-rv-title');
   private readonly target = q(this.root, '.cv-rv-target');
   private readonly summary = q(this.root, '.cv-rv-summary');
+  private readonly skips = q(this.root, '.cv-rv-skips');
   private readonly notice = q(this.root, '.cv-rv-notice');
   private readonly noticeText = q(this.root, '.cv-rv-notice-t');
   private readonly fixBtn = q<HTMLButtonElement>(this.root, '.cv-rv-fix');
@@ -75,7 +77,7 @@ export class ReviewPane implements ViewDoc {
   private timer = 0;
   private noticeTimer = 0;
   private flagged: FlaggedCommit[] = [];
-  private bashSlots = new Map<string, string>();
+  private gateNotes = new Map<string, GateNote>();
   private flash = '';
   private flashBad = false;
   private fixing = false;
@@ -112,12 +114,27 @@ export class ReviewPane implements ViewDoc {
 
   private paintBadge(badge: HTMLElement, path: string): void {
     paintProvenance(badge, path);
-    const slot = this.bashSlots.get(path);
-    if (!slot) return;
+    const note = this.gateNotes.get(path);
+    if (!note) return;
     setHidden(badge, false);
-    setText(badge, `${t('Bash')} · ${t('slot')} ${slot}`);
-    setTitle(badge, `${t('Written by Bash, overlaps slot')} ${slot}`);
+    if (note.kind === 'skipped') {
+      const reason = note.reason ? `${t('Gate skipped')}: ${note.reason}` : t('Gate skipped');
+      setText(badge, reason);
+      setTitle(badge, note.detail ? `${reason}\n${note.detail}` : reason);
+      if (badge.dataset.state !== 'skipped') badge.dataset.state = 'skipped';
+      return;
+    }
+    setText(badge, `${t('Bash')} · ${t('slot')} ${note.slot}`);
+    setTitle(badge, `${t('Written by Bash, overlaps slot')} ${note.slot}`);
     if (badge.dataset.state !== 'behind') badge.dataset.state = 'behind';
+  }
+
+  private paintSkips(): void {
+    let n = 0;
+    for (const note of this.gateNotes.values()) if (note.kind === 'skipped') n++;
+    setText(this.skips, n ? `${n} ${t(n === 1 ? 'gate skipped' : 'gates skipped')}` : '');
+    setTitle(this.skips, n ? t('The slot check could not run for these writes. Look at the files marked Gate skipped.') : '');
+    if (this.skips.dataset.on !== (n ? '1' : '0')) this.skips.dataset.on = n ? '1' : '0';
   }
 
   activate(): void {
@@ -156,7 +173,7 @@ export class ReviewPane implements ViewDoc {
       const [r, flagged, bash] = await Promise.all([git.review(this.session), this.session ? git.audit(this.session).catch(() => null) : Promise.resolve([] as FlaggedCommit[]), this.session ? sessionsClient.bashNotes(this.session).catch(() => []) : Promise.resolve([])]);
       if (mine !== this.seq || this.disposed) return;
       this.review = r;
-      this.bashSlots = new Map(bash.map((n) => [n.path, n.slot]));
+      this.gateNotes = new Map(bash.map((n) => [n.path, n]));
       if (flagged) this.flagged = flagged;
       this.failed = '';
     } catch (err) {
@@ -358,6 +375,7 @@ export class ReviewPane implements ViewDoc {
     for (const f of files) { added += f.added; removed += f.removed; }
     const snaps = this.review?.snapshots ?? 0;
     setText(this.summary, this.review ? [`${files.length} ${t(files.length === 1 ? 'file' : 'files')}`, `+${added} -${removed}`, snaps ? `${snaps} ${t(snaps === 1 ? 'snapshot' : 'snapshots')}` : ''].filter(Boolean).join(' · ') : '');
+    this.paintSkips();
     setText(q(this.allBtn, '.cv-rv-all-t'), t('Accept all and commit'));
     setDisabled(this.allBtn, !files.length || this.allBusy);
     setTitle(this.allBtn, t('Stage every change, then commit with the message in Source Control. With an empty message the box is focused instead.'));

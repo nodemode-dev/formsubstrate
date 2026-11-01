@@ -105,6 +105,8 @@ def add_note(body: dict) -> dict:
     note = {
         "path": str(body.get("path") or "")[:2000],
         "slot": str(body.get("slot") or "")[:200],
+        "kind": "skipped" if body.get("kind") == "skipped" else "slot",
+        "reason": str(body.get("reason") or "")[:300],
         "tool": str(body.get("tool") or "Bash")[:40],
         "message": str(body.get("message") or "")[:TEXT_MAX],
         "created": svc._now(),

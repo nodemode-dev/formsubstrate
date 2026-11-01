@@ -52,3 +52,11 @@ The badge toggled between display none and shown when drift arrived, which reflo
 - logged: v0.11.0 · 2026-10-30
 
 `load` also reads `GET /api/gates/notes?session=` (errors read as none) into a path to slot map. `paintBadge` calls `paintProvenance` and, when the file has a note, reuses the same badge element for the text "Bash · slot X" (title "Written by Bash, overlaps slot X", warn colour through `data-state="behind"`). No node is added, so the fixed-width badge keeps the row layout. The notes are fetched on each reload, which the git change events already trigger after a Bash write.
+
+### frontend/src/ui/review/review-pane.ts · paintBadge, paintSkips (gate notes of kind skipped)
+
+- refers-to: frontend/src/ui/review/review-pane.ts :: paintBadge, paintSkips, gateNotes; frontend/src/io/sessions.ts :: GateNote, SessionsClient.bashNotes; frontend/src/styles/review.css :: .cv-rv-skips, .cv-fs-prov[data-state="skipped"]
+- kind: rationale
+- logged: v0.14.0 · 2026-10-30
+
+A fail-open gate note now has its own kind and reason, so the badge reads "Gate skipped: <reason>" (for example "Gate skipped: formslot did not answer in time") instead of "Bash · slot unchecked, gate skipped: ...". The title carries the reason and the hook's detail text. Style: `data-state="skipped"`, muted text with a dashed warn border, set on the same badge element, so no node is added and the fixed-width badge keeps the row layout. Slot notes (kind slot) are unchanged. `bashNotes` returns `GateNote` objects; a stored note of the old shape (kind absent, slot starting "unchecked, gate skipped:") is read as a skipped note whose reason is the rest of that text, so notes posted by an older hook still display sensibly. The header shows `.cv-rv-skips` ("N gates skipped", title explains) counting the files whose note is skipped; it is always laid out with a fixed min-width and toggles `visibility` through `data-on`, so it never shifts the bar. The count is of files, not events: a note replaces an earlier note for the same path.

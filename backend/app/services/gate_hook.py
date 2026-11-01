@@ -150,10 +150,10 @@ def trail(text):
         pass
 
 
-def skipped(why, shown, tool_name):
+def skipped(why, shown, tool_name, short=""):
     trail("gate skipped for %s %s: %s" % (tool_name, shown, why))
     if len(STATE["pending"]) < NOTE_CAP:
-        STATE["pending"].append((why, shown, tool_name))
+        STATE["pending"].append((why, shown, tool_name, short or why))
 
 
 def flush_notes():
@@ -166,13 +166,13 @@ def flush_notes():
     if not base or not session:
         return
     root = os.path.normpath(os.environ.get("SUBFORM_WORKTREE", ""))
-    for why, shown, tool_name in STATE["pending"]:
+    for why, shown, tool_name, short in STATE["pending"]:
         left = STATE["host"] - (time.monotonic() - STATE["start"])
         if left < NOTE_MIN_LEFT or not shown:
             return
         rel = os.path.relpath(shown, root) if root != "." and os.path.normpath(shown).startswith(root + os.sep) else shown
         try:
-            call("POST", base + "/api/gates/notes", {"session": session, "tool": tool_name, "path": rel, "slot": ("unchecked, gate skipped: " + why)[:190], "message": ("subform could not ask for this write: " + why)[:3000]}, timeout=min(2, left - 1))
+            call("POST", base + "/api/gates/notes", {"session": session, "tool": tool_name, "path": rel, "kind": "skipped", "reason": short[:200], "slot": "", "message": ("subform could not ask for this write: " + why)[:3000]}, timeout=min(2, left - 1))
         except (OSError, ValueError, urllib.error.URLError):
             pass
 
@@ -222,9 +222,10 @@ def denial(reason):
 
 def reason_for(choice, slot):
     where = "%s:%s" % (slot["path"], slot["line"])
+    find = "If %s exists in this worktree read it there. If it does not, it lives in another family repository: run `formslot slot get %s` (the origin line names the repository and its copies list other paths) and read that file from a checkout of the repository on this computer." % (slot["path"], slot["id"])
     if choice == "use":
-        return "The owner chose to reuse the existing slot %s, which lives at %s. Do not write this file. Read that code and import or extend it where the work belongs." % (slot["id"], where)
-    return "The owner chose to adapt the existing slot %s at %s. Do not write a parallel copy. Start from that code and change only what this task needs." % (slot["id"], where)
+        return "The owner chose USE: reuse the existing slot %s (code at %s). Do not write this file; nothing was written. %s Then import or extend that code where the work belongs. If you truly cannot read it, say so in one line and continue with the rest of the task." % (slot["id"], where, find)
+    return "The owner chose ADAPT: build this file from the existing slot %s (code at %s), not from scratch and not as a parallel copy. This write was held, nothing was written yet, and the owner does not need to be asked again. Do this now: (1) Get the slot code. %s (2) Write the file you were asked for again, as an adaptation of that code: keep its exports, signature, helpers and conventions and change only what this task needs. (3) If you truly cannot read the slot code, say so in one line and write the smallest version you can instead of stopping to ask. The adapted write may open the owner's slot card once more; wait for it." % (slot["id"], where, find)
 
 
 def run_check(binary, payload, limit=10, keep=False):
@@ -255,10 +256,10 @@ def judge(binary, payload, tool_name, shown, deadline):
     try:
         text = run_check(binary, payload)
     except subprocess.TimeoutExpired:
-        skipped("formslot check did not finish in 10 s", shown, tool_name)
+        skipped("formslot check did not finish in 10 s", shown, tool_name, "formslot did not answer in time")
         return None
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
-        skipped("formslot check failed: %s %s" % (type(exc).__name__, str(getattr(exc, "stderr", "") or exc).strip()), shown, tool_name)
+        skipped("formslot check failed: %s %s" % (type(exc).__name__, str(getattr(exc, "stderr", "") or exc).strip()), shown, tool_name, "formslot check failed")
         return None
     if not text:
         return None
@@ -273,7 +274,7 @@ def judge(binary, payload, tool_name, shown, deadline):
     if not slots:
         return ("raw", text)
     if not base or not session:
-        skipped("no engine address or session in the hook environment", shown, tool_name)
+        skipped("no engine address or session in the hook environment", shown, tool_name, "the hook could not find the engine")
         return ("raw", text)
     mark = digest(payload)
     if waived(base, session, shown, slots[0]["id"], mark):
@@ -284,19 +285,19 @@ def judge(binary, payload, tool_name, shown, deadline):
         wait = WAIT_DEFAULT
     wait = min(wait, int(deadline - time.monotonic()))
     if wait < 1:
-        skipped("no time left to wait for the owner", shown, tool_name)
+        skipped("no time left to wait for the owner", shown, tool_name, "no time was left to wait for you")
         return ("context", context)
     try:
         gate = call("POST", base + "/api/gates", {"session": session, "tool": tool_name, "path": shown, "message": context[:4000], "slots": slots[:10], "tokens": estimate(binary, slots), "digest": mark})
         result = call("GET", "%s/api/gates/%s/wait?timeout=%d" % (base, gate["id"], wait), timeout=wait + 15)
     except (OSError, ValueError, KeyError, urllib.error.URLError) as exc:
-        skipped("the engine did not answer the gate: %s" % (exc,), shown, tool_name)
+        skipped("the engine did not answer the gate: %s" % (exc,), shown, tool_name, "the engine did not answer the gate")
         return ("context", context)
     choice = result.get("choice")
     if choice in ("use", "adapt"):
         return ("deny", reason_for(choice, slots[0]))
     if choice != "write":
-        skipped("the gate closed as %s with no answer from the owner" % (choice,), shown, tool_name)
+        skipped("the gate closed as %s with no answer from the owner" % (choice,), shown, tool_name, "the gate closed with no answer")
         return ("context", context)
     return None
 
@@ -1941,7 +1942,7 @@ def post_bash(event, binary):
         if not base or not session or time.monotonic() - start > POST_BUDGET + 0.3:
             break
         try:
-            call("POST", base + "/api/gates/notes", {"session": session, "tool": "Bash", "path": rel, "slot": slot, "message": message[:4000]}, timeout=1)
+            call("POST", base + "/api/gates/notes", {"session": session, "tool": "Bash", "path": rel, "kind": "slot", "slot": slot, "message": message[:4000]}, timeout=1)
         except (OSError, ValueError, urllib.error.URLError):
             break
     head = "formslot: files written by the Bash command overlap existing code or a declined feature. The write already happened and was not blocked; reuse or remove it, or say why a separate one is intended."
@@ -1952,7 +1953,8 @@ def main():
     event = json.loads(sys.stdin.read())
     binary = formslot_bin()
     if not binary:
-        trail("gate skipped: the formslot command was not found (FORMSLOT_BIN unset and not on PATH)")
+        tool_input = event.get("tool_input") if isinstance(event.get("tool_input"), dict) else {}
+        skipped("the formslot command was not found (FORMSLOT_BIN unset and not on PATH)", tool_input.get("file_path") or "", event.get("tool_name") or "Write", "formslot was not found")
         return
     name = event.get("hook_event_name")
     STATE["host"] = 5 if name == "PostToolUse" else 135
