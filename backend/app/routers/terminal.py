@@ -13,10 +13,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 
 from app.core import binres, config, workspace_root
+from app.core.local_guard import require_window
 from app.services import ptyhost_client
 from app.services.ptyhost_client import PtyHostError, PtyHostMissing
 
@@ -38,6 +39,29 @@ class TerminalCreate(BaseModel):
     sessionId: str | None = Field(default=None, max_length=64)
     cols: int = Field(default=100, ge=1, le=1000)
     rows: int = Field(default=30, ge=1, le=500)
+
+
+class TerminalOwned(BaseModel):
+    argv: list[str] = Field(min_length=1, max_length=16)
+    title: str | None = Field(default=None, max_length=120)
+    cols: int = Field(default=100, ge=1, le=1000)
+    rows: int = Field(default=30, ge=1, le=500)
+
+
+def owned_argv(argv: list[str]) -> list[str]:
+    for part in argv:
+        if len(part) > 2048 or any(ord(ch) < 32 or ord(ch) == 127 for ch in part):
+            raise HTTPException(400, "bad command")
+    program = argv[0]
+    if not os.path.isabs(program) or not os.path.isfile(program):
+        raise HTTPException(400, "the command must be the absolute path of an existing program")
+    if sys.platform == "win32":
+        if program.lower().endswith((".bat", ".cmd")):
+            return [os.environ.get("COMSPEC") or "cmd.exe", "/c", *argv]
+        return argv
+    if not os.access(program, os.X_OK):
+        raise HTTPException(400, "that program is not executable")
+    return argv
 
 
 def new_id() -> str:
@@ -381,6 +405,14 @@ async def create_terminal(body: TerminalCreate) -> dict:
     if body.sessionId is not None and not SESSION_RE.match(body.sessionId):
         raise HTTPException(400, "bad session id")
     return await launch(body.kind, cwd, body.title, body.sessionId, body.cols, body.rows)
+
+
+@router.post("/terminals/owned", dependencies=[Depends(require_window)])
+async def create_owned_terminal(body: TerminalOwned) -> dict:
+    home = os.path.realpath(os.path.expanduser("~"))
+    if not os.path.isdir(home):
+        raise HTTPException(404, "the home folder does not exist")
+    return await launch("shell", home, body.title, None, body.cols, body.rows, argv=owned_argv(body.argv))
 
 
 @router.delete("/terminals/{terminal_id}", status_code=204)

@@ -4,7 +4,7 @@ import { Terminal, type ITheme } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import type { Gate, GateChoice } from '../io/formslot';
 import { sessionsClient } from '../io/sessions';
-import { createTerminal, deleteTerminal, listTerminals, terminalSocket, type TerminalInfo, type TerminalKind } from '../io/terminals';
+import { createOwnedTerminal, createTerminal, deleteTerminal, listTerminals, setOwnedOpener, terminalSocket, type OwnedCommand, type TerminalInfo, type TerminalKind } from '../io/terminals';
 import type { Commands } from './commands';
 import { DockPanes, setPaneOpener } from './dock-panes';
 import { el, isMac, patchList, q, setClass, setDisabled, setHidden, setStyleVar, setText, setTitle } from './dom';
@@ -70,7 +70,7 @@ export class TerminalDock {
 <button type="button" class="cv-tt-btn ft-dock-hide" title="${t('Hide Terminal')} (${isMac ? 'Cmd' : 'Ctrl'}+J)" aria-label="${t('Hide Terminal')}">${icon('chevronDown', 15)}</button>
 </div>
 <div class="ft-dock-stage"><p class="ft-dock-empty cv-note" hidden>${t('No terminal is open. Start one with the plus button.')}</p>
-<div class="ft-dock-gate" role="region" aria-live="polite" hidden><span class="ft-dock-gate-mark">${icon('slot', 14)}</span><span class="ft-dock-gate-text"></span><span class="ft-dock-gate-more" hidden></span><span class="ft-dock-gate-btns">${CHOICES.map(([c]) => `<button class="cv-gate-btn${c === 'use' ? ' is-primary' : ''}" type="button" data-choice="${c}"></button>`).join('')}</span></div></div>
+<div class="ft-dock-gate" role="region" aria-label="${t('Existing slot found')}" aria-live="polite" hidden><span class="ft-dock-gate-mark">${icon('slot', 14)}</span><span class="ft-dock-gate-text"></span><span class="ft-dock-gate-more" hidden></span><span class="ft-dock-gate-btns">${CHOICES.map(([c]) => `<button class="cv-gate-btn${c === 'use' ? ' is-primary' : ''}" type="button" data-choice="${c}"></button>`).join('')}</span></div></div>
 <span class="ft-dock-probe" hidden></span>
 </section>`);
   private readonly grip = q(this.root, '.ft-dock-grip');
@@ -109,6 +109,7 @@ export class TerminalDock {
     this.menu = new PopupMenu(commands, null, true);
     this.panes = new DockPanes(q(this.root, '.ft-dock-ptabs'), this.stage, (id) => { void this.openPane(id); });
     setPaneOpener((id) => { void this.openPane(id); });
+    setOwnedOpener((command) => this.create('shell', command));
     const status = app.querySelector('.cv-status');
     app.insertBefore(this.root, status);
     this.newBtn.addEventListener('click', () => {
@@ -167,7 +168,7 @@ export class TerminalDock {
     this.onChange();
   }
 
-  async create(kind: TerminalKind): Promise<void> {
+  async create(kind: TerminalKind, command?: OwnedCommand): Promise<string | null> {
     if (!this.open) {
       this.open = true;
       document.documentElement.setAttribute('data-ft-dock', 'open');
@@ -177,7 +178,7 @@ export class TerminalDock {
     } else if (this.order.length === 0) {
       await this.boot(true);
     }
-    await this.spawn(kind);
+    return this.spawn(kind, command);
   }
 
   refreshFont(): void {
@@ -216,21 +217,21 @@ export class TerminalDock {
     return this.booted;
   }
 
-  private async spawn(kind: TerminalKind): Promise<void> {
+  private async spawn(kind: TerminalKind, command?: OwnedCommand): Promise<string | null> {
     const cur = this.active ? this.tabs.get(this.active)?.view : null;
+    const cols = cur?.term.cols ?? DEFAULT_COLS, rows = cur?.term.rows ?? DEFAULT_ROWS;
     try {
-      const info = await createTerminal({
-        kind,
-        cwd: '.',
-        cols: cur?.term.cols ?? DEFAULT_COLS,
-        rows: cur?.term.rows ?? DEFAULT_ROWS,
-      });
+      const info = command
+        ? await createOwnedTerminal({ argv: command.argv, title: command.title, cols, rows })
+        : await createTerminal({ kind, cwd: '.', cols, rows });
       this.addTab(info);
       this.patchTabs();
       this.select(info.id, true);
+      return info.id;
     } catch (e) {
       toast(`${t('Could not start the terminal')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
       this.syncEmpty();
+      return null;
     }
   }
 

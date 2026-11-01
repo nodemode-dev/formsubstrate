@@ -1,3 +1,4 @@
+import { formslot } from '../io/formslot';
 import { git, type Identity } from '../io/git';
 import { hasSecret, removeSecret, saveSecret } from '../io/secrets';
 import { systemStatus } from '../io/api';
@@ -8,7 +9,8 @@ import { el, patchList, q, setChecked, setClass, setHidden, setText, setTitle, s
 import { icon } from './icons';
 import { languages, onLanguage, setLanguage, t } from './i18n';
 import { colorRow, numberRow, selectRow, sliderRow, toggleRow, type Row } from './panels/controls';
-import { HIDDEN_FOLDERS_EVENT, PERMISSION_MODES, loadPrefs, savePrefs, setUiScale, setUpdateAtStart, UI_FONT_SIZES, UI_SCALES, uiScaleChoice, updateAtStart, type AgentPermissionMode, type Prefs, type UiFontSize } from './prefs';
+import { pickPath } from './path-picker';
+import { FORMSLOT_PATH_EVENT, HIDDEN_FOLDERS_EVENT, PERMISSION_MODES, loadPrefs, savePrefs, setUiScale, setUpdateAtStart, UI_FONT_SIZES, UI_SCALES, uiScaleChoice, updateAtStart, type AgentPermissionMode, type Prefs, type UiFontSize } from './prefs';
 import { readChoice, setAccent, setIntensity, setTheme, THEMES, themeSwatchesHtml } from './themes';
 import { toast } from './toast';
 
@@ -127,6 +129,9 @@ export class SettingsDialog {
   private gitTouched = false;
   private readonly slotEnabled: Row<boolean>;
   private readonly slotAuto: Row<boolean>;
+  private readonly slotPath = el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" autocomplete="off" maxlength="1024" aria-label="Checkout or binary">');
+  private readonly slotBrowse = el<HTMLButtonElement>('<button class="cv-btn" type="button"></button>');
+  private readonly slotFound: { el: HTMLElement; value: HTMLElement };
   private readonly keyList = el('<div class="cv-prefs-keys"></div>');
   private readonly version: HTMLElement;
 
@@ -170,6 +175,16 @@ export class SettingsDialog {
     this.sign = toggleRow('Sign commits', (v) => { this.gitSign = v; this.touchGit(); });
     this.slotEnabled = toggleRow('Enabled', (v) => pick({ formslotEnabled: v }));
     this.slotAuto = toggleRow('Start automatically', (v) => pick({ formslotAutoStart: v }));
+    this.slotFound = valueRow(t('Found at'), t('Not found'));
+    this.slotPath.addEventListener('change', () => pick({ formslotPath: this.slotPath.value.trim().slice(0, 1024) }));
+    this.slotPath.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); this.slotPath.blur(); } });
+    this.slotBrowse.addEventListener('click', () => {
+      void pickPath('folder').then((path) => {
+        if (!path) return;
+        setValue(this.slotPath, path);
+        pick({ formslotPath: path.slice(0, 1024) });
+      });
+    });
     this.accent = colorRow('Accent colour', (hex) => { setAccent(hex); this.sync(); });
     this.intensity = sliderRow('Accent intensity', 0, 1.5, 0.05, (v) => setIntensity(v), { def: 1 });
     this.windowGroup = grp('Window', this.titleBar.el, this.menusRow.el, nt('The custom title bar and the menus in the window change from the next start where they apply.'));
@@ -242,6 +257,7 @@ export class SettingsDialog {
       ],
       formslot: [
         grp('Service', this.slotEnabled.el, this.slotAuto.el, valueRow('Service status', t('Not running')).el),
+        grp('Location', this.pathRow(), this.slotFound.el, nt('The folder you unpacked formslot into, or the formslot program itself. Home uses it to install formslot when none is found.')),
       ],
       'Language Servers': [grp('Servers', nt('Language servers are found on this system and used when they are installed.'))],
       Keys: [grp('Shortcuts', this.keyList, nt('Shortcuts can be changed in a later version.'))],
@@ -367,6 +383,24 @@ export class SettingsDialog {
     this.prefs = loadPrefs();
     this.ctx.onPrefs(this.prefs);
     if (patch.hiddenFolders) document.dispatchEvent(new CustomEvent(HIDDEN_FOLDERS_EVENT));
+    if (patch.formslotPath !== undefined) document.dispatchEvent(new CustomEvent(FORMSLOT_PATH_EVENT));
+  }
+
+  private pathRow(): HTMLElement {
+    const wrap = el('<div class="cv-prefs-secret"></div>');
+    const actions = el('<div class="cv-prefs-actions"></div>');
+    setText(this.slotBrowse, t('Browse'));
+    onLanguage(() => setText(this.slotBrowse, t('Browse')));
+    actions.append(this.slotBrowse);
+    wrap.append(this.fieldRow('Checkout or binary', this.slotPath), actions);
+    return wrap;
+  }
+
+  private async paintFound(): Promise<void> {
+    let found = '';
+    try { found = (await formslot.onboard()).binary ?? ''; } catch { found = ''; }
+    setText(this.slotFound.value, found || t('Not found'));
+    setTitle(this.slotFound.value, found);
   }
 
   private showSection(name: string, scroll: ScrollBehavior | null): void {
@@ -488,6 +522,7 @@ export class SettingsDialog {
     this.permission.set(p.agentPermissionMode);
     this.slotEnabled.set(p.formslotEnabled);
     this.slotAuto.set(p.formslotAutoStart);
+    if (document.activeElement !== this.slotPath) setValue(this.slotPath, p.formslotPath);
 
     const c = readChoice();
     this.accent.set(c.accentColor);
@@ -597,6 +632,7 @@ export class SettingsDialog {
   private async refreshRemote(): Promise<void> {
     this.gitTouched = false;
     void this.loadGit();
+    void this.paintFound();
     try {
       const s = await systemStatus();
       setText(this.version, s.version);

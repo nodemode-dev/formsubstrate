@@ -40,6 +40,7 @@ export interface Prefs {
   agentPermissionMode: AgentPermissionMode;
   formslotEnabled: boolean;
   formslotAutoStart: boolean;
+  formslotPath: string;
   gitSignOnCommit: boolean;
   recoveryMinutes: number;
   largeTabs: boolean;
@@ -63,11 +64,12 @@ export const DEFAULT_PREFS: Prefs = {
   favouriteThemes: [], themeAuto: false, themeLight: 'light', themeDark: 'substrata',
   shortcuts: {}, shortcutSets: {}, menuHidden: [], menuColors: {}, dialogValues: {},
   editorFontSize: 13, editorTabSize: 2, editorWordWrap: true, terminalFontSize: 13, terminalDockHeight: 260,
-  agentDefaultModel: '', agentPermissionMode: 'acceptEdits', formslotEnabled: true, formslotAutoStart: true, gitSignOnCommit: true, recoveryMinutes: 1,
+  agentDefaultModel: '', agentPermissionMode: 'acceptEdits', formslotEnabled: true, formslotAutoStart: true, formslotPath: '', gitSignOnCommit: true, recoveryMinutes: 1,
   largeTabs: false, reopenLastWorkspace: true, hiddenFolders: [], allowTypedPaths: false, trustedWorkspaces: [], trustAsked: [], sidebarWidth: 280, prefsRevision: 3,
 };
 
 export const HIDDEN_FOLDERS_EVENT = 'subform:hidden-folders';
+export const FORMSLOT_PATH_EVENT = 'subform:formslot-path';
 
 const KEY = 'subform.prefs';
 const ZOOM_KEY = 'subform.uiZoom';
@@ -129,6 +131,24 @@ function cleanDialogValues(v: unknown): Record<string, Record<string, DialogValu
   return out;
 }
 
+const LEGACY_FORMSLOT_KEY = 'subform.formslot.checkout';
+let legacyTaken: string | null = null;
+
+function legacyFormslotPath(): string {
+  if (legacyTaken === null) {
+    let old = '';
+    try {
+      old = (localStorage.getItem(LEGACY_FORMSLOT_KEY) ?? '').trim().slice(0, 1024);
+      localStorage.removeItem(LEGACY_FORMSLOT_KEY);
+    } catch {
+      old = '';
+    }
+    legacyTaken = old;
+    if (old) queueMicrotask(() => { savePrefs({ ...loadPrefs(), formslotPath: old }); });
+  }
+  return legacyTaken;
+}
+
 export function loadPrefs(): Prefs {
   const d = DEFAULT_PREFS;
   try {
@@ -161,6 +181,7 @@ export function loadPrefs(): Prefs {
       agentPermissionMode: PERMISSION_MODES.some(([k]) => k === r.agentPermissionMode) ? r.agentPermissionMode as AgentPermissionMode : d.agentPermissionMode,
       formslotEnabled: flag(r.formslotEnabled, d.formslotEnabled),
       formslotAutoStart: flag(r.formslotAutoStart, d.formslotAutoStart),
+      formslotPath: typeof r.formslotPath === 'string' ? r.formslotPath.trim().slice(0, 1024) : legacyFormslotPath(),
       gitSignOnCommit: flag(r.gitSignOnCommit, d.gitSignOnCommit),
       recoveryMinutes: Math.round(num(r.recoveryMinutes, 1, 60, d.recoveryMinutes)),
       largeTabs: flag(r.largeTabs, d.largeTabs),

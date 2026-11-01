@@ -305,3 +305,11 @@ Review finding: the first import wrote anything under `.subform/`, but other fea
 - logged: v0.14.0 · 2026-10-30
 
 Security review changes to `/api/runs`: the start and rerun bodies carry `trusted`, and claude mode or any graph with a tool node answers 403 without it (checked in `_begin`, server side). `GET /api/runs/approvals` lists every pending park (id, run_id, node, tool, arguments, diff); `POST /api/runs/approvals/{run_id}` needs `{approval: <park id>, approved}` and answers 404 for an unknown park; a body without `approval` is a 422, which breaks the older callers in `extensions/approvals` and the recipes bridge until they send the id. `POST /runs/{id}/resume` takes an optional `park`. Graph errors from path checks answer 403. History is read from the data directory, not the workspace; the earlier note about `.subform/runs` is superseded.
+
+### backend/app/routers/terminal.py · create_owned_terminal
+
+- refers-to: backend/app/routers/terminal.py :: TerminalOwned, owned_argv, create_owned_terminal; frontend/src/io/terminals.ts :: createOwnedTerminal
+- kind: rationale
+- logged: v0.15.0 · 2026-10-30
+
+`POST /api/terminals/owned` starts a terminal for the owner's own commands (the Home formslot card) with no workspace open. It needs the window token (`require_window`), which a page without the token, and so an agent session, does not have. The folder is always the user's home folder (`~`), never a body field, so `confine()` and its workspace rule are untouched for every other route. The body is an argv list, not a typed line: the first element must be an absolute path of an existing executable file (a `.bat` or `.cmd` on Windows is wrapped in `%COMSPEC% /c`), no element may hold a control character or exceed 2048 characters, and at most 16 elements. The program is spawned directly with that argv, so nothing is parsed by a shell and the old timing hack (wait for the socket, then type) is gone. The terminal is an ordinary shell-kind terminal for listing, attaching, resizing and killing, and it ends when the program ends. This is as powerful as the owner already is (the shell terminal runs anything), so the window token is the whole gate.

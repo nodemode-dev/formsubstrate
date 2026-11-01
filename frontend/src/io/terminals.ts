@@ -1,4 +1,5 @@
 import { request } from './api';
+import { owner } from './window-token';
 
 export type TerminalKind = 'shell' | 'claude';
 
@@ -45,6 +46,28 @@ export async function listTerminals(): Promise<TerminalInfo[]> {
 
 export function createTerminal(body: CreateTerminal): Promise<TerminalInfo> {
   return request<TerminalInfo>('/api/terminals', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export interface OwnedCommand {
+  argv: string[];
+  title?: string;
+}
+
+type OwnedOpener = (command: OwnedCommand) => Promise<string | null>;
+
+let ownedOpener: OwnedOpener | null = null;
+
+export function setOwnedOpener(fn: OwnedOpener | null): void {
+  ownedOpener = fn;
+}
+
+export function openOwnedTerminal(command: OwnedCommand): Promise<string | null> {
+  if (ownedOpener) return ownedOpener(command);
+  return createOwnedTerminal({ ...command, cols: 100, rows: 30 }).then((info) => info.id);
+}
+
+export function createOwnedTerminal(body: { argv: string[]; title?: string; cols: number; rows: number }): Promise<TerminalInfo> {
+  return owner<TerminalInfo>('/api/terminals/owned', { method: 'POST', body: JSON.stringify(body) });
 }
 
 export function deleteTerminal(id: string): Promise<void> {
