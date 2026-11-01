@@ -87,7 +87,7 @@ export const git = {
   discard(paths: string[], untracked: boolean, session?: string | null): Promise<GitStatus> {
     return call<GitStatus>('/api/git/discard', post(withSession({ paths, untracked }, session)));
   },
-  commit(message: string, opts: { amend?: boolean; all?: boolean; session?: string | null } = {}): Promise<{ commit: string; summary: string; audit: Audit }> {
+  commit(message: string, opts: { amend?: boolean; all?: boolean; session?: string | null } = {}): Promise<{ commit: string; summary: string; audit: Audit; identitySource?: 'subform' | 'git' | 'none' }> {
     return call('/api/git/commit', post(withSession({ message, amend: opts.amend === true, all: opts.all === true }, opts.session)));
   },
   async log(opts: { session?: string | null; limit?: number; ref?: string } = {}): Promise<Commit[]> {
