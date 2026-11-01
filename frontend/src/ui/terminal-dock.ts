@@ -433,7 +433,12 @@ export class TerminalDock {
   }
 
   private async showTab(tab: Tab, focus: boolean): Promise<void> {
-    await Promise.all([this.fonts(), loadXterm()]);
+    try {
+      await Promise.all([this.fonts(), loadXterm()]);
+    } catch (e) {
+      toast(`${t('Could not start the terminal')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+      return;
+    }
     if (this.active !== tab.info.id || !this.open) return;
     if (!tab.host) {
       tab.host = el<HTMLElement>('<div class="ft-term"></div>');
@@ -441,7 +446,8 @@ export class TerminalDock {
     }
     setHidden(tab.host, false);
     if (!tab.view) this.build(tab, tab.host);
-    const view = tab.view as View;
+    const view = tab.view as View | undefined;
+    if (!view) return;
     requestAnimationFrame(() => {
       if (this.active !== tab.info.id || !this.open) return;
       this.fitView(tab);

@@ -2235,3 +2235,11 @@ The first `refreshEngine()` is awaited together with fonts and the reopened work
 
 The run-visit select and every run-settings control had no accessible name: the field label is a `span`, not a `label`, so nothing tied it to its control. Each label now gets the id `ri-l-<field id>` and its control points at it with `aria-labelledby`, which keeps the span and the layout as they were. The visit select gets its name in `paintStatic`, so it follows the language like the other static texts.
 - todo: the right-hand stage panel tabs (`cv-wb-rtab` in `ui/panels/stage-panels.ts`) are still one Tab stop each and need the roving tabindex the left rail has.
+
+### frontend/src/ui/terminal-dock.ts · showTab (xterm chunk failure)
+
+- refers-to: frontend/src/ui/terminal-dock.ts :: TerminalDock.showTab
+- kind: warning-context
+- logged: v0.16.0 · 2026-11-01
+
+Since xterm became a lazy chunk, a failed import rejected `showTab` silently and a missing view threw inside the animation frame. A failed load now shows the same "Could not start the terminal" toast as a failed start and returns, and the next show tries the import again; a tab with no view returns before the frame is scheduled.
