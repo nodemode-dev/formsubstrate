@@ -3,14 +3,14 @@
 <p align="center"><b>The Form family's developer workbench: a code editor in the family's shell that runs several Claude Code agents at once, each in its own git worktree, and shows what formslot already knows before an agent writes.</b></p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.4.1-f97316" alt="version v0.4.1" />
+  <img src="https://img.shields.io/badge/version-v0.5.0-f97316" alt="version v0.5.0" />
   <img src="https://img.shields.io/badge/status-building-8b5cf6" alt="status building" />
   <img src="https://img.shields.io/badge/license-GPL--3.0-555555" alt="license GPL 3.0" />
 </p>
 
 subform opens Form repositories, edits code with language servers and a debugger, hosts Claude Code sessions in terminal tabs and headless runs, reviews their changes hunk by hunk, and commits them under the family's identity and signing rules. It uses the formvis shell (splash, Home, menu bar, title bar, status bar, Preferences) and editor pieces from substrata, ported into a fresh repository.
 
-**Status:** building. Phases F1 to F4 have landed: the engine skeleton, the root scripts and the desktop boot (splash, hidden build, reveal on `app_ready`); then the formvis shell (tokens and themes, title bar with menus and tools, document tab row, status bar, command palette, dialogs and toasts) with zero flash on first paint; then F3 and F4: Home (Start, Recent, Workspaces, Sessions), Preferences in eleven sections with secrets in the system keychain, and the workbench: open a folder, browse its files, edit and save in a CodeMirror 6 editor, and search across the workspace with ripgrep. The editor, terminals and agents arrive in later phases; the plan of record ships in the planning sidecar zip.
+**Status:** building. Phases F1 to F4 have landed: the engine skeleton, the root scripts and the desktop boot (splash, hidden build, reveal on `app_ready`); then the formvis shell (tokens and themes, title bar with menus and tools, document tab row, status bar, command palette, dialogs and toasts) with zero flash on first paint; then F3 and F4: Home (Start, Recent, Workspaces, Sessions), Preferences in eleven sections with secrets in the system keychain, and the workbench: open a folder, browse its files, edit and save in a CodeMirror 6 editor, and search across the workspace with ripgrep, with VS Code style word wrap on by default (Alt+Z). F5 added the terminal dock over a detached pty-host, so shells and Claude Code survive an engine restart, and agent sessions, each in its own git worktree, with a Sessions panel, a chat pane for headless runs and a Skills list. Review, commits and formslot arrive in later phases; the plan of record ships in the planning sidecar zip.
 
 ## Quick start
 
