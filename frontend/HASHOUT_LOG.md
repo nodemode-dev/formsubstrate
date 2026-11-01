@@ -1,7 +1,7 @@
 # HASHOUT_LOG · frontend · subform
 
-Current build version: v0.2.0
-Last updated: 2026-10-30 · Phase F2
+Current build version: v0.2.1
+Last updated: 2026-10-30 · Phase F2, review fixes
 
 ## Org-navi-map
 
@@ -67,6 +67,7 @@ frontend/
 - src/ui leaf modules (icons, themes, prefs, i18n, dialogs, dialog-history, toast, dropdown, number-fields, brand, panels/controls)
 - src/ui shell modules (commands, menu, native-menu, command-palette, caption-buttons, titlebar-tools, tabs, status, jobs-list, workspace-store) and src/app.ts
 - F2 integration (index.html links, main.ts, io/api.ts, fixes)
+- F2 review fixes (v0.2.1)
 - vite.config.ts
 - package.json
 - boot_frontend and oc_install
@@ -1168,6 +1169,64 @@ The shell agent's StatusBar added five slots that had no rules in the ported she
 - logged: v0.2.0 · 2026-10-30
 
 max-width raised from 120px to 168px. formvis's app name is shorter; "subform 2026" was truncated with an ellipsis at the default window width in the F2 paint check, and shows whole at 168px. The hide rules for narrow windows are unchanged.
+
+## F2 review fixes (v0.2.1)
+
+### src/app.ts · key order in declared shortcuts
+
+- refers-to: frontend/src/app.ts :: commands.add
+- kind: warning-context
+- logged: v0.2.1 · 2026-10-30
+
+`comboOf` (ui/commands.ts) names a key event in the family's fixed order Alt, Shift, Mod, then the key, and bindings are matched by that exact text. Redo, Select All Occurrences, Command Palette, Run Task and New Claude Code Session were declared as `Mod+Shift+...`, so they could never match and Ctrl+Shift+P did nothing (fresh-context review). They are now `Shift+Mod+...`. Write every new shortcut in that order; `Alt+Mod+...` is already in order. `comboOf` was left as formvis has it so saved bindings stay compatible across the family.
+
+### src/app.ts · usable last field
+
+- refers-to: frontend/src/app.ts :: startApp
+- kind: rationale
+- logged: v0.2.1 · 2026-10-30
+
+The remembered text field counts only while it is still laid out (`getClientRects` not empty). The palette and dialog inputs live in scrims that stay connected while hidden, so after one visit to the palette every Mod+A, C, V, X and Z outside a field was taken by the edit commands and then dropped, and the browser's own copy never ran.
+
+### src/app.ts and src/ui/titlebar-tools.ts · light test
+
+- refers-to: frontend/src/app.ts :: toggleTheme; frontend/src/ui/titlebar-tools.ts :: syncTheme
+- kind: rationale
+- logged: v0.2.1 · 2026-10-30
+
+Light is the profile's `light` flag, not the id `light`, so Sand, Duck and the other light profiles show the sun state and toggle to Studio Dark. Checked under throttling with Sand saved: `aria-pressed` true.
+
+### src/ui/dialogs.ts · trapTab
+
+- refers-to: frontend/src/ui/dialogs.ts :: trapTab
+- kind: rationale
+- logged: v0.2.1 · 2026-10-30
+
+A dialog is `aria-modal`, so Tab and Shift+Tab wrap inside its frame once DialogHistory has had its turn with the text and number fields; before, Tab left the dialog for the menu bar behind the scrim, where Enter would act. Only laid-out, enabled controls count; a dialog with none keeps focus where it is.
+
+### src/styles/shell.css · busy slot keeps its space
+
+- refers-to: frontend/src/styles/shell.css :: .cv-st-busy
+- kind: rationale
+- logged: v0.2.1 · 2026-10-30
+
+The Working indicator went from display none to inline-flex at 296px, which reflowed every status slot when a job started. It now always takes its 296px and turns visible with `.is-shown` (hidden boxes take no pointer), so a job starting moves nothing.
+
+### src/styles/shell.css · stage text hides
+
+- refers-to: frontend/src/styles/shell.css :: .cv-stage-empty[hidden]
+- kind: explainer
+- logged: v0.2.1 · 2026-10-30
+
+`.cv-stage-empty` sets `display: grid`, which beat the hidden attribute, so the "open a folder" text stayed over the stage once a workspace was set. Added to the shared `[hidden]` rule. The error hint also lost its literal fallback colour; `--danger` is always defined in tokens.css.
+
+### carried from the review
+
+- refers-to: frontend/src/ui/tabs.ts :: Tabs; frontend/src/app.ts :: startApp; frontend/src/ui/themes.ts :: THEMES
+- kind: todo
+- logged: v0.2.1 · 2026-10-30
+
+Not changed in v0.2.1: document tabs have no roving tabindex or arrow keys (F3, with Home); `installNumberFields`, `enhanceAllSelects`, `startLanguage`, `startPageTranslator` and `followSystemTheme` are not called yet and are wired when Preferences lands (F3), before first paint; the theme tables in themes.ts and the boot script in index.html keep literal colours, the documented exception that makes the first frame right.
 
 ## vite.config.ts
 
