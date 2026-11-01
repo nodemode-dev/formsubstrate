@@ -20,6 +20,8 @@ MCP_NAME = "mcp.json"
 ID_ALPHABET = string.ascii_lowercase + string.digits
 ID_RE = re.compile(r"^[a-z0-9]{16}$")
 LIVE_STATES = ("working", "needs-input")
+KNOWN_STATES = ("working", "needs-input", "done", "failed", "stopped")
+REQUIRED_KEYS = ("state", "mode", "title", "repo", "worktree", "branch")
 MESSAGE_MAX = 600
 TAIL_MAX = 4000
 LINE_MAX = 4 * 1024 * 1024
@@ -65,16 +67,44 @@ def _load() -> None:
     if _loaded:
         return
     _loaded = True
+    path = _registry_file()
     try:
-        data = json.loads(_registry_file().read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return
+    try:
+        data = json.loads(text)
+    except ValueError:
+        _set_aside(path)
         return
     items = data.get("sessions") if isinstance(data, dict) else None
     if not isinstance(items, list):
+        _set_aside(path)
         return
+    dropped = False
     for item in items:
-        if isinstance(item, dict) and isinstance(item.get("id"), str) and ID_RE.match(item["id"]):
+        if isinstance(item, dict) and isinstance(item.get("id"), str) and ID_RE.match(item["id"]) and all(isinstance(item.get(k), str) for k in REQUIRED_KEYS):
+            item.setdefault("lastMessage", "")
+            if item["state"] not in KNOWN_STATES:
+                item["state"] = "failed"
+            if item["mode"] not in ("interactive", "headless"):
+                item["mode"] = "interactive"
             _sessions[item["id"]] = item
+        else:
+            dropped = True
+    if dropped:
+        _set_aside(path, copy=True)
+
+
+def _set_aside(path: Path, copy: bool = False) -> None:
+    target = path.with_name(f"{path.name}.corrupt-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}")
+    try:
+        if copy:
+            target.write_bytes(path.read_bytes())
+        else:
+            os.replace(path, target)
+    except OSError:
+        pass
 
 
 def _save() -> None:
@@ -318,7 +348,7 @@ async def _start_claude_terminal(item: dict, args: list[str] | None = None) -> s
 
 
 async def _start_headless(item: dict, prompt: str) -> str:
-    argv = [_claude(), "-p", prompt, "--output-format", "stream-json", "--verbose", *_mcp_arg(item)]
+    argv = [_claude(), "-p", "--output-format", "stream-json", "--verbose", *_mcp_arg(item), "--", prompt]
     return await _launch(item, argv, True)
 
 
@@ -614,9 +644,14 @@ async def resume(session_id: str) -> dict:
         raise Refused(409, "the worktree of this session no longer exists")
     _discover_claude_session(item)
     args = ["--resume", item["claudeSessionId"]] if item.get("claudeSessionId") else ["--continue"]
-    item["terminalId"] = await _start_claude_terminal(item, args)
-    item["mode"] = "interactive"
+    before = item["state"]
     item["state"] = "working"
+    try:
+        item["terminalId"] = await _start_claude_terminal(item, args)
+    except BaseException:
+        item["state"] = before
+        raise
+    item["mode"] = "interactive"
     item["lastMessage"] = _clip("Resumed" + (f" ({item['claudeSessionId']})" if item.get("claudeSessionId") else " (most recent conversation in the worktree)"))
     _changed(item)
     _ensure_consumer()
@@ -643,6 +678,10 @@ async def delete(session_id: str, remove_worktree: bool, force: bool) -> None:
         argv = [_git(), "worktree", "remove"] + (["--force"] if force else []) + [item["worktree"]]
         code, _, err = await _run(argv, cwd=item["repo"] if os.path.isdir(item["repo"]) else None)
         if code != 0:
+            if item.get("state") in LIVE_STATES:
+                item["state"] = "stopped"
+                item["lastMessage"] = _clip("Stopped; the worktree could not be removed")
+                _changed(item)
             raise Refused(409, "git could not remove the worktree: " + (err.strip() or "unknown error"))
         await _run([_git(), "worktree", "prune"], cwd=item["repo"] if os.path.isdir(item["repo"]) else None)
         await _run([_git(), "branch", "-d", item["branch"]], cwd=item["repo"] if os.path.isdir(item["repo"]) else None)

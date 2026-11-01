@@ -3,7 +3,7 @@ import json
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.services import sessions as svc
 
@@ -15,7 +15,7 @@ HEARTBEAT = 15
 class NewSession(BaseModel):
     title: str = ""
     mode: str = "interactive"
-    prompt: str | None = None
+    prompt: str | None = Field(default=None, max_length=100_000)
     base: str | None = None
 
 

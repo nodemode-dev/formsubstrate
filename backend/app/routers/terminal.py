@@ -26,6 +26,8 @@ ID_RE = re.compile(r"^[a-z0-9]{16}$")
 SESSION_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 TITLE_RE = re.compile(rb"\x1b\][02];([^\x07\x1b]{0,200})(?:\x07|\x1b\\)")
 OUTPUT_KIND = b"\x01"
+SUB_QUEUE_CAP = 8 * 1024 * 1024
+INPUT_CAP = 1024 * 1024
 
 
 class TerminalCreate(BaseModel):
@@ -84,9 +86,8 @@ def terminal_env() -> dict[str, str]:
 
 
 def find_mcp_config(cwd: str, session_id: str) -> str | None:
-    direct = Path(cwd) / ".subform" / "mcp.json"
-    if direct.is_file():
-        return str(direct)
+    if not SESSION_RE.match(session_id):
+        return None
     base = Path(worktrees_root())
     if base.is_dir():
         for found in base.glob(f"*/{session_id}/.subform/mcp.json"):
@@ -118,6 +119,8 @@ class Sub:
         self.ws = ws
         self.queue: asyncio.Queue = asyncio.Queue()
         self.next: dict[str, int | None] = {}
+        self.owed: dict[str, int] = {}
+        self.queued = 0
         self.task: asyncio.Task | None = None
 
     async def writer(self) -> None:
@@ -126,12 +129,27 @@ class Sub:
                 item = await self.queue.get()
                 if item is None:
                     return
-                if isinstance(item, bytes):
-                    await self.ws.send_bytes(item)
+                if isinstance(item, tuple):
+                    tid, size, frame = item
+                    await self.ws.send_bytes(frame)
+                    self.queued -= size
+                    if tid in self.next:
+                        self.owed[tid] = self.owed.get(tid, 0) + size
+                    else:
+                        try:
+                            await ptyhost_client.get_client().send({"op": "ack", "id": tid, "bytes": size})
+                        except PtyHostError:
+                            pass
                 else:
                     await self.ws.send_text(item)
         except (WebSocketDisconnect, RuntimeError, OSError):
             return
+
+    def take(self, tid: str, count: int) -> int:
+        have = self.owed.get(tid, 0)
+        given = min(have, count)
+        self.owed[tid] = have - given
+        return given
 
     def text(self, obj: dict) -> None:
         self.queue.put_nowait(json.dumps(obj, separators=(",", ":")))
@@ -197,22 +215,26 @@ class Hub:
                     await client.send({"op": "attach", "id": known, "from": sub.next.get(known)})
 
     async def output(self, client, tid: str, seq: int, data: bytes) -> None:
-        forwarded = False
+        sent = 0
         header = OUTPUT_KIND + tid.encode("ascii")
-        for sub in self.by_id.get(tid, []):
+        for sub in list(self.by_id.get(tid, [])):
             want = sub.next.get(tid)
             if want is None:
                 continue
             end = seq + len(data)
             if end <= want:
                 continue
+            if sub.queued > SUB_QUEUE_CAP:
+                await self.drop(sub)
+                continue
             chunk = data[want - seq:] if want > seq else data
             start = max(seq, want)
-            sub.queue.put_nowait(header + struct.pack(">Q", start) + chunk)
+            sub.queue.put_nowait((tid, len(chunk), header + struct.pack(">Q", start) + chunk))
+            sub.queued += len(chunk)
             sub.next[tid] = end
-            forwarded = True
-        if not forwarded and data:
-            await client.send({"op": "ack", "id": tid, "bytes": len(data)})
+            sent = max(sent, len(chunk))
+        if len(data) > sent:
+            await client.send({"op": "ack", "id": tid, "bytes": len(data) - sent})
         found = TITLE_RE.findall(data)
         if found:
             title = found[-1].decode("utf-8", "replace").strip()
@@ -232,6 +254,15 @@ class Hub:
         self.pending.setdefault(tid, deque()).append(sub)
         await client.send({"op": "attach", "id": tid, "from": start})
 
+    async def drop(self, sub: Sub) -> None:
+        for known in list(sub.next):
+            await self.detach(sub, known)
+        sub.queue.put_nowait(None)
+        try:
+            await sub.ws.close(code=1013)
+        except (RuntimeError, OSError):
+            pass
+
     async def detach(self, sub: Sub, tid: str) -> None:
         subs = self.by_id.get(tid)
         if subs and sub in subs:
@@ -240,6 +271,12 @@ class Hub:
         queue = self.pending.get(tid)
         if queue and sub in queue:
             queue.remove(sub)
+        left = sub.owed.pop(tid, 0)
+        if left > 0 and subs:
+            try:
+                await ptyhost_client.get_client().send({"op": "ack", "id": tid, "bytes": left})
+            except PtyHostError:
+                pass
         if not subs:
             self.by_id.pop(tid, None)
             try:
@@ -371,13 +408,21 @@ async def terminals_ws(websocket: WebSocket) -> None:
                 elif kind == "input":
                     data = msg.get("data")
                     if isinstance(data, str):
-                        await client.send({"op": "write", "id": tid, "data": base64.b64encode(data.encode("utf-8")).decode("ascii")})
+                        raw_in = data.encode("utf-8")
+                        if len(raw_in) > INPUT_CAP:
+                            sub.text({"t": "error", "id": tid, "message": "input is too large"})
+                            continue
+                        await client.send({"op": "write", "id": tid, "data": base64.b64encode(raw_in).decode("ascii")})
                 elif kind == "resize":
-                    await client.send({"op": "resize", "id": tid, "cols": int(msg.get("cols") or 0), "rows": int(msg.get("rows") or 0)})
+                    cols = min(max(int(msg.get("cols") or 0), 1), 1000)
+                    rows = min(max(int(msg.get("rows") or 0), 1), 500)
+                    await client.send({"op": "resize", "id": tid, "cols": cols, "rows": rows})
                 elif kind == "ack":
                     count = msg.get("bytes")
-                    if isinstance(count, int) and count > 0:
-                        await client.send({"op": "ack", "id": tid, "bytes": count})
+                    if isinstance(count, int) and not isinstance(count, bool) and count > 0:
+                        given = sub.take(tid, count)
+                        if given > 0:
+                            await client.send({"op": "ack", "id": tid, "bytes": given})
                 elif kind == "detach":
                     await hub.detach(sub, tid)
             except PtyHostError as exc:

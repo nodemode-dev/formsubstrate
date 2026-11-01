@@ -17,6 +17,7 @@ READ_CHUNK = 65536
 REPLAY_CHUNK = 65536
 MAX_FRAME = 16 * 1024 * 1024
 MIN_COLS, MIN_ROWS = 10, 4
+MAX_COLS, MAX_ROWS = 1000, 500
 IDLE_SECONDS = float(os.environ.get("SUBFORM_PTYHOST_IDLE", "600"))
 ID_RE = re.compile(r"^[a-z0-9]{16}$")
 WINDOWS = sys.platform == "win32"
@@ -147,6 +148,12 @@ class PosixPty:
 
     def force(self):
         self.signal_group(signal.SIGKILL)
+
+    def sweep(self):
+        try:
+            os.killpg(self.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
 
     def close(self):
         if self.closed:
@@ -396,6 +403,9 @@ class Host:
             if term.pty.alive():
                 term.pty.force()
             await self.finalize(term)
+            sweep = getattr(term.pty, "sweep", None)
+            if sweep:
+                sweep()
         else:
             for _ in range(80):
                 if not term.alive:
@@ -496,11 +506,11 @@ class Host:
                 except ValueError:
                     conn.send({"op": "error", "id": tid, "message": "bad data"})
         elif op == "resize":
-            cols = max(MIN_COLS, int(msg.get("cols") or term.cols))
-            rows = max(MIN_ROWS, int(msg.get("rows") or term.rows))
-            term.cols, term.rows = cols, rows
+            cols = min(MAX_COLS, max(MIN_COLS, int(msg.get("cols") or term.cols)))
+            rows = min(MAX_ROWS, max(MIN_ROWS, int(msg.get("rows") or term.rows)))
             if term.alive and not term.finalizing:
                 term.pty.resize(cols, rows)
+            term.cols, term.rows = cols, rows
         elif op == "kill":
             await self.kill(term)
             self.terms.pop(tid, None)
