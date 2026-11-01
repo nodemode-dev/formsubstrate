@@ -8,7 +8,7 @@ const SHOWN = 8;
 
 export class TitleTools {
   readonly root = el('<div class="cv-title-tools"></div>');
-  readonly workspaceSelect = el<HTMLSelectElement>('<select class="cv-tt-select" aria-label="Workspace" hidden></select>');
+  readonly workspaceSelect = el<HTMLSelectElement>('<select class="cv-tt-select" aria-label="Workspace" hidden data-native></select>');
   private readonly theme: HTMLButtonElement;
   private readonly agent: HTMLButtonElement;
   private readonly terminal: HTMLButtonElement;

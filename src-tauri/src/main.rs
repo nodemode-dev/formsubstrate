@@ -145,8 +145,7 @@ fn main() {
                             .visible(reveal::BUILD_VISIBLE)
                             .background_color(reveal::BACKGROUND)
                             .inner_size(width, height)
-                            .min_inner_size(MIN_SIZE.0, MIN_SIZE.1)
-                            .disable_drag_drop_handler();
+                            .min_inner_size(MIN_SIZE.0, MIN_SIZE.1);
                         let builder = if place.width > 0.0 {
                             builder.position(place.x, place.y)
                         } else {

@@ -1,20 +1,31 @@
+import { activateAll } from './extensions/registry';
+import { PATHS_CHANGED, type PathsChanged } from './extensions/files';
+import './extensions/search';
 import { systemStatus } from './io/api';
+import { forgetRecent, readFile, recentWorkspaces, writeFile } from './io/workspace';
 import { CaptionButtons, wantsCustomTitleBar } from './ui/caption-buttons';
 import { CommandPalette } from './ui/command-palette';
 import { comboOf, Commands, type Command } from './ui/commands';
 import { brandMark } from './ui/brand';
 import { anyDialogOpen, confirmAction, Dialog } from './ui/dialogs';
 import { el, mountOnce, q, revealApp, setClass, setDisabled, setHidden, setText, setTitle } from './ui/dom';
-import { onLanguage, t } from './ui/i18n';
+import { enhanceAllSelects } from './ui/dropdown';
+import { EditorHost } from './ui/editor/editor';
+import { Home } from './ui/home';
+import { onLanguage, startLanguage, startPageTranslator, t } from './ui/i18n';
 import { icon } from './ui/icons';
 import { MenuBar, setMenuStyle, type MenuDef } from './ui/menu';
 import { menusInWindow, MENUS_IN_WINDOW_KEY, NativeMenus, textFieldFocused, wantsNativeMenus } from './ui/native-menu';
-import { applyUiFontSize, autoUiScale, loadPrefs, setUiScale, uiScaleChoice, type Prefs } from './ui/prefs';
+import { installNumberFields } from './ui/number-fields';
+import { openFolderAt, openFolderPrompt } from './ui/open-folder';
+import { applyUiFontSize, autoUiScale, followSystemTheme, loadPrefs, setUiScale, uiScaleChoice, type Prefs } from './ui/prefs';
+import { SettingsDialog } from './ui/settings';
 import { StatusBar } from './ui/status';
 import { Tabs } from './ui/tabs';
 import { THEMES, applyTheme, readChoice, setTheme } from './ui/themes';
 import { TitleTools } from './ui/titlebar-tools';
 import { toast } from './ui/toast';
+import { Workbench } from './ui/workbench';
 import { workspace as store } from './ui/workspace-store';
 
 const APP = 'subform';
@@ -67,6 +78,7 @@ async function useWindow(run: (w: import('@tauri-apps/api/window').Window) => Pr
 export function applyUiPrefs(pr: Prefs): void {
   applyUiFontSize(pr);
   setClass(document.body, 'animations-disabled', !pr.animations);
+  setClass(document.body, 'large-tabs', pr.largeTabs);
   setMenuStyle(pr.menuHidden, pr.menuColors);
 }
 
@@ -123,11 +135,25 @@ export async function startApp(): Promise<void> {
   applyTheme(readChoice());
   applyUiPrefs(loadPrefs());
   applyUiZoom();
+  followSystemTheme(loadPrefs());
+  await startLanguage();
   mountOnce(host, SHELL);
   const root = q(host, '.cv-app');
   const stage = q(root, '.cv-stage');
   const empty = el<HTMLElement>(`<p class="cv-stage-empty cv-note">${t('Open a folder or a Form repository to begin')}</p>`);
-  stage.append(empty);
+  let editor: EditorHost | null = null;
+  const openInEditor = async (path: string, line?: number, col?: number): Promise<void> => {
+    if (!editor) return;
+    await editor.open(path, line, col);
+    store.openDoc({ id: path, path, name: path.split('/').pop() || path, modified: editor.isDirty(path) });
+  };
+  const wb = new Workbench(stage, {
+    store,
+    editor: () => (editor ? { open: openInEditor, revealLine: (p: string, l: number, c?: number) => editor?.revealLine(p, l, c) } : null),
+    setHint: (s) => status.setHint(s),
+    flashError: (s) => status.flashError(s),
+  });
+  wb.editorArea.append(empty);
 
   const commands = new Commands();
   const later = new Set<string>();
@@ -151,6 +177,7 @@ export async function startApp(): Promise<void> {
     const doc = store.docs.find((d) => d.id === id);
     if (!doc) return;
     if (doc.modified && !(await confirmAction('Close without saving', `${doc.name} ${t('has unsaved changes.')}`, 'Close', true))) return;
+    editor?.close(id);
     store.closeDoc(id);
   };
   const stepTab = (by: number): void => {
@@ -160,16 +187,21 @@ export async function startApp(): Promise<void> {
   const toggleTheme = (): void => { setTheme(THEMES[readChoice().theme]?.light ? 'studio' : 'light'); };
 
   const about = new AboutDialog();
+  const settings = new SettingsDialog({ commands, onPrefs: (p) => { applyUiPrefs(p); followSystemTheme(p); editor?.setOptions({ fontSize: p.editorFontSize, tabSize: p.editorTabSize, wordWrap: p.editorWordWrap }); } });
   const palette = new CommandPalette(commands, () => menus);
   let captionButtons: CaptionButtons;
 
   commands.add(
-    soon({ id: 'open-folder', label: 'Open Folder...', keys: ['Mod+O'], run: () => undefined }),
-    soon({ id: 'open-recent', label: 'Open Recent', run: () => undefined }),
-    soon({ id: 'save', label: 'Save', keys: ['Mod+S'], run: () => undefined }),
-    soon({ id: 'save-all', label: 'Save All', keys: ['Alt+Mod+S'], run: () => undefined }),
+    { id: 'open-folder', label: 'Open Folder...', keys: ['Mod+O'], run: () => { void openFolderPrompt(); } },
+    { id: 'open-recent', label: 'Open Recent', run: () => home.show('recent') },
+    { id: 'home-toggle', label: 'Home', run: () => home.toggle() },
+    { id: 'home-back', label: 'Back', keys: ['Escape'], enabled: () => home.isOpen && !!store.workspace, run: () => home.hide() },
+    soon({ id: 'clone-repo', label: 'Clone Repo...', run: () => undefined }),
+    soon({ id: 'new-form-app', label: 'New Form App', run: () => undefined }),
+    { id: 'save', label: 'Save', keys: ['Mod+S'], enabled: () => !!store.active, run: () => { void editor?.save(); } },
+    { id: 'save-all', label: 'Save All', keys: ['Alt+Mod+S'], enabled: () => store.docs.some((d) => d.modified), run: () => { void editor?.saveAll(); } },
     { id: 'close-tab', label: 'Close Tab', keys: ['Mod+W'], enabled: () => !!store.active, run: () => { if (store.active) void requestClose(store.active.id); } },
-    soon({ id: 'settings', label: 'Preferences...', keys: ['Mod+,'], run: () => undefined }),
+    { id: 'settings', label: 'Preferences...', keys: ['Mod+,'], run: () => settings.open() },
     { id: 'quit', label: 'Quit', run: () => { if (isTauri()) void useWindow((w) => w.close()); else window.close(); } },
     edit('undo', 'Undo', ['Mod+Z']),
     edit('redo', 'Redo', ['Shift+Mod+Z']),
@@ -177,9 +209,9 @@ export async function startApp(): Promise<void> {
     edit('copy', 'Copy', ['Mod+C']),
     edit('paste', 'Paste', ['Mod+V']),
     edit('select-all', 'Select All', ['Mod+A']),
-    soon({ id: 'find', label: 'Find...', keys: ['Mod+F'], run: () => undefined }),
-    soon({ id: 'select-next', label: 'Add Next Occurrence', keys: ['Mod+D'], run: () => undefined }),
-    soon({ id: 'select-all-occurrences', label: 'Select All Occurrences', keys: ['Shift+Mod+L'], run: () => undefined }),
+    { id: 'find', label: 'Find...', keys: ['Mod+F'], enabled: () => !!store.active, run: () => editor?.find() },
+    { id: 'select-next', label: 'Add Next Occurrence', keys: ['Mod+D'], enabled: () => !!store.active, run: () => editor?.selectNext() },
+    { id: 'select-all-occurrences', label: 'Select All Occurrences', keys: ['Shift+Mod+L'], enabled: () => !!store.active, run: () => editor?.selectAllOccurrences() },
     { id: 'command-palette', label: 'Command Palette...', keys: ['Shift+Mod+P', 'Mod+K'], run: () => palette.show() },
     { id: 'toggle-theme', label: 'Toggle Light or Dark', run: toggleTheme },
     { id: 'menus-in-window', label: 'Menus in Window', enabled: () => isTauri() && /Mac/.test(navigator.platform), checked: menusInWindow, run: () => {
@@ -206,13 +238,17 @@ export async function startApp(): Promise<void> {
     soon({ id: 'help', label: 'Help', keys: ['F1'], run: () => undefined }),
     { id: 'about', label: 'About subform', run: () => about.show() },
     soon({ id: 'report-issue', label: 'Report an Issue...', run: () => undefined }),
+    { id: 'toggle-sidebar', label: 'Toggle Side Bar', keys: ['Mod+B'], run: () => wb.toggleSidebar() },
+    { id: 'focus-files', label: 'Focus Files', keys: ['Shift+Mod+E'], run: () => wb.showPanel('files', true) },
+    { id: 'focus-search', label: 'Focus Search', run: () => wb.showPanel('search', true) },
   );
+  activateAll({ store, commands }, wb);
 
   const menus: MenuDef[] = [
-    { label: 'File', items: ['open-folder', 'open-recent', '-', 'save', 'save-all', '-', 'close-tab', '-', 'settings', '-', 'quit'] },
-    { label: 'Edit', items: ['undo', 'redo', '-', 'cut', 'copy', 'paste', '-', 'select-all', '-', 'find'] },
+    { label: 'File', items: ['open-folder', 'open-recent', 'clone-repo', 'new-form-app', '-', 'save', 'save-all', '-', 'close-tab', '-', 'settings', '-', 'quit'] },
+    { label: 'Edit', items: ['undo', 'redo', '-', 'cut', 'copy', 'paste', '-', 'select-all', '-', 'find', 'search-in-files'] },
     { label: 'Selection', items: ['select-all', '-', 'select-next', 'select-all-occurrences'] },
-    { label: 'View', items: ['command-palette', '-', 'toggle-theme', 'menus-in-window', 'custom-title-bar', '-', 'zoom-in', 'zoom-out', 'zoom-reset'] },
+    { label: 'View', items: ['home-toggle', 'command-palette', '-', 'toggle-sidebar', 'focus-files', 'focus-search', '-', 'toggle-theme', 'menus-in-window', 'custom-title-bar', '-', 'zoom-in', 'zoom-out', 'zoom-reset'] },
     { label: 'Go', items: ['go-to-file', '-', 'next-tab', 'previous-tab'] },
     { label: 'Run', items: ['run-task', 'run-stop'] },
     { label: 'Terminal', items: ['terminal-toggle', 'terminal-new'] },
@@ -222,11 +258,37 @@ export async function startApp(): Promise<void> {
     { label: 'Help', items: ['help', 'about', '-', 'report-issue'] },
   ];
 
+  const home = new Home(stage, store, commands, { recent: recentWorkspaces, openPath: openFolderAt, forget: forgetRecent });
+  const brand = q(root, '.cv-brand');
+  brand.setAttribute('role', 'button');
+  brand.tabIndex = 0;
+  brand.setAttribute('aria-label', t('Home'));
+  brand.title = t('Home');
+  brand.addEventListener('click', () => { commands.run('home-toggle'); });
+  brand.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    commands.run('home-toggle');
+  });
+
   new MenuBar(q(root, '.cv-menubar'), commands, menus);
   const titleTools = new TitleTools(q(root, '.cv-titlebar'), commands);
   captionButtons = new CaptionButtons(q(root, '.cv-titlebar'), () => stored(CUSTOM_TITLE_KEY) === '1');
   new Tabs(q(root, '.cv-tab-strip'), store, (id) => { void requestClose(id); }, q(root, '.cv-tb-doc'));
   const status = new StatusBar(q(root, '.cv-status'), store);
+  const pr = loadPrefs();
+  editor = new EditorHost(wb.editorHost, {
+    load: async (path) => { const f = await readFile(path); return { text: f.text, mtime: f.mtime }; },
+    save: async (path, text, expectedMtime) => { const f = await writeFile(path, text, expectedMtime); return { mtime: f.mtime }; },
+    onDirty: (path, dirty) => store.setModified(path, dirty),
+    onStatus: (s) => status.setHint(s),
+  });
+  editor.setOptions({ fontSize: pr.editorFontSize, tabSize: pr.editorTabSize, wordWrap: pr.editorWordWrap });
+  store.on('active', (id) => { if (id) editor?.show(id); });
+  window.addEventListener(PATHS_CHANGED, (e) => {
+    const { from } = (e as CustomEvent<PathsChanged>).detail;
+    for (const d of [...store.docs]) if (d.path === from || d.path.startsWith(`${from}/`)) { editor?.close(d.path); store.closeDoc(d.id); }
+  });
 
   let native: NativeMenus | null = null;
   if (wantsNativeMenus()) {
@@ -294,6 +356,9 @@ export async function startApp(): Promise<void> {
   void refreshEngine();
   window.setInterval(() => { void refreshEngine(); }, ENGINE_POLL_MS);
 
+  installNumberFields();
+  enhanceAllSelects();
+  startPageTranslator();
   await fontsReady();
   revealApp();
 }
