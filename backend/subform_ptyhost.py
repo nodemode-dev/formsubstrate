@@ -19,6 +19,7 @@ MAX_FRAME = 16 * 1024 * 1024
 MIN_COLS, MIN_ROWS = 10, 4
 MAX_COLS, MAX_ROWS = 1000, 500
 IDLE_SECONDS = float(os.environ.get("SUBFORM_PTYHOST_IDLE", "600"))
+REAP_SECONDS = float(os.environ.get("SUBFORM_PTYHOST_REAP", "300"))
 ID_RE = re.compile(r"^[a-z0-9]{16}$")
 WINDOWS = sys.platform == "win32"
 
@@ -392,6 +393,10 @@ class Host:
             for term in list(self.terms.values()):
                 if term.alive and not term.finalizing and not term.pty.alive():
                     self.loop.create_task(self.finalize(term))
+            now = time.time()
+            for tid, term in list(self.terms.items()):
+                if not term.alive and not term.subs and term.ended is not None and now - term.ended >= REAP_SECONDS:
+                    self.terms.pop(tid, None)
 
     async def kill(self, term):
         if term.alive and not term.finalizing:

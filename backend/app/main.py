@@ -1,3 +1,5 @@
+import asyncio
+import signal
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -10,12 +12,41 @@ from app.routers import git, secrets, sessions, skills, system, terminal, worksp
 from app.services import sessions as session_service
 
 
+def _end_streams_on_signal() -> list[tuple[int, object]]:
+    loop = asyncio.get_running_loop()
+    saved: list[tuple[int, object]] = []
+    for name in ("SIGTERM", "SIGINT"):
+        number = getattr(signal, name, None)
+        if number is None:
+            continue
+        previous = signal.getsignal(number)
+
+        def handler(signum, frame, previous=previous):
+            loop.call_soon_threadsafe(session_service.close_streams)
+            if callable(previous):
+                previous(signum, frame)
+
+        try:
+            signal.signal(number, handler)
+        except ValueError:
+            continue
+        saved.append((number, previous))
+    return saved
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     data = config.data_dir()
     runtime.start_logging(data)
+    saved = _end_streams_on_signal()
     await session_service.reconcile()
     yield
+    session_service.close_streams()
+    for number, previous in saved:
+        try:
+            signal.signal(number, previous)
+        except (ValueError, TypeError):
+            pass
     await session_service.shutdown()
     await terminal.shutdown()
     runtime.stop_logging()

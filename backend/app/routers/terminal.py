@@ -348,6 +348,9 @@ async def list_terminals() -> dict:
         items = await ptyhost_client.get_client().list(start=False)
     except PtyHostError as exc:
         raise host_error(exc) from exc
+    known = {item["id"] for item in items}
+    for stale in [tid for tid in hub.titles if tid not in known]:
+        hub.titles.pop(stale, None)
     return {"terminals": [shape(item) for item in items]}
 
 

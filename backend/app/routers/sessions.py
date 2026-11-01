@@ -47,6 +47,8 @@ async def events() -> StreamingResponse:
                 except asyncio.TimeoutError:
                     yield ": keepalive\n\n"
                     continue
+                if event == svc.CLOSE:
+                    return
                 yield _frame(event, payload)
         finally:
             svc.unsubscribe(queue)

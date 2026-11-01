@@ -54,6 +54,8 @@ _lock = threading.Lock()
 _sessions: dict[str, dict] = {}
 _loaded = False
 _subscribers: set[asyncio.Queue] = set()
+_closing = False
+CLOSE = "close"
 _streams: dict[str, dict] = {}
 _terminal_owner: dict[str, str] = {}
 _consumer: asyncio.Task | None = None
@@ -161,8 +163,17 @@ def _publish(event: str, payload: dict) -> None:
 
 def subscribe() -> asyncio.Queue:
     queue: asyncio.Queue = asyncio.Queue()
+    if _closing:
+        queue.put_nowait((CLOSE, {}))
     _subscribers.add(queue)
     return queue
+
+
+def close_streams() -> None:
+    global _closing
+    _closing = True
+    for queue in list(_subscribers):
+        queue.put_nowait((CLOSE, {}))
 
 
 def unsubscribe(queue: asyncio.Queue) -> None:
@@ -520,8 +531,23 @@ def _on_line(item: dict, stream: dict, line: str) -> None:
         _changed(item)
 
 
+async def _release(terminal_id: str, headless: bool) -> None:
+    op = {"op": "kill", "id": terminal_id} if headless else {"op": "detach", "id": terminal_id}
+    try:
+        if headless:
+            await _host().request(op, ("killed",), start=False)
+        else:
+            await _host().send(op)
+    except Exception:
+        pass
+
+
 def _on_exit(session_id: str, terminal_id: str, code: object) -> None:
     headless = terminal_id in _streams
+    try:
+        asyncio.get_running_loop().create_task(_release(terminal_id, headless))
+    except RuntimeError:
+        pass
     item = _sessions.get(session_id)
     _finish_exit(session_id, terminal_id, code)
     if headless and item is not None and item.get("terminalId") == terminal_id:
