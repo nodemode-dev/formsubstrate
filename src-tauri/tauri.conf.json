@@ -5,7 +5,8 @@
   "identifier": "ai.nodemode.subform",
   "build": {
     "frontendDist": "../frontend/dist",
-    "devUrl": "http://localhost:5650"
+    "devUrl": "http://localhost:5650",
+    "beforeDevCommand": { "script": "npm run dev", "cwd": "../frontend", "wait": false }
   },
   "app": {
     "windows": [

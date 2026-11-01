@@ -70,7 +70,9 @@ fn engine_command(handle: &tauri::AppHandle) -> Option<Command> {
         return Some(handle.shell().command(program));
     }
     if cfg!(debug_assertions) {
-        return Some(handle.shell().command("python3").args([DEV_ENGINE]));
+        let venv = if cfg!(windows) { "../backend/venv/Scripts/python.exe" } else { "../backend/venv/bin/python" };
+        let python = if std::path::Path::new(venv).exists() { venv } else { "python3" };
+        return Some(handle.shell().command(python).args([DEV_ENGINE]));
     }
     None
 }
