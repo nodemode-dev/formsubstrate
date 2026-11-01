@@ -11,6 +11,18 @@ Rules for agents working in this repository. Planning documents (DEV_PLAN, BUILD
 - Every agent session runs in its own git worktree, and every commit goes through the commit wrapper (identity, no trailers, signing audit).
 - git, the `claude` command and language servers are found on the system, never bundled.
 
+## Where to start
+
+The routing pack `.claude/skills/subform-harness/` is the map for working on this repository: its `SKILL.md` holds a routing table to seven sub-skills (`run-and-verify`, `window-extension`, `engine-route`, `formslot-bridge`, `lsp-and-debug`, `sessions-and-git`, `rules-and-logs`) and four references (architecture, security model, verification recipes, HASHOUT and NOTICE). Load the sub-skill for your task before editing. The pack restates the rules in this file; if they ever differ, this file wins.
+
+## Current state
+
+- Phases F1 to F8 have landed (v0.8.0): scaffold and desktop boot, shell, Home and Preferences, workspace and editor, terminal dock with Claude Code sessions in worktrees, git review and the commit wrapper, formslot in the workbench, language servers and the debugger, plus the graph, previews and the substrata ports. Phase F9 (MCP surface, this kit, packaging, New Form app) is in progress.
+- Gates: a session's Write, Edit or MultiEdit passes a PreToolUse hook that asks formslot for an existing slot; the window shows the existing-slot card (Use, Adapt, Write new anyway) and answers it with the window token. See `services/gates.py` and `extensions/formslot`.
+- Trust: the engine answers this computer only (LocalGuard, 127.0.0.1). Owner-only state changes need the window token (`X-Subform-Window`, from `POST /api/window-token`); agent sessions get a per-session gate token that cannot answer its own gate. Programs found inside a workspace (language servers, debug venvs) run only after the workspace is trusted in Preferences. Secrets live in the keyring only.
+- MCP: subform's own MCP server is being added at `POST /mcp` with the stdio launcher `./subform mcp`; until it lands, session `mcp.json` offers formMCP and formslot only. Read its HASHOUT entries before changing it.
+- Run and verify from the root: `./subform doctor`, `install`, `boot` (window 5650, engine 5655), `serve`. Ports 5650 to 5659 are subform's.
+
 ## Building
 
 - Edits are surgical: one region per change, made by hand; no sed, scripts, patches or bundles. Ported files are edited by hand to meet these rules before they are committed.

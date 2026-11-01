@@ -1,0 +1,60 @@
+# Architecture
+
+## Tree
+
+```text
+backend/
+  subform_engine.py      engine entry (uvicorn launcher, frozen-build friendly)
+  subform_ptyhost.py     separate PTY host process so terminals survive an engine restart
+  boot_backend, oc_install     venv and run scripts
+  app/
+    main.py                    FastAPI app, LocalGuard, routers under /api, static window at /
+    core/                      config, runtime (log, pid), local_guard, engine_addr, workspace_root,
+                               binres, lsp, debug
+    routers/                   system, workspace, secrets, terminal, sessions, formslot (+ gates),
+                               skills, git, debug, lsp, media, graph
+    services/                  sessions, gitops, formslot, gates, gate_hook, graph, ptyhost_client
+frontend/
+  index.html                   critical style and pre-paint theme boot
+  public/                      splash.html and static files
+  src/main.ts, app.ts          boot and shell assembly
+  src/extensions/              registry.ts plus debug, files, formslot, git, lsp, search, sessions
+  src/ui/                      shell modules, editor/, graph/, panels/, preview/, review/, i18n
+  src/io/                      engine clients: api, workspace, git, sessions, terminals, formslot,
+                               lsp, debug, graph, secrets, trust
+  src/styles/                  tokens.css and per-area CSS
+src-tauri/                     Tauri 2 shell: main, packaged, reveal, text_edit, traffic_lights,
+                               window_state; tauri.conf.json, capabilities, entitlements
+setup/                         install_all, boot_all, boot_backend, boot_frontend, serve, doctor, clean, lib.sh
+subform                  root dispatcher (install, boot, backend, frontend, serve, doctor, clean, version)
+```
+
+## Dependency direction
+
+- `io` talks to the engine and imports nothing from `ui` or `extensions` except types.
+- `extensions` import `io`, `ui` helpers and the registry; `ui` modules do not import extensions except for event name constants.
+- Routers import services and core; services import core; core imports nothing from routers.
+- The window reaches the engine only through `io/api.ts`.
+
+## Data flow of an edit
+
+Window action, `io/[x].ts` request, router validates and translates, service does the work (git, files, processes), result patched into the DOM in place. Long-lived channels: SSE `/api/sessions/events`, WebSockets for terminals, LSP and debug.
+
+## Ports and environment
+
+| Item | Value |
+| --- | --- |
+| Window dev server | 5650 (preview 5651), `host: false`, strictPort |
+| Engine | 5655, 127.0.0.1 only; override `SUBFORM_PORT` |
+| Family block | 5650 to 5659 is subform's |
+| `SUBFORM_DATA_DIR` | data folder (registry, worktrees, identity, recent list, logs) |
+| `SUBFORM_DIST` | built window folder served at `/` |
+| `SUBFORM_CORS_ORIGINS` | replaces the default window origins |
+| `SUBFORM_BIN_DIR` | first place `find_bin` looks |
+| `SUBFORM_PORTABLE=1` | data beside the executable |
+| `SUBFORM_DESKTOP=1` | set by the Tauri shell |
+| `FORMSLOT_BIN`, `FORMSLOT_DATA_DIR`, `FORMMCP_BIN` | external tool locations |
+
+## Phases
+
+F1 scaffold, engine skeleton and desktop boot; F2 shell (tokens, title bar, menus, status bar); F3 Home and Preferences; F4 workspace, files, editor, search; F5 terminals, Claude Code tabs, sessions and worktrees; F6 git, review, rewind and the commit wrapper; F7 formslot inside the workbench; F8 language servers and the debugger (with the graph, previews and substrata ports); F9 MCP surface, this kit and packaging. The plan itself is in the sidecar.

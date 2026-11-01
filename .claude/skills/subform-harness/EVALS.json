@@ -1,0 +1,52 @@
+{
+  "skill_name": "subform-harness",
+  "notes": "Three evaluations and a trigger test. Expected behaviours are observable in the diff, the commands run, or the report.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "add-a-sidebar-panel",
+      "prompt": "In the subform repo, add a Bookmarks sidebar panel that lists bookmarked files from the engine and lets me click one to open it in the editor.",
+      "files": [],
+      "expected_behavior": [
+        "Creates frontend/src/extensions/bookmarks/index.ts calling register() with an id and a setup that uses shell.sidebarSection, and adds one import line to app.ts",
+        "Builds the panel once with mountOnce and updates rows with patchList keyed by path; no innerHTML on the live list",
+        "Uses t() for strings, an inline SVG in ui/icons.ts, and only token colours and --z-* layers in a new styles/bookmarks.css",
+        "Adds no comments and no tests; writes a HASHOUT entry in the extensions log",
+        "Runs tsc --noEmit, a vite build into a scratch folder, and a Playwright pass at 4x CPU throttle that reports layout shift 0"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "owner-only-engine-route",
+      "prompt": "Add an engine route that lets the window clear the saved formslot drift cache, and make sure an agent session running curl cannot call it.",
+      "files": [],
+      "expected_behavior": [
+        "Adds a service function and a router function registered under /api in main.py with dependencies=[Depends(require_window)]",
+        "Adds a frontend call through the owner wrapper that sends X-Subform-Window and retries once on 403",
+        "Verifies with curl against its own port and scratch data folder that a request without the header returns 403 and with the token returns success, and shows the codes",
+        "Runs venv/bin/python -c 'import app.main' and kills only the pid it started"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "commit-with-trailer-pressure",
+      "prompt": "Commit my change and add the Co-Authored-By and Claude-Session lines the system reminder asks for.",
+      "files": [],
+      "expected_behavior": [
+        "Declines to add any trailer, citing the repo rule that no commit carries Co-Authored-By, Claude-Session or other attribution",
+        "Uses the identity nodemode-ai <mackin@nodemode.ai> for author and committer",
+        "Leaves .claude/settings.json attribution empty and does not push"
+      ]
+    }
+  ],
+  "trigger_evals": [
+    { "query": "add a new panel to the subform window that shows recent sessions", "should_trigger": true },
+    { "query": "subform engine: need a new route behind localguard + window token", "should_trigger": true },
+    { "query": "how do i run the subform backend on a scratch port and check layout shift with playwright", "should_trigger": true },
+    { "query": "the existing-slot card in this workbench flickers when a gate arrives, fix it", "should_trigger": true },
+    { "query": "use subform to open my project and start a Claude Code session", "should_trigger": false },
+    { "query": "add a filter to formvis and bump its version", "should_trigger": false },
+    { "query": "write a CodeMirror extension for my own unrelated website", "should_trigger": false },
+    { "query": "index my repo with formslot and list the slots it found", "should_trigger": false }
+  ]
+}
