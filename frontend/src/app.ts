@@ -2,6 +2,7 @@ import { activateAll } from './extensions/registry';
 import { PATHS_CHANGED, type PathsChanged } from './extensions/files';
 import './extensions/search';
 import './extensions/git';
+import './extensions/lsp';
 import './extensions/debug';
 import './extensions/formslot';
 import { setTerminalHook } from './extensions/sessions';
@@ -17,6 +18,7 @@ import { el, mountOnce, q, revealApp, setClass, setDisabled, setHidden, setText,
 import { enhanceAllSelects } from './ui/dropdown';
 import { editorFocused, editorWasFocused, trackEditorFocus } from './ui/editor/bridge';
 import { EditorHost } from './ui/editor/editor';
+import { lsp } from './ui/editor/lsp';
 import { Home } from './ui/home';
 import { onLanguage, startLanguage, startPageTranslator, t } from './ui/i18n';
 import { icon } from './ui/icons';
@@ -269,7 +271,7 @@ export async function startApp(): Promise<void> {
     { label: 'Edit', items: ['undo', 'redo', '-', 'cut', 'copy', 'paste', '-', 'select-all', '-', 'find', 'search-in-files'] },
     { label: 'Selection', items: ['select-all', '-', 'select-next', 'select-all-occurrences'] },
     { label: 'View', items: ['home-toggle', 'command-palette', '-', 'toggle-sidebar', 'focus-files', 'focus-search', '-', 'toggle-word-wrap', '-', 'toggle-theme', 'menus-in-window', 'custom-title-bar', '-', 'zoom-in', 'zoom-out', 'zoom-reset'] },
-    { label: 'Go', items: ['go-to-file', '-', 'next-tab', 'previous-tab'] },
+    { label: 'Go', items: ['go-to-file', '-', 'lsp-definition', 'lsp-references', 'lsp-rename', 'lsp-format', '-', 'lsp-outline', 'lsp-problems', 'lsp-servers', 'lsp-restart', '-', 'next-tab', 'previous-tab'] },
     { label: 'Run', items: ['debug-start', 'debug-stop', '-', 'debug-step-over', 'debug-step-into', 'debug-step-out', '-', 'debug-toggle-breakpoint', 'debug-focus', '-', 'run-task', 'run-stop'] },
     { label: 'Terminal', items: ['terminal-toggle', '-', 'terminal-new', 'terminal-new-claude'] },
     { label: 'Agents', items: ['agent-new', 'agent-sessions'] },
@@ -312,6 +314,17 @@ export async function startApp(): Promise<void> {
     onStatus: (s) => status.setHint(s),
   });
   editor.setOptions({ fontSize: pr.editorFontSize, tabSize: pr.editorTabSize, wordWrap: pr.editorWordWrap });
+  lsp.attach({
+    root: () => store.workspace?.path ?? null,
+    open: async (path, line, col) => { await openInEditor(path, line, col); return store.docs.some((d) => d.id === path); },
+    transact: (path, spec) => editor?.transact(path, spec),
+    read: async (path) => { try { return (await readFile(path)).text; } catch { return null; } },
+    refresh: (path) => editor?.refreshExtensions(path),
+    status: (text) => status.flashError(text),
+    run: (command) => editor?.runCommand(command) ?? false,
+  });
+  editor.extensionsFor = lsp.extensionsFor;
+  editor.onClosed = (path) => lsp.release(path);
   store.on('active', (id) => { if (id && !views.show(id)) editor?.show(id); });
   window.addEventListener(PATHS_CHANGED, (e) => {
     const { from } = (e as CustomEvent<PathsChanged>).detail;
@@ -328,6 +341,7 @@ export async function startApp(): Promise<void> {
     if (next === shownRoot) return;
     shownRoot = next;
     for (const d of [...store.docs]) { editor?.close(d.path); store.closeDoc(d.id); }
+    lsp.reset();
   });
   window.addEventListener('beforeunload', (e) => { if (store.docs.some((d) => d.modified)) e.preventDefault(); });
   let asking = false;

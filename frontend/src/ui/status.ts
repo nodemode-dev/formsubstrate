@@ -15,6 +15,10 @@ export class StatusBar {
   private readonly branchSync: HTMLElement;
   private readonly wsName: HTMLElement;
   private readonly problems: HTMLElement;
+  private readonly lsp: HTMLElement;
+  private readonly lspText: HTMLElement;
+  private readonly lspErrors: HTMLElement;
+  private readonly lspWarnings: HTMLElement;
   private readonly engineState: HTMLElement;
   private readonly formslot: HTMLElement;
   private readonly sessions: HTMLElement;
@@ -36,6 +40,7 @@ export class StatusBar {
       `<span class="cv-st-branch" hidden>${icon('branch', 12)}<span class="cv-st-branch-name"></span><span class="cv-st-sync"></span></span>` +
       '<span class="cv-st-ws" hidden></span>' +
       '<span class="cv-st-problems" hidden></span>' +
+      `<button class="cv-st-lsp is-idle" type="button" tabindex="-1"><span class="cv-st-lsp-text"></span><span class="cv-st-lsp-e">${icon('error', 12)}<b>0</b></span><span class="cv-st-lsp-w">${icon('warning', 12)}<b>0</b></span></button>` +
       '<span class="cv-st-engine"></span>' +
       `<button class="cv-st-formslot" type="button"><span class="cv-st-fs-dot"></span><span class="cv-st-fs-t"></span></button>` +
       '<span class="cv-st-saved"></span>' +
@@ -47,6 +52,10 @@ export class StatusBar {
     this.branchSync = q(root, '.cv-st-sync');
     this.wsName = q(root, '.cv-st-ws');
     this.problems = q(root, '.cv-st-problems');
+    this.lsp = q(root, '.cv-st-lsp');
+    this.lspText = q(root, '.cv-st-lsp-text');
+    this.lspErrors = q(root, '.cv-st-lsp-e b');
+    this.lspWarnings = q(root, '.cv-st-lsp-w b');
     this.engineState = q(root, '.cv-st-engine');
     this.formslot = q(root, '.cv-st-formslot');
     this.sessions = q(root, '.cv-st-sessions');
@@ -68,6 +77,8 @@ export class StatusBar {
     this.jobs = new JobsList(store, root);
     setTitle(this.busy, t('Show the running jobs, each with its own Stop'));
     this.busy.addEventListener('click', () => this.jobs.toggle());
+    this.lsp.addEventListener('click', () => window.dispatchEvent(new Event('subform:lsp-servers')));
+    window.addEventListener('subform:lsp-status', (e) => this.syncLsp((e as CustomEvent<{ text: string; title: string; state: string; errors: number; warnings: number }>).detail));
     store.on('workspace', () => this.syncWorkspace());
     window.addEventListener('subform:git-sync', (e) => this.syncGit((e as CustomEvent<{ ahead: number; behind: number; upstream: string }>).detail));
     store.on('sessions', () => this.syncSessions());
@@ -111,6 +122,15 @@ export class StatusBar {
     const raw = this.engineRaw, m = /^Engine (\d\S*)( · desktop)?$/.exec(raw);
     setText(this.engineState, m ? `${t('Engine')} ${m[1]}${m[2] ? ` · ${t('desktop')}` : ''}` : t(raw));
     setTitle(this.engineState, raw === 'Engine offline' ? t(SERVICE_NOTE) : '');
+  }
+
+  private syncLsp(d: { text: string; title: string; state: string; errors: number; warnings: number }): void {
+    for (const s of ['idle', 'starting', 'ready', 'unavailable', 'stopped']) setClass(this.lsp, `is-${s}`, s === d.state);
+    setText(this.lspText, d.text);
+    setText(this.lspErrors, String(d.errors));
+    setText(this.lspWarnings, String(d.warnings));
+    setTitle(this.lsp, d.title || d.text);
+    this.lsp.tabIndex = d.state === 'idle' ? -1 : 0;
   }
 
   private syncWorkspace(): void {

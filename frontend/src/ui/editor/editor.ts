@@ -1,5 +1,5 @@
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, dropCursor, type ViewUpdate } from '@codemirror/view';
-import { EditorState, Compartment, type StateEffect, type Extension, type Text } from '@codemirror/state';
+import { EditorState, Compartment, type StateEffect, type Extension, type Text, type TransactionSpec } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap, indentWithTab, redo, selectAll, undo } from '@codemirror/commands';
 import { bracketMatching, indentOnInput, indentUnit, syntaxHighlighting } from '@codemirror/language';
 import { searchKeymap, highlightSelectionMatches, openSearchPanel, selectNextOccurrence, selectSelectionMatches } from '@codemirror/search';
@@ -65,6 +65,7 @@ const searchPhrases = (): Record<string, string> => ({
 
 export class EditorHost {
   extensionsFor: (path: string) => Extension[] = () => [];
+  onClosed: (path: string) => void = () => undefined;
 
   private readonly root: HTMLElement;
   private readonly empty: HTMLElement;
@@ -265,6 +266,20 @@ export class EditorHost {
     if (!d) return;
     this.docs.delete(path);
     if (this.current === d) this.showEmpty();
+    this.onClosed(path);
+  }
+
+  runCommand(command: (view: EditorView) => boolean): boolean {
+    if (!this.current) return false;
+    this.view.focus();
+    return command(this.view);
+  }
+
+  transact(path: string, spec: TransactionSpec): void {
+    const d = this.docs.get(path);
+    if (!d) return;
+    if (this.current === d) this.view.dispatch(spec);
+    else d.state = d.state.update(spec).state;
   }
 
   private placeCursor(line: number, col?: number): void {
