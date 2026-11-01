@@ -12,11 +12,18 @@ from pathlib import Path
 
 from app.core import config, workspace_root as ws
 from app.core.binres import find_bin
+from app.services import gitops
 
 REGISTRY_NAME = "sessions.json"
 WORKTREES_NAME = "worktrees"
 MCP_DIR = ".subform"
 MCP_NAME = "mcp.json"
+SETTINGS_NAME = "settings.json"
+SETTINGS_BODY = {"includeCoAuthoredBy": False, "attribution": {"commit": "", "pr": ""}}
+COMMENTS_MAX = 200
+PASTE_START = "\x1b[200~"
+PASTE_END = "\x1b[201~"
+PASTE_GAP = 0.15
 ID_ALPHABET = string.ascii_lowercase + string.digits
 ID_RE = re.compile(r"^[a-z0-9]{16}$")
 LIVE_STATES = ("working", "needs-input")
@@ -118,6 +125,8 @@ def _save() -> None:
 def public(item: dict) -> dict:
     out = {key: item.get(key) for key in SESSION_FIELDS}
     out["notes"] = list(item.get("notes") or [])
+    out["comments"] = len(item.get("comments") or [])
+    out["snapshots"] = int(item.get("snapshotCount") or 0)
     return out
 
 
@@ -298,6 +307,16 @@ def _write_mcp(worktree: Path, config_obj: dict) -> Path:
     return target
 
 
+def _write_settings(worktree: Path) -> Path:
+    folder = worktree / MCP_DIR
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / SETTINGS_NAME
+    temp = target.with_name(target.name + ".tmp")
+    temp.write_text(json.dumps(SETTINGS_BODY, indent=2), encoding="utf-8")
+    os.replace(temp, target)
+    return target
+
+
 def _host():
     global _host_client
     if _host_client is None:
@@ -340,15 +359,22 @@ async def _launch(item: dict, argv: list[str], headless: bool) -> str:
 
 
 def _mcp_arg(item: dict) -> list[str]:
-    return ["--mcp-config", str(Path(item["worktree"]) / MCP_DIR / MCP_NAME)]
+    worktree = Path(item["worktree"])
+    settings = worktree / MCP_DIR / SETTINGS_NAME
+    if not settings.is_file():
+        try:
+            _write_settings(worktree)
+        except OSError:
+            pass
+    return ["--mcp-config", str(worktree / MCP_DIR / MCP_NAME), "--settings", str(settings)]
 
 
 async def _start_claude_terminal(item: dict, args: list[str] | None = None) -> str:
     return await _launch(item, [_claude(), *_mcp_arg(item), *(args or [])], False)
 
 
-async def _start_headless(item: dict, prompt: str) -> str:
-    argv = [_claude(), "-p", "--output-format", "stream-json", "--verbose", *_mcp_arg(item), "--", prompt]
+async def _start_headless(item: dict, prompt: str, resume: str | None = None) -> str:
+    argv = [_claude(), "-p", "--output-format", "stream-json", "--verbose", *_mcp_arg(item), *(["--resume", resume] if resume else []), "--", prompt]
     return await _launch(item, argv, True)
 
 
@@ -495,6 +521,17 @@ def _on_line(item: dict, stream: dict, line: str) -> None:
 
 
 def _on_exit(session_id: str, terminal_id: str, code: object) -> None:
+    headless = terminal_id in _streams
+    item = _sessions.get(session_id)
+    _finish_exit(session_id, terminal_id, code)
+    if headless and item is not None and item.get("terminalId") == terminal_id:
+        try:
+            asyncio.get_running_loop().create_task(_snapshot(item, "after run"))
+        except RuntimeError:
+            pass
+
+
+def _finish_exit(session_id: str, terminal_id: str, code: object) -> None:
     item = _sessions.get(session_id)
     _terminal_owner.pop(terminal_id, None)
     _offsets.pop(terminal_id, None)
@@ -573,6 +610,11 @@ async def create(title: str, mode: str, prompt: str | None, base: str | None) ->
     await _exclude_subform(top)
     config_obj, notes = await _mcp_config()
     _write_mcp(path, config_obj)
+    _write_settings(path)
+    try:
+        await gitops.configure_worktree(top, str(path))
+    except gitops.Refused as err:
+        notes.append("the commit identity and hook could not be set up for this worktree: " + err.detail)
     item = {
         "id": session_id,
         "title": _need_title(title),
@@ -591,6 +633,7 @@ async def create(title: str, mode: str, prompt: str | None, base: str | None) ->
         "notes": notes,
     }
     _sessions[session_id] = item
+    await _snapshot(item, "session start")
     try:
         if mode == "headless":
             item["terminalId"] = await _start_headless(item, prompt)
@@ -605,6 +648,58 @@ async def create(title: str, mode: str, prompt: str | None, base: str | None) ->
     _changed(item)
     _ensure_consumer()
     return public(item)
+
+
+async def _snapshot(item: dict, label: str) -> None:
+    try:
+        await gitops.snapshot_for_item(item, label)
+    except Exception:
+        pass
+
+
+def note_snapshots(session_id: str, count: int) -> None:
+    item = _sessions.get(session_id)
+    if item is None or item.get("snapshotCount") == count:
+        return
+    item["snapshotCount"] = count
+    _changed(item)
+
+
+def record_comment(session_id: str, path: str, line: int | None, hunk: str | None, text: str, keep: int = COMMENTS_MAX) -> dict:
+    item = _entry(session_id)
+    comment = {"id": "".join(random.choices(ID_ALPHABET, k=12)), "path": path, "line": line, "hunk": hunk, "text": text, "created": _now()}
+    items = list(item.get("comments") or [])
+    items.append(comment)
+    item["comments"] = items[-keep:]
+    _changed(item)
+    return comment
+
+
+async def send_feedback(session_id: str, text: str) -> str:
+    item = _entry(session_id)
+    terminal_id = item.get("terminalId")
+    if item["mode"] == "interactive" and item["state"] in LIVE_STATES and terminal_id and terminal_id in _terminal_owner:
+        try:
+            host = _host()
+            await host.send({"op": "write", "id": terminal_id, "data": base64.b64encode((PASTE_START + text + PASTE_END).encode("utf-8")).decode("ascii")})
+            await asyncio.sleep(PASTE_GAP)
+            await host.send({"op": "write", "id": terminal_id, "data": base64.b64encode(b"\r").decode("ascii")})
+            return "terminal"
+        except Exception:
+            return "stored"
+    if item["mode"] == "headless" and item["state"] not in LIVE_STATES and item.get("claudeSessionId") and os.path.isdir(item["worktree"]):
+        before = item["state"]
+        item["state"] = "working"
+        try:
+            item["terminalId"] = await _start_headless(item, text, item["claudeSessionId"])
+        except Exception:
+            item["state"] = before
+            return "stored"
+        item["lastMessage"] = _clip(text)
+        _changed(item)
+        _ensure_consumer()
+        return "headless"
+    return "stored"
 
 
 def _forget(terminal_id: str | None) -> None:
@@ -633,6 +728,8 @@ async def stop(session_id: str) -> dict:
     await _kill_terminal(item)
     _discover_claude_session(item)
     _changed(item)
+    if item["mode"] == "interactive":
+        await _snapshot(item, "at stop")
     return public(item)
 
 

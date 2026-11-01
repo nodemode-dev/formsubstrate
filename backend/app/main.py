@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core import config, runtime
 from app.core.local_guard import LocalGuard
-from app.routers import secrets, sessions, skills, system, terminal, workspace
+from app.routers import git, secrets, sessions, skills, system, terminal, workspace
 from app.services import sessions as session_service
 
 
@@ -32,6 +32,7 @@ app.include_router(secrets.router, prefix="/api")
 app.include_router(terminal.router, prefix="/api")
 app.include_router(sessions.router, prefix="/api")
 app.include_router(skills.router, prefix="/api")
+app.include_router(git.router, prefix="/api")
 
 _dist = config.dist_dir()
 if _dist is not None:
