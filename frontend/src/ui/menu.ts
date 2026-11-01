@@ -176,6 +176,11 @@ export interface MenuDef { label: string; items: MenuItem[] | (() => MenuItem[])
 const itemsOf = (def: MenuDef): MenuItem[] => trimMenu(typeof def.items === 'function' ? def.items() : def.items);
 
 export class MenuBar {
+  private claimed(combo: string): boolean {
+    const cmd = this.commands.forCombo(combo);
+    return !!cmd && this.commands.enabled(cmd);
+  }
+
   private readonly bars: Array<{ btn: HTMLButtonElement; menu: PopupMenu; def: MenuDef }> = [];
   private openIndex = -1;
   private returnTo: HTMLElement | null = null;
@@ -184,7 +189,7 @@ export class MenuBar {
   private altLone = false;
   private barBack: HTMLElement | null = null;
 
-  constructor(host: HTMLElement, commands: Commands, defs: MenuDef[]) {
+  constructor(host: HTMLElement, private readonly commands: Commands, defs: MenuDef[]) {
     for (const def of defs) {
       const btn = el<HTMLButtonElement>('<button class="cv-menu-btn" type="button" aria-haspopup="menu"></button>');
       setText(btn, t(def.label));
@@ -270,7 +275,7 @@ export class MenuBar {
           return;
         }
       }
-      if (e.key === 'F10' && !e.altKey && !e.shiftKey) { stop(); this.open(0, true); return; }
+      if (e.key === 'F10' && !e.altKey && !e.shiftKey && !this.claimed('F10')) { stop(); this.open(0, true); return; }
       if (!e.altKey || e.shiftKey || mac || !/^Key[A-Z]$/.test(e.code)) return;
       const letter = e.code.slice(3).toLowerCase(), hits = this.bars.map((b, i) => (b.btn.textContent ?? '').trim().charAt(0).toLowerCase() === letter ? i : -1).filter((i) => i >= 0);
       if (!hits.length) return;

@@ -91,6 +91,10 @@ export const ICONS: Record<string, string> = {
   stop: `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>`,
   session: `<svg ${S}><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/><path d="M12 3.5v1.6"/></svg>`,
   slot: `<svg ${S}><rect x="4" y="3.5" width="16" height="4.4" rx="2.2"/><rect x="4" y="9.8" width="16" height="4.4" rx="2.2"/><rect x="4" y="16.1" width="16" height="4.4" rx="2.2"/></svg>`,
+  debugContinue: `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="4.5" y="5" width="2.4" height="14" rx="1"/><path d="M10 5.8v12.4a.8.8 0 0 0 1.25.66l9-6.2a.8.8 0 0 0 0-1.32l-9-6.2A.8.8 0 0 0 10 5.8z"/></svg>`,
+  stepOver: `<svg ${S}><path d="M5 13a7 7 0 0 1 12.2-4.7M18.2 4.2v4.4h-4.4"/><circle cx="12" cy="18.5" r="1.7" fill="currentColor" stroke="none"/></svg>`,
+  stepInto: `<svg ${S}><path d="M12 3.5v10M8 9.5l4 4 4-4"/><circle cx="12" cy="19" r="1.7" fill="currentColor" stroke="none"/></svg>`,
+  stepOut: `<svg ${S}><path d="M12 13.5v-10M8 7.5l4-4 4 4"/><circle cx="12" cy="19" r="1.7" fill="currentColor" stroke="none"/></svg>`,
   bug: `<svg ${S}><rect x="8" y="8" width="8" height="11" rx="4"/><path d="M9.5 8a2.5 2.5 0 0 1 5 0M4 12h4M16 12h4M5 6.5l3 2.5M19 6.5 16 9M5 18l3-2.3M19 18l-3-2.3M12 11v8"/></svg>`,
 };
 

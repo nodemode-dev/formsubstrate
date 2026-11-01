@@ -2,6 +2,7 @@ import { activateAll } from './extensions/registry';
 import { PATHS_CHANGED, type PathsChanged } from './extensions/files';
 import './extensions/search';
 import './extensions/git';
+import './extensions/debug';
 import './extensions/formslot';
 import { setTerminalHook } from './extensions/sessions';
 import { systemStatus } from './io/api';
@@ -269,7 +270,7 @@ export async function startApp(): Promise<void> {
     { label: 'Selection', items: ['select-all', '-', 'select-next', 'select-all-occurrences'] },
     { label: 'View', items: ['home-toggle', 'command-palette', '-', 'toggle-sidebar', 'focus-files', 'focus-search', '-', 'toggle-word-wrap', '-', 'toggle-theme', 'menus-in-window', 'custom-title-bar', '-', 'zoom-in', 'zoom-out', 'zoom-reset'] },
     { label: 'Go', items: ['go-to-file', '-', 'next-tab', 'previous-tab'] },
-    { label: 'Run', items: ['run-task', 'run-stop'] },
+    { label: 'Run', items: ['debug-start', 'debug-stop', '-', 'debug-step-over', 'debug-step-into', 'debug-step-out', '-', 'debug-toggle-breakpoint', 'debug-focus', '-', 'run-task', 'run-stop'] },
     { label: 'Terminal', items: ['terminal-toggle', '-', 'terminal-new', 'terminal-new-claude'] },
     { label: 'Agents', items: ['agent-new', 'agent-sessions'] },
     { label: 'Git', items: ['git-status', 'git-commit', 'git-commit-all', '-', 'git-snapshot', 'git-review', '-', 'git-push', 'git-sign-push'] },

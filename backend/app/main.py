@@ -7,9 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core import config, runtime
+from app.core import debug as debug_core
 from app.core.engine_addr import remember
 from app.core.local_guard import LocalGuard
-from app.routers import formslot, git, secrets, sessions, skills, system, terminal, workspace
+from app.routers import debug, formslot, git, secrets, sessions, skills, system, terminal, workspace
 from app.services import sessions as session_service
 
 
@@ -50,6 +51,7 @@ async def lifespan(_: FastAPI):
             pass
     await session_service.shutdown()
     await terminal.shutdown()
+    await debug_core.shutdown()
     runtime.stop_logging()
     runtime.release(data)
 
@@ -66,6 +68,7 @@ app.include_router(sessions.router, prefix="/api", dependencies=[Depends(remembe
 app.include_router(formslot.router, prefix="/api", dependencies=[Depends(remember)])
 app.include_router(skills.router, prefix="/api")
 app.include_router(git.router, prefix="/api")
+app.include_router(debug.router, prefix="/api")
 
 _dist = config.dist_dir()
 if _dist is not None:

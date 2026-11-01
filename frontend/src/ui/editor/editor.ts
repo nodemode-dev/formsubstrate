@@ -10,6 +10,7 @@ import { confirmAction } from '../dialogs';
 import { baseName, languageFor } from './languages';
 import { editorHighlight, editorTheme } from './theme';
 import { wordWrap } from './wrap';
+import { breakpointExtension } from './breakpoints';
 
 export interface EditorDeps {
   load(path: string): Promise<{ text: string; mtime: number }>;
@@ -35,6 +36,7 @@ interface Doc {
   opts: Compartment;
   wrap: Compartment;
   extra: Compartment;
+  dbg: Compartment;
 }
 
 const BINARY_EXT = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif', 'mp3', 'wav', 'ogg', 'm4a', 'flac', 'mp4', 'webm', 'mov', 'mkv', 'zip', 'gz', 'tar', 'pdf', 'woff', 'woff2', 'ttf', 'otf', 'exe', 'dll', 'so', 'dylib', 'wasm', 'bin']);
@@ -103,6 +105,7 @@ export class EditorHost {
     return EditorState.create({
       doc: text,
       extensions: [
+        d.dbg.of(breakpointExtension(d.path)),
         lineNumbers(),
         highlightActiveLineGutter(),
         highlightActiveLine(),
@@ -191,7 +194,7 @@ export class EditorHost {
     const d: Doc = {
       path, state: this.blankState(), saved: this.blankState().doc, mtime: loaded.mtime, eol: dominantEol(loaded.text),
       dirty: false, scroll: null, optsRev: this.optsRev,
-      lang: new Compartment(), opts: new Compartment(), wrap: new Compartment(), extra: new Compartment(),
+      lang: new Compartment(), opts: new Compartment(), wrap: new Compartment(), extra: new Compartment(), dbg: new Compartment(),
     };
     const resolved = languageFor(path);
     d.state = this.buildState(d, loaded.text, resolved.now);
