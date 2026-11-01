@@ -144,9 +144,9 @@ Open File > Preferences... (`Ctrl+,`). Pages: General, Interface, Workspace, Edi
 
 Preferences can also be reset, which returns every preference and the theme to how subform comes and keeps your files.
 
-## Upgrading from substrataform
+## Upgrading from the earlier name
 
-subform used to be called substrataform. On the first start of the new version, if the new data folder does not exist and the old one does, your recent workspaces, identity, library, triggers, secrets list and Cogentics settings are copied across once. Sessions and worktrees are not copied, and nothing old is moved or deleted, so you can remove the old install by hand later. Secrets stored in the keychain under the old name are copied to the new name once. Plugin secrets must be entered again. Old `SUBSTRATAFORM_*` environment variables still work for now (`SUBFORM_*` wins) and log a warning; rename them. Your theme and preferences in the window are copied once on first start; on macOS they may be empty because the new bundle has its own storage. Settings that name absolute paths inside the old folder are not rewritten.
+subform used to have another name. On the first start of the new version, if the new data folder does not exist and the old one does, your recent workspaces, identity, library, triggers, secrets list and Cogentics settings are copied across once. Sessions and worktrees are not copied, and nothing old is moved or deleted, so you can remove the old install by hand later. Secrets stored in the keychain under the old name are copied to the new name once. Plugin secrets must be entered again. Old `SUBSTRATAFORM_*` environment variables still work for now (`SUBFORM_*` wins) and log a warning; rename them. Your theme and preferences in the window are copied once on first start; on macOS they may be empty because the new bundle has its own storage. Settings that name absolute paths inside the old folder are not rewritten.
 
 ## Troubleshooting
 
