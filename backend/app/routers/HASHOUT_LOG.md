@@ -321,3 +321,11 @@ Security review changes to `/api/runs`: the start and rerun bodies carry `truste
 - logged: v0.15.0 · 2026-10-30
 
 Review finding: LocalGuard lets a request with no Origin through, so an agent session holding only its gate token could open a shell in the workspace (skipping the Bash gate), attach to and type into the owner's terminals, or delete them. `POST /terminals` and `DELETE /terminals/{id}` now carry `require_window`. The WebSocket honours nothing until its first message is `{t: "auth", token}` with the window token (constant-time compare); a wrong token, or any other message first, closes it with code 4403. The window client sends the auth message on open before it attaches or sets the socket up, and forgets its cached token when a socket closes without ever coming up so a rotated token is refetched. Listing (GET) stays open. The engine's own session launches call `launch()` directly and never use these routes, so interactive and headless agent sessions are unchanged.
+
+### backend/app/routers/presets.py · unified presets and the aliases
+
+- refers-to: backend/app/routers/presets.py :: router; backend/app/routers/graphs.py :: _preset, presets; backend/app/routers/runs.py :: graph_presets, graph_preset, install_preset; backend/app/main.py :: presets_router
+- kind: rationale
+- logged: v0.16.0 · 2026-10-30
+
+`/api/presets`, `/api/presets/{group}`, `/api/presets/{group}/{name}` and `POST /api/presets/{group}/{name}/install` (window token; `trust` and `replace` query flags) are the one presets service; see `services/presets/HASHOUT_LOG.md`. The router is included before the graphs and runs routers. `/api/graphs/presets` and its install stay in `graphs.py` as aliases whose reads now go through the service (the saved-graph install keeps its response shape for the Studio). The three `/presets/graphs` routes still defined in `runs.py` are now shadowed by the unified router because it is registered first; they are dead code to delete when `runs.py` is next edited (sf-runs3 owned it this turn). The Studio list now reads `/api/presets/graphs` (`frontend/src/io/studio.ts`, one line); its install still posts to the alias.
