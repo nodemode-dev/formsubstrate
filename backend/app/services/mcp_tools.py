@@ -519,7 +519,11 @@ REDACTIONS = (
 )
 REDACTED = "[redacted]"
 TAIL_TEXT_MAX = 60_000
-PARTIAL_RUN = re.compile(r"[A-Za-z0-9+_=~-]{16,}")
+PARTIAL_RUN = re.compile(r"[A-Za-z0-9+/_=.~-]{16,}")
+PARTIAL_SHORT = 24
+PATH_PIECE = 10
+DOT_WORD = re.compile(r"[A-Za-z][A-Za-z-]*|[0-9]+")
+WORD_PIECE = re.compile(r"[a-z]+|[0-9]{1,3}")
 
 
 def _entropy_secret(run: str) -> bool:
@@ -567,14 +571,30 @@ def _redact(text: str) -> tuple[str, int]:
     return text, count + hits[0]
 
 
+def _mixed(piece: str) -> bool:
+    return any(c.islower() for c in piece) and any(c.isupper() for c in piece) and any(c.isdigit() for c in piece)
+
+
 def _partial_secret(run: str) -> bool:
-    if sum(c.isdigit() for c in run) < 2 or sum(c.isalpha() for c in run) < 4:
+    if run[0] in "/~":
+        return False
+    if "/" in run and all(len(piece) <= PATH_PIECE and not _mixed(piece) for piece in run.split("/")):
+        return False
+    if "." in run and all(DOT_WORD.fullmatch(piece) for piece in run.split(".")):
+        return False
+    pieces = run.split("-")
+    if len(pieces) >= 3 and all(WORD_PIECE.fullmatch(piece) for piece in pieces):
+        return False
+    digits = sum(c.isdigit() for c in run)
+    letters = sum(c.isalpha() for c in run)
+    short = len(run) <= PARTIAL_SHORT
+    if digits < (1 if short else 2) or letters < (3 if short else 4):
         return False
     counts: dict[str, int] = {}
     for c in run:
         counts[c] = counts.get(c, 0) + 1
     size = len(run)
-    return -sum(n / size * math.log2(n / size) for n in counts.values()) >= 3.5
+    return -sum(n / size * math.log2(n / size) for n in counts.values()) >= (3.0 if short else 3.5)
 
 
 def _scrub_partial(text: str) -> tuple[str, int]:

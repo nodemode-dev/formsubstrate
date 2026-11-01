@@ -31,6 +31,7 @@ class GateBody(BaseModel):
     message: str = Field(default="", max_length=gates.MESSAGE_BODY_MAX)
     slots: list[dict] = Field(default_factory=list, max_length=50)
     tokens: int = 0
+    digest: str = Field(default="", max_length=gates.DIGEST_MAX)
 
 
 class NoteBody(BaseModel):
@@ -129,6 +130,14 @@ def add_gate_note(body: NoteBody, session_token: str | None = Header(default=Non
     try:
         gates.verify(body.session, session_token)
         return gates.add_note(body.model_dump())
+    except session_svc.Refused as err:
+        raise _fail(err)
+
+
+@router.get("/gates/waived")
+def gate_waived(session: str, path: str, slot: str, digest: str, session_token: str | None = Header(default=None, alias="X-Subform-Session")) -> dict:
+    try:
+        return gates.is_waived(session, session_token, path, slot, digest)
     except session_svc.Refused as err:
         raise _fail(err)
 

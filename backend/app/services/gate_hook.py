@@ -1,4 +1,5 @@
 SCRIPT = r'''import ast
+import hashlib
 import json
 import math
 import os
@@ -9,8 +10,12 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
+STATE = {"pending": [], "start": time.monotonic(), "host": 135}
+NOTE_CAP = 20
+NOTE_MIN_LEFT = 3
 OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 WAIT_DEFAULT = 120
 WAIT_MAX = 120
@@ -147,51 +152,44 @@ def trail(text):
 
 def skipped(why, shown, tool_name):
     trail("gate skipped for %s %s: %s" % (tool_name, shown, why))
+    if len(STATE["pending"]) < NOTE_CAP:
+        STATE["pending"].append((why, shown, tool_name))
+
+
+def flush_notes():
+    try:
+        sys.stdout.flush()
+    except OSError:
+        return
     base = engine_base()
     session = os.environ.get("SUBFORM_SESSION", "")
-    if not base or not session or not shown:
+    if not base or not session:
         return
     root = os.path.normpath(os.environ.get("SUBFORM_WORKTREE", ""))
-    rel = os.path.relpath(shown, root) if root != "." and os.path.normpath(shown).startswith(root + os.sep) else shown
+    for why, shown, tool_name in STATE["pending"]:
+        left = STATE["host"] - (time.monotonic() - STATE["start"])
+        if left < NOTE_MIN_LEFT or not shown:
+            return
+        rel = os.path.relpath(shown, root) if root != "." and os.path.normpath(shown).startswith(root + os.sep) else shown
+        try:
+            call("POST", base + "/api/gates/notes", {"session": session, "tool": tool_name, "path": rel, "slot": ("unchecked, gate skipped: " + why)[:190], "message": ("subform could not ask for this write: " + why)[:3000]}, timeout=min(2, left - 1))
+        except (OSError, ValueError, urllib.error.URLError):
+            pass
+
+
+def digest(payload):
+    tool_input = payload.get("tool_input") if isinstance(payload.get("tool_input"), dict) else {}
+    body = {k: v for k, v in tool_input.items() if k != "file_path"}
+    raw = json.dumps([payload.get("tool_name"), body], sort_keys=True, default=str)
+    return hashlib.sha256(raw.encode("utf-8", "replace")).hexdigest()
+
+
+def waived(base, session, shown, slot, mark):
+    query = urllib.parse.urlencode({"session": session, "path": shown, "slot": slot, "digest": mark})
     try:
-        call("POST", base + "/api/gates/notes", {"session": session, "tool": tool_name, "path": rel, "slot": ("unchecked, gate skipped: " + why)[:190], "message": ("subform could not ask for this write: " + why)[:3000]}, timeout=2)
-    except (OSError, ValueError, urllib.error.URLError):
-        pass
-
-
-def seen_path():
-    session = re.sub(r"[^A-Za-z0-9_-]", "-", os.environ.get("SUBFORM_SESSION", ""))[:80]
-    return os.path.join(here(), "gate-seen", session + ".json") if session else ""
-
-
-def seen_has(key):
-    target = seen_path()
-    if not target:
+        return call("GET", base + "/api/gates/waived?" + query, timeout=3).get("waived") is True
+    except (OSError, ValueError, AttributeError, urllib.error.URLError):
         return False
-    try:
-        with open(target, encoding="utf-8") as handle:
-            return key in json.load(handle)
-    except (OSError, ValueError, TypeError):
-        return False
-
-
-def seen_add(key):
-    target = seen_path()
-    if not target:
-        return
-    try:
-        with open(target, encoding="utf-8") as handle:
-            kept = [k for k in json.load(handle) if isinstance(k, str)]
-    except (OSError, ValueError, TypeError):
-        kept = []
-    if key in kept:
-        return
-    try:
-        os.makedirs(os.path.dirname(target), exist_ok=True)
-        with open(target, "w", encoding="utf-8") as handle:
-            json.dump((kept + [key])[-200:], handle)
-    except OSError:
-        pass
 
 
 def estimate(binary, slots):
@@ -277,8 +275,8 @@ def judge(binary, payload, tool_name, shown, deadline):
     if not base or not session:
         skipped("no engine address or session in the hook environment", shown, tool_name)
         return ("raw", text)
-    key = "%s|%s" % (shown, slots[0]["id"])
-    if seen_has(key):
+    mark = digest(payload)
+    if waived(base, session, shown, slots[0]["id"], mark):
         return None
     try:
         wait = max(1, min(WAIT_MAX, int(os.environ.get("SUBFORM_GATE_TIMEOUT", WAIT_DEFAULT))))
@@ -289,7 +287,7 @@ def judge(binary, payload, tool_name, shown, deadline):
         skipped("no time left to wait for the owner", shown, tool_name)
         return ("context", context)
     try:
-        gate = call("POST", base + "/api/gates", {"session": session, "tool": tool_name, "path": shown, "message": context[:4000], "slots": slots[:10], "tokens": estimate(binary, slots)})
+        gate = call("POST", base + "/api/gates", {"session": session, "tool": tool_name, "path": shown, "message": context[:4000], "slots": slots[:10], "tokens": estimate(binary, slots), "digest": mark})
         result = call("GET", "%s/api/gates/%s/wait?timeout=%d" % (base, gate["id"], wait), timeout=wait + 15)
     except (OSError, ValueError, KeyError, urllib.error.URLError) as exc:
         skipped("the engine did not answer the gate: %s" % (exc,), shown, tool_name)
@@ -300,7 +298,6 @@ def judge(binary, payload, tool_name, shown, deadline):
     if choice != "write":
         skipped("the gate closed as %s with no answer from the owner" % (choice,), shown, tool_name)
         return ("context", context)
-    seen_add(key)
     return None
 
 
@@ -1958,6 +1955,7 @@ def main():
         trail("gate skipped: the formslot command was not found (FORMSLOT_BIN unset and not on PATH)")
         return
     name = event.get("hook_event_name")
+    STATE["host"] = 5 if name == "PostToolUse" else 135
     if event.get("tool_name") == "Bash":
         if name == "PostToolUse":
             post_bash(event, binary)
@@ -1973,5 +1971,9 @@ try:
     main()
 except Exception as exc:
     trail("gate skipped: hook error %s: %s" % (type(exc).__name__, exc))
+try:
+    flush_notes()
+except Exception:
+    pass
 sys.exit(0)
 '''

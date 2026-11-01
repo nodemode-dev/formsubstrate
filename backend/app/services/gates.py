@@ -30,6 +30,8 @@ OPEN_TOTAL = 50
 ABANDON_MARGIN = 30
 MESSAGE_BODY_MAX = 8000
 TOKEN_ENV = "SUBFORM_GATE_TOKEN"
+WAIVERS_PER_SESSION = 200
+DIGEST_MAX = 128
 
 _gates: dict[str, dict] = {}
 _events: dict[str, asyncio.Event] = {}
@@ -39,6 +41,8 @@ _touched: dict[str, float] = {}
 _waiting: dict[str, int] = {}
 _tokens: dict[str, str] = {}
 _notes: dict[str, list[dict]] = {}
+_waivers: dict[str, list[tuple[str, str, str]]] = {}
+_digests: dict[str, str] = {}
 
 
 def script_path():
@@ -196,6 +200,7 @@ def _prune() -> None:
         _events.pop(gate_id, None)
         _closed_at.pop(gate_id, None)
         _touched.pop(gate_id, None)
+        _digests.pop(gate_id, None)
     idle = now - (WAIT_MAX + ABANDON_MARGIN)
     for gate in [g for g in _gates.values() if g["choice"] is None]:
         if not _waiting.get(gate["id"]) and _touched.get(gate["id"], now) < idle:
@@ -236,6 +241,8 @@ def create(body: dict) -> dict:
         "created": svc._now(),
         "choice": None,
     }
+    mark = body.get("digest")
+    _digests[gate["id"]] = mark[:DIGEST_MAX] if isinstance(mark, str) else ""
     _gates[gate["id"]] = gate
     _events[gate["id"]] = asyncio.Event()
     _touched[gate["id"]] = time.time()
@@ -279,7 +286,24 @@ def answer(gate_id: str, choice: str) -> dict:
     if gate["choice"] is not None:
         raise svc.Refused(409, "that gate is already closed")
     _close(gate, choice)
+    if choice == "write":
+        _waive(gate)
     return _public(gate)
+
+
+def _waive(gate: dict) -> None:
+    mark = _digests.get(gate["id"], "")
+    if not mark or not gate["slots"] or gate["session"] not in _tokens:
+        return
+    entry = (gate["path"], gate["slots"][0]["id"], mark)
+    kept = [e for e in _waivers.get(gate["session"], []) if e != entry]
+    kept.append(entry)
+    _waivers[gate["session"]] = kept[-WAIVERS_PER_SESSION:]
+
+
+def is_waived(session_id: str, token: str | None, path: str, slot: str, mark: str) -> dict:
+    verify(session_id, token)
+    return {"waived": bool(mark) and (path[:2000], slot[:200], mark[:DIGEST_MAX]) in _waivers.get(session_id, [])}
 
 
 async def wait(gate_id: str, timeout: float, request) -> dict:
@@ -316,5 +340,6 @@ def close_session(session_id: str) -> None:
     _prior.pop(session_id, None)
     _tokens.pop(session_id, None)
     _notes.pop(session_id, None)
+    _waivers.pop(session_id, None)
     for gate in [g for g in _gates.values() if g["session"] == session_id and g["choice"] is None]:
         _close(gate, "abandoned")

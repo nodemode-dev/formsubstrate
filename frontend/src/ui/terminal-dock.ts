@@ -128,7 +128,7 @@ export class TerminalDock {
       const choice = e.target instanceof Element ? e.target.closest<HTMLElement>('.cv-gate-btn')?.dataset.choice : undefined;
       if (choice === 'use' || choice === 'adapt' || choice === 'write') void this.answerGate(choice);
     });
-    sessionsClient.on('gates', () => this.scheduleGates());
+    sessionsClient.on('gates', () => { this.paintGate(); this.scheduleGates(); });
     sessionsClient.on('sessions', () => this.scheduleGates());
     new ResizeObserver(() => this.scheduleFit()).observe(this.stage);
     document.addEventListener('nm:ui-settings-changed', () => this.restyle());

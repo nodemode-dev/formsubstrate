@@ -74,3 +74,11 @@ The New Agent Session dialog has a Permission mode select (Accept edits, Ask, Pl
 - logged: v0.10.0 · 2026-10-30
 
 When formslot is installed, a workspace is open and `workspaceCorpus` is null, the tooltip now says the workspace is not indexed and no gates run there (the PreToolUse hook fails open). The status item reads the workspace from the `workspace` store singleton, so it needs no change to status.ts.
+
+### frontend/src/ui/terminal-dock.ts · TerminalDock (gates event handler)
+
+- refers-to: frontend/src/ui/terminal-dock.ts :: TerminalDock, scheduleGates, paintGate, answerGate
+- kind: rationale
+- logged: v0.13.0 · 2026-10-30
+
+The gate banner was repainted only inside the animation frame queued by `scheduleGates`, so for up to one frame after a `gates` event the banner could still show the previous gate id and a click in that window answered the wrong (already closed) gate. The `gates` handler now calls `paintGate` synchronously (it patches text, hidden flags and disabled state in place, so no node is rebuilt) and still queues `scheduleGates` for the tab badges; `answerGate` reads `this.gateId` set by that paint. The `sessions` event keeps the queued path because it only changes tab state.
