@@ -1,0 +1,71 @@
+:root {
+  --ft-dock-min: 120px;
+  --ft-dock-cap: 70vh;
+  --ft-dock-reserve: 120px;
+  --ft-dock-full: max(var(--ft-dock-min), calc(100vh - var(--cv-titlebar-h) - var(--cv-status-h) - var(--ft-dock-reserve)));
+  --ft-ansi-black: #4b4f5c;
+  --ft-ansi-red: #f87171;
+  --ft-ansi-green: #34d399;
+  --ft-ansi-yellow: #fbbf24;
+  --ft-ansi-blue: #60a5fa;
+  --ft-ansi-magenta: #c084fc;
+  --ft-ansi-cyan: #22d3ee;
+  --ft-ansi-white: #d4d4d8;
+  --ft-ansi-bright-black: #71768a;
+  --ft-ansi-bright-red: #fca5a5;
+  --ft-ansi-bright-green: #6ee7b7;
+  --ft-ansi-bright-yellow: #fcd34d;
+  --ft-ansi-bright-blue: #93c5fd;
+  --ft-ansi-bright-magenta: #d8b4fe;
+  --ft-ansi-bright-cyan: #67e8f9;
+  --ft-ansi-bright-white: #fafafa;
+}
+body.theme-light {
+  --ft-ansi-black: #1f2328;
+  --ft-ansi-red: #b42318;
+  --ft-ansi-green: #047857;
+  --ft-ansi-yellow: #8a5a00;
+  --ft-ansi-blue: #1d4ed8;
+  --ft-ansi-magenta: #7e22ce;
+  --ft-ansi-cyan: #0e7490;
+  --ft-ansi-white: #6b7280;
+  --ft-ansi-bright-black: #4b5563;
+  --ft-ansi-bright-red: #dc2626;
+  --ft-ansi-bright-green: #059669;
+  --ft-ansi-bright-yellow: #a16207;
+  --ft-ansi-bright-blue: #2563eb;
+  --ft-ansi-bright-magenta: #9333ea;
+  --ft-ansi-bright-cyan: #0891b2;
+  --ft-ansi-bright-white: #374151;
+}
+
+:root[data-ft-dock="open"] .cv-home { bottom: calc(var(--cv-status-h) + var(--ft-dock-h)); }
+
+.cv-app > .ft-dock { grid-row: 3; }
+.ft-dock { position: relative; display: flex; flex-direction: column; min-height: 0; overflow: hidden; background: var(--bg-primary); border-top: 1px solid var(--border-color); color: var(--text-primary); user-select: none; -webkit-user-select: none; }
+:root:not([data-ft-dock="open"]) .ft-dock { visibility: hidden; border-top-width: 0; }
+.ft-dock-grip { position: absolute; top: 0; left: 0; right: 0; height: var(--space-1); cursor: ns-resize; z-index: var(--z-raised); touch-action: none; }
+.ft-dock-grip:hover, .ft-dock-grip:focus-visible, .ft-dock.is-dragging .ft-dock-grip { background: var(--accent-line); outline: none; }
+.ft-dock-head { flex: none; display: flex; align-items: center; gap: var(--space-2); height: var(--ctl-lg); padding: 0 var(--space-2); background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); min-width: 0; }
+.ft-dock-tabs { display: flex; align-items: center; gap: var(--space-0); min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.ft-dock-spacer { flex: 1; }
+.ft-dock-conn { flex: none; color: var(--warn); font-size: var(--fs-11); white-space: nowrap; }
+.ft-dock-conn[hidden], .ft-dock-empty[hidden], .ft-dock-probe { display: none; }
+.ft-dock-tab { display: inline-flex; align-items: center; flex: none; gap: var(--space-2); height: var(--ctl-sm); padding: 0 var(--space-1) 0 var(--space-2); border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text-secondary); font-size: var(--fs-12); cursor: pointer; white-space: nowrap; }
+.ft-dock-tab:hover { color: var(--text-primary); }
+.ft-dock-tab:focus-visible { outline: 1px solid var(--accent-line); }
+.ft-dock-tab.is-on { border-color: var(--line-2); background: var(--surface-raised); color: var(--text-primary); }
+.ft-dock-tab.is-claude > .icon { color: var(--accent-color); }
+.ft-dock-tab.is-exited .ft-dock-tab-title { color: var(--text-muted); text-decoration: line-through; }
+.ft-dock-tab-x { display: inline-grid; place-items: center; width: 16px; height: 16px; padding: 0; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-muted); cursor: pointer; }
+.ft-dock-tab-x:hover { background: var(--bg-hover); color: var(--text-primary); }
+.ft-dock-head .cv-tt-btn { width: var(--ctl-sm); height: var(--ctl-sm); flex: none; }
+.ft-dock-stage { position: relative; flex: 1; min-height: 0; padding: var(--space-1) var(--space-2) 0; overflow: hidden; background: var(--bg-primary); }
+.ft-term { height: 100%; user-select: text; -webkit-user-select: text; }
+.ft-term[hidden] { display: none; }
+.ft-term .xterm { height: 100%; }
+.ft-term .xterm .xterm-viewport { scrollbar-width: none !important; -ms-overflow-style: none !important; background-color: transparent !important; }
+.ft-term .xterm .xterm-viewport::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+.ft-term .xterm .scrollbar, .ft-term .xterm .xterm-scrollable-element > .scrollbar, .ft-term .xterm .xterm-scrollable-element > .shadow { display: none !important; }
+.ft-dock-empty { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: 0 var(--space-4); text-align: center; }
+.ft-dock-clip { position: absolute; left: -9999px; top: 0; width: 1px; height: 1px; opacity: 0; }

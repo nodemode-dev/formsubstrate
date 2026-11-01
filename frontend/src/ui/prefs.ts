@@ -28,6 +28,7 @@ export interface Prefs {
   editorTabSize: number;
   editorWordWrap: boolean;
   terminalFontSize: number;
+  terminalDockHeight: number;
   agentDefaultModel: string;
   formslotEnabled: boolean;
   formslotAutoStart: boolean;
@@ -50,7 +51,7 @@ export const DEFAULT_PREFS: Prefs = {
   autoShowHome: true, homeOnLastClose: false, whatsNewAuto: true, whatsNewSeen: '',
   favouriteThemes: [], themeAuto: false, themeLight: 'light', themeDark: 'studio',
   shortcuts: {}, shortcutSets: {}, menuHidden: [], menuColors: {}, dialogValues: {},
-  editorFontSize: 13, editorTabSize: 2, editorWordWrap: true, terminalFontSize: 13,
+  editorFontSize: 13, editorTabSize: 2, editorWordWrap: true, terminalFontSize: 13, terminalDockHeight: 260,
   agentDefaultModel: '', formslotEnabled: true, formslotAutoStart: true, gitSignOnCommit: true, recoveryMinutes: 1,
   largeTabs: false, reopenLastWorkspace: true, hiddenFolders: [], sidebarWidth: 280, prefsRevision: 2,
 };
@@ -142,6 +143,7 @@ export function loadPrefs(): Prefs {
       editorTabSize: Math.round(num(r.editorTabSize, 1, 8, d.editorTabSize)),
       editorWordWrap: num(r.prefsRevision, 0, 99, 0) >= 2 ? flag(r.editorWordWrap, d.editorWordWrap) : d.editorWordWrap,
       terminalFontSize: Math.round(num(r.terminalFontSize, 8, 32, d.terminalFontSize)),
+      terminalDockHeight: Math.round(num(r.terminalDockHeight, 120, 800, d.terminalDockHeight)),
       agentDefaultModel: typeof r.agentDefaultModel === 'string' ? r.agentDefaultModel.slice(0, 120) : d.agentDefaultModel,
       formslotEnabled: flag(r.formslotEnabled, d.formslotEnabled),
       formslotAutoStart: flag(r.formslotAutoStart, d.formslotAutoStart),
