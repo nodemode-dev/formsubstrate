@@ -14,6 +14,11 @@ backend/
   app/routers/secrets.py       secret names and presence, values in the system keyring (same log)
   app/core/workspace_root.py   current root, recent list, path confinement (same log)
   app/core/binres.py           finds rg and other programs (same log)
+  subform_ptyhost.py     detached pty-host that owns every terminal (log: app/services/HASHOUT_LOG.md)
+  app/services/                ptyhost_client, sessions registry and worktrees (same log)
+  app/routers/terminal.py      terminals and the multiplexed websocket (same log)
+  app/routers/sessions.py      agent sessions and their event stream (same log)
+  app/routers/skills.py        read-only installed skills (same log)
   requirements.txt             pinned engine packages, each with its licence
   requirements_macos.txt       unpinned list used by oc_install on macOS
   HASHOUT_LOG.md               this log
@@ -43,7 +48,7 @@ backend/
 - backend/app/core/runtime.py
 - backend/app/core/local_guard.py
 - backend/app/routers/system.py
-- backend/app/services (not created)
+- backend/app/services (created in v0.5.0; own log: app/services/HASHOUT_LOG.md)
 - Root scripts and setup/ (ported in the same phase)
 
 ## backend/subform_engine.py
@@ -250,7 +255,9 @@ backend/
 - logged: v0.1.0 · 2026-10-30
 - The formvis router (image formats, GPU and colour info, System Info data) is not ported; only the status route is new here.
 
-## backend/app/services (not created)
+## backend/app/services (created in v0.5.0)
+
+The package now holds ptyhost_client.py and sessions.py (Phase F5); their entries, with the pty-host and the terminal, sessions and skills routers, are in app/services/HASHOUT_LOG.md. The `sessions.py` here is the agent-session registry, not formvis's image-asset store described below, which stays unported.
 
 ### backend/app/services · sessions
 - refers-to: backend/app/services/sessions.py :: prune, create, asset_path, payload
