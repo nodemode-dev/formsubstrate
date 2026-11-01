@@ -3,6 +3,7 @@ import { drawSelection, EditorView, keymap, lineNumbers } from '@codemirror/view
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { indentUnit, syntaxHighlighting } from '@codemirror/language';
 import { MergeView, unifiedMergeView } from '@codemirror/merge';
+import { formslotState } from '../../io/formslot';
 import { git, type FileDiff } from '../../io/git';
 import { detailOf, readFile, statusOf, writeFile } from '../../io/workspace';
 import { sessionsClient } from '../../io/sessions';
@@ -14,6 +15,7 @@ import { wordWrap } from '../editor/wrap';
 import { onLanguage, t } from '../i18n';
 import { icon } from '../icons';
 import { toast } from '../toast';
+import { paintProvenance, PROVENANCE_HTML } from './provenance';
 import type { EditorPrefs, ViewDoc } from './views';
 
 export const GIT_CHANGED = 'subform:git-changed';
@@ -45,6 +47,7 @@ export class DiffTab implements ViewDoc {
 <div class="cv-diff-bar">
 <span class="cv-diff-file"></span>
 <span class="cv-diff-badge cv-note"></span>
+${PROVENANCE_HTML}
 <div class="cv-diff-tools">
 <div class="cv-seg" role="group">
 <button class="cv-seg-btn" type="button" data-mode="split">${icon('viewGrid', 14)}<span class="cv-diff-split-t"></span></button>
@@ -64,6 +67,8 @@ export class DiffTab implements ViewDoc {
 </div>`);
   private readonly fileEl = q(this.root, '.cv-diff-file');
   private readonly badge = q(this.root, '.cv-diff-badge');
+  private readonly prov = q(this.root, '.cv-fs-prov');
+  private offDrift: () => void = () => undefined;
   private readonly stale = q(this.root, '.cv-diff-stale');
   private readonly tools = q(this.root, '.cv-diff-tools');
   private readonly modeBtns = Array.from(this.root.querySelectorAll<HTMLButtonElement>('.cv-seg-btn'));
@@ -106,8 +111,10 @@ export class DiffTab implements ViewDoc {
     this.refreshBtn.addEventListener('click', () => { void this.load(); });
     this.saveBtn.addEventListener('click', () => { void this.save(); });
     window.addEventListener(GIT_CHANGED, this.onChanged);
+    this.offDrift = formslotState.on('drift', () => paintProvenance(this.prov, this.target.path));
     onLanguage(() => this.paint());
     this.paint();
+    void formslotState.ensureDrift();
     void this.load();
   }
 
@@ -128,6 +135,7 @@ export class DiffTab implements ViewDoc {
 
   dispose(): void {
     this.disposed = true;
+    this.offDrift();
     window.clearTimeout(this.timer);
     window.removeEventListener(GIT_CHANGED, this.onChanged);
     this.destroyViews();
@@ -349,6 +357,7 @@ export class DiffTab implements ViewDoc {
     const state = this.target.staged ? t('Staged against HEAD') : t('Working tree against the index');
     const edit = this.target.staged ? '' : this.target.session ? ` · ${t('read only here')}` : '';
     setText(this.badge, `${where} · ${state}${edit}`);
+    paintProvenance(this.prov, this.target.path);
     setText(this.stale, t('Changed since opened: save or undo your edits to refresh.'));
     setText(q(this.root, '.cv-diff-split-t'), t('Side by side'));
     setText(q(this.root, '.cv-diff-unified-t'), t('Unified'));

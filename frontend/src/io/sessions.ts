@@ -1,4 +1,5 @@
 import { request } from './api';
+import { asGate, gates as gatesApi, type Gate, type GateChoice } from './formslot';
 import type { HomeSession } from '../ui/home';
 import type { SessionsSummary } from '../ui/workspace-store';
 
@@ -20,6 +21,7 @@ export interface Session {
   updated: number | string;
   lastMessage: string | null;
   notes?: string[];
+  tokensSaved?: number;
 }
 
 export interface SessionNotice { sessionId: string; kind: NoticeKind; text: string }
@@ -39,6 +41,9 @@ export interface SessionsEvents {
   notice: SessionNotice;
   line: TranscriptLine;
   connection: boolean;
+  gate: Gate;
+  gateClosed: { id: string };
+  gates: readonly Gate[];
 }
 
 type Listener<K extends keyof SessionsEvents> = (value: SessionsEvents[K]) => void;
@@ -77,8 +82,9 @@ export class SessionsClient {
   private readonly byId = new Map<string, Session>();
   private readonly lines = new Map<string, TranscriptLine[]>();
   private readonly listeners: { [K in keyof SessionsEvents]: Set<Listener<K>> } = {
-    sessions: new Set(), notice: new Set(), line: new Set(), connection: new Set(),
+    sessions: new Set(), notice: new Set(), line: new Set(), connection: new Set(), gate: new Set(), gateClosed: new Set(), gates: new Set(),
   };
+  private readonly openGates = new Map<string, Gate>();
   private source: EventSource | null = null;
   private retry = 0;
   private retryMs = RETRY_MIN_MS;
@@ -99,6 +105,8 @@ export class SessionsClient {
 
   get list(): readonly Session[] { return this.sorted; }
   get connected(): boolean { return this.online; }
+  get gates(): readonly Gate[] { return Array.from(this.openGates.values()).sort((a, b) => stamp(a.created) - stamp(b.created) || (a.id < b.id ? -1 : 1)); }
+  tokensSavedTotal(): number { let n = 0; for (const s of this.byId.values()) n += s.tokensSaved ?? 0; return n; }
   get(id: string): Session | undefined { return this.byId.get(id); }
   transcript(id: string): readonly TranscriptLine[] { return this.lines.get(id) ?? []; }
 
@@ -183,6 +191,30 @@ export class SessionsClient {
     this.publish();
   }
 
+  async refreshGates(): Promise<void> {
+    const list = await gatesApi.list();
+    const seen = new Set<string>();
+    for (const raw of list) {
+      const g = asGate(raw);
+      if (!g || g.choice !== null) continue;
+      seen.add(g.id);
+      if (!this.openGates.has(g.id)) { this.openGates.set(g.id, g); this.emit('gate', g); }
+    }
+    for (const id of Array.from(this.openGates.keys())) if (!seen.has(id)) { this.openGates.delete(id); this.emit('gateClosed', { id }); }
+    this.emit('gates', this.gates);
+  }
+
+  async answerGate(id: string, choice: GateChoice): Promise<void> {
+    await gatesApi.answer(id, choice);
+    this.closeGate(id);
+  }
+
+  closeGate(id: string): void {
+    if (!this.openGates.delete(id)) return;
+    this.emit('gateClosed', { id });
+    this.emit('gates', this.gates);
+  }
+
   skills(): Promise<Skill[]> {
     return request<{ skills: Skill[] }>('/api/skills').then((r) => r.skills);
   }
@@ -195,6 +227,23 @@ export class SessionsClient {
       this.retryMs = RETRY_MIN_MS;
       this.setOnline(true);
       void this.refresh().catch(() => undefined);
+      void this.refreshGates().catch(() => undefined);
+    });
+    source.addEventListener('gate', (e) => {
+      try {
+        const g = asGate(JSON.parse((e as MessageEvent<string>).data));
+        if (!g || g.choice !== null) return;
+        this.openGates.set(g.id, g);
+        this.emit('gate', g);
+        this.emit('gates', this.gates);
+      } catch { return; }
+    });
+    source.addEventListener('gate-closed', (e) => {
+      try {
+        const raw: unknown = JSON.parse((e as MessageEvent<string>).data);
+        const id = typeof raw === 'string' ? raw : raw && typeof raw === 'object' && typeof (raw as { id?: unknown }).id === 'string' ? (raw as { id: string }).id : '';
+        if (id) this.closeGate(id);
+      } catch { return; }
     });
     source.addEventListener('session', (e) => {
       try {

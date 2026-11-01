@@ -1,3 +1,4 @@
+import { compact, SESSION_SELECTED } from '../../io/formslot';
 import { elapsedLabel, sessionsClient, STATE_ORDER, type NoticeKind, type Session, type SessionState, type Skill } from '../../io/sessions';
 import { detailOf, statusOf } from '../../io/workspace';
 import { ChatPane } from '../../ui/chat-pane';
@@ -97,6 +98,7 @@ class SessionsPanel {
   select(id: string | null): void {
     if (this.selected === id) return;
     this.selected = id;
+    window.dispatchEvent(new CustomEvent(SESSION_SELECTED, { detail: { id } }));
     this.chat.select(id);
     this.markSelected();
   }
@@ -143,7 +145,7 @@ class SessionsPanel {
     }
     const n = el(`<div class="cv-ss-row" role="listitem" tabindex="0">
 <div class="cv-ss-top"><span class="cv-ss-dot"></span><span class="cv-ss-title"></span><span class="cv-ss-elapsed"></span></div>
-<div class="cv-ss-meta">${icon('branch', 12)}<span class="cv-ss-branch"></span><span class="cv-ss-mode"></span></div>
+<div class="cv-ss-meta">${icon('branch', 12)}<span class="cv-ss-branch"></span><span class="cv-ss-mode"></span><span class="cv-ss-saved"></span></div>
 <div class="cv-ss-last"></div>
 <div class="cv-ss-actions">${ACTIONS.map(([act, ic]) => `<button class="cv-ss-act" type="button" data-act="${act}" hidden>${icon(ic, 14)}</button>`).join('')}</div>
 </div>`);
@@ -167,6 +169,9 @@ class SessionsPanel {
     setText(q(n, '.cv-ss-branch'), s.branch);
     setTitle(q(n, '.cv-ss-meta'), s.worktree);
     setText(q(n, '.cv-ss-mode'), t(s.mode));
+    const saved = s.tokensSaved ?? 0;
+    setText(q(n, '.cv-ss-saved'), saved > 0 ? `${compact(saved)} ${t('saved')}` : '');
+    setTitle(q(n, '.cv-ss-saved'), saved > 0 ? `${saved.toLocaleString()} ${t('tokens saved by reusing slots')}` : '');
     const last = s.lastMessage ?? '';
     setText(q(n, '.cv-ss-last'), last);
     setTitle(q(n, '.cv-ss-last'), last);

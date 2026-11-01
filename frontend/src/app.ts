@@ -2,6 +2,7 @@ import { activateAll } from './extensions/registry';
 import { PATHS_CHANGED, type PathsChanged } from './extensions/files';
 import './extensions/search';
 import './extensions/git';
+import './extensions/formslot';
 import { setTerminalHook } from './extensions/sessions';
 import { systemStatus } from './io/api';
 import { sessionsClient } from './io/sessions';

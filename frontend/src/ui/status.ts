@@ -2,6 +2,7 @@ import { mountOnce, pendingClass, q, setClass, setHidden, setStyleVar, setText, 
 import { onLanguage, t } from './i18n';
 import { icon } from './icons';
 import { JobsList } from './jobs-list';
+import { FormslotStatusItem } from './status-formslot';
 import type { WorkspaceStore } from './workspace-store';
 
 export const SERVICE_NOTE = 'The engine service is not running, so these wait for it: reading files, git, Claude Code sessions, the terminal and formslot.';
@@ -36,7 +37,8 @@ export class StatusBar {
       '<span class="cv-st-ws" hidden></span>' +
       '<span class="cv-st-problems" hidden></span>' +
       '<span class="cv-st-engine"></span>' +
-      '<span class="cv-st-formslot" hidden></span>' +
+      `<button class="cv-st-formslot" type="button"><span class="cv-st-fs-dot"></span><span class="cv-st-fs-t"></span></button>` +
+      '<span class="cv-st-saved"></span>' +
       '<span class="cv-st-sessions" hidden></span>' +
       '<span class="cv-st-hint"></span>' +
       `<span class="cv-st-busy">${icon('loading', 12)}</span>`);
@@ -48,6 +50,7 @@ export class StatusBar {
     this.engineState = q(root, '.cv-st-engine');
     this.formslot = q(root, '.cv-st-formslot');
     this.sessions = q(root, '.cv-st-sessions');
+    new FormslotStatusItem(this.formslot, q(root, '.cv-st-saved'));
     this.hint = q(root, '.cv-st-hint');
     this.busy = q(root, '.cv-st-busy');
     this.busyText = document.createTextNode(t('Working'));
@@ -90,11 +93,6 @@ export class StatusBar {
   setProblems(count: number | null): void {
     setHidden(this.problems, count === null);
     setText(this.problems, count === null ? '' : `${count} ${t(count === 1 ? 'problem' : 'problems')}`);
-  }
-
-  setFormslot(text: string | null): void {
-    setHidden(this.formslot, !text);
-    setText(this.formslot, text ?? '');
   }
 
   setHint(text: string): void {

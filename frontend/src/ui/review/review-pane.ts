@@ -1,3 +1,4 @@
+import { formslotState } from '../../io/formslot';
 import { git, type FileReview, type Hunk, type Review } from '../../io/git';
 import { sessionsClient } from '../../io/sessions';
 import { detailOf, statusOf } from '../../io/workspace';
@@ -8,6 +9,7 @@ import { onLanguage, t } from '../i18n';
 import { icon } from '../icons';
 import { toast } from '../toast';
 import { GIT_CHANGED } from './diff-view';
+import { paintProvenance, PROVENANCE_HTML } from './provenance';
 import type { EditorPrefs, ViewDoc } from './views';
 
 export const OPEN_DIFF = 'subform:open-diff';
@@ -74,6 +76,7 @@ export class ReviewPane implements ViewDoc {
   private own = false;
   private disposed = false;
   private allBusy = false;
+  private offDrift: () => void = () => undefined;
   private readonly onChanged = (e: Event): void => {
     if (this.own) return;
     const detail = (e as CustomEvent<{ session?: string | null }>).detail;
@@ -88,8 +91,13 @@ export class ReviewPane implements ViewDoc {
     window.addEventListener(GIT_CHANGED, this.onChanged);
     sessionsClient.on('sessions', () => this.paintHead());
     onLanguage(() => this.paint());
+    this.offDrift = formslotState.on('drift', () => this.provenance());
     this.paint();
     void this.load();
+  }
+
+  private provenance(): void {
+    for (const n of Array.from(this.list.children) as HTMLElement[]) paintProvenance(q(n, '.cv-fs-prov'), n.dataset.key ?? '');
   }
 
   activate(): void {
@@ -106,6 +114,7 @@ export class ReviewPane implements ViewDoc {
 
   dispose(): void {
     this.disposed = true;
+    this.offDrift();
     window.clearTimeout(this.timer);
     window.clearTimeout(this.noticeTimer);
     window.removeEventListener(GIT_CHANGED, this.onChanged);
@@ -134,6 +143,7 @@ export class ReviewPane implements ViewDoc {
     }
     this.loadingNow = false;
     this.paint();
+    void formslotState.ensureDrift();
   }
 
   private say(text: string, kind: 'info' | 'error' = 'info'): void {
@@ -307,6 +317,7 @@ export class ReviewPane implements ViewDoc {
 <span class="cv-rv-name"></span>
 <span class="cv-rv-kind"></span>
 <span class="cv-rv-counts"><span class="cv-rv-add"></span><span class="cv-rv-del"></span></span>
+${PROVENANCE_HTML}
 <div class="cv-rv-acts">
 <button class="cv-rv-act" type="button" data-act="open">${icon('diff', 14)}</button>
 <button class="cv-rv-act is-ok" type="button" data-act="file-accept">${icon('check', 14)}</button>
@@ -334,6 +345,7 @@ export class ReviewPane implements ViewDoc {
     if (q(n, '.cv-rv-kind').dataset.kind !== f.kind) q(n, '.cv-rv-kind').dataset.kind = f.kind;
     setText(q(n, '.cv-rv-add'), `+${f.added}`);
     setText(q(n, '.cv-rv-del'), `-${f.removed}`);
+    paintProvenance(q(n, '.cv-fs-prov'), f.path);
     setClass(n, 'is-collapsed', collapsed);
     this.label(q(n, '[data-act="toggle"]'), t(collapsed ? 'Expand' : 'Collapse'));
     this.label(q(n, '[data-act="open"]'), t('Open diff'));
