@@ -2,6 +2,7 @@ import { RangeSetBuilder, type Extension } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
 
 const MAX_INDENT = 80;
+const WIDTH_SHARE = 0.4;
 const decos = new Map<number, Decoration>();
 
 function indentOf(text: string, tab: number): number {
@@ -27,11 +28,13 @@ function decoFor(n: number): Decoration {
 function build(view: EditorView): DecorationSet {
   const out = new RangeSetBuilder<Decoration>();
   const tab = view.state.tabSize;
+  const room = Math.floor((view.contentDOM.clientWidth * WIDTH_SHARE) / Math.max(1, view.defaultCharacterWidth));
+  const cap = room > 0 ? room : MAX_INDENT;
   for (const { from, to } of view.visibleRanges) {
     let pos = from;
     while (pos <= to) {
       const line = view.state.doc.lineAt(pos);
-      const n = indentOf(line.text, tab);
+      const n = Math.min(indentOf(line.text, tab), cap);
       if (n > 0 && n < line.length + tab) out.add(line.from, line.from, decoFor(n));
       pos = line.to + 1;
     }
@@ -44,7 +47,7 @@ const hangingIndent = ViewPlugin.fromClass(
     decorations: DecorationSet;
     constructor(view: EditorView) { this.decorations = build(view); }
     update(u: ViewUpdate): void {
-      if (u.docChanged || u.viewportChanged || u.startState.tabSize !== u.state.tabSize) this.decorations = build(u.view);
+      if (u.docChanged || u.viewportChanged || u.geometryChanged || u.startState.tabSize !== u.state.tabSize) this.decorations = build(u.view);
     }
   },
   { decorations: (v) => v.decorations },
