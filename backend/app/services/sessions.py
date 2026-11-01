@@ -44,6 +44,8 @@ INPUT_SUBTYPES = ("permission_request", "input_request", "permission_denied")
 SESSION_FIELDS = ("id", "title", "repo", "branch", "worktree", "mode", "state", "terminalId", "claudeSessionId", "created", "updated", "lastMessage", "notes", "repoName", "base", "permissionMode")
 PERMISSION_MODES = ("default", "acceptEdits", "plan")
 DEFAULT_PERMISSION_MODE = "acceptEdits"
+RUN_KIND = "run"
+RUN_PREFIX = "run"
 
 
 class Refused(Exception):
@@ -123,7 +125,7 @@ def _save() -> None:
     target = _registry_file()
     temp = target.with_name(target.name + ".tmp")
     with _lock:
-        temp.write_text(json.dumps({"sessions": list(_sessions.values())}, indent=2), encoding="utf-8")
+        temp.write_text(json.dumps({"sessions": [item for item in _sessions.values() if item.get("kind") != RUN_KIND]}, indent=2), encoding="utf-8")
         os.replace(temp, target)
 
 
@@ -138,7 +140,7 @@ def public(item: dict) -> dict:
 
 def list_sessions() -> list[dict]:
     _load()
-    return sorted((public(item) for item in _sessions.values()), key=lambda s: s["created"] or "", reverse=True)
+    return sorted((public(item) for item in _sessions.values() if item.get("kind") != RUN_KIND), key=lambda s: s["created"] or "", reverse=True)
 
 
 def get_session(session_id: str) -> dict | None:
@@ -155,6 +157,11 @@ def worktree_roots() -> list[str]:
 def _entry(session_id: str) -> dict:
     _load()
     item = _sessions.get(session_id)
+    if item is None and session_id.startswith(RUN_PREFIX):
+        from app.services.runs import worktree
+
+        worktree.restore(session_id)
+        item = _sessions.get(session_id)
     if item is None:
         raise Refused(404, "no such session")
     return item
@@ -186,11 +193,15 @@ def unsubscribe(queue: asyncio.Queue) -> None:
 
 def _changed(item: dict) -> None:
     item["updated"] = _now()
+    if item.get("kind") == RUN_KIND:
+        return
     _save()
     _publish("session", public(item))
 
 
 def _notice(item: dict, kind: str, text: str) -> None:
+    if item.get("kind") == RUN_KIND:
+        return
     _publish("notice", {"sessionId": item["id"], "kind": kind, "text": text})
 
 
@@ -633,6 +644,42 @@ def _discover_claude_session(item: dict) -> None:
         item["claudeSessionId"] = files[0].stem
 
 
+async def prepare_worktree(root: str, base: str, tag: str, branch: str) -> tuple[str, str, Path, list[str]]:
+    top, name = await _repo_of(root)
+    git = _git()
+    code, _, err = await _run([git, "rev-parse", "--verify", "--quiet", f"{base}^{{commit}}"], cwd=top)
+    if code != 0:
+        raise Refused(400, f"base {base} is not a branch or commit of this repository")
+    path = _worktree_path(top, name, tag)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    code, _, err = await _run([git, "worktree", "add", "-b", branch, str(path), base], cwd=top)
+    if code != 0:
+        raise Refused(409, "git could not create the worktree: " + (err.strip() or "unknown error"))
+    await _exclude_subform(top)
+    config_obj, notes = await _mcp_config()
+    _write_mcp(path, config_obj)
+    _write_settings(path)
+    try:
+        await gitops.configure_worktree(top, str(path))
+    except gitops.Refused as err:
+        notes.append("the commit identity and hook could not be set up for this worktree: " + err.detail)
+    return top, name, path, notes
+
+
+def register_target(item: dict) -> None:
+    _load()
+    _sessions[item["id"]] = item
+
+
+def drop_target(session_id: str) -> None:
+    with _lock:
+        _sessions.pop(session_id, None)
+
+
+def mcp_args(item: dict) -> list[str]:
+    return _mcp_arg(item)
+
+
 def _need_title(title: object) -> str:
     text = " ".join(str(title or "").split())
     return text[:120] if text else "Untitled session"
@@ -656,26 +703,9 @@ async def create(title: str, mode: str, prompt: str | None, base: str | None, pe
         root = ws.real_root()
     except ws.Refused as err:
         raise Refused(err.status, err.detail)
-    top, name = await _repo_of(root)
-    git = _git()
-    code, _, err = await _run([git, "rev-parse", "--verify", "--quiet", f"{base}^{{commit}}"], cwd=top)
-    if code != 0:
-        raise Refused(400, f"base {base} is not a branch or commit of this repository")
     session_id = new_id()
     branch = f"sf/{session_id}"
-    path = _worktree_path(top, name, session_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    code, _, err = await _run([git, "worktree", "add", "-b", branch, str(path), base], cwd=top)
-    if code != 0:
-        raise Refused(409, "git could not create the worktree: " + (err.strip() or "unknown error"))
-    await _exclude_subform(top)
-    config_obj, notes = await _mcp_config()
-    _write_mcp(path, config_obj)
-    _write_settings(path)
-    try:
-        await gitops.configure_worktree(top, str(path))
-    except gitops.Refused as err:
-        notes.append("the commit identity and hook could not be set up for this worktree: " + err.detail)
+    top, name, path, notes = await prepare_worktree(root, base, session_id, branch)
     item = {
         "id": session_id,
         "title": _need_title(title),

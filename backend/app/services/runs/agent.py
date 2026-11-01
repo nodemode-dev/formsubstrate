@@ -5,6 +5,7 @@ from typing import Awaitable, Callable
 
 from app.core import workspace_root as ws
 from app.core.binres import find_bin
+from app.services.runs import worktree
 
 Emit = Callable[[str, str | None], Awaitable[None]]
 
@@ -70,8 +71,12 @@ async def run_claude(*, role: str, task: str, context: str, cfg: dict, evaluator
         timeout = max(10.0, float(cfg.get("timeout_s") or DEFAULT_TIMEOUT))
     except (TypeError, ValueError):
         timeout = float(DEFAULT_TIMEOUT)
+    try:
+        cwd, extra, env = await worktree.prepare(procs, ws.real_root())
+    except worktree.WorktreeError as err:
+        raise AgentError(str(err)[:400])
     proc = await asyncio.create_subprocess_exec(
-        *argv, cwd=ws.real_root(), stdin=asyncio.subprocess.PIPE,
+        *argv, *extra, cwd=cwd, env=env, stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, limit=LINE_LIMIT)
     procs.add(proc)
     state = {"text": "", "final": None, "error": None, "streamed": False}
