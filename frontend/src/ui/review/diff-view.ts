@@ -1,5 +1,6 @@
 import { Compartment, EditorState, type Extension, type Text } from '@codemirror/state';
 import { drawSelection, EditorView, keymap, lineNumbers } from '@codemirror/view';
+import { highlightSelectionMatches, openSearchPanel, searchKeymap, selectNextOccurrence, selectSelectionMatches } from '@codemirror/search';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { indentUnit, syntaxHighlighting } from '@codemirror/language';
 import { MergeView, unifiedMergeView } from '@codemirror/merge';
@@ -96,6 +97,7 @@ ${PROVENANCE_HTML}
   private pending = false;
   private disposed = false;
   private readonly onChanged = (): void => this.queueReload();
+  private readonly offLanguage: () => void;
 
   constructor(private readonly target: DiffTarget, prefs: EditorPrefs, private readonly modified: (dirty: boolean) => void) {
     this.prefs = prefs;
@@ -112,14 +114,14 @@ ${PROVENANCE_HTML}
     this.saveBtn.addEventListener('click', () => { void this.save(); });
     window.addEventListener(GIT_CHANGED, this.onChanged);
     this.offDrift = formslotState.on('drift', () => paintProvenance(this.prov, this.target.path));
-    onLanguage(() => this.paint());
+    this.offLanguage = onLanguage(() => this.paint());
     this.paint();
     void formslotState.ensureDrift();
     void this.load();
   }
 
   get editable(): boolean {
-    return !this.target.staged && !this.target.session && !!this.diff && !this.diff.binary && !this.diff.tooLarge;
+    return !this.target.staged && !!this.diff && !this.diff.binary && !this.diff.tooLarge && (!this.target.session || this.diff.mtime !== null);
   }
 
   activate(): void {
@@ -138,6 +140,7 @@ ${PROVENANCE_HTML}
     this.offDrift();
     window.clearTimeout(this.timer);
     window.removeEventListener(GIT_CHANGED, this.onChanged);
+    this.offLanguage();
     this.destroyViews();
   }
 
@@ -147,12 +150,13 @@ ${PROVENANCE_HTML}
     const doc = view.state.doc;
     const text = doc.sliceString(0, doc.length, this.eol);
     const write = async (expected: number | null): Promise<boolean> => {
-      const r = await writeFile(this.target.path, text, expected);
+      const session = this.target.session;
+      const r = session ? await git.writeWorktreeFile(session, this.target.path, text, expected) : await writeFile(this.target.path, text, expected);
       this.mtime = r.mtime;
       this.saved = doc;
       this.syncDirty(this.modifiedView()?.state.doc ?? doc);
       toast(`${t('Saved')} ${baseName(this.target.path)}`, 'info');
-      window.dispatchEvent(new CustomEvent(GIT_CHANGED, { detail: { session: null } }));
+      window.dispatchEvent(new CustomEvent(GIT_CHANGED, { detail: { session: this.target.session } }));
       return true;
     };
     try {
@@ -177,6 +181,32 @@ ${PROVENANCE_HTML}
     return this.mode === 'split' ? (this.split?.b ?? null) : this.uni;
   }
 
+  private searchView(): EditorView | null {
+    const all = [this.split?.b, this.split?.a, this.uni].filter((v): v is EditorView => !!v);
+    return all.find((v) => v.hasFocus) ?? this.modifiedView() ?? all[0] ?? null;
+  }
+
+  find(): void {
+    const v = this.searchView();
+    if (!v) return;
+    v.focus();
+    openSearchPanel(v);
+  }
+
+  selectNext(): void {
+    const v = this.searchView();
+    if (!v) return;
+    v.focus();
+    selectNextOccurrence(v);
+  }
+
+  selectAllOccurrences(): void {
+    const v = this.searchView();
+    if (!v) return;
+    v.focus();
+    selectSelectionMatches(v);
+  }
+
   private optionsExt(): Extension {
     return [EditorState.tabSize.of(this.prefs.tabSize), indentUnit.of(' '.repeat(this.prefs.tabSize))];
   }
@@ -190,7 +220,7 @@ ${PROVENANCE_HTML}
   }
 
   private base(): Extension[] {
-    return [lineNumbers(), drawSelection(), syntaxHighlighting(editorHighlight), editorTheme, this.phrases(), this.lang.of(this.langExt), this.opts.of(this.optionsExt()), this.wrap.of(this.wrapExt())];
+    return [lineNumbers(), drawSelection(), highlightSelectionMatches(), keymap.of(searchKeymap), syntaxHighlighting(editorHighlight), editorTheme, this.phrases(), this.lang.of(this.langExt), this.opts.of(this.optionsExt()), this.wrap.of(this.wrapExt())];
   }
 
   private readOnlyExt(): Extension[] {
@@ -211,6 +241,10 @@ ${PROVENANCE_HTML}
     if (dirty === this.dirty) return;
     this.dirty = dirty;
     this.modified(dirty);
+    if (!dirty && !this.stale.hidden) {
+      setHidden(this.stale, true);
+      this.queueReload();
+    }
     this.paint();
   }
 
@@ -284,7 +318,7 @@ ${PROVENANCE_HTML}
       const d = await git.diff(this.target.path, this.target.staged, this.target.session);
       if (mine !== this.seq || this.disposed) return;
       const wantsMtime = !this.target.staged && !this.target.session && !d.binary && !d.tooLarge && d.modified !== '';
-      const file = wantsMtime ? await readFile(this.target.path).then((f) => f.mtime).catch(() => null) : null;
+      const file = this.target.session ? d.mtime : wantsMtime ? await readFile(this.target.path).then((f) => f.mtime).catch(() => null) : null;
       if (mine !== this.seq || this.disposed) return;
       this.apply(d, file);
     } catch (err) {
@@ -355,7 +389,7 @@ ${PROVENANCE_HTML}
     setTitle(this.fileEl, this.target.path);
     const where = this.target.session ? (sessionsClient.get(this.target.session)?.title ?? this.target.session) : t('Workspace');
     const state = this.target.staged ? t('Staged against HEAD') : t('Working tree against the index');
-    const edit = this.target.staged ? '' : this.target.session ? ` · ${t('read only here')}` : '';
+    const edit = !this.target.staged && !!d && !d.binary && !d.tooLarge && !this.editable ? ` · ${t('read only here')}` : '';
     setText(this.badge, `${where} · ${state}${edit}`);
     paintProvenance(this.prov, this.target.path);
     setText(this.stale, t('Changed since opened: save or undo your edits to refresh.'));

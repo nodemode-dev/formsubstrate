@@ -9,6 +9,9 @@ export interface ViewDoc {
   save(): Promise<boolean>;
   setOptions(o: EditorPrefs): void;
   dispose(): void;
+  find?(): void;
+  selectNext?(): void;
+  selectAllOccurrences?(): void;
 }
 
 export class Views {
@@ -26,6 +29,34 @@ export class Views {
   get prefs(): EditorPrefs { return this.options; }
 
   has(id: string): boolean { return this.docs.has(id); }
+
+  get showing(): boolean { return this.current !== null; }
+
+  get searchable(): boolean {
+    const view = this.current ? this.docs.get(this.current) : undefined;
+    return !!view && typeof view.find === 'function';
+  }
+
+  find(): boolean {
+    const view = this.current ? this.docs.get(this.current) : undefined;
+    if (!view) return false;
+    view.find?.();
+    return true;
+  }
+
+  selectNext(): boolean {
+    const view = this.current ? this.docs.get(this.current) : undefined;
+    if (!view) return false;
+    view.selectNext?.();
+    return true;
+  }
+
+  selectAllOccurrences(): boolean {
+    const view = this.current ? this.docs.get(this.current) : undefined;
+    if (!view) return false;
+    view.selectAllOccurrences?.();
+    return true;
+  }
 
   open(id: string, doc: Omit<OpenDoc, 'id' | 'modified'>, make: () => ViewDoc): ViewDoc {
     let view = this.docs.get(id);

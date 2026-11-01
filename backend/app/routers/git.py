@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.services import gitops, sessions as sv
 
@@ -51,8 +51,15 @@ class CommentBody(BaseModel):
     session: str = ""
     path: str = ""
     line: int | None = None
-    hunk: str | None = None
+    hunk: str | None = Field(default=None, max_length=200000)
     text: str = ""
+
+
+class WorktreeFileBody(BaseModel):
+    session: str = ""
+    path: str = ""
+    text: str | None = None
+    expectedMtime: float | None = None
 
 
 class PushBody(BaseModel):
@@ -85,6 +92,26 @@ async def diff(path: str, staged: int = 0, session: str | None = None) -> dict:
 async def review(session: str | None = None) -> dict:
     try:
         return await gitops.review(await gitops.resolve_target(session))
+    except gitops.Refused as err:
+        raise _fail(err)
+
+
+@router.get("/git/audit")
+async def audit(session: str | None = None) -> dict:
+    try:
+        return await gitops.agent_audit(await gitops.resolve_target(session))
+    except gitops.Refused as err:
+        raise _fail(err)
+
+
+@router.put("/git/worktree-file")
+async def worktree_file(body: WorktreeFileBody) -> dict:
+    try:
+        if not body.session:
+            raise gitops.Refused(400, "session required")
+        t = await gitops.resolve_target(body.session)
+        async with gitops.lock_for(t):
+            return await gitops.write_worktree_file(t, body.path, body.text, body.expectedMtime)
     except gitops.Refused as err:
         raise _fail(err)
 
@@ -216,6 +243,8 @@ async def push(body: PushBody) -> dict:
         async with gitops.lock_for(t):
             return await gitops.push(t, body.remote, body.branch)
     except gitops.Refused as err:
+        if err.extra:
+            return JSONResponse(status_code=err.status, content={"detail": err.detail, **err.extra})
         raise _fail(err)
 
 

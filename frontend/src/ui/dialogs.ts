@@ -262,6 +262,9 @@ class SaveChanges extends Dialog {
     this.onClose = () => this.finish('cancel');
   }
   ask(name: string, many: boolean): Promise<SaveChoice> {
+    const previous = this.resolve;
+    this.resolve = null;
+    previous?.({ choice: 'cancel', all: false });
     setText(this.question.querySelector('strong') as HTMLElement, name);
     this.all.hidden = !many;
     q<HTMLInputElement>(this.all, 'input').checked = false;
@@ -309,6 +312,9 @@ class Confirm extends Dialog {
   }
 
   ask(title: string, text: string, okLabel: string, danger: boolean, cancelLabel = 'Cancel'): Promise<boolean> {
+    const previous = this.resolve;
+    this.resolve = null;
+    previous?.(false);
     this.setTitle(title);
     setText(this.note, text);
     setText(this.ok, okLabel);
@@ -343,6 +349,9 @@ class Prompt extends Dialog {
   }
 
   ask(title: string, value: string, okLabel: string): Promise<string | null> {
+    const previous = this.resolve;
+    this.resolve = null;
+    previous?.(null);
     this.setTitle(title);
     setText(this.ok, okLabel);
     this.input.value = value;

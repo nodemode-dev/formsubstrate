@@ -18,6 +18,14 @@ const KEY_STEP = 16;
 const FONT_WAIT_MS = 1200;
 const EXIT_NOTE_WAIT_MS = 1500;
 const PENDING_CAP = 2 * 1024 * 1024;
+
+const safeStart = (chunk: Uint8Array): number => {
+  for (let i = 0; i < chunk.length; i++) {
+    if (chunk[i] === 0x1b) return i;
+    if (chunk[i] === 0x0a) return i + 1;
+  }
+  return -1;
+};
 const DEFAULT_COLS = 80;
 const DEFAULT_ROWS = 24;
 const PASS_THROUGH = new Set(['terminal-toggle', 'command-palette', 'agent-new', 'focus-files']);
@@ -38,6 +46,7 @@ interface Tab {
   code: number;
   pending: Uint8Array[];
   pendingSize: number;
+  cut: boolean;
   host: HTMLElement | null;
   view: View | null;
 }
@@ -201,7 +210,7 @@ export class TerminalDock {
   }
 
   private addTab(info: TerminalInfo): void {
-    const tab: Tab = { info, title: info.title, exited: !info.alive, noted: false, code: info.exitCode ?? 0, pending: [], pendingSize: 0, host: null, view: null };
+    const tab: Tab = { info, title: info.title, exited: !info.alive, noted: false, code: info.exitCode ?? 0, pending: [], pendingSize: 0, cut: false, host: null, view: null };
     this.tabs.set(info.id, tab);
     this.order.push(info.id);
     this.wire(tab);
@@ -222,7 +231,24 @@ export class TerminalDock {
     tab.pending.push(bytes.slice());
     tab.pendingSize += bytes.length;
     written();
-    while (tab.pendingSize > PENDING_CAP && tab.pending.length > 1) tab.pendingSize -= (tab.pending.shift() as Uint8Array).length;
+    while (tab.pendingSize > PENDING_CAP && tab.pending.length > 1) {
+      tab.pendingSize -= (tab.pending.shift() as Uint8Array).length;
+      tab.cut = true;
+    }
+    while (tab.cut && tab.pending.length > 0) {
+      const head = tab.pending[0];
+      const at = safeStart(head);
+      if (at < 0) {
+        if (tab.pending.length === 1) break;
+        tab.pending.shift();
+        tab.pendingSize -= head.length;
+        continue;
+      }
+      tab.pending[0] = head.subarray(at);
+      tab.pendingSize -= at;
+      tab.cut = false;
+      if (tab.pending[0].length === 0) tab.pending.shift();
+    }
   }
 
   private flush(tab: Tab, term: Terminal): void {
@@ -232,6 +258,7 @@ export class TerminalDock {
       for (const part of tab.pending) { all.set(part, at); at += part.length; }
       tab.pending = [];
       tab.pendingSize = 0;
+      tab.cut = false;
       term.write(all);
     }
     if (tab.exited) this.writeExit(tab);

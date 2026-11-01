@@ -226,9 +226,9 @@ export async function startApp(): Promise<void> {
     edit('copy', 'Copy', ['Mod+C']),
     edit('paste', 'Paste', ['Mod+V']),
     edit('select-all', 'Select All', ['Mod+A']),
-    { id: 'find', label: 'Find...', keys: ['Mod+F'], enabled: () => !!store.active, run: () => editor?.find() },
-    { id: 'select-next', label: 'Add Next Occurrence', keys: ['Mod+D'], enabled: () => !!store.active, run: () => editor?.selectNext() },
-    { id: 'select-all-occurrences', label: 'Select All Occurrences', keys: ['Shift+Mod+L'], enabled: () => !!store.active, run: () => editor?.selectAllOccurrences() },
+    { id: 'find', label: 'Find...', keys: ['Mod+F'], enabled: () => !!store.active && (!views.showing || views.searchable), run: () => { if (!views.find()) editor?.find(); } },
+    { id: 'select-next', label: 'Add Next Occurrence', keys: ['Mod+D'], enabled: () => !!store.active && (!views.showing || views.searchable), run: () => { if (!views.selectNext()) editor?.selectNext(); } },
+    { id: 'select-all-occurrences', label: 'Select All Occurrences', keys: ['Shift+Mod+L'], enabled: () => !!store.active && (!views.showing || views.searchable), run: () => { if (!views.selectAllOccurrences()) editor?.selectAllOccurrences(); } },
     { id: 'toggle-word-wrap', label: 'Word Wrap', keys: ['Alt+Z'], checked: () => loadPrefs().editorWordWrap, run: () => {
       const p = updatePrefs({ editorWordWrap: !loadPrefs().editorWordWrap });
       editor?.setOptions({ wordWrap: p.editorWordWrap });
@@ -302,7 +302,7 @@ export async function startApp(): Promise<void> {
   new MenuBar(q(root, '.cv-menubar'), commands, menus);
   const titleTools = new TitleTools(q(root, '.cv-titlebar'), commands);
   captionButtons = new CaptionButtons(q(root, '.cv-titlebar'), () => stored(CUSTOM_TITLE_KEY) === '1');
-  new Tabs(q(root, '.cv-tab-strip'), store, (id) => { void requestClose(id); }, q(root, '.cv-tb-doc'));
+  new Tabs(q(root, '.cv-tab-strip'), store, (id) => requestClose(id), q(root, '.cv-tb-doc'));
   const status = new StatusBar(q(root, '.cv-status'), store);
   const pr = loadPrefs();
   editor = new EditorHost(wb.editorHost, {

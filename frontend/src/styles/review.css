@@ -112,3 +112,8 @@
 .cv-chat-review:hover { background: var(--bg-hover); color: var(--text-primary); }
 .cv-chat-review:focus-visible { outline: 1px solid var(--accent-color); }
 .cv-ss-act[data-act="review"]:hover:not(:disabled) { color: var(--accent-ink); }
+.cv-rv-notice-t { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cv-rv-fix { flex: none; height: var(--ctl-sm); margin-left: var(--space-2); padding: 0 var(--space-2); border: 1px solid var(--line-3); border-radius: var(--radius); background: var(--surface-2); color: var(--text-primary); font: inherit; cursor: pointer; }
+.cv-rv-fix[hidden] { display: none; }
+.cv-rv-fix:hover:not(:disabled) { background: var(--surface-raised); }
+.cv-rv-fix:disabled { opacity: 0.5; cursor: default; }

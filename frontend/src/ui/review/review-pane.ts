@@ -1,5 +1,5 @@
 import { formslotState } from '../../io/formslot';
-import { git, type FileReview, type Hunk, type Review } from '../../io/git';
+import { git, type FileReview, type FlaggedCommit, type Hunk, type Review } from '../../io/git';
 import { sessionsClient } from '../../io/sessions';
 import { detailOf, statusOf } from '../../io/workspace';
 import { confirmAction } from '../dialogs';
@@ -50,7 +50,7 @@ export class ReviewPane implements ViewDoc {
 <button class="cv-btn cv-btn-primary cv-rv-all" type="button">${icon('check', 14)}<span class="cv-rv-all-t"></span></button>
 </div>
 </div>
-<p class="cv-rv-notice" role="status"></p>
+<p class="cv-rv-notice" role="status"><span class="cv-rv-notice-t"></span><button class="cv-rv-fix" type="button" hidden></button></p>
 <div class="cv-rv-list"></div>
 <p class="cv-rv-empty cv-note"></p>
 </div>`);
@@ -58,6 +58,8 @@ export class ReviewPane implements ViewDoc {
   private readonly target = q(this.root, '.cv-rv-target');
   private readonly summary = q(this.root, '.cv-rv-summary');
   private readonly notice = q(this.root, '.cv-rv-notice');
+  private readonly noticeText = q(this.root, '.cv-rv-notice-t');
+  private readonly fixBtn = q<HTMLButtonElement>(this.root, '.cv-rv-fix');
   private readonly list = q(this.root, '.cv-rv-list');
   private readonly empty = q(this.root, '.cv-rv-empty');
   private readonly refreshBtn = q<HTMLButtonElement>(this.root, '.cv-rv-refresh');
@@ -72,6 +74,12 @@ export class ReviewPane implements ViewDoc {
   private seq = 0;
   private timer = 0;
   private noticeTimer = 0;
+  private flagged: FlaggedCommit[] = [];
+  private flash = '';
+  private flashBad = false;
+  private fixing = false;
+  private readonly offSessions: () => void;
+  private readonly offLanguage: () => void;
   private pending = false;
   private own = false;
   private disposed = false;
@@ -89,8 +97,9 @@ export class ReviewPane implements ViewDoc {
     this.refreshBtn.addEventListener('click', () => { void this.load(); });
     this.allBtn.addEventListener('click', () => { void this.acceptAll(); });
     window.addEventListener(GIT_CHANGED, this.onChanged);
-    sessionsClient.on('sessions', () => this.paintHead());
-    onLanguage(() => this.paint());
+    this.fixBtn.addEventListener('click', () => { void this.fix(); });
+    this.offSessions = sessionsClient.on('sessions', () => this.paintHead());
+    this.offLanguage = onLanguage(() => this.paint());
     this.offDrift = formslotState.on('drift', () => this.provenance());
     this.paint();
     void this.load();
@@ -118,6 +127,8 @@ export class ReviewPane implements ViewDoc {
     window.clearTimeout(this.timer);
     window.clearTimeout(this.noticeTimer);
     window.removeEventListener(GIT_CHANGED, this.onChanged);
+    this.offSessions();
+    this.offLanguage();
   }
 
   private queueReload(): void {
@@ -131,9 +142,10 @@ export class ReviewPane implements ViewDoc {
     const mine = ++this.seq;
     const stop = delayedIndicator(() => { this.loadingNow = true; this.paintEmpty(); }, () => { this.loadingNow = false; this.paintEmpty(); });
     try {
-      const r = await git.review(this.session);
+      const [r, flagged] = await Promise.all([git.review(this.session), this.session ? git.audit(this.session).catch(() => null) : Promise.resolve([] as FlaggedCommit[])]);
       if (mine !== this.seq || this.disposed) return;
       this.review = r;
+      if (flagged) this.flagged = flagged;
       this.failed = '';
     } catch (err) {
       if (mine !== this.seq || this.disposed) return;
@@ -147,10 +159,46 @@ export class ReviewPane implements ViewDoc {
   }
 
   private say(text: string, kind: 'info' | 'error' = 'info'): void {
-    setText(this.notice, text);
-    setClass(this.notice, 'is-error', kind === 'error');
+    this.flash = text;
+    this.flashBad = kind === 'error';
     window.clearTimeout(this.noticeTimer);
-    if (text) this.noticeTimer = window.setTimeout(() => { setText(this.notice, ''); }, NOTICE_MS);
+    if (text) this.noticeTimer = window.setTimeout(() => { this.flash = ''; this.paintNotice(); }, NOTICE_MS);
+    this.paintNotice();
+  }
+
+  private flagText(): string {
+    const first = this.flagged[0];
+    if (!first) return '';
+    const more = this.flagged.length > 1 ? ` (+${this.flagged.length - 1} ${t('more')})` : '';
+    return `${t('commit')} ${first.short} ${t('has a trailer or another identity')}${more}`;
+  }
+
+  private paintNotice(): void {
+    const flag = this.flash ? '' : this.flagText();
+    const text = this.flash || flag;
+    setText(this.noticeText, text);
+    setTitle(this.noticeText, flag ? this.flagged.map((c) => `${c.short} ${c.subject} · ${c.author}`).join('\n') : '');
+    setClass(this.notice, 'is-error', this.flash ? this.flashBad : !!flag);
+    setHidden(this.fixBtn, !flag);
+    setText(this.fixBtn, t('Fix with Sign and Push'));
+    setTitle(this.fixBtn, t('Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.'));
+    setDisabled(this.fixBtn, this.fixing || this.allBusy);
+  }
+
+  private async fix(): Promise<void> {
+    if (this.fixing || !this.session) return;
+    this.fixing = true;
+    this.paintNotice();
+    try {
+      const r = await git.signAndPush({ session: this.session });
+      this.say(r.check || (r.ok ? t('Pushed') : t('Refused')), r.ok ? 'info' : 'error');
+    } catch (err) {
+      this.say(detailOf(err), 'error');
+    } finally {
+      this.fixing = false;
+      this.announce();
+      void this.load();
+    }
   }
 
   private announce(): void {
@@ -161,6 +209,7 @@ export class ReviewPane implements ViewDoc {
   private async apply(path: string, ids: string[], action: 'accept' | 'reject', key: string): Promise<boolean> {
     if (this.busy.has(key)) return false;
     this.busy.add(key);
+    this.seq++;
     this.paint();
     try {
       const r = await git.hunks(path, ids, action, this.session);
@@ -197,7 +246,7 @@ export class ReviewPane implements ViewDoc {
         if (!ok) return;
         done++;
       }
-      toast(`${done} ${t(done === 1 ? 'file staged' : 'files staged')}. ${t('Commit them from Source Control.')}`, 'info');
+      toast(`${done} ${t(done === 1 ? 'file staged' : 'files staged')}`, 'info');
       window.dispatchEvent(new CustomEvent(FOCUS_COMMIT, { detail: { session: this.session } }));
     } finally {
       this.allBusy = false;
@@ -299,7 +348,8 @@ export class ReviewPane implements ViewDoc {
     setText(this.summary, this.review ? [`${files.length} ${t(files.length === 1 ? 'file' : 'files')}`, `+${added} -${removed}`, snaps ? `${snaps} ${t(snaps === 1 ? 'snapshot' : 'snapshots')}` : ''].filter(Boolean).join(' · ') : '');
     setText(q(this.allBtn, '.cv-rv-all-t'), t('Accept all and commit'));
     setDisabled(this.allBtn, !files.length || this.allBusy);
-    setTitle(this.allBtn, t('Stage every change, then continue in Source Control to commit'));
+    setTitle(this.allBtn, t('Stage every change, then commit with the message in Source Control. With an empty message the box is focused instead.'));
+    this.paintNotice();
     setTitle(this.refreshBtn, t('Refresh'));
     if (this.refreshBtn.getAttribute('aria-label') !== t('Refresh')) this.refreshBtn.setAttribute('aria-label', t('Refresh'));
     patchList(this.list, files, {

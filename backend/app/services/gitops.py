@@ -4,6 +4,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import stat
 import tempfile
 from dataclasses import dataclass
@@ -20,6 +21,8 @@ SNAP_MAX = 50
 GIT_TIMEOUT = 60
 NET_TIMEOUT = 120
 DIFF_MAX = 2 * 1024 * 1024
+WRITE_MAX = 8 * 1024 * 1024
+AUDIT_MAX = 50
 ERR_MAX = 2000
 OUT_MAX = 4000
 EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
@@ -93,11 +96,17 @@ def _env(extra: dict | None = None) -> dict:
 
 
 async def _exec(argv: list[str], cwd: str | None, env: dict | None = None, stdin: bytes | None = None, timeout: int = GIT_TIMEOUT) -> tuple[int, bytes, bytes]:
-    proc = await asyncio.create_subprocess_exec(*argv, cwd=cwd, env=_env(env), stdin=asyncio.subprocess.PIPE if stdin is not None else asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    proc = await asyncio.create_subprocess_exec(*argv, cwd=cwd, env=_env(env), stdin=asyncio.subprocess.PIPE if stdin is not None else asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, start_new_session=os.name == "posix")
     try:
         out, err = await asyncio.wait_for(proc.communicate(stdin), timeout)
     except asyncio.TimeoutError:
-        proc.kill()
+        try:
+            if os.name == "posix":
+                os.killpg(proc.pid, signal.SIGKILL)
+            else:
+                proc.kill()
+        except (ProcessLookupError, PermissionError):
+            proc.kill()
         await proc.wait()
         return 124, b"", b"git timed out"
     return proc.returncode or 0, out, err
@@ -439,6 +448,70 @@ def _read_file(root: str, path: str) -> bytes | None:
         return None
 
 
+def _file_mtime(root: str, path: str) -> float | None:
+    full = os.path.join(root, *path.split("/"))
+    try:
+        if os.path.islink(full) or not os.path.isfile(full):
+            return None
+        return os.stat(full).st_mtime
+    except OSError:
+        return None
+
+
+def _write_atomic(target: str, data: bytes) -> None:
+    folder = os.path.dirname(target)
+    fd, temp = tempfile.mkstemp(prefix=".sf-", suffix=".tmp", dir=folder)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temp, os.stat(target).st_mode & 0o7777)
+        os.replace(temp, target)
+    except BaseException:
+        try:
+            os.unlink(temp)
+        except OSError:
+            pass
+        raise
+
+
+async def write_worktree_file(t: Target, path: object, text: object, expected: object) -> dict:
+    if t.session is None:
+        raise Refused(400, "this route writes into a session worktree; use the workspace file route for the workspace")
+    if not isinstance(text, str):
+        raise Refused(400, "text required")
+    if len(text) > WRITE_MAX:
+        raise Refused(413, "file is larger than 8 MiB")
+    if expected is not None and (isinstance(expected, bool) or not isinstance(expected, (int, float))):
+        raise Refused(400, "expectedMtime must be a number or null")
+    rel = clean_path(t.root, path)
+    full = os.path.join(t.root, *rel.split("/"))
+    base = os.path.realpath(t.root)
+    real = os.path.realpath(full)
+    if not real.startswith(base.rstrip(os.sep) + os.sep):
+        raise Refused(400, "bad path")
+    if os.path.islink(full):
+        raise Refused(400, "the path is a symbolic link")
+    if not os.path.isfile(full):
+        raise Refused(404, "no such file in the worktree")
+    if not os.access(full, os.W_OK):
+        raise Refused(403, "file is read only")
+    if expected is not None:
+        if abs(os.stat(full).st_mtime - float(expected)) > 1e-6:
+            raise Refused(409, "file changed on disk")
+    try:
+        data = text.encode("utf-8")
+    except UnicodeEncodeError:
+        raise Refused(400, "text is not valid unicode")
+    try:
+        _write_atomic(full, data)
+    except PermissionError:
+        raise Refused(403, "permission denied")
+    info = os.stat(full)
+    return {"path": rel, "size": info.st_size, "mtime": info.st_mtime}
+
+
 async def _raw_diff(root: str, mode: str, paths: list[str]) -> str:
     base = ["diff"]
     if mode == "staged":
@@ -489,7 +562,7 @@ async def diff_file(t: Target, path: str, staged: bool) -> dict:
             too_large = True
         else:
             original, modified = _pub(_text(before)), _pub(_text(after))
-    return {"path": path, "oldPath": old, "binary": binary, "staged": staged, "original": original, "modified": modified, "hunks": [_public_hunk(h) for h in hunks], "tooLarge": too_large}
+    return {"path": path, "oldPath": old, "binary": binary, "staged": staged, "original": original, "modified": modified, "hunks": [_public_hunk(h) for h in hunks], "tooLarge": too_large, "mtime": None if staged else _file_mtime(t.root, path)}
 
 
 async def _review_entry(t: Target, entry: dict, keep_raw: bool = False) -> dict:
@@ -732,6 +805,11 @@ async def commit(t: Target, message: object, amend: bool, all_: bool) -> dict:
     sign = bool(ident["sign"]) and bool(ident["signingKey"])
     if ident["sign"] and not ident["signingKey"]:
         raise Refused(409, "signing is on but no signing key is set; choose a .pub key in Preferences, Git and Identity")
+    if amend:
+        code, out, _ = await run(t.root, ["for-each-ref", "--contains", "HEAD", "--format=%(refname:short)", "refs/remotes"])
+        pushed = [line for line in out.split("\n") if line.strip() and not line.strip().endswith("/HEAD")]
+        if code == 0 and pushed:
+            raise Refused(409, f"the last commit is already on {pushed[0]}; amending it would rewrite pushed history, so make a new commit instead")
     if not amend:
         code, _, _ = await run(t.root, ["diff", "--cached", "--quiet"])
         has_staged = code == 1
@@ -757,6 +835,70 @@ async def commit(t: Target, message: object, amend: bool, all_: bool) -> dict:
     sha = (await must(t.root, ["rev-parse", "HEAD"])).strip()
     summary = text.split("\n", 1)[0]
     return {"commit": sha, "summary": summary, "audit": await _audit(t.root, ident)}
+
+
+async def _is_signed(root: str, sha: str) -> bool:
+    header = _text((await _exec([_git_bin(), "cat-file", "commit", sha], root))[1]).split("\n\n", 1)[0]
+    return any(line.startswith("gpgsig") for line in header.split("\n"))
+
+
+async def _range_rows(root: str, rev: list[str]) -> list[dict]:
+    listing = await must(root, ["log", "--format=%H%x00%h%x00%an <%ae>%x00%cn <%ce>%x00%s%x00%B%x01", *rev, "--"])
+    rows = []
+    for rec in listing.split("\x01"):
+        rec = rec.strip("\n")
+        if not rec:
+            continue
+        sha, short, author, committer, subject, body = (rec.split("\0", 5) + ["", "", "", "", "", ""])[:6]
+        rows.append({"sha": sha, "short": short, "author": _pub(author), "committer": _pub(committer), "subject": _pub(subject), "trailers": count_trailers(body)})
+    return rows
+
+
+async def _range_check(root: str, rev: list[str], ident: dict | None, sign: bool) -> dict:
+    rows = await _range_rows(root, rev)
+    want = f"{ident['name']} <{ident['email']}>" if ident and ident["name"].strip() and ident["email"].strip() else None
+    unsigned = other = trailers = 0
+    for row in rows:
+        if sign and not await _is_signed(root, row["sha"]):
+            unsigned += 1
+        if want is not None and (row["author"] != want or row["committer"] != want):
+            other += 1
+        trailers += row["trailers"]
+    shown_unsigned = str(unsigned) if sign else "-"
+    check = f"New: {len(rows)}  Unsigned: {shown_unsigned}  Other identity: {other}  Trailers: {trailers}"
+    return {"new": len(rows), "unsigned": unsigned, "other": other, "trailers": trailers, "check": check, "rows": rows}
+
+
+async def _branch_base(t: Target) -> str | None:
+    branch = (t.item or {}).get("branch")
+    if not isinstance(branch, str) or not BRANCH_RE.match(branch):
+        return None
+    code, out, _ = await run(t.root, ["reflog", "show", "--format=%H", f"refs/heads/{branch}", "--"])
+    lines = [line.strip() for line in out.split("\n") if line.strip()]
+    if code != 0 or not lines:
+        return None
+    return lines[-1]
+
+
+async def agent_audit(t: Target) -> dict:
+    if t.session is None or not await _has_head(t.root):
+        return {"commits": []}
+    stored = _stored_identity()
+    ident = stored if stored and stored["name"].strip() and stored["email"].strip() else None
+    base = await _branch_base(t)
+    rev = ["HEAD", "--not", base] if base else ["HEAD", "--not", "--remotes"]
+    rows = await _range_rows(t.root, rev)
+    want = f"{ident['name']} <{ident['email']}>" if ident else None
+    flagged = []
+    for row in rows:
+        reasons = []
+        if row["trailers"] > 0:
+            reasons.append("trailer")
+        if want is not None and (row["author"] != want or row["committer"] != want):
+            reasons.append("identity")
+        if reasons:
+            flagged.append({"sha": row["sha"], "short": row["short"], "subject": row["subject"], "author": row["author"], "committer": row["committer"], "reasons": reasons})
+    return {"commits": flagged[:AUDIT_MAX]}
 
 
 async def log(t: Target, limit: int, ref: str | None) -> dict:
@@ -929,7 +1071,7 @@ async def _remote_and_branch(t: Target, remote: object, branch: object) -> tuple
 
 
 def _push_args(remote: str, name: str) -> tuple[list[str], list[str]]:
-    return ["push", "--no-force-with-lease", "-u", remote, f"refs/heads/{name}:refs/heads/{name}"], [f"remote.{remote}.push="]
+    return ["push", "--no-force-with-lease", "-u", remote, f"refs/heads/{name}:refs/heads/{name}"], []
 
 
 def _combined(out: str, err: str) -> str:
@@ -938,11 +1080,16 @@ def _combined(out: str, err: str) -> str:
 
 async def push(t: Target, remote: object, branch: object) -> dict:
     remote, name = await _remote_and_branch(t, remote, branch)
+    ident = await identity_get()
+    signing = ident["source"] == "subform" and bool(ident["sign"]) and bool(ident["signingKey"])
+    found = await _range_check(t.root, [f"refs/heads/{name}", "--not", f"--remotes={remote}"], ident if ident["source"] == "subform" else None, signing)
+    if found["unsigned"] or found["other"] or found["trailers"]:
+        raise Refused(409, "not pushed, nothing was changed: " + found["check"], {"ok": False, "check": found["check"], "output": ""})
     args, configs = _push_args(remote, name)
     code, out, err = await run(t.root, args, configs=configs, timeout=NET_TIMEOUT)
     if code != 0:
         raise Refused(409, _clip(_pub(err) or _pub(out) or "git push failed"))
-    return {"ok": True, "output": _combined(out, err)}
+    return {"ok": True, "check": found["check"], "output": _combined(out, err)}
 
 
 async def sign_and_push(t: Target, remote: object, branch: object) -> dict:
@@ -957,50 +1104,44 @@ async def sign_and_push(t: Target, remote: object, branch: object) -> dict:
         raise Refused(409, _clip(_pub(err) or "git fetch failed"))
     upstream = f"{remote}/{name}"
     code, tip, _ = await run(t.root, ["rev-parse", "--verify", "--quiet", f"refs/remotes/{upstream}^{{commit}}"])
+    floor = tip.strip()
+    where = upstream
     if code != 0:
-        raise Refused(409, f"{upstream} was not found on the remote; use Push for a new branch")
-    tip = tip.strip()
-    code, base, _ = await run(t.root, ["merge-base", f"refs/heads/{name}", f"refs/remotes/{upstream}"])
-    if code != 0 or base.strip() != tip:
-        raise Refused(409, f"{upstream} has commits that {name} does not; pull or rebase first")
-    count = int((await must(t.root, ["rev-list", "--count", f"refs/remotes/{upstream}..refs/heads/{name}"])).strip() or 0)
+        start = await _branch_base(t) if t.session is not None else None
+        if not start:
+            raise Refused(409, f"{upstream} was not found on the remote; use Push for a new branch")
+        floor = start
+        where = f"the point {name} was created from"
+    code, base, _ = await run(t.root, ["merge-base", f"refs/heads/{name}", floor])
+    if code != 0 or base.strip() != floor:
+        raise Refused(409, f"{where} has commits that {name} does not; pull or rebase first")
+    span = f"{floor}..refs/heads/{name}"
+    count = int((await must(t.root, ["rev-list", "--count", span])).strip() or 0)
     if count == 0:
         raise Refused(409, "there is nothing new to sign and push")
     want_before = f"{ident['name']} <{ident['email']}>"
-    span = f"refs/remotes/{upstream}..refs/heads/{name}"
     merges = (await must(t.root, ["rev-list", "--merges", "--count", span])).strip()
     if merges not in ("", "0"):
         raise Refused(409, f"the range holds {merges} merge commit(s); signing would flatten them, so nothing was changed")
     authors = [line for line in (await must(t.root, ["log", "--format=%an <%ae>", span])).split("\n") if line]
     foreign = sum(1 for a in authors if a != want_before)
-    if foreign:
+    if foreign and t.session is None:
         check = f"New: {count}  Unsigned: -  Other identity: {foreign}  Trailers: -"
         raise Refused(409, f"not signed: {foreign} commit(s) in the range are by another author, and signing would take them over; nothing was changed", {"ok": False, "check": check, "output": ""})
+    code, dirty, _ = await run(t.root, ["status", "--porcelain", "--untracked-files=no"])
+    if code == 0 and dirty.strip():
+        raise Refused(409, "there are uncommitted changes to tracked files; commit or discard them first, because signing rewrites the new commits")
     original = (await must(t.root, ["rev-parse", f"refs/heads/{name}"])).strip()
-    configs = [*_ident_configs(ident, True), "commit.gpgsign=true"]
-    code, out, err = await run(t.root, ["rebase", "--exec", "git commit --amend --no-edit --reset-author -S", f"refs/remotes/{upstream}"], configs=configs, env=_ident_env(ident), timeout=NET_TIMEOUT)
+    configs = [*_ident_configs(ident, True), "commit.gpgsign=true", f"core.hooksPath={ensure_hooks()}"]
+    code, out, err = await run(t.root, ["rebase", "--exec", "git commit --amend --allow-empty --no-edit --reset-author -S", floor], configs=configs, env=_ident_env(ident), timeout=NET_TIMEOUT)
     if code != 0:
         await run(t.root, ["rebase", "--abort"])
         raise Refused(409, _clip(_pub(err) or _pub(out) or "git rebase failed"))
 
     async def restore() -> None:
         await run(t.root, ["reset", "--keep", original])
-    listing = await must(t.root, ["log", "--format=%H%x00%an <%ae>%x00%cn <%ce>%x00%B%x01", f"refs/remotes/{upstream}..refs/heads/{name}"])
-    want = f"{ident['name']} <{ident['email']}>"
-    new = unsigned = other = trailers = 0
-    for rec in listing.split("\x01"):
-        rec = rec.strip("\n")
-        if not rec:
-            continue
-        sha, author, committer, body = (rec.split("\0", 3) + ["", "", "", ""])[:4]
-        new += 1
-        header = _text((await _exec([_git_bin(), "cat-file", "commit", sha], t.root))[1]).split("\n\n", 1)[0]
-        if not any(line.startswith("gpgsig") for line in header.split("\n")):
-            unsigned += 1
-        if author != want or committer != want:
-            other += 1
-        trailers += count_trailers(body)
-    check = f"New: {new}  Unsigned: {unsigned}  Other identity: {other}  Trailers: {trailers}"
+    found = await _range_check(t.root, [span], ident, True)
+    unsigned, other, trailers, check = found["unsigned"], found["other"], found["trailers"], found["check"]
     if unsigned or other or trailers:
         await restore()
         raise Refused(409, "not pushed, and the branch was put back as it was: " + check, {"ok": False, "check": check, "output": ""})

@@ -4,7 +4,8 @@ export interface GitFile { path: string; oldPath: string | null; index: string; 
 export interface GitStatus { root: string; session: string | null; branch: string | null; head: string | null; upstream: string | null; ahead: number; behind: number; files: GitFile[]; conflicted: boolean }
 export interface HunkLine { t: ' ' | '+' | '-'; text: string }
 export interface Hunk { id: string; header: string; oldStart: number; oldLines: number; newStart: number; newLines: number; lines: HunkLine[] }
-export interface FileDiff { path: string; oldPath: string | null; binary: boolean; staged: boolean; original: string; modified: string; hunks: Hunk[]; tooLarge: boolean }
+export interface FileDiff { path: string; oldPath: string | null; binary: boolean; staged: boolean; original: string; modified: string; hunks: Hunk[]; tooLarge: boolean; mtime: number | null }
+export interface FlaggedCommit { sha: string; short: string; subject: string; author: string; committer: string; reasons: ('trailer' | 'identity')[] }
 export interface FileReview { path: string; oldPath: string | null; kind: GitFile['kind']; binary: boolean; hunks: Hunk[]; added: number; removed: number }
 export interface Review { root: string; session: string | null; files: FileReview[]; snapshots: number }
 export interface Audit { author: string; committer: string; identityOk: boolean; trailers: number; signature: string }
@@ -50,6 +51,17 @@ const query = (params: Record<string, string | number | boolean | null | undefin
 const post = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) });
 const put = (body: unknown): RequestInit => ({ method: 'PUT', body: JSON.stringify(body) });
 const withSession = <T extends object>(body: T, session?: string | null): T & { session?: string } => (session ? { ...body, session } : body);
+
+async function refusable(path: string, payload: object): Promise<{ ok: boolean; check: string; output: string }> {
+  const res = await fetch(path, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json', Accept: 'application/json' } });
+  let data: Record<string, unknown> = {};
+  try { data = (await res.json()) as Record<string, unknown>; } catch { data = {}; }
+  const check = typeof data.check === 'string' ? data.check : '';
+  const output = typeof data.output === 'string' ? data.output : '';
+  if (res.ok) return { ok: data.ok !== false, check, output };
+  if (check) return { ok: false, check, output: output || (typeof data.detail === 'string' ? data.detail : '') };
+  throw new GitError(typeof data.detail === 'string' ? data.detail : res.statusText, res.status);
+}
 
 export const git = {
   status(session?: string | null): Promise<GitStatus> {
@@ -99,18 +111,17 @@ export const git = {
   comment(session: string, path: string, line: number | null, hunk: string | null, text: string): Promise<{ sent: 'terminal' | 'headless' | 'stored'; comment: ReviewComment }> {
     return call('/api/git/comments', post({ session, path, line, hunk, text }));
   },
-  push(opts: { session?: string | null; remote?: string; branch?: string } = {}): Promise<{ ok: boolean; output: string }> {
-    return call('/api/git/push', post(withSession({ remote: opts.remote ?? 'origin', ...(opts.branch ? { branch: opts.branch } : {}) }, opts.session)));
+  async push(opts: { session?: string | null; remote?: string; branch?: string } = {}): Promise<{ ok: boolean; check: string; output: string }> {
+    return refusable('/api/git/push', withSession({ remote: opts.remote ?? 'origin', ...(opts.branch ? { branch: opts.branch } : {}) }, opts.session));
   },
-  async signAndPush(opts: { session?: string | null; remote?: string; branch?: string } = {}): Promise<{ ok: boolean; check: string; output: string }> {
-    const body = JSON.stringify(withSession({ remote: opts.remote ?? 'origin', ...(opts.branch ? { branch: opts.branch } : {}) }, opts.session));
-    const res = await fetch('/api/git/sign-and-push', { method: 'POST', body, headers: { 'Content-Type': 'application/json', Accept: 'application/json' } });
-    let data: Record<string, unknown> = {};
-    try { data = (await res.json()) as Record<string, unknown>; } catch { data = {}; }
-    const check = typeof data.check === 'string' ? data.check : '';
-    const output = typeof data.output === 'string' ? data.output : '';
-    if (res.ok) return { ok: data.ok !== false, check, output };
-    if (check) return { ok: false, check, output: output || (typeof data.detail === 'string' ? data.detail : '') };
-    throw new GitError(typeof data.detail === 'string' ? data.detail : res.statusText, res.status);
+  async audit(session: string): Promise<FlaggedCommit[]> {
+    const r = await call<{ commits: FlaggedCommit[] }>(`/api/git/audit${query({ session })}`);
+    return r.commits;
+  },
+  writeWorktreeFile(session: string, path: string, text: string, expectedMtime: number | null): Promise<{ path: string; size: number; mtime: number }> {
+    return call('/api/git/worktree-file', put({ session, path, text, expectedMtime }));
+  },
+  signAndPush(opts: { session?: string | null; remote?: string; branch?: string } = {}): Promise<{ ok: boolean; check: string; output: string }> {
+    return refusable('/api/git/sign-and-push', withSession({ remote: opts.remote ?? 'origin', ...(opts.branch ? { branch: opts.branch } : {}) }, opts.session));
   },
 };

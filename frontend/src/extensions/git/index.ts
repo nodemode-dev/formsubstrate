@@ -1,4 +1,4 @@
-import { git, type Audit, type GitFile, type GitStatus, type Snapshot } from '../../io/git';
+import { git, type Audit, type FlaggedCommit, type GitFile, type GitStatus, type Snapshot } from '../../io/git';
 import { sessionsClient } from '../../io/sessions';
 import { confirmAction } from '../../ui/dialogs';
 import { el, mountOnce, patchList, q, setClass, setDisabled, setHidden, setText, setTitle } from '../../ui/dom';
@@ -11,6 +11,7 @@ export const GIT_CHANGED = 'subform:git-changed';
 export const OPEN_DIFF = 'subform:open-diff';
 export const OPEN_REVIEW = 'subform:open-review';
 export const GIT_SYNC = 'subform:git-sync';
+export const FOCUS_COMMIT = 'subform:focus-commit';
 
 export interface GitSync { branch: string; ahead: number; behind: number; upstream: string }
 
@@ -78,6 +79,8 @@ class GitPanel {
   private readonly checkCard: HTMLElement;
   private readonly audit: HTMLElement;
   private readonly warn: HTMLElement;
+  private readonly flagCard: HTMLElement;
+  private readonly flagFix: HTMLButtonElement;
   private session: string | null = null;
   private status: GitStatus | null = null;
   private snaps: Snapshot[] = [];
@@ -85,6 +88,7 @@ class GitPanel {
   private problem = '';
   private checkText = '';
   private checkBad = false;
+  private flagged: FlaggedCommit[] = [];
   private busy = false;
   private inflight = false;
   private again = false;
@@ -98,6 +102,7 @@ class GitPanel {
 <div class="cv-sc-body"><div class="cv-sc-list" role="list"></div><p class="cv-sc-empty cv-note"></p>
 <div class="cv-sc-stack">
 <div class="cv-sc-card cv-sc-checkcard" hidden><span class="cv-sc-check"></span><button class="cv-wb-tool cv-sc-dismiss" type="button" data-dismiss="check">${icon('close', 12)}</button></div>
+<div class="cv-sc-card cv-sc-flagcard" hidden><div class="cv-sc-flag-main"><span class="cv-sc-flag-t"></span></div><button class="cv-btn cv-sc-flag-fix" type="button" data-act="fix">${icon('lock', 14)}<span class="cv-sc-bt"></span></button></div>
 <div class="cv-sc-card cv-sc-audit" hidden>
 <div class="cv-sc-audit-head"><span class="cv-sc-audit-t"></span><span class="cv-sc-audit-sha"></span><button class="cv-wb-tool cv-sc-dismiss" type="button" data-dismiss="audit">${icon('close', 12)}</button></div>
 <div class="cv-sc-audit-row"><span class="cv-sc-audit-k" data-k="author"></span><span class="cv-sc-audit-v" data-f="author"></span></div>
@@ -133,6 +138,8 @@ class GitPanel {
     this.checkCard = q(host, '.cv-sc-checkcard');
     this.audit = q(host, '.cv-sc-audit');
     this.warn = q(host, '.cv-sc-warn');
+    this.flagCard = q(host, '.cv-sc-flagcard');
+    this.flagFix = q<HTMLButtonElement>(host, '.cv-sc-flag-fix');
 
     this.target.addEventListener('change', () => this.retarget(this.target.value || null));
     this.refreshBtn.addEventListener('click', () => { void this.refresh(); });
@@ -142,6 +149,7 @@ class GitPanel {
     this.commitAllBtn.addEventListener('click', () => { void this.commit(true); });
     this.pushBtn.addEventListener('click', () => { void this.push(false); });
     this.signPushBtn.addEventListener('click', () => { void this.push(true); });
+    this.flagFix.addEventListener('click', () => { void this.push(true); });
     this.msg.addEventListener('input', () => this.schedule());
     this.msg.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !this.commitBtn.disabled) { e.preventDefault(); void this.commit(false); }
@@ -175,7 +183,7 @@ class GitPanel {
       const now = ctx.store.workspace?.path ?? null;
       if (now === root) { this.schedule(); return; }
       root = now;
-      this.status = null; this.snaps = []; this.done = null; this.schedule(); void this.refresh();
+      this.status = null; this.snaps = []; this.flagged = []; this.done = null; this.schedule(); void this.refresh();
     });
     new IntersectionObserver((records) => { if (records.some((r) => r.isIntersecting)) void this.refresh(); }).observe(host);
     window.setInterval(() => { if (this.visible() && document.hasFocus() && !document.hidden) void this.refresh(); }, POLL_MS);
@@ -204,6 +212,7 @@ class GitPanel {
     this.session = next;
     this.status = null;
     this.snaps = [];
+    this.flagged = [];
     this.done = null;
     this.problem = '';
     this.checkText = '';
@@ -216,10 +225,11 @@ class GitPanel {
     this.inflight = true;
     const target = this.session;
     try {
-      const [status, snaps] = await Promise.all([git.status(target), git.snapshots(target).catch(() => null)]);
+      const [status, snaps, flagged] = await Promise.all([git.status(target), git.snapshots(target).catch(() => null), target ? git.audit(target).catch(() => null) : Promise.resolve([] as FlaggedCommit[])]);
       if (target !== this.session) return;
       this.status = status;
       if (snaps) this.snaps = snaps;
+      if (flagged) this.flagged = flagged;
       this.problem = '';
       if (target === null) this.broadcast(status);
       else void git.status(null).then((s) => this.broadcast(s)).catch(() => undefined);
@@ -284,6 +294,7 @@ class GitPanel {
       this.session = null;
       this.status = null;
       this.snaps = [];
+      this.flagged = [];
       this.done = null;
       void this.refresh();
     }
@@ -369,6 +380,21 @@ class GitPanel {
     setHidden(this.checkCard, !this.checkText);
     setClass(this.checkCard, 'is-error', this.checkBad);
     this.paintAudit();
+    this.paintFlag();
+  }
+
+  private paintFlag(): void {
+    const first = this.flagged[0];
+    const show = !!first && !this.checkText && !this.done;
+    setHidden(this.flagCard, !show);
+    if (!first) return;
+    const more = this.flagged.length > 1 ? ` (+${this.flagged.length - 1} ${t('more')})` : '';
+    const text = `${t('commit')} ${first.short} ${t('has a trailer or another identity')}${more}`;
+    setText(q(this.flagCard, '.cv-sc-flag-t'), text);
+    setTitle(q(this.flagCard, '.cv-sc-flag-t'), this.flagged.map((c) => `${c.short} ${c.subject} · ${c.author}`).join('\n'));
+    setTitle(this.flagFix, t('It skipped the commit hook. Sign and Push re-signs and cleans it; history is only rewritten when you click.'));
+    setText(q(this.flagFix, '.cv-sc-bt'), t('Fix with Sign and Push'));
+    setDisabled(this.flagFix, this.busy);
   }
 
   private paintAudit(): void {
@@ -521,14 +547,16 @@ class GitPanel {
 
   private async discard(files: GitFile[]): Promise<void> {
     if (!files.length || this.busy) return;
+    const session = this.session;
     const body = files.length === 1 ? files[0].path : `${files.length} ${t('files')}`;
     const lost = files.some((f) => f.kind === 'untracked') ? t('Untracked files are deleted.') : t('The working copy goes back to the index.');
     if (!(await confirmAction('Discard changes', `${body}: ${lost} ${t('A snapshot is taken first.')}`, 'Discard', true))) return;
+    if (session !== this.session) return;
     await this.run(async () => {
       const tracked = files.filter((f) => f.kind !== 'untracked').map((f) => f.path);
       const loose = files.filter((f) => f.kind === 'untracked').map((f) => f.path);
-      if (tracked.length) this.apply(await git.discard(tracked, false, this.session));
-      if (loose.length) this.apply(await git.discard(loose, true, this.session));
+      if (tracked.length) this.apply(await git.discard(tracked, false, session));
+      if (loose.length) this.apply(await git.discard(loose, true, session));
       this.fire();
     });
   }
@@ -537,12 +565,23 @@ class GitPanel {
     return this.run(async () => {
       const text = this.msg.value;
       if (!text.trim()) return;
-      const res = await git.commit(text, { all, session: this.session });
+      const session = this.session;
+      const res = await git.commit(text, { all, session });
       this.msg.value = '';
-      this.checkText = '';
-      this.done = res;
+      if (session === this.session) {
+        this.checkText = '';
+        this.done = res;
+      }
       this.fire();
     });
+  }
+
+  fromReview(session: string | null): void {
+    if (session !== this.session) this.retarget(session);
+    this.focusMessage();
+    if (this.hasMessage) {
+      window.setTimeout(() => { if (this.session === session && this.hasMessage) void this.commit(false); }, 0);
+    }
   }
 
   snapshot(): Promise<void> {
@@ -555,12 +594,14 @@ class GitPanel {
 
   private async rewind(n: number): Promise<void> {
     if (this.busy) return;
+    const session = this.session;
     const snap = this.snaps.find((s) => s.n === n);
     const name = snap ? `#${snap.n} ${snap.label}`.trim() : `#${n}`;
-    const where = this.session ? sessionsClient.get(this.session)?.title ?? this.session : t('the workspace');
+    const where = session ? sessionsClient.get(session)?.title ?? session : t('the workspace');
     if (!(await confirmAction('Rewind to snapshot', `${where}: ${name}. ${t('Files changed since are overwritten and files not in the snapshot are removed. A safety snapshot is taken first. HEAD and the index do not move.')}`, 'Rewind', true))) return;
+    if (session !== this.session) return;
     await this.run(async () => {
-      const r = await git.rewind(n, this.session);
+      const r = await git.rewind(n, session);
       this.apply(r.status);
       this.say(`${t('Rewound to')} #${r.restored.n}. ${t('Safety snapshot')} #${r.safety.n}`, false);
       this.fire();
@@ -572,14 +613,15 @@ class GitPanel {
       this.say(t(sign ? 'Signing, checking and pushing...' : 'Pushing...'), false);
       this.paint();
       try {
+        const r = sign ? await git.signAndPush({ session: this.session }) : await git.push({ session: this.session });
+        const last = r.output.split('\n').map((l) => l.trim()).filter(Boolean).pop() ?? '';
         if (sign) {
-          const r = await git.signAndPush({ session: this.session });
           const line = r.check || (r.ok ? t('Pushed') : t('Refused'));
           this.say(!r.ok && r.output ? `${line} ${r.output}` : line, !r.ok);
+        } else if (r.ok) {
+          this.say(last || t('Pushed'), false);
         } else {
-          const r = await git.push({ session: this.session });
-          const last = r.output.split('\n').map((l) => l.trim()).filter(Boolean).pop() ?? '';
-          this.say(last || t(r.ok ? 'Pushed' : 'Push refused'), !r.ok);
+          this.say(r.check ? `${t('Push refused')}: ${r.check}` : last || t('Push refused'), true);
         }
       } catch (err) {
         this.say(message(err), true);
@@ -604,6 +646,11 @@ register({
       render: (host) => { panel = new GitPanel(host, ctx, shell); },
     });
     const ws = (): boolean => !!ctx.store.workspace && !!panel;
+    window.addEventListener(FOCUS_COMMIT, (e) => {
+      const d = (e as CustomEvent<{ session?: string | null } | null>).detail;
+      section?.reveal();
+      panel?.fromReview(typeof d?.session === 'string' ? d.session : null);
+    });
     ctx.commands.add(
       { id: 'git-status', label: 'Git Status', enabled: ws, run: () => { section?.reveal(); void panel?.refresh(); } },
       { id: 'git-commit', label: 'Commit...', enabled: ws, run: () => {

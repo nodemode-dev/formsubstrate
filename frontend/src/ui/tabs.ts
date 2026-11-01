@@ -11,7 +11,7 @@ export class Tabs {
   private rover: string | null = null;
   private closing: { id: string; next: string | null } | null = null;
 
-  constructor(private readonly strip: HTMLElement, private readonly store: WorkspaceStore, private readonly requestClose: (id: string) => void, private readonly docTitle?: HTMLElement) {
+  constructor(private readonly strip: HTMLElement, private readonly store: WorkspaceStore, private readonly requestClose: (id: string) => void | Promise<unknown>, private readonly docTitle?: HTMLElement) {
     store.on('docs', () => this.queue());
     store.on('active', () => this.queue());
     const tabOf = (e: Event): HTMLElement | null => (e.target instanceof Element ? e.target.closest<HTMLElement>('.cv-tab[data-key]') : null);
@@ -57,7 +57,9 @@ export class Tabs {
       const ids = this.store.docs.map((d) => d.id), at = ids.indexOf(id);
       const left = ids.filter((d) => d !== id);
       this.closing = { id, next: left[Math.min(at, left.length - 1)] ?? null };
-      this.requestClose(id);
+      void Promise.resolve(this.requestClose(id)).catch(() => undefined).then(() => {
+        if (this.closing?.id === id && this.store.docs.some((d) => d.id === id)) this.closing = null;
+      });
       return;
     }
     const ids = this.store.docs.map((d) => d.id), n = ids.length, at = ids.indexOf(id);

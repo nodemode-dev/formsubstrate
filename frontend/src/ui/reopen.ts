@@ -4,7 +4,7 @@ import type { WorkspaceInfo } from './workspace-store';
 
 const DEADLINE_MS = 2000;
 const RETRY_MS = 250;
-const TRIES = 3;
+const TRIES = 10;
 export const REOPENED_EVENT = 'subform:reopened';
 
 const pause = (ms: number): Promise<void> => new Promise((resolve) => { window.setTimeout(resolve, ms); });
