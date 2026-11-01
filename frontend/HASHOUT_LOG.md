@@ -1487,3 +1487,267 @@ formvis has export const VERSION. Not created in F1 (not asked); add it when the
 - logged: v0.1.0 · 2026-10-30
 
 formvis's tests folder and vitest setup are not carried: no tests in this repository until the owner asks.
+
+## F6 Source Control, review and the carried shell items (v0.6.0)
+
+### frontend/src/io/git.ts · git
+
+- refers-to: frontend/src/io/git.ts :: git
+- kind: explainer
+- logged: v0.6.0 · 2026-10-30
+
+Client for the /api/git routes, the exact shape in CONTRACT_F6 "Window". Every call goes through `request` from io/api.ts, which throws "status detail"; `call` catches that and rethrows a `GitError` whose message is the engine's `detail` alone and whose `status` is the HTTP code, so a panel can show the message as is and still branch on 409. `session` is sent as a query field on GETs and a body field on POSTs, and only when set. `log` and `snapshots` unwrap `{commits}` and `{snapshots}`. Defaults: remote `origin`, `amend` and `all` false. sf-review keeps its own copy of the type block to typecheck and does not ship it; this file is the one that ships.
+
+### frontend/src/io/git.ts · git.signAndPush
+
+- refers-to: frontend/src/io/git.ts :: git.signAndPush
+- kind: rationale
+- logged: v0.6.0 · 2026-10-30
+
+The contract says a refused sign-and-push is 409 with `ok: false` and the check line included. `request` only reads `detail` from an error body, which would lose the check line, so this one call uses `fetch` directly: on a non-OK reply that carries a `check` string it resolves `{ok: false, check, output}` (output falls back to `detail`), and only a reply with no check line is thrown as a `GitError`. The real engine v0.6.0 answers a missing signing identity with a plain `detail` (no check line), which therefore arrives as a thrown `GitError` and is shown in the same notice card.
+
+### frontend/src/extensions/git/index.ts · GitPanel
+
+- refers-to: frontend/src/extensions/git/index.ts :: GitPanel
+- kind: explainer
+- logged: v0.6.0 · 2026-10-30
+
+The Source Control sidebar section. The DOM is built once with `mountOnce`; afterwards only `setText`, `setClass`, `setHidden`, `setDisabled`, `setTitle` and `patchList` touch it. Three keyed lists: the changes list (keys `h:staged`, `h:changes`, `f:<group>:<path>`, so a file that is staged and also modified again appears in both groups), the snapshot list (`n:<n>`) and the target select's options (`o:<id>`). Row actions are always laid out and only shown on hover or focus through opacity, so hovering never moves anything. Click on a row dispatches `subform:open-diff` with `{path, staged, session}`; the bar button dispatches `subform:open-review`. The panel does not register `git-review`: sf-review's `installReview` already does, and `Commands.add` throws on a duplicate id.
+
+### frontend/src/extensions/git/index.ts · GitPanel.refresh
+
+- refers-to: frontend/src/extensions/git/index.ts :: GitPanel.refresh
+- kind: rationale
+- logged: v0.6.0 · 2026-10-30
+
+Status and snapshots are fetched together (snapshot failure is ignored, the old list stays). One request in flight at a time: a second call while one is running only sets `again`, and one more refresh follows when the first ends. A reply for a target that is no longer selected is dropped. Polling is a 5 s interval that fires only when the panel host has client rects (the panel tab is showing and the sidebar not collapsed), the window has focus and the page is visible; plus a refresh on window focus, on the panel becoming visible (IntersectionObserver), on the panel being revealed, on `subform:git-changed` and after each own action. When the target is a session the workspace status is fetched as well, only to feed the status bar. A failed refresh keeps the last status on screen and shows the engine's message only when there is no status yet.
+
+### frontend/src/extensions/git/index.ts · notice stack
+
+- refers-to: frontend/src/extensions/git/index.ts :: GitPanel.say
+- kind: rationale
+- logged: v0.6.0 · 2026-10-30
+
+The post-commit audit and the result line of push, sign-and-push, snapshot and rewind (and every error of the panel) live in two cards that sit over the bottom of the changes list inside a zero-height, absolutely positioned stack, each card absolute and bottom-anchored with a fixed height (the audit reserves its warning row with `visibility`, the result card is 76 px and scrolls inside). A card appearing, changing text or going away therefore moves nothing else: no layout shift. Only one card shows at a time, the latest event; each has a close button. The audit shows author, committer, trailers, signature letter with its meaning, and a warning row when `identityOk` is false or `trailers` is above 0. Errors are shown in the card and also sent to the status bar through `shell.setStatus(text, 'error')`, as the Sessions panel does; no toasts are used, because stacked toasts moved each other (measured).
+
+### frontend/src/extensions/git/index.ts · destructive actions
+
+- refers-to: frontend/src/extensions/git/index.ts :: GitPanel.discard
+- kind: warning-context
+- logged: v0.6.0 · 2026-10-30
+
+Discard (row or group) and Rewind ask first with `confirmAction`, danger styled. Discard sends tracked paths with `untracked: false` and untracked paths with `untracked: true` in two calls, because the engine deletes untracked files only on the flag. The engine takes a `before discard` / `before rewind to <n>` snapshot itself; the confirm text says so. Rewind changes files on disk but the panel does not tell open editor tabs; the files extension does not listen for it yet (see REPORT.md).
+
+### frontend/src/extensions/git/index.ts · commands
+
+- refers-to: frontend/src/extensions/git/index.ts :: register
+- kind: explainer
+- logged: v0.6.0 · 2026-10-30
+
+Replaces the `soon()` stubs `git-status` and `git-commit` (those two lines are removed from app.ts) and adds `git-commit-all`, `git-snapshot`, `git-push` and `git-sign-push`. All are enabled when a workspace is open and the panel exists. `git-commit` reveals the panel and focuses the message box, and commits staged changes at once when the box already has text.
+
+### frontend/src/ui/status.ts · syncGit
+
+- refers-to: frontend/src/ui/status.ts :: StatusBar.syncGit
+- kind: rationale
+- logged: v0.6.0 · 2026-10-30
+
+Branch and ahead/behind in the status bar. The branch name still comes from the store (`ws.branch`), which the git extension updates with `store.setBranch` from each workspace status. Ahead/behind arrives as a window event `subform:git-sync` `{branch, ahead, behind, upstream}` dispatched on every workspace refresh (not de-duplicated, so a status bar built after the first reply still gets the next one within 5 s) and is written into a new `.cv-st-sync` span inside `.cv-st-branch`. The branch span has a fixed flex-basis of 120 px, so the text arriving changes nothing around it. Shown only when an upstream exists. Unicode arrows are written as `↑ ↓` escapes.
+
+### frontend/src/ui/settings.ts · Git and Identity
+
+- refers-to: frontend/src/ui/settings.ts :: SettingsDialog.saveIdentity
+- kind: rationale
+- logged: v0.6.0 · 2026-10-30
+
+Replaces the placeholder rows: Author name, Author email, Sign commits (the existing `toggleRow`), Signing key path, a Save button and a status note, built from the same `label.cv-field > span + input.cv-input` blocks as `hiddenRow`. The values load from GET /api/git/identity each time the dialog opens (`refreshRemote`), unless the user has already typed (`gitTouched`). Nothing saves while typing: Save (or Enter) sends the whole identity with PUT. Client checks mirror the engine (name needed, `@` in the email, a key path when signing is on) and disable Save with a note; engine errors (for example a missing `.pub` file) are shown in the note in the error colour. When the engine reports `source: "git"` the note says the values were read from the global git config and Save keeps them in subform; `source: "none"` says commits are refused until a save. The old pref `gitSignOnCommit` is no longer read; it stays in prefs.ts.
+
+### frontend/src/styles/git.css · module
+
+- refers-to: frontend/src/styles/git.css :: .cv-sc
+- kind: explainer
+- logged: v0.6.0 · 2026-10-30
+
+Styles for the panel (`.cv-sc-*`), the status bar sync text (`.cv-st-sync`) and the Preferences error note (`.cv-prefs-status.is-error`). Tokens only. The panel is a flex column that scrolls as a whole when the window is short; the changes body is `flex: 1 1 0` with a 220 px minimum so its height does not depend on the number of rows, and the snapshot section is a fixed 148 px. `.cv-sc .cv-sc-msg` carries the extra class because dialogs.css loads after this sheet and its `.cv-input` height would win at equal specificity. New link in index.html after sessions.css.
+
+### frontend/src/extensions/git/index.ts · known list shifts
+
+- refers-to: frontend/src/extensions/git/index.ts :: GitPanel.update
+- kind: todo
+- logged: v0.6.0 · 2026-10-30
+
+Two kinds of layout shift remain, both in-list and both direct results of the user's click: a row moving between Staged and Changes when it is staged or unstaged, and the older snapshot rows moving down one row when a new snapshot is inserted at the top (newest first, as the engine returns them). Measured at 4x CPU throttle they total 0.0014 to 0.0025 and only the snapshot ones fall outside Chrome's 500 ms recent-input window. At integration the snapshot list was turned to oldest first (newest at the bottom), so a new snapshot appends and nothing moves; the staged and unstaged row moves remain, as the direct result of the click.
+
+### frontend/src/ui/review/views.ts · Views
+
+- refers-to: frontend/src/ui/review/views.ts :: Views
+- kind: rationale
+- logged: v0.6.0 · 2026-10-30
+
+Document tabs in this shell are OpenDoc rows in WorkspaceStore whose id is a file path, and the only thing that paints a document is the one EditorHost CodeMirror view, so a diff or a review cannot be a tab without a second kind of document. Views is that second kind: a host div (`.cv-views`) beside the editor inside `.cv-wb-editor`, one child root per view document, keyed by the same OpenDoc id (`diff:<session|workspace>:<staged|work>:<path>`, `review:<session|workspace>`). Tabs, the close button, the middle-click close, next and previous tab, the unsaved-changes confirm and the title bar all keep working unchanged because they only know OpenDoc. `show(id)` flips hidden flags only (view roots, the host, the editor host); it returns false for a file id after restoring the editor host, so the one app.ts line `if (id && !views.show(id)) editor?.show(id)` covers both directions. Closing is handled by listening to the store's `docs` event and disposing any view whose id is gone, so requestClose in app.ts needed no change; if the closed view was the visible one the editor host is restored before the store's following `active` event picks the next tab. Opening an existing id never creates a second view (open-diff for the same path and side focuses the tab). View ids start with `diff:` or `review:`, never a path, so they cannot collide with file tabs; the PATHS_CHANGED and workspace-change loops in app.ts call `editor.close(path)` on them harmlessly and then closeDoc, which disposes them.
+
+### frontend/src/ui/review/views.ts · save and saveAll
+
+- refers-to: frontend/src/ui/review/views.ts :: Views.save
+- kind: warning-context
+- logged: v0.6.0 · 2026-10-30
+
+The Save and Save All commands in app.ts call `editor.save()` and `editor.saveAll()`, which only know file documents; with a diff tab active Mod+S would have saved whatever file the editor last showed. `views.save()` returns true when the active tab is a view and starts its save, so the command is `if (!views.save()) void editor?.save()`. `saveAll()` saves every view whose OpenDoc is marked modified. Find, Add Next Occurrence and Select All Occurrences still address the editor host and do nothing useful on a view tab; the diff editors have the CodeMirror search keymap only through the default keymap, which does not include it. Left alone on purpose.
+
+### frontend/src/ui/review/diff-view.ts · DiffTab
+
+- refers-to: frontend/src/ui/review/diff-view.ts :: DiffTab
+- kind: rationale
+- logged: v0.6.0 · 2026-10-30
+
+One tab, one file, one side (working tree against index, or staged against HEAD). The toolbar has a segmented Side by side and Unified toggle. Side by side is `MergeView` (a: original, read-only; b: modified); unified is one `EditorView` with `unifiedMergeView({ original, mergeControls: false })`. mergeControls is off because the merge extension's accept and reject buttons would rewrite the buffer without touching git; accepting and rejecting is the review pane's job through `git.hunks`. Only one of the two editors exists at a time. Toggling builds the new one with the live modified document (a `Text`, so unsaved edits and the saved-document comparison survive), swaps the two host panes' hidden flags and then destroys the old one in the same task, so no frame shows both or neither. The last mode used is a module variable so a new diff tab opens in the mode you left the previous one in; nothing is persisted.
+
+The editors reuse the file editor's pieces: `editorTheme` and `editorHighlight` from editor/theme.ts, `languageFor(path)` (the eager extension now and the lazy language-data one later, reconfigured through a Compartment), `wordWrap` from editor/wrap.ts through a Compartment, tab size and font size from Prefs. The same three Compartment instances are used in both editors of a tab, so one reconfigure effect updates split and unified alike. `Views.setOptions` is called from the two app.ts places that already call `editor.setOptions`, so Preferences and the Word Wrap command reach open diff tabs. Diff colours are not in the CodeMirror theme: the merge package's base theme uses `&dark` selectors that outrank a theme() rule, so review.css restyles `.cm-changedLine`, `.cm-changedText`, `.cm-deletedChunk` and the gutters with higher specificity from `--diff-add` and `--diff-del`, which are color-mix() of `--ok` and `--danger` defined on `.cv-diff` and `.cv-rv`.
+
+### frontend/src/ui/review/diff-view.ts · DiffTab.editable
+
+- refers-to: frontend/src/ui/review/diff-view.ts :: DiffTab.editable
+- kind: warning-context
+- logged: v0.6.0 · 2026-10-30
+
+The modified side is editable only when staged is false AND session is null. The first half is the contract ("saveable only when the target is the working tree"). The second half exists because the only write route is `PUT /api/workspace/file`, which resolves paths against the open workspace root and refuses `..` and absolute paths; a session's worktree lives outside it, so a session diff cannot be saved through any existing route. Rather than let someone type into a buffer that cannot be saved, a session diff and a staged diff open with the modified side read-only (CodeMirror `EditorState.readOnly`, so the caret and copy still work), the Save button invisible and the badge says so. If the engine later grows a write route for worktrees, `editable` and `save()` are the only two places to change. The save uses the mtime read from the workspace file after the diff loads (`expectedMtime`), so a file edited elsewhere gives 409 and an Overwrite confirm instead of silently clobbering; the dominant line ending of the modified text is restored on write, as the file editor does. After a save `subform:git-changed` is fired (session null) so Source Control and open reviews refresh.
+
+### frontend/src/ui/review/diff-view.ts · DiffTab.apply
+
+- refers-to: frontend/src/ui/review/diff-view.ts :: DiffTab.apply
+- kind: explainer
+- logged: v0.6.0 · 2026-10-30
+
+Refresh on `subform:git-changed` is lazy and in place: a hidden tab only marks itself pending and reloads when it is next shown; a visible one reloads after a 120 ms coalescing timer. A reload that returns the same original and the same modified text as what the editor holds (which is what happens after our own save) changes nothing at all. A reload that returns different text while the buffer is dirty never overwrites your edits: it shows a small "changed since opened" chip pinned bottom right of the body (absolutely positioned, so it cannot move anything). Only a clean buffer is rebuilt. Binary and tooLarge replace the editors with a centred note and grey the toggle. The mtime read (`GET /api/workspace/file`) is skipped for binary, tooLarge and empty-modified (deleted) files so nothing logs a 404.
+
+### frontend/src/ui/review/diff-view.ts · DiffTab.settle
+
+- refers-to: frontend/src/ui/review/diff-view.ts :: DiffTab.settle
+- kind: rationale
+- logged: v0.6.0 · 2026-10-30
+
+CodeMirror lays a document out with estimated line heights and corrects them in its first measure pass (word-wrapped lines are taller than estimated, so the collapsed-lines widgets below them moved by one line, about 0.007 layout shift). On the first build of a tab the pane is `visibility: hidden` (`.is-measuring`) until `requestMeasure` has written once and one more frame has passed, then revealed; hidden elements are not painted and are ignored by layout-shift. Later rebuilds (toggle, reload of a clean buffer) do not hide anything, because that would show a blank frame; they build the new editor before the old one is destroyed. The save button is `visibility: hidden` rather than `hidden` when not editable, so the toolbar width is the same before and after the diff arrives.
+
+### frontend/src/ui/review/review-pane.ts · ReviewPane
+
+- refers-to: frontend/src/ui/review/review-pane.ts :: ReviewPane
+- kind: rationale
+- logged: v0.6.0 · 2026-10-30
+
+A document tab, not a panel. The review needs the full editor width (hunk code is wide), it is a place you stay while working through a session's changes, and it should sit beside the diff tabs it links to (each file has an Open diff button that fires `subform:open-diff`). A sidebar panel is 180 to 600 px wide and shares the rail with Files and Sessions. One tab per target: `review:<session id>` or `review:workspace`.
+
+Rendering is keyed and patched: files by path, hunks by id with `patchList`. A hunk id is a hash of its path, header and lines, so a hunk with the same id has the same lines and its code rows are built once at creation and never touched again; only header text, disabled flags, the comment box and the result line are patched. Nothing assigns innerHTML or clears a container. Space is reserved: the notice strip is a fixed one-control-height row that is always present (empty text when idle), the comment result line has a fixed height, the empty and loading text sits under the list. Collapsing a file toggles hidden on its hunks container, which is a user action.
+
+Actions: Accept and Reject per hunk and per file call `git.hunks`. The returned `review` (FileReview or null) replaces that file in memory, or removes it when null, and the pane paints from it at once; then `subform:git-changed` is fired with `own = true` around the dispatch so this pane's own listener skips it (every other listener, such as Source Control, still reacts) and the pane does not refetch what it was just handed. A git-changed from anywhere else for the same session reloads after 120 ms (hidden pane: when next shown). A 409 (stale hunk) shows the notice "The file changed; its hunks were reloaded." and reloads the whole review, because `/api/git/review` has no per-file form. The status is read from `err.status` when the client throws a typed error (sf-scm's GitError does) or from a `NNN ` message prefix (the shape `request()` throws), so it works with either.
+
+Whole-file Accept sends `["*"]` as the contract says. Whole-file Reject sends every hunk id of the file when there are hunks, and `["*"]` only for a file with no hunks (binary), because the contract defines `*` for accept and leaves reject-all unspecified; the engine agent should support `*` for reject too. A whole-file reject asks for confirmation first (confirmAction, danger); a hunk reject does not, since the engine snapshots before any reject. Accept all and commit stages every file one by one (`["*"]`), stops at the first failure, then fires `subform:focus-commit` `{ session }` and shows a toast saying Source Control is where to commit. The event is not in the contract; sf-scm may listen for it to focus the commit box, and nothing breaks when nobody does.
+
+Comments: the box is per hunk and needs a session (comments are stored on the session record), so in the workspace review the comment button is disabled with the title "Comments need a session". Send calls `git.comment(session, path, hunk.newStart, hunk.id, text)` and writes the result into the hunk's result line from the reply's `sent`: terminal "Sent to the session terminal.", headless "Sent to the session: a follow-up run started.", stored "Stored on the session. It is not running, so nothing was sent."
+
+### frontend/src/ui/review/index.ts · installReview
+
+- refers-to: frontend/src/ui/review/index.ts :: installReview
+- kind: explainer
+- logged: v0.6.0 · 2026-10-30
+
+Called once from app.ts right after `new Commands()` so the `views` object exists before the Save commands close over it. It listens for `subform:open-diff` (validated: path string, staged boolean, session string or null) and `subform:open-review`, opens or focuses the tab through `Views.open`, and registers the `git-review` command ("Review Changes", enabled when a workspace is open), which just dispatches open-review for the workspace. Tab names: `server.ts (working tree)`, `server.ts (staged)`, `server.ts (session)`, `Review: <session title or workspace>`; the tab tooltip carries the longer text. The session title is looked up at open time from `sessionsClient`.
+
+### frontend/src/styles/review.css · layout
+
+- refers-to: frontend/src/styles/review.css :: .cv-views
+- kind: explainer
+- logged: v0.6.0 · 2026-10-30
+
+`.cv-views` is absolutely positioned over the editor area (`.cv-wb-editor` is already `position: relative`), and each view root fills it. Inside a diff, the body is a flex child with `min-height: 0` and the merge view's own wrappers are forced to `height: 100%` with the scroller `height: 100% !important` (the merge package's documented way to get per-editor scrolling instead of one tall page); scrollbars are hidden like the file editor's. Review rows use only tokens; the hunk code uses `--font-code`, sizes use `--fs-*`, spacing `--space-*`, radii `--radius*`, and nothing uses a z-index except the stale chip (`--z-raised`). The file also holds the three small rules for the Review button in the session chat header and the Sessions row action.
+
+### frontend/src/app.ts · review wiring
+
+- refers-to: frontend/src/app.ts :: startApp
+- kind: explainer
+- logged: v0.6.0 · 2026-10-30
+
+Eight small edits (see EDITS.md): import, one `installReview` line after `new Commands()`, Save and Save All route to views first, the `active` handler tries `views.show(id)` before `editor.show(id)`, the two `setOptions` call sites also call `views.setOptions`, and `git-review` joins the Git menu between Git Status and Commit.
+
+### frontend/src/extensions/sessions/index.ts · Review changes action
+
+- refers-to: frontend/src/extensions/sessions/index.ts :: ACTIONS
+- kind: explainer
+- logged: v0.6.0 · 2026-10-30
+
+A fourth row action (`review`, the existing `diff` icon) between Open terminal and Resume. It is always shown, because a finished or stopped session still has uncommitted worktree changes to review. It does not go through the busy set; it only dispatches `subform:open-review` with the session id.
+
+### frontend/src/ui/chat-pane.ts · Review button
+
+- refers-to: frontend/src/ui/chat-pane.ts :: ChatPane
+- kind: explainer
+- logged: v0.6.0 · 2026-10-30
+
+A small button in the chat header, after the interactive or headless label, visible only when a session is selected (`setHidden` in `paint`), dispatching the same open-review event for the current session. The header already has a fixed one-control height and the button is `flex: none`, so selecting a session does not move the log.
+
+### frontend/src/ui/terminal-dock.ts · wire, onData, flush
+
+- refers-to: frontend/src/ui/terminal-dock.ts :: addTab, wire, onData, flush, writeExit
+- kind: rationale
+- logged: v0.5.2 · 2026-10-30
+
+Socket handlers attach when a tab is added, so title and exit reach unselected tabs. xterm is still created on first show. Until then output is kept in `pending` and `written()` is called at once so the host's flow control never stalls on a hidden tab; the buffer is capped at 2 MB (the host ring size) and drops the oldest chunks. On build the buffer is written in one call, then the exit note if the process ended meanwhile. Closes review4 frontend finding 6.
+
+### frontend/src/ui/editor/wrap.ts · hang
+
+- refers-to: frontend/src/ui/editor/wrap.ts :: hang, indentOf
+- kind: warning-context
+- logged: v0.5.2 · 2026-10-30
+
+Measured in Chromium at tabSize 4: for the indent `\t  ` (width 6) the first row's text started at 4ch and continuation rows at 6ch. CSS tab stops are measured from the content edge, which the hanging indent moves by N, so a tab lands on columns congruent to N modulo the tab size. A line whose indent contains a tab is therefore decorated only when its width is a multiple of the tab size (then stops coincide with real columns: `\t\t` and `  \t` measured aligned); otherwise the decoration is skipped and the line wraps to column 0 like plain CodeMirror. When the width is capped, a tab line is floored to a multiple of the tab size. Space-only indents are unchanged.
+
+### frontend/src/ui/editor/editor.ts · edit, hasDoc
+
+- refers-to: frontend/src/ui/editor/editor.ts :: EditorHost.edit
+- kind: explainer
+- logged: v0.5.2 · 2026-10-30
+
+The command bridge for the Edit menu: undo, redo and select all run the CodeMirror commands on the view; copy and cut use execCommand, which CodeMirror's own copy and cut handlers answer (line-wise when nothing is selected); paste reads the clipboard API and inserts at the selection as an input.paste transaction, and says so in the status hint if the read is blocked.
+
+### frontend/src/ui/editor/bridge.ts · trackEditorFocus
+
+- refers-to: frontend/src/ui/editor/bridge.ts :: trackEditorFocus, editorFocused, editorWasFocused
+- kind: rationale
+- logged: v0.5.2 · 2026-10-30
+
+A capture focusin listener remembers whether the last focus was inside a `.cm-editor`; focus moving into the menu panels, menu bar or title tools leaves the flag alone (a menu click must not forget the editor), focus anywhere else clears it. app.ts enables the Edit commands for the editor from this flag and routes them to EditorHost.edit; text fields outside the editor keep the old execCommand and native path. native-menu.ts skips the native text_edit call when the editor is focused, so the macOS Edit menu reaches the bridge.
+
+### frontend/src/ui/tabs.ts · onKey
+
+- refers-to: frontend/src/ui/tabs.ts :: Tabs.onKey, focusTab, rover, closing
+- kind: rationale
+- logged: v0.5.2 · 2026-10-30
+
+Roving tabindex: one tab has tabindex 0 (the tab last focused, else the active one, else the first), the rest -1. Arrows, Home and End move focus only (manual activation); Enter or Space activates the focused tab; Delete or Mod+W closes the focused tab, with stopPropagation so the global Mod+W does not also run, and focus moves to the neighbour once the document is gone (a cancelled unsaved-changes prompt leaves focus where it was). The close button is outside the tab order.
+
+### frontend/src/ui/reopen.ts · reopenLastWorkspace
+
+- refers-to: frontend/src/ui/reopen.ts :: reopenLastWorkspace
+- kind: rationale
+- logged: v0.5.2 · 2026-10-30
+
+Runs in parallel with the font wait, before revealApp, so Home never paints and vanishes: the shell is still hidden by `visibility` until `app-ready`. Uses the engine's open workspace if it has one, else the first of the three most recent folders that still opens. Bounded to 2 s with 250 ms retries so an engine still starting (desktop) or offline does not delay the reveal past the font wait; then Home shows as before. GET /api/workspace answers 200 with a null root when nothing is open, which currentWorkspace maps to a null path, so a falsy path is treated as none. Honours Preferences > Workspace > Startup.
+
+### frontend/src/app.ts · close request
+
+- refers-to: frontend/src/app.ts :: onCloseRequested, quit
+- kind: warning-context
+- logged: v0.5.2 · 2026-10-30
+
+Desktop only. `onCloseRequested` asks before closing with unsaved documents and calls preventDefault on refusal; the API destroys the window itself when the handler does not prevent, which needs `core:window:allow-destroy`. The Quit command already asks, so it now calls `destroy()` instead of `close()` to avoid a second prompt. A second close request during the prompt is refused. Not run here (no desktop host).
+
+### F6 window review fixes (v0.6.1)
+
+- refers-to: frontend/src/ui/review/diff-view.ts :: DiffTab.save, DiffTab.apply; frontend/src/ui/editor/bridge.ts :: EDITOR; frontend/src/extensions/git/index.ts :: GitPanel workspace handler; frontend/src/ui/reopen.ts :: REOPENED_EVENT; frontend/src/app.ts :: reopen listener
+- kind: bug-context
+- logged: v0.6.1 · 2026-10-30
+
+From the fresh-context review of the F6 window, each reproduced in Chromium before the fix. The diff tab took the fresh disk mtime on every reload, even when it kept the dirty buffer, so a later Save sent the new mtime and silently overwrote a change made on disk: the mtime now moves only when the buffer is rebuilt or already equal. After a slow save the tab marked itself clean against the doc captured before the write, so text typed during the save was lost on the next reload or close: it now compares against the live doc. A content reload of a clean diff dispatches the new text into the existing editor instead of rebuilding both editors, so focus stays and nothing flashes; only a change of the original side rebuilds. The Edit menu bridge counted any CodeMirror editor as the main one, so Paste from a diff tab went into the hidden file editor: it now matches only editors inside `.cv-editor-host`. A branch change re-emitted the store's workspace event and the Source Control panel cleared and rebuilt its rows: the panel resets only when the workspace path changes. A workspace reopen that finished after the 2 s boot deadline left the engine on the folder and the window on Home: the late result now arrives as `subform:reopened` and the window takes it when no workspace is open. `@codemirror/merge` got its NOTICE row.
+
+F6 exit, run end to end at 4x CPU throttle against the real engine with a fake claude: an interactive session in a worktree of a formslot clone; the agent edited README.md in two places and added NEW.md; in the review pane the first README hunk was accepted, the second rejected and NEW.md accepted; the commit through the wrapper, with a message ending in Co-Authored-By and Claude-Session lines, shows `nodemode-ai <mackin@nodemode.ai> | nodemode-ai <mackin@nodemode.ai>` and no trailer line; the commit holds NEW.md and the one kept README line, the rejected line is gone, the worktree is clean; layout shift 0, no page errors.
+
+Known and left for F7: Find and select-occurrence commands still act on the file editor while a diff tab is active; the review pane and diff tab do not unsubscribe their session and language listeners on close; the stale banner stays after undoing back to clean; "Accept all and commit" stages and focuses the commit box rather than committing; a second confirm dialog leaves the first promise pending; the terminal dock's pending buffer can start mid escape sequence after eviction.

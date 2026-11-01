@@ -35,6 +35,7 @@ Transitive packages of fastapi and uvicorn[standard] (starlette, pydantic, click
 | @tauri-apps/plugin-dialog | 2.8.4 | MIT OR Apache-2.0 | folder picker in the desktop app |
 | @xterm/xterm 6.0.0, @xterm/addon-fit 0.11.0, @xterm/addon-webgl 0.19.0 | as listed | MIT | terminal dock |
 | @codemirror/state 6.7.6, view 6.43.15, commands 6.11.1, language 6.13.1, search 6.7.2, autocomplete 6.20.4 | as listed | MIT | code editor |
+| @codemirror/merge 6.12.3 | 6.12.3 | MIT | side-by-side and unified diff views (v0.6.0) |
 | @codemirror/lang-css 6.3.1, lang-html 6.4.12, lang-javascript 6.2.5, lang-json 6.0.2, lang-markdown 6.5.2, lang-python 6.2.1, lang-rust 6.0.2, lang-yaml 6.1.3, language-data 6.5.2 | as listed | MIT | editor languages (language-data loads the other @codemirror/lang-* and legacy-modes packages on demand, all MIT) |
 | @lezer/highlight 1.2.5 and the @lezer parsers they pull in; crelt, style-mod, w3c-keyname, @marijn/find-cluster-break | as locked | MIT | editor internals (transitive) |
 | @tauri-apps/cli | 2.12.4 | Apache-2.0 OR MIT | build tool only |

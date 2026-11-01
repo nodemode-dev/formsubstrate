@@ -173,3 +173,151 @@ SSE: `retry: 2000`, then one `event: session` per existing session (so a reconne
 From the fresh-context review of 006c86b..v0.5.0, each reproduced before the fix. Flow control is now accounted per socket: a subscriber owes the host only bytes its writer has actually sent, a browser ack is clamped to what that subscriber owes, and on detach whatever it still owes (and anything still queued for it) is acked to the host, so a second tab that attaches, gets the replay and leaves without acking no longer leaves the host paused and the first tab frozen (rerun of the repro: unacked 0, paused False, probe echoed). Bytes no subscriber took are acked at once. A subscriber with more than 8 MiB queued is dropped (close 1013), so a client that never reads cannot grow the engine. WebSocket input over 1 MiB is refused and resize is clamped to 1..1000 by 1..500 in the router and 10..1000 by 4..500 in the host, which stores the size only after the ioctl succeeds. `--mcp-config` is only ever the engine-written file under the session's worktree; a repository's own `.subform/mcp.json` is never passed to claude (a CLI-given config skips claude's project approval). Resume marks the session working before its first await and restores the state on failure, so concurrent resumes get 409 instead of orphaned claude processes. A failed `git worktree remove` leaves the session stopped rather than working with a dead terminal. The headless prompt follows `--` (a prompt starting with `-` was parsed as an option; checked with the fake claude: `... --mcp-config <path> -- --version`) and is capped at 100,000 characters (422 above). The registry loader requires state, mode, title, repo, worktree and branch as strings, maps unknown states to failed, and copies the file aside (`sessions.json.corrupt-<time>`) when it drops an entry; an unreadable file is moved aside instead of being silently overwritten by the next save. After a kill the host sends SIGKILL to the process group once more, so children that ignore SIGHUP do not outlive their terminal.
 
 Known and left for F6: finished terminals stay in the host (with their ring) until killed; and SIGTERM waits on an open SSE stream (`/api/sessions/events`) before the lifespan shutdown runs.
+
+## F6 git, review, rewind and the commit wrapper (v0.6.0)
+
+From the sf-git-engine build (gitops service, git router, session changes) and the carried F5 engine items.
+
+### backend/app/services/gitops.py · module
+
+- refers-to: backend/app/services/gitops.py :: gitops
+- kind: explainer
+- logged: v0.6.0 · 2026-10-30
+
+All git logic of Phase F6. Written fresh for subform; the idea of one module holding status, diff, log, stage, discard, commit and push, and the plain subprocess-against-the-user's-git approach (credential helpers and config apply unchanged), come from substrata `backend/app/core/gitops.py` (MIT, owner's). The synchronous `subprocess.run` helper there became an async `asyncio.create_subprocess_exec` runner (same shape as sessions.py `_run`), status moved from porcelain v1 to `--porcelain=v2 -z --branch`, and everything else (hunks, review, snapshots, rewind, commit wrapper, identity, sign-and-push) is new. substrata's agent tool trio (git_status, git_diff, git_commit) was not ported.
+
+Every git call runs as `git -c core.quotepath=off ...` with `LC_ALL=C`, `GIT_TERMINAL_PROMPT=0`, no shell, and with GIT_DIR, GIT_WORK_TREE and GIT_INDEX_FILE removed from the inherited environment so a stray variable cannot redirect it. Text from git is decoded with `surrogateescape` so a patch built from it re-encodes byte for byte; `_pub` turns it into valid UTF-8 only at the JSON edge.
+
+### backend/app/services/gitops.py · resolve_target
+
+- refers-to: backend/app/services/gitops.py :: resolve_target
+- kind: rationale
+- logged: v0.6.0 · 2026-10-30
+
+A workspace target must be the top folder of its git repository (409 otherwise). `git status` and `git diff` report repository-relative paths and the contract says paths are relative to the target root, so a workspace opened on a subfolder would make every path wrong. Refusing is cheaper and safer than translating. Session targets are always a worktree top. The sessions module is imported lazily inside the function because sessions.py imports gitops at module level.
+
+### backend/app/services/gitops.py · parse_diff, _hunk_id
+
+- refers-to: backend/app/services/gitops.py :: parse_diff
+- kind: rationale
+- logged: v0.6.0 · 2026-10-30
+
+Hunks are parsed from `git diff --diff-algorithm=histogram -U3`. The public hunk lines hold only " ", "+" and "-", but each hunk also keeps its raw lines including the "\ No newline at end of file" markers, because those must be in a patch for it to apply exactly. The id is sha1 of path, header and lines as the contract says, so rejecting an earlier hunk shifts the line numbers of later hunks and changes their ids; the response of a hunk action returns the refreshed FileReview so the UI does not hold stale ids.
+
+### backend/app/services/gitops.py · hunks_action
+
+- refers-to: backend/app/services/gitops.py :: hunks_action
+- kind: rationale
+- logged: v0.6.0 · 2026-10-30
+
+Exactness: the patch is rebuilt from the freshly computed hunks (working tree against HEAD) selected by id; an id that is not in the fresh diff is 409 before anything is touched, then `git apply --check` runs before every real apply. Accept applies with `--cached --unidiff-zero`; if the check fails but the reverse check passes the hunk is already staged and counts as applied. Reject checks `-R` on the working tree first, takes the `before reject <path>` snapshot, applies `-R` to the working tree and, when the reverse check passes, `-R --cached` too. Context lines stay in the patch (-U3), so git apply can find a hunk after offsets caused by other staged hunks; hunks of one file never overlap in context because git merges hunks closer than 6 lines.
+
+Whole-file cases (id `*`, untracked, new, deleted, renamed or binary files) do not go through a patch: accept is `git add -A -- paths`, reject is `git restore --source=HEAD --staged --worktree` (or deleting an untracked file, or `git rm -f --cached` plus deleting a file that is not in HEAD). A partial selection on those kinds is 400. Reviewed hunks carry an extra boolean `staged` (additive to the contract): a hunk is staged when the index-against-HEAD diff contains the same lines. Without it the review could not show accepted hunks, since accepting stages and the working tree still differs from HEAD.
+
+### backend/app/services/gitops.py · snapshot_create, rewind
+
+- refers-to: backend/app/services/gitops.py :: snapshot_create
+- kind: rationale
+- logged: v0.6.0 · 2026-10-30
+
+Snapshots never touch HEAD, the index or a branch: a throwaway index in a temp folder (`GIT_INDEX_FILE`), `read-tree HEAD`, `add -A` (honours ignore rules, so ignored files are not captured), `write-tree`, `commit-tree -p HEAD` with a fixed subform identity and signing off, then `update-ref refs/subform/snapshots/<key>/<n>`. The commit message is the label, a blank line, and `files: N` (files that differ from HEAD) which list parses back out of `for-each-ref`. At most 50 per key; older refs are deleted. The session's count is mirrored into the session record (`snapshotCount`) through `sessions.note_snapshots` so `public()` stays synchronous.
+
+Rewind takes a safety snapshot first, loads the target commit into another temp index, deletes the files that are in the real working tree (tracked or untracked, not ignored) but not in the snapshot tree, then `checkout-index -a -f` from the temp index. The real index and HEAD are never written. Because the real index is untouched, a file staged as new and then removed by the rewind shows as added-and-deleted until the user unstages it.
+
+### backend/app/services/gitops.py · commit, clean_message, _audit
+
+- refers-to: backend/app/services/gitops.py :: commit
+- kind: rationale
+- logged: v0.6.0 · 2026-10-30
+
+The wrapper strips every line containing `Generated with [Claude Code]`, then trailing blank or trailer lines matching `^(Co-Authored-By|Claude-Session|Generated with|Signed-off-by: Claude)\b` (case-insensitive). Identity goes in twice, `-c user.name/email` and the four GIT_AUTHOR/COMMITTER variables, and amend uses `--reset-author` so an amended commit takes the identity too. A signing failure comes back as 409 with git's message and no commit exists because git aborts before writing it. The audit asks git for `%G?` with `gpg.ssh.allowedSignersFile` pointing at `<data_dir>/allowed_signers`, a file the engine writes from the stored identity (email plus the `.pub` contents), so the user's own signed commits read `G` instead of `N` or `B` (git cannot verify an ssh signature without such a file).
+
+### backend/app/services/gitops.py · HOOK_SCRIPT, ensure_hooks, configure_worktree
+
+- refers-to: backend/app/services/gitops.py :: HOOK_SCRIPT
+- kind: rationale
+- logged: v0.6.0 · 2026-10-30
+
+The commit-msg hook is POSIX sh and uses two greps (an ERE for the trailer names, a fixed-string one for the Generated with line) because `\b` is not POSIX. It rewrites the message file in place and always exits 0; an empty result is rejected by git itself. It is rewritten when its text differs and made executable on every session create. `configure_worktree` turns on `extensions.worktreeConfig` in the main repository and then sets `user.name`, `user.email` (only when an identity is stored; the git global values apply otherwise) and `core.hooksPath` with `git config --worktree`, so the main checkout and the user's other worktrees are not affected. A user's global `commit.gpgsign=true` still applies to commits the agent makes; the engine does not override it.
+
+### backend/app/services/gitops.py · sign_and_push
+
+- refers-to: backend/app/services/gitops.py :: sign_and_push
+- kind: rationale
+- logged: v0.6.0 · 2026-10-30
+
+Follows the dev-rules sequence without ssh-add: stored identity with sign and key, fetch, merge-base must equal the remote tip, N from rev-list, refuse N = 0, `rebase --exec "git commit --amend --no-edit --reset-author -S"` with identity and signing passed as `-c` (the exec'd git inherits them through GIT_CONFIG_PARAMETERS) and as environment. A failed rebase is aborted so the branch is left as it was. "Unsigned" is read from the `gpgsig` header of the raw commit object, not from `%G?`, so it does not depend on a verifiable key. The check line is built from the rewritten commits and a push happens only when it reads zero for the last three counters. An empty commit in the range makes the amend step fail; the rebase is aborted and git's message is returned.
+
+### backend/app/routers/git.py · module
+
+- refers-to: backend/app/routers/git.py :: router
+- kind: explainer
+- logged: v0.6.0 · 2026-10-30
+
+Thin: every route resolves a target, calls gitops and maps `gitops.Refused` to HTTPException. Ported in layout only from substrata `backend/app/routers/git.py` (MIT, owner's); the routes themselves follow CONTRACT_F6. Bodies are lenient pydantic models with defaults and the real validation lives in gitops so bad input is 400 with a `detail`, not 422. sign-and-push is the one route that returns extra keys on 409 (`ok: false`, `check`, `output`) as the contract asks. The comments route stores the comment first, then tries to deliver it, so a delivery failure still leaves the comment recorded (`sent: stored`).
+
+### backend/app/services/sessions.py · _mcp_arg, _write_settings
+
+- refers-to: backend/app/services/sessions.py :: _mcp_arg
+- kind: rationale
+- logged: v0.6.0 · 2026-10-30
+
+Both launch paths already build their argv from `_mcp_arg`, so `--settings <worktree>/.subform/settings.json` rides with `--mcp-config`. `claude --help` (2.1.314) lists `--settings <file-or-json>`. The file is written at create and rewritten on demand for sessions created before this release. `.subform/` is already in the repository's info/exclude, so the file is never committed.
+
+### backend/app/services/sessions.py · send_feedback, record_comment
+
+- refers-to: backend/app/services/sessions.py :: send_feedback
+- kind: rationale
+- logged: v0.6.0 · 2026-10-30
+
+A live interactive session gets the text as one bracketed paste, a short pause, then a lone carriage return in a second write; sending them together makes the Claude Code prompt treat the return as part of the paste. Writes go through the pty-host client `send` with op `write` (the same call the terminal websocket uses). A headless session that is not running and has a claude session id starts `claude -p ... --resume <id> -- <text>` through `_start_headless` and goes back to working; a running headless session or an interactive one without a live terminal only stores the comment. Comments are kept in the session record, newest 200.
+
+### backend/app/services/sessions.py · _on_exit, _snapshot
+
+- refers-to: backend/app/services/sessions.py :: _on_exit
+- kind: rationale
+- logged: v0.6.0 · 2026-10-30
+
+The old `_on_exit` body moved unchanged into `_finish_exit` because it has several early returns; the new wrapper notes whether the terminal was a headless stream before the stream is dropped and, if it was, schedules the `after run` snapshot as a task. Snapshot failures are swallowed so a snapshot problem never fails a session. The `session start` snapshot is taken before the agent launches, the `at stop` snapshot only for interactive sessions after the process is killed.
+
+### backend/subform_ptyhost.py · Host.reaper, REAP_SECONDS
+
+- refers-to: backend/subform_ptyhost.py :: Host.reaper
+- kind: rationale
+- logged: v0.5.2 · 2026-10-30
+
+A terminal that has exited, has no subscribers and whose exit is REAP_SECONDS old (default 300, env SUBFORM_PTYHOST_REAP) is popped from `terms`, which frees its 2 MB ring and drops it from `list`. The exit frame is sent to every connection when the process ends, so "delivered" is satisfied by the time. A terminal a browser tab is still attached to is kept until that tab detaches. Closes the F5 leftover and review4 finding 9.
+
+### backend/app/services/sessions.py · _release
+
+- refers-to: backend/app/services/sessions.py :: _release, _on_exit
+- kind: rationale
+- logged: v0.5.2 · 2026-10-30
+
+After a session terminal's exit has been handled, a headless terminal is killed in the host (the result was already read from its stream, so nothing is lost) and an interactive one is only detached by the sessions client, so the host's reaper can pop it once no browser tab is attached. Failures are ignored: the terminal may already be gone after a stop. The release task is scheduled before the exit handling so it cannot be skipped by an early return. Verified: a headless run's terminal left GET /api/terminals within 1.5 s.
+
+### backend/app/routers/terminal.py · list_terminals
+
+- refers-to: backend/app/routers/terminal.py :: list_terminals
+- kind: rationale
+- logged: v0.5.2 · 2026-10-30
+
+Window titles kept by the hub for terminals the host no longer lists are dropped on each listing, so the title map does not grow after reaping.
+
+### backend/app/main.py · _end_streams_on_signal
+
+- refers-to: backend/app/main.py :: _end_streams_on_signal; backend/app/services/sessions.py :: close_streams, CLOSE
+- kind: rationale
+- logged: v0.5.2 · 2026-10-30
+
+uvicorn waits for open connections before it runs the lifespan shutdown, and the sessions SSE stream never ends, so SIGTERM hung. The lifespan start chains a handler onto SIGTERM and SIGINT (uvicorn's own handler is kept and called) that posts `close_streams` to the loop; every subscriber queue gets a close item and the stream generator returns. A client that connects during shutdown gets the close item at once. The previous handlers are restored in the shutdown. Measured: curl -N on the stream, kill -TERM, engine gone in 1.6 s. Closes review4 finding 10.
+
+### F6 engine review fixes (v0.6.1)
+
+- refers-to: backend/app/services/gitops.py :: BRANCH_RE, CONTROL_RE, LINE_TRAILER_RE, lock_for, clean_path, _read_file, discard, clean_message, count_trailers, HOOK_SCRIPT, identity_put, snapshot_create, _remote_and_branch, _push_args, push, sign_and_push; backend/app/routers/git.py :: every mutating route, comments; backend/app/services/sessions.py :: send_feedback
+- kind: bug-context
+- logged: v0.6.1 · 2026-10-30
+
+From the fresh-context review of 729a361..v0.6.0, each reproduced before the fix. A branch named `+main` was a force push: branch names now match `^[A-Za-z0-9_][A-Za-z0-9._/-]*$`, the remote must be one `git remote` lists, and push sends the explicit refspec `refs/heads/<b>:refs/heads/<b>` with `--no-force-with-lease` and `remote.<r>.push` cleared, so neither the name nor a configured push refspec can force (rerun: `+main` is 400, an unknown remote is 400). Review comments could leave the bracketed paste with `\x1b[201~` and type into the agent's shell: C0, DEL and C1 controls are removed from the comment text in the router and again in `send_feedback`, a path with controls is 400, and text is typed only while the session is `working`; at `needs-input` it is stored, so the Enter cannot answer a permission prompt. Sign-and-push no longer takes over other people's commits: the range is refused before any rewrite when it holds a merge or a commit by another author, and when the post-rebase check fails the branch is put back with `reset --keep` to where it was. A backslash is a name character on POSIX (it was turned into `/`, so discarding `a\b.txt` reverted `a/b.txt`). Discarding an untracked folder that holds its own `.git` is refused before anything is touched. Mutating routes take a per-repository asyncio lock, and snapshot refs are created with a create-only `update-ref` that moves to the next number on a clash (rerun: four parallel snapshots got four distinct numbers). The commit wrapper drops attribution trailer lines anywhere in the message, not only at the end (rerun: `Co-Authored-By` before `Signed-off-by: Bob` and one inside the body are both gone, audit `trailers: 0`), and the commit-msg hook now matches the same lines with their colon, so "Generated with codegen" in a subject is kept. Saving the identity also rewrites `user.name` and `user.email` in every session worktree. `clean_path` refuses a path whose real location is under `.git`, and the diff reader confines the real path and opens with `O_NOFOLLOW`.
+
+Known and left for F7: `git commit --no-verify` inside a worktree skips the hook (plain push now refuses nothing on its own; an audit before plain push and refusing amend of a pushed commit are next); an empty commit in a sign-and-push range makes the amend step fail (the rebase is aborted and git's message returned); diff output size is capped only per file text, not per hunk list.
