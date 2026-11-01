@@ -10,7 +10,7 @@
 
 subform opens Form repositories, edits code with language servers and a debugger, hosts Claude Code sessions in terminal tabs and headless runs, reviews their changes hunk by hunk, and commits them under the family's identity and signing rules. It uses the formvis shell (splash, Home, menu bar, title bar, status bar, Preferences) and editor pieces from substrata, ported into a fresh repository.
 
-**Status:** building. Phase F1 has landed: the engine skeleton, the root scripts and the desktop boot (splash, hidden build, reveal on `app_ready`). The editor, terminals and agents arrive in later phases; the plan of record ships in the planning sidecar zip.
+**Status:** building. Phases F1 and F2 have landed: the engine skeleton, the root scripts and the desktop boot (splash, hidden build, reveal on `app_ready`); then the formvis shell (tokens and themes, title bar with menus and tools, document tab row, status bar, command palette, dialogs and toasts) with zero flash on first paint. The editor, terminals and agents arrive in later phases; the plan of record ships in the planning sidecar zip.
 
 ## Quick start
 
