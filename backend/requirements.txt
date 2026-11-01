@@ -1,7 +1,7 @@
-fastapi==0.141.1   # the engine's web framework; MIT
-uvicorn[standard]==0.53.0   # the server that runs the engine; BSD-3-Clause
-python-multipart==0.0.32   # form and upload bodies for FastAPI; Apache-2.0
-httpx==0.28.1   # outbound HTTP from the engine; BSD-3-Clause
-keyring==25.7.0   # secrets kept in the system's password store, service subform; MIT
-ptyprocess==0.7.0; sys_platform != "win32"   # the terminal on macOS and Linux; ISC
-pywinpty==3.0.5; sys_platform == "win32"   # the terminal on Windows; MIT
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+python-multipart==0.0.32
+httpx==0.28.1
+keyring==25.7.0
+ptyprocess==0.7.0; sys_platform != "win32"
+pywinpty==3.0.5; sys_platform == "win32"
