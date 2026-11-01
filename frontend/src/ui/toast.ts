@@ -14,7 +14,7 @@ function clearOfPointer(root: HTMLElement): void {
 }
 
 export interface NoticeAction { label: string; run: () => void }
-export interface NoticeOptions { actions?: NoticeAction[]; ms?: number }
+export interface NoticeOptions { actions?: NoticeAction[]; ms?: number; key?: string }
 export interface NoticeRecord { id: number; text: string; kind: 'info' | 'error'; at: number; count: number }
 
 const HISTORY_MAX = 100;
@@ -39,18 +39,63 @@ function record(text: string, kind: 'info' | 'error'): void {
   for (const w of watchers) w();
 }
 
+const VISIBLE_MAX = 4;
+
+function stack(root: HTMLElement, fresh?: HTMLElement): void {
+  const gap = parseFloat(getComputedStyle(root).rowGap) || 0;
+  let y = 0;
+  for (let i = root.children.length - 1; i >= 0; i--) {
+    const n = root.children[i] as HTMLElement;
+    if (n.classList.contains('is-leaving')) continue;
+    const h = n.offsetHeight;
+    if (n === fresh) {
+      n.style.transition = 'none';
+      n.style.transform = `translateY(${gap - y}px)`;
+      n.getBoundingClientRect();
+      n.style.transition = '';
+      n.classList.add('is-in');
+    }
+    n.dataset.y = String(y);
+    n.style.transform = `translateY(${-y}px)`;
+    y += h + gap;
+  }
+}
+
+function leave(node: HTMLElement): void {
+  window.clearTimeout(timers.get(node));
+  const root = node.parentElement;
+  if (!root || node.classList.contains('is-leaving')) return;
+  const gap = parseFloat(getComputedStyle(root).rowGap) || 0;
+  node.classList.add('is-leaving');
+  node.style.transform = `translateY(${gap - Number(node.dataset.y || 0)}px)`;
+  const s = getComputedStyle(node).transitionDuration.split(',').map((d) => parseFloat(d) || 0);
+  timers.set(node, window.setTimeout(() => node.remove(), Math.max(0, ...s) * 1000 + 30));
+  stack(root as HTMLElement);
+}
+
+function syncActions(node: HTMLElement, actions: NoticeAction[]): void {
+  const bar = node.querySelector('.cv-toast-actions')!;
+  if (actions.length) actionsOf.set(node, actions); else actionsOf.delete(node);
+  while (bar.children.length > actions.length) bar.lastElementChild?.remove();
+  actions.forEach((a, i) => {
+    let b = bar.children[i] as HTMLElement | undefined;
+    if (!b) { b = el('<button class="cv-toast-action" type="button"></button>'); bar.append(b); }
+    b.dataset.at = String(i);
+    if (b.textContent !== a.label) b.textContent = a.label;
+  });
+}
+
 function watchPointer(root: HTMLElement): void {
   if (pointer.watching) return;
   pointer.watching = true;
   root.addEventListener('click', (e) => {
     const target = e.target instanceof Element ? e.target : null, node = target?.closest<HTMLElement>('.cv-toast');
     if (!node) return;
-    if (target?.closest('.cv-toast-close')) { window.clearTimeout(timers.get(node)); node.remove(); return; }
+    if (target?.closest('.cv-toast-close')) { leave(node); return; }
     const act = target?.closest<HTMLElement>('.cv-toast-action');
     if (!act) return;
     const run = actionsOf.get(node)?.[Number(act.dataset.at)];
-    window.clearTimeout(timers.get(node));
-    node.remove();
+    leave(node);
     run?.run();
   });
   window.addEventListener('pointermove', (e) => {
@@ -67,20 +112,29 @@ export function toast(text: string, kind: 'info' | 'error' = 'info', opts: Notic
   if (!root) return () => undefined;
   watchPointer(root);
   const actions = opts.actions ?? [], ms = opts.ms ?? (actions.length ? 10000 : loadPrefs().noticeSeconds * 1000 || (kind === 'error' ? 6000 : 3600)), cls = `cv-toast${kind === 'error' ? ' is-error' : ''}`;
-  const arm = (n: Element): void => { window.clearTimeout(timers.get(n)); if (ms > 0) timers.set(n, window.setTimeout(() => n.remove(), ms)); };
-  const same = Array.from(root.children).find((n) => (n as HTMLElement).dataset.text === text && n.className === cls && !actions.length && !actionsOf.has(n));
-  if (same) { arm(same); return () => { window.clearTimeout(timers.get(same)); same.remove(); }; }
+  const key = opts.key ?? (actions.length ? '' : text);
+  const arm = (n: HTMLElement): void => { window.clearTimeout(timers.get(n)); if (ms > 0) timers.set(n, window.setTimeout(() => leave(n), ms)); };
+  const same = key ? (Array.from(root.children) as HTMLElement[]).find((n) => n.dataset.key === key && !n.classList.contains('is-leaving')) : undefined;
+  if (same) {
+    const textEl = same.firstElementChild!;
+    if (textEl.textContent !== text) textEl.textContent = text;
+    same.classList.toggle('is-error', kind === 'error');
+    same.dataset.text = text;
+    syncActions(same, actions);
+    arm(same);
+    stack(root);
+    return () => leave(same);
+  }
   const node = el(`<div class="${cls}" role="status"><span class="cv-toast-text"></span><span class="cv-toast-actions"></span><button class="cv-toast-close" type="button" title="Dismiss" aria-label="Dismiss notice">${icon('close', 12)}</button></div>`);
   node.dataset.text = text;
+  if (key) node.dataset.key = key;
   node.firstElementChild!.textContent = text;
-  if (actions.length) {
-    actionsOf.set(node, actions);
-    const bar = node.querySelector('.cv-toast-actions')!;
-    actions.forEach((a, i) => { const b = el(`<button class="cv-toast-action" type="button" data-at="${i}"></button>`); b.textContent = a.label; bar.append(b); });
-  }
+  syncActions(node, actions);
   root.append(node);
-  while (root.children.length > 4) root.firstElementChild?.remove();
+  const live = (Array.from(root.children) as HTMLElement[]).filter((n) => !n.classList.contains('is-leaving'));
+  for (const old of live.slice(0, Math.max(0, live.length - VISIBLE_MAX))) leave(old);
+  stack(root, node);
   clearOfPointer(root);
   arm(node);
-  return () => { window.clearTimeout(timers.get(node)); node.remove(); };
+  return () => leave(node);
 }
