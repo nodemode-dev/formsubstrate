@@ -56,7 +56,9 @@ const clock = (iso: string): string => {
   return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 };
 
-interface Done { commit: string; summary: string; audit: Audit }
+interface Done { commit: string; summary: string; audit: Audit; identitySource?: string }
+
+const IDENTITY_SOURCE: Record<string, string> = { subform: 'Preferences', git: 'global git config', none: 'none' };
 
 class GitPanel {
   private readonly target: HTMLSelectElement;
@@ -81,6 +83,10 @@ class GitPanel {
   private readonly warn: HTMLElement;
   private readonly flagCard: HTMLElement;
   private readonly flagFix: HTMLButtonElement;
+  private readonly identCard: HTMLElement;
+  private readonly flaggedNote: HTMLElement;
+  private identSource: string | null = null;
+  private flaggedKnown = false;
   private session: string | null = null;
   private status: GitStatus | null = null;
   private snaps: Snapshot[] = [];
@@ -103,18 +109,20 @@ class GitPanel {
 <div class="cv-sc-stack">
 <div class="cv-sc-card cv-sc-checkcard" hidden><span class="cv-sc-check"></span><button class="cv-wb-tool cv-sc-dismiss" type="button" data-dismiss="check">${icon('close', 12)}</button></div>
 <div class="cv-sc-card cv-sc-flagcard" hidden><div class="cv-sc-flag-main"><span class="cv-sc-flag-t"></span></div><button class="cv-btn cv-sc-flag-fix" type="button" data-act="fix">${icon('lock', 14)}<span class="cv-sc-bt"></span></button></div>
+<div class="cv-sc-card cv-sc-identcard" hidden><span class="cv-sc-ident-t"></span><button class="cv-btn cv-sc-ident-set" type="button" data-act="identity"><span class="cv-sc-bt"></span></button></div>
 <div class="cv-sc-card cv-sc-audit" hidden>
 <div class="cv-sc-audit-head"><span class="cv-sc-audit-t"></span><span class="cv-sc-audit-sha"></span><button class="cv-wb-tool cv-sc-dismiss" type="button" data-dismiss="audit">${icon('close', 12)}</button></div>
 <div class="cv-sc-audit-row"><span class="cv-sc-audit-k" data-k="author"></span><span class="cv-sc-audit-v" data-f="author"></span></div>
 <div class="cv-sc-audit-row"><span class="cv-sc-audit-k" data-k="committer"></span><span class="cv-sc-audit-v" data-f="committer"></span></div>
 <div class="cv-sc-audit-row"><span class="cv-sc-audit-k" data-k="trailers"></span><span class="cv-sc-audit-v" data-f="trailers"></span></div>
 <div class="cv-sc-audit-row"><span class="cv-sc-audit-k" data-k="signature"></span><span class="cv-sc-audit-v" data-f="signature"></span></div>
+<div class="cv-sc-audit-row"><span class="cv-sc-audit-k" data-k="identity"></span><span class="cv-sc-audit-v" data-f="identity"></span></div>
 <p class="cv-sc-warn is-off">${icon('warning', 12)}<span class="cv-sc-warn-t"></span></p>
 </div>
 </div></div>
 <div class="cv-sc-snaps"><div class="cv-sc-snaps-bar"><span class="cv-sc-snaps-t"></span><span class="cv-sc-snaps-n"></span><button class="cv-wb-tool cv-sc-take" type="button">${icon('add', 14)}</button></div><div class="cv-sc-snaplist" role="list"></div><p class="cv-sc-snaps-empty cv-note"></p></div>
 <div class="cv-sc-foot">
-<div class="cv-sc-meta">${icon('branch', 12)}<span class="cv-sc-branch"></span><span class="cv-sc-ahead"></span></div>
+<div class="cv-sc-meta">${icon('branch', 12)}<span class="cv-sc-branch"></span><span class="cv-sc-flagged"></span><span class="cv-sc-ahead"></span></div>
 <div class="cv-sc-pushes"><button class="cv-btn cv-sc-push" type="button" data-act="push">${icon('upload', 14)}<span class="cv-sc-bt"></span></button><button class="cv-btn cv-sc-sign-push" type="button" data-act="sign-push">${icon('lock', 14)}<span class="cv-sc-bt"></span></button></div>
 </div>
 </div>`);
@@ -140,6 +148,11 @@ class GitPanel {
     this.warn = q(host, '.cv-sc-warn');
     this.flagCard = q(host, '.cv-sc-flagcard');
     this.flagFix = q<HTMLButtonElement>(host, '.cv-sc-flag-fix');
+    this.identCard = q(host, '.cv-sc-identcard');
+    this.flaggedNote = q(host, '.cv-sc-flagged');
+    q(host, '.cv-sc-ident-set').addEventListener('click', () => { document.dispatchEvent(new CustomEvent('subform:open-settings', { detail: { section: 'Git and Identity' } })); });
+    document.addEventListener('subform:identity-changed', () => { void this.loadIdentity(); });
+    void this.loadIdentity();
 
     this.target.addEventListener('change', () => this.retarget(this.target.value || null));
     this.refreshBtn.addEventListener('click', () => { void this.refresh(); });
@@ -213,11 +226,21 @@ class GitPanel {
     this.status = null;
     this.snaps = [];
     this.flagged = [];
+    this.flaggedKnown = false;
     this.done = null;
     this.problem = '';
     this.checkText = '';
     this.paint();
     void this.refresh();
+  }
+
+  private async loadIdentity(): Promise<void> {
+    try {
+      this.identSource = (await git.identity()).source;
+    } catch {
+      this.identSource = null;
+    }
+    this.schedule();
   }
 
   async refresh(): Promise<void> {
@@ -229,7 +252,7 @@ class GitPanel {
       if (target !== this.session) return;
       this.status = status;
       if (snaps) this.snaps = snaps;
-      if (flagged) this.flagged = flagged;
+      if (flagged) { this.flagged = flagged; this.flaggedKnown = !!target; }
       this.problem = '';
       if (target === null) this.broadcast(status);
       else void git.status(null).then((s) => this.broadcast(s)).catch(() => undefined);
@@ -366,6 +389,9 @@ class GitPanel {
   private paintFoot(): void {
     const st = this.status;
     setText(this.branch, st ? st.branch ?? t('detached HEAD') : '');
+    const known = this.flaggedKnown && !!this.session;
+    setText(this.flaggedNote, known ? (this.flagged.length === 0 ? t('no flagged commits') : `${this.flagged.length} ${t('flagged')}`) : '');
+    setTitle(this.flaggedNote, known ? t('Only agent commits with a trailer or another identity are flagged. Other commits in the session are not listed here.') : '');
     setText(this.ahead, st ? (st.upstream ? `${st.ahead} ${t('ahead')} · ${st.behind} ${t('behind')}` : t('no upstream')) : '');
     setTitle(this.ahead, st?.upstream ?? '');
     setText(q(this.pushBtn, '.cv-sc-bt'), t('Push'));
@@ -381,6 +407,16 @@ class GitPanel {
     setClass(this.checkCard, 'is-error', this.checkBad);
     this.paintAudit();
     this.paintFlag();
+    this.paintIdent();
+  }
+
+  private paintIdent(): void {
+    const show = this.identSource !== null && this.identSource !== 'subform' && !this.checkText && !this.done && this.flagged.length === 0;
+    setHidden(this.identCard, !show);
+    if (!show) return;
+    const none = this.identSource === 'none';
+    setText(q(this.identCard, '.cv-sc-ident-t'), t(none ? 'No commit identity is set. Commits will be refused.' : 'No identity set: commits use your global git identity.'));
+    setText(q(this.identCard, '.cv-sc-bt'), t('Set identity'));
   }
 
   private paintFlag(): void {
@@ -405,7 +441,8 @@ class GitPanel {
     setText(q(this.audit, '.cv-sc-audit-t'), t('Last commit'));
     setText(q(this.audit, '.cv-sc-audit-sha'), `${d.commit.slice(0, 7)} ${d.summary}`);
     setTitle(q(this.audit, '.cv-sc-audit-sha'), d.summary);
-    for (const k of Array.from(this.audit.querySelectorAll<HTMLElement>('.cv-sc-audit-k'))) setText(k, t(({ author: 'Author', committer: 'Committer', trailers: 'Trailers', signature: 'Signature' } as Record<string, string>)[k.dataset.k ?? ''] ?? ''));
+    for (const k of Array.from(this.audit.querySelectorAll<HTMLElement>('.cv-sc-audit-k'))) setText(k, t(({ author: 'Author', committer: 'Committer', trailers: 'Trailers', signature: 'Signature', identity: 'Identity' } as Record<string, string>)[k.dataset.k ?? ''] ?? ''));
+    setText(q(this.audit, '[data-f="identity"]'), t(IDENTITY_SOURCE[d.identitySource ?? ''] ?? 'unknown'));
     setText(q(this.audit, '[data-f="author"]'), a.author);
     setTitle(q(this.audit, '[data-f="author"]'), a.author);
     setText(q(this.audit, '[data-f="committer"]'), a.committer);

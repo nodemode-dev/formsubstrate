@@ -844,7 +844,7 @@ async def commit(t: Target, message: object, amend: bool, all_: bool) -> dict:
         args.append("-a")
     if sign:
         args.append("-S")
-    code, out, err = await run(t.root, args, configs=_ident_configs(ident, sign), env=_ident_env(ident), stdin=text.encode("utf-8", "surrogateescape"), timeout=NET_TIMEOUT)
+    code, out, err = await run(t.root, args, configs=[*_ident_configs(ident, sign), f"commit.gpgsign={'true' if sign else 'false'}"], env=_ident_env(ident), stdin=text.encode("utf-8", "surrogateescape"), timeout=NET_TIMEOUT)
     if code != 0:
         message_out = _clip(_pub(err) or _pub(out) or "git commit failed")
         if sign or "nothing to commit" in message_out or "nothing added" in message_out:
@@ -852,7 +852,7 @@ async def commit(t: Target, message: object, amend: bool, all_: bool) -> dict:
         raise Refused(500, message_out)
     sha = (await must(t.root, ["rev-parse", "HEAD"])).strip()
     summary = text.split("\n", 1)[0]
-    return {"commit": sha, "summary": summary, "audit": await _audit(t.root, ident)}
+    return {"commit": sha, "summary": summary, "identitySource": ident["source"], "audit": await _audit(t.root, ident)}
 
 
 async def _is_signed(root: str, sha: str) -> bool:
