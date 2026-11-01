@@ -1,4 +1,5 @@
 import { request } from './api';
+import { owner } from './window-token';
 import { asGate, gates as gatesApi, type Gate, type GateChoice } from './formslot';
 import type { HomeSession } from '../ui/home';
 import type { SessionsSummary } from '../ui/workspace-store';
@@ -206,7 +207,7 @@ export class SessionsClient {
   }
 
   async bashNotes(session: string): Promise<Array<{ path: string; slot: string }>> {
-    const r = await request<{ notes?: unknown }>(`/api/gates/notes?session=${encodeURIComponent(session)}`);
+    const r = await owner<{ notes?: unknown }>(`/api/gates/notes?session=${encodeURIComponent(session)}`);
     const out: Array<{ path: string; slot: string }> = [];
     for (const n of Array.isArray(r.notes) ? r.notes : []) {
       const o = n as { path?: unknown; slot?: unknown };
