@@ -128,3 +128,73 @@ export function registerSearchProvider(p: SearchProvider): void {
 export function searchProviders(): SearchProvider[] {
   return [...providers.values()];
 }
+
+interface LazyPanel {
+  host: HTMLElement;
+  fetch: () => Promise<unknown>;
+  mount: () => Promise<void>;
+  started: Promise<void> | null;
+}
+
+const lazies: LazyPanel[] = [];
+const idleQueue: Array<() => Promise<unknown>> = [];
+let idleOn = false;
+let idleBusy = false;
+let markBooted: () => void = () => undefined;
+
+export const booted: Promise<void> = new Promise<void>((resolve) => { markBooted = resolve; });
+
+function whenIdle(run: () => void): void {
+  const ric = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+  if (ric) ric.call(window, run, { timeout: 4000 });
+  else window.setTimeout(run, 400);
+}
+
+function drainIdle(): void {
+  if (!idleOn || idleBusy) return;
+  const next = idleQueue.shift();
+  if (!next) return;
+  idleBusy = true;
+  whenIdle(() => {
+    next().catch(() => undefined).finally(() => {
+      idleBusy = false;
+      drainIdle();
+    });
+  });
+}
+
+export function idleLoad(chunk: () => Promise<unknown>): void {
+  idleQueue.push(chunk);
+  drainIdle();
+}
+
+export function startIdle(): void {
+  idleOn = true;
+  markBooted();
+  drainIdle();
+}
+
+export function lazyPanel<T>(host: HTMLElement, chunk: () => Promise<T>, mount: (mod: T) => void, mountWhenIdle = false): () => Promise<void> {
+  const item: LazyPanel = {
+    host,
+    fetch: chunk,
+    mount: () => chunk().then((mod) => { mount(mod); }),
+    started: null,
+  };
+  const start = (): Promise<void> => {
+    item.started ??= item.mount().catch((err: unknown) => { console.error('panel failed to load', err); });
+    return item.started;
+  };
+  lazies.push(item);
+  idleLoad(mountWhenIdle ? start : chunk);
+  new MutationObserver(() => { if (!host.hidden) void start(); }).observe(host, { attributes: true, attributeFilter: ['hidden'] });
+  return start;
+}
+
+export function settleVisible(): Promise<void> {
+  const open = lazies.filter((l) => !l.host.hidden && !l.started);
+  return Promise.all(open.map((l) => {
+    l.started ??= l.mount().catch((err: unknown) => { console.error('panel failed to load', err); });
+    return l.started;
+  })).then(() => undefined);
+}

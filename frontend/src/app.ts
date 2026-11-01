@@ -1,4 +1,4 @@
-import { activateAll } from './extensions/registry';
+import { activateAll, idleLoad, settleVisible, startIdle } from './extensions/registry';
 import { PATHS_CHANGED, type PathsChanged } from './extensions/files';
 import './extensions/search';
 import './extensions/git';
@@ -34,6 +34,7 @@ import { el, mountOnce, q, revealApp, setClass, setDisabled, setHidden, setText,
 import { enhanceAllSelects } from './ui/dropdown';
 import { editorFocused, editorWasFocused, trackEditorFocus } from './ui/editor/bridge';
 import { EditorHost } from './ui/editor/editor';
+import { preloadPacks } from './ui/editor/languages';
 import { lsp } from './ui/editor/lsp';
 import { Home } from './ui/home';
 import { onLanguage, startLanguage, startPageTranslator, t } from './ui/i18n';
@@ -50,7 +51,7 @@ import { applyUiFontSize, autoUiScale, followSystemTheme, loadPrefs, setUiScale,
 import { SettingsDialog } from './ui/settings';
 import { StatusBar } from './ui/status';
 import { Tabs } from './ui/tabs';
-import { TerminalDock } from './ui/terminal-dock';
+import { loadXterm, TerminalDock } from './ui/terminal-dock';
 import { THEMES, applyTheme, readChoice, setTheme } from './ui/themes';
 import { TitleTools } from './ui/titlebar-tools';
 import { toast } from './ui/toast';
@@ -461,7 +462,7 @@ export async function startApp(): Promise<void> {
       status.setEngine('Engine offline');
     }
   };
-  void refreshEngine();
+  const engineFirst = refreshEngine();
   window.setInterval(() => { void refreshEngine(); }, ENGINE_POLL_MS);
 
   if (isTauri()) void installCloseGuard(store);
@@ -469,7 +470,15 @@ export async function startApp(): Promise<void> {
   enhanceAllSelects();
   startPageTranslator();
   window.addEventListener(REOPENED_EVENT, (e) => { const info = (e as CustomEvent<NonNullable<typeof store.workspace>>).detail; if (info && !store.workspace) store.setWorkspace(info); });
-  const [, last] = await Promise.all([fontsReady(), reopenLastWorkspace()]);
+  const [, last] = await Promise.all([fontsReady(), reopenLastWorkspace(), engineFirst]);
   if (last && !store.workspace) store.setWorkspace(last);
+  await settleVisible();
   revealApp();
+  for (const chunk of preloadPacks()) idleLoad(chunk);
+  idleLoad(() => import('./ui/studio/studio-view'));
+  idleLoad(() => import('./ui/review/review-pane'));
+  idleLoad(() => import('./ui/review/diff-view'));
+  idleLoad(() => import('./ui/graph/graph-view'));
+  idleLoad(loadXterm);
+  startIdle();
 }

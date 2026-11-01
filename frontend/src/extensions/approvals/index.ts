@@ -5,7 +5,7 @@ import { onLanguage, t } from '../../ui/i18n';
 import { icon } from '../../ui/icons';
 import { toast } from '../../ui/toast';
 import { FOCUS_EVENT } from '../../ui/workbench';
-import { register, type ExtensionContext, type Shell, type SidebarSection } from '../registry';
+import { lazyPanel, register, type ExtensionContext, type Shell, type SidebarSection } from '../registry';
 import { APPROVALS_CHANGED, approvalsApi, contextOf, type Approval } from './client';
 
 const POLL_MS = 3000;
@@ -140,14 +140,16 @@ register({
       title: 'Approvals',
       icon: 'rcpApprove',
       render: (host) => {
-        new ApprovalsPanel(host, ctx, (a) => {
-          const body = `${a.tool}: ${a.task.slice(0, 80)}`;
-          toast(`${t('A run is waiting for your approval')}: ${a.tool}`, 'info', {
-            actions: [{ label: t('Review'), run: () => { shell.toggleRight?.(true); section?.reveal(); } }],
-            key: `approval:${a.run_id}`,
+        lazyPanel(host, () => Promise.resolve(), () => {
+          new ApprovalsPanel(host, ctx, (a) => {
+            const body = `${a.tool}: ${a.task.slice(0, 80)}`;
+            toast(`${t('A run is waiting for your approval')}: ${a.tool}`, 'info', {
+              actions: [{ label: t('Review'), run: () => { shell.toggleRight?.(true); section?.reveal(); } }],
+              key: `approval:${a.run_id}`,
+            });
+            if (document.hidden || !document.hasFocus()) desktopNotify(t('Approval needed'), body);
           });
-          if (document.hidden || !document.hasFocus()) desktopNotify(t('Approval needed'), body);
-        });
+        }, true);
       },
     });
     ctx.commands.add({ id: 'approvals-panel', label: 'Approvals', enabled: () => !!section, run: () => { shell.toggleRight?.(true); section?.reveal(); } });

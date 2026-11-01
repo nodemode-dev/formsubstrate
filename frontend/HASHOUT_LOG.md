@@ -2129,3 +2129,109 @@ Closes the 0.0039 shift noted in the terminal-dock gate entry. The old stack was
 - logged: v0.15.0 · 2026-10-30
 
 Supersedes the localStorage and no-workspace todos in the v0.14.0 entry. The checkout or binary path is now `Prefs.formslotPath`, edited in the formslot section of Preferences (a path field with Browse using the folder picker, and a read-only "Found at" line that shows the binary the engine found). `loadPrefs` migrates the old `subform.formslot.checkout` value once: when the stored prefs have no `formslotPath` it reads the old key, removes it and saves it into the prefs on the next microtask. The card reads the pref on every paint and repaints on `FORMSLOT_PATH_EVENT`, which Preferences dispatches after a save; its old input is now a read-only echo with a button that opens Preferences at the formslot section, so the card's height does not change. Commands no longer go through a typed shell line: `TerminalDock.create(kind, command?)` now returns the new terminal's id (or null) and, given `{argv, title}`, opens a dock tab through `POST /api/terminals/owned`, which starts in the home folder and needs no workspace; the dock registers itself with `setOwnedOpener` so the card calls `openOwnedTerminal` without importing the dock. The card builds argv from the same allow-listed paths as before (`SAFE`), so a refused path still disables the button, and no longer needs a workspace for Install or Set up (Add this project still needs one because the state itself depends on the workspace). The terminal ends when the program ends, which replaces the typed `; exit`.
+
+### frontend/src/ui/workbench.ts · rail roving tabindex
+
+- refers-to: frontend/src/ui/workbench.ts :: Workbench.rove, bindRail, sidebarSection
+- kind: rationale
+- logged: v0.16.0 · 2026-10-30
+
+The left rail was 14 Tab stops. It is now one, per the WAI-ARIA tabs pattern with manual activation: only one `.cv-wb-act` has `tabindex=0` (the active panel's, moved by `rove` on every `sync` unless focus is inside the rail, and on `focusin`), the rest are `-1`. Arrow Up and Down (and Left and Right) move focus with wrap, Home and End jump to the ends; Enter or Space still activates through the existing click handler, so arrowing never opens a panel or toggles the sidebar by surprise. Each tab got an id and `aria-controls`, each panel host `role=tabpanel` and `aria-labelledby`. Only attributes change (guarded), so the rail looks and lays out exactly as before. The stage-panels right tabs (`cv-wb-rtab`, ui/panels/stage-panels.ts) are not covered and still use one stop each; they need the same treatment by that file's owner.
+
+### frontend/src/extensions/formslot/index.ts · icon button names
+
+- refers-to: frontend/src/extensions/formslot/index.ts :: FormslotPanel.paint
+- kind: explainer
+- logged: v0.16.0 · 2026-10-30
+
+`.cv-fs-go` and `.cv-fs-refresh` are icon-only buttons; `paint` (which runs on every language change) now gives them an `aria-label` and title, "Run search" and "Refresh formslot", written only when different. The names sit in `paint` and not `paintManifest`, which returns early while no slot is open.
+
+### frontend/src/ui/dropdown.ts · enhanceSelect button name
+
+- refers-to: frontend/src/ui/dropdown.ts :: enhanceSelect (nameOf, label)
+- kind: rationale
+- logged: v0.16.0 · 2026-10-30
+
+The enhanced button only copied the select's `aria-label`, so selects named by a title or a wrapping `<label>` had no name. `nameOf` now tries `aria-label`, then `title`, then the text of the first associated label (`select.labels[0]`, cloned with the select and the dropdown parts removed). It runs inside `label()`, so it re-evaluates whenever the select changes or its options mutate, and the title is mirrored too. Selects with none of the three (the inspector's visit and mode selects in ui/inspector/index.ts) remain unnamed; that file needs an `aria-label`.
+
+### frontend/src/ui/gate-cards.ts · #gate-root name
+
+- refers-to: frontend/src/ui/gate-cards.ts :: GateCards.root, GateCards.paint
+- kind: explainer
+- logged: v0.16.0 · 2026-10-30
+
+The `#gate-root` region now has the name "Waiting for your answer" (set in the template and kept in step with the language in `paint`). It differs from the dock banner's "Existing slot found" so the two landmarks are distinguishable.
+
+### frontend/src/extensions/lsp/index.ts · Language Servers dialog reserve
+
+- refers-to: frontend/src/extensions/lsp/index.ts :: ServersDialog.paint; frontend/src/styles/lsp.css :: .cv-lsp-srv
+- kind: rationale
+- logged: v0.16.0 · 2026-10-30
+
+The dialog measured a layout shift of 0.0165 (its frame is centred, so any growth moves it) when `show` filled the blocks after the async fetch: empty details, notes and install lines grew to their text. Each block now has a fixed structure before the fill: head `1lh`, detail and notes `2lh`, the install label `1lh`, and each install command a single fixed-height line (`1lh` plus padding, ellipsis, full text in the title and still selectable). Hidden notes and install blocks keep their space with `visibility: hidden` instead of `display: none`, and empty command lines are invisible, so found and not-found servers have the same height and nothing is drawn before the fill.
+
+### frontend/src/ui/home-formslot.ts · names and focus
+
+- refers-to: frontend/src/ui/home-formslot.ts :: HomeFormslot.root, HomeFormslot.paint
+- kind: rationale
+- logged: v0.16.0 · 2026-10-30
+
+The card is a labelled section (heading) holding a group named by its title and described by its sub line. Tab order follows the DOM and the visual order: read-only folder echo, Preferences button (named "Open Preferences to choose the formslot folder"; the form is named "formslot folder"), then the action button, whose name is its text. Names and the echo's placeholder are rewritten in `paint` so a language change updates them. While a command is launching the action button now sets `aria-disabled` instead of `disabled`, so keyboard focus is not dropped to the page; `launch` already ignores a second press while busy.
+
+### frontend/src/ui/terminal-dock.ts · gate banner announcement
+
+- refers-to: frontend/src/ui/terminal-dock.ts :: TerminalDock.paintGate; frontend/src/ui/review/review-pane.ts :: ReviewPane.paintSkips; frontend/src/styles/terminal.css :: .cv-sr-only
+- kind: rationale
+- logged: v0.16.0 · 2026-10-30
+
+The banner and the review pane's skipped-gate chip were live regions whose own text, buttons and `+N` count were patched on every repaint, so screen readers could repeat them. Both are now silent visually-hidden `role=status` `aria-live=polite` nodes beside them. The dock writes "subform is waiting for your answer" there only when the first gate's id changes (and only while the dock is open), and clears it when no gate is left, so one gate is announced once however often `paintGate` runs; the review pane writes its "N gates skipped" text only when the count changes. The visible chip is `aria-hidden` so it is not read twice. `.cv-sr-only` (terminal.css) is the shared visually-hidden class and takes no layout space.
+
+### frontend/src/extensions/registry.ts · lazyPanel, idleLoad, startIdle, settleVisible, booted
+
+- refers-to: frontend/src/extensions/registry.ts :: lazyPanel, idleLoad, startIdle, settleVisible, booted; frontend/src/app.ts :: startApp
+- kind: rationale
+- logged: v0.16.0 · 2026-10-30
+
+Boot cost. The main chunk was 1.55 MB (2.00 MB of JS on the critical path with its preloads): xterm and its WebGL addon were 443 kB of it, the eight CodeMirror language packs and their lezer grammars about 230 kB, and Studio, graph, review, cogentics, manager and the library panels about 250 kB. Rail entries, right-panel entries and commands are still registered at boot, because the shell needs the buttons and the menus need the command ids, but the heavy part now arrives separately. `lazyPanel(host, chunk, mount, mountWhenIdle)` takes the panel host that `sidebarSection` or `rightSection` already built (hidden, so it costs no layout), imports the chunk and constructs the panel when the host first loses its `hidden` attribute (a MutationObserver on that one attribute) and returns a `start()` that commands await before touching the panel instance. `settleVisible()` is awaited in app.ts right before `revealApp()`, so a panel that is already the visible one at boot (the saved active rail panel) is built before the reveal and never paints empty. `idleLoad(chunk)` queues a prefetch (import only, nothing constructed, no network) and `startIdle()` called right after the reveal drains the queue one job per `requestIdleCallback` (timeout 4 s, 400 ms timer where unsupported), so the xterm chunk, the language packs, Studio, graph and review chunks arrive after app_ready without competing with first paint. Extensions whose panel code sits inside their own index.ts (git, debug, formslot, recipes, triggers, automation, approvals, graphs, runs list) could not be split without moving other agents' code; they use `lazyPanel` with an already-resolved chunk so the constructor, and the network request it makes, runs on first show or, with `mountWhenIdle`, in an idle slot after the reveal (git, debug, formslot, graphs, approvals, runs list) instead of before it. `booted` resolves at `startIdle()`; triggers' trust announce and the tools refresh wait on it. The tools refresh now mounts the (hidden) tools panel after boot so the Studio palette still gets the tool blocks. Boot network before the reveal is down to the sessions client, formslot status, gates, workspace and the file tree.
+
+### frontend/src/ui/terminal-dock.ts · loadXterm, xterm-lib.ts
+
+- refers-to: frontend/src/ui/terminal-dock.ts :: loadXterm, TerminalDock.showTab, TerminalDock.build, TerminalDock.attachGl; frontend/src/ui/xterm-lib.ts
+- kind: rationale
+- logged: v0.16.0 · 2026-10-30
+
+xterm, addon-fit, addon-webgl and xterm.css moved into `ui/xterm-lib.ts` (a 446 kB chunk plus 4 kB of CSS), imported on the first showTab together with the font wait (`Promise.all([fonts, loadXterm()])`) so the dock's frame, tabs and height are built and reserved exactly as before and only the terminal canvas inside `.ft-term` appears when the chunk is in. The three xterm imports at the top of terminal-dock.ts are now type-only. app.ts also queues `loadXterm` as an idle prefetch after the reveal, so Mod+J normally finds it cached.
+
+### frontend/src/ui/editor/languages.ts · PACKS, preloadPacks
+
+- refers-to: frontend/src/ui/editor/languages.ts :: PACKS, EAGER, languageFor, preloadPacks
+- kind: rationale
+- logged: v0.16.0 · 2026-10-30
+
+The eight language packs are dynamic imports keyed by pack (javascript covers js, jsx, ts and tsx). `languageFor` keeps its shape: when the pack is already loaded `now` is the extension, as before; when it is not, `now` is empty and `later` loads the pack and resolves the extension, which editor.ts already dispatches into the `lang` compartment. app.ts prefetches every pack except rust in idle time after the reveal, so a first open of a common file type finds its pack loaded and highlights in the first paint. Opening a file in the first seconds, or the first .rs file, gets the existing late reconfigure (colour only, no layout change). A follow-up for the editor owner: awaiting `resolved.later` in EditorHost.create before building the state would remove even that colour step.
+
+### frontend/src/ui/studio/index.ts · show; graph/index.ts · open; review/index.ts · openDiff, openReview
+
+- refers-to: frontend/src/ui/studio/index.ts :: installStudio; frontend/src/ui/graph/index.ts :: installGraph; frontend/src/ui/review/index.ts :: installReview, OPEN_DIFF, OPEN_REVIEW, diffId
+- kind: rationale
+- logged: v0.16.0 · 2026-10-30
+
+Studio canvas and inspector (studio-view, 45 kB), the file graph (graph-view), the review pane and the diff view with @codemirror/merge are dynamic imports made when the view is first opened; the commands (`view-studio`, `studio-new`, `studio-save`, `view-graph`, `git-review`) and the open events are registered at boot as before, the tab appears when the chunk resolves (idle prefetch usually has it already). `STUDIO_ID`, `GRAPH_ID`, `OPEN_DIFF`, `OPEN_REVIEW` and `diffId` are repeated as literals in the index files with the same values as in the heavy modules, so the index files no longer import them. runs/index.ts takes OPEN_REVIEW from the git extension for the same reason (it had pulled review-pane into the main chunk). activity and plugins index files re-exported values from their panel modules; those re-exports are now type-only.
+
+### frontend/src/app.ts · startApp (first engine status before reveal)
+
+- refers-to: frontend/src/app.ts :: startApp
+- kind: rationale
+- logged: v0.16.0 · 2026-10-30
+
+The first `refreshEngine()` is awaited together with fonts and the reopened workspace before `revealApp()`. With a faster bundle the engine status answer could land just after the reveal and the engine, workspace and formslot status segments shifted by 0.001 (measured at 4x CPU). With the answer in first, boot layout shift is 0.
+- todo: the stylesheet is still one 243 kB render-blocking file with every feature sheet (studio, graph, runs, cogentics, console, recipes, library); importing each feature sheet from its lazy chunk would trim about a quarter. A repository with no commit has no branch in the open reply, so its branch segment still arrives with the idle git refresh.
+
+### frontend/src/ui/inspector/index.ts · build, paintStatic (control names)
+
+- refers-to: frontend/src/ui/inspector/index.ts :: NodeInspector.build, NodeInspector.paintStatic
+- kind: rationale
+- logged: v0.16.0 · 2026-11-01
+
+The run-visit select and every run-settings control had no accessible name: the field label is a `span`, not a `label`, so nothing tied it to its control. Each label now gets the id `ri-l-<field id>` and its control points at it with `aria-labelledby`, which keeps the span and the layout as they were. The visit select gets its name in `paintStatic`, so it follows the language like the other static texts.
+- todo: the right-hand stage panel tabs (`cv-wb-rtab` in `ui/panels/stage-panels.ts`) are still one Tab stop each and need the roving tabindex the left rail has.

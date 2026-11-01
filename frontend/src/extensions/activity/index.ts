@@ -1,8 +1,7 @@
 import { mountOnce } from '../../ui/dom';
-import { register, type ExtensionContext, type Shell } from '../registry';
-import { ActivityPanel } from './panel';
+import { lazyPanel, register, type ExtensionContext, type Shell } from '../registry';
 
-export { RUN_EVENT, RUN_STARTED, type RunEvent } from './panel';
+export type { RunEvent } from './panel';
 
 register({
   id: 'activity',
@@ -16,7 +15,7 @@ register({
       icon: 'libPulse',
       render: (host) => {
         mountOnce(host, '<div class="cv-lib-host"></div>');
-        new ActivityPanel(host.firstElementChild as HTMLElement);
+        lazyPanel(host, () => import('./panel'), (m) => { new m.ActivityPanel(host.firstElementChild as HTMLElement); });
       },
     });
     _ctx.commands.add({ id: 'activity-open', label: 'Activity', run: () => { shell.toggleRight?.(true); section.reveal(); } });

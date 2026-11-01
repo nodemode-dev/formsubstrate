@@ -10,7 +10,7 @@ import { icon } from '../../ui/icons';
 import { loadPrefs } from '../../ui/prefs';
 import { toast } from '../../ui/toast';
 import { FOCUS_EVENT } from '../../ui/workbench';
-import { register, type ExtensionContext, type Shell, type SidebarSection } from '../registry';
+import { lazyPanel, register, type ExtensionContext, type Shell, type SidebarSection } from '../registry';
 
 const DEBOUNCE_MS = 260;
 const OFFERED_KEY = 'subform.formslot.offered';
@@ -411,6 +411,11 @@ class FormslotPanel {
     const ph = t('Search slots, code and decisions');
     if (input.placeholder !== ph) input.placeholder = ph;
     input.setAttribute('aria-label', t('Search formslot'));
+    for (const [sel, name] of [['.cv-fs-go', t('Run search')], ['.cv-fs-refresh', t('Refresh formslot')]] as const) {
+      const b = q<HTMLButtonElement>(this.host, sel);
+      setTitle(b, name);
+      if (b.getAttribute('aria-label') !== name) b.setAttribute('aria-label', name);
+    }
 
     patchList(this.list, this.rows, { key: (r) => r.key, create: (r) => this.createRow(r), update: (n, r) => this.updateRow(n, r) });
     let msg = '';
@@ -730,13 +735,13 @@ register({
       id: 'formslot',
       title: 'formslot',
       icon: 'slot',
-      render: (host) => { panel = new FormslotPanel(host, ctx, shell); },
+      render: (host) => { lazyPanel(host, () => Promise.resolve(), () => { panel = new FormslotPanel(host, ctx, shell); }, true); },
     });
     const slotRight = shell.rightSection?.({
       id: 'formslot-slots',
       title: 'Slots',
       icon: 'slot',
-      render: (host) => { new SlotCard(host, ctx, shell); },
+      render: (host) => { lazyPanel(host, () => Promise.resolve(), () => { new SlotCard(host, ctx, shell); }, true); },
     });
     const hasWs = (): boolean => !!ctx.store.workspace;
     ctx.commands.add(

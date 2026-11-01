@@ -1,6 +1,5 @@
 import { openDockPane, registerDockPane } from '../../ui/dock-panes';
-import { register, type ExtensionContext } from '../registry';
-import { ConsolePane } from './pane';
+import { idleLoad, register, type ExtensionContext } from '../registry';
 
 register({
   id: 'console',
@@ -11,8 +10,9 @@ register({
       id: 'console',
       title: 'Console',
       icon: 'consoleTab',
-      build: (host) => { new ConsolePane(host, ctx); },
+      build: (host) => { void import('./pane').then((m) => { new m.ConsolePane(host, ctx); }); },
     });
+    idleLoad(() => import('./pane'));
     ctx.commands.add({ id: 'console-open', label: 'Show Console', run: () => { openDockPane('console'); } });
   },
 });

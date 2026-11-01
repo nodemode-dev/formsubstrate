@@ -1,7 +1,6 @@
-import { FitAddon } from '@xterm/addon-fit';
-import { WebglAddon } from '@xterm/addon-webgl';
-import { Terminal, type ITheme } from '@xterm/xterm';
-import '@xterm/xterm/css/xterm.css';
+import type { FitAddon } from '@xterm/addon-fit';
+import type { WebglAddon } from '@xterm/addon-webgl';
+import type { Terminal, ITheme } from '@xterm/xterm';
 import type { Gate, GateChoice } from '../io/formslot';
 import { sessionsClient } from '../io/sessions';
 import { createOwnedTerminal, createTerminal, deleteTerminal, listTerminals, setOwnedOpener, terminalSocket, type OwnedCommand, type TerminalInfo, type TerminalKind } from '../io/terminals';
@@ -33,6 +32,12 @@ const safeStart = (chunk: Uint8Array): number => {
 const DEFAULT_COLS = 80;
 const DEFAULT_ROWS = 24;
 const PASS_THROUGH = new Set(['terminal-toggle', 'command-palette', 'agent-new', 'focus-files']);
+
+let xterm: typeof import('./xterm-lib') | null = null;
+
+export function loadXterm(): Promise<unknown> {
+  return import('./xterm-lib').then((m) => { xterm = m; });
+}
 
 const ANSI = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'] as const;
 
@@ -70,7 +75,7 @@ export class TerminalDock {
 <button type="button" class="cv-tt-btn ft-dock-hide" title="${t('Hide Terminal')} (${isMac ? 'Cmd' : 'Ctrl'}+J)" aria-label="${t('Hide Terminal')}">${icon('chevronDown', 15)}</button>
 </div>
 <div class="ft-dock-stage"><p class="ft-dock-empty cv-note" hidden>${t('No terminal is open. Start one with the plus button.')}</p>
-<div class="ft-dock-gate" role="region" aria-label="${t('Existing slot found')}" aria-live="polite" hidden><span class="ft-dock-gate-mark">${icon('slot', 14)}</span><span class="ft-dock-gate-text"></span><span class="ft-dock-gate-more" hidden></span><span class="ft-dock-gate-btns">${CHOICES.map(([c]) => `<button class="cv-gate-btn${c === 'use' ? ' is-primary' : ''}" type="button" data-choice="${c}"></button>`).join('')}</span></div></div>
+<div class="ft-dock-gate" role="region" aria-label="${t('Existing slot found')}" hidden><span class="ft-dock-gate-mark">${icon('slot', 14)}</span><span class="ft-dock-gate-text"></span><span class="ft-dock-gate-more" hidden></span><span class="ft-dock-gate-btns">${CHOICES.map(([c]) => `<button class="cv-gate-btn${c === 'use' ? ' is-primary' : ''}" type="button" data-choice="${c}"></button>`).join('')}</span></div><span class="cv-sr-only ft-dock-gate-live" role="status" aria-live="polite" aria-atomic="true"></span></div>
 <span class="ft-dock-probe" hidden></span>
 </section>`);
   private readonly grip = q(this.root, '.ft-dock-grip');
@@ -84,6 +89,8 @@ export class TerminalDock {
   private readonly probe = q(this.root, '.ft-dock-probe');
   private readonly gateBar = q(this.root, '.ft-dock-gate');
   private readonly gateText = q(this.root, '.ft-dock-gate-text');
+  private readonly gateLive = q(this.root, '.ft-dock-gate-live');
+  private announced = '';
   private readonly gateMore = q(this.root, '.ft-dock-gate-more');
   private readonly gateBusy = new Set<string>();
   private gateId = '';
@@ -355,10 +362,12 @@ export class TerminalDock {
     const list = tab ? this.gatesFor(tab) : [];
     const g = list[0];
     setHidden(this.gateBar, !g || !this.open);
-    if (!g) { this.gateId = ''; return; }
+    if (!g) { this.gateId = ''; this.announced = ''; setText(this.gateLive, ''); return; }
     this.gateId = g.id;
     const slot = g.slots[0]?.id ?? '';
-    setText(this.gateText, slot ? `${t('subform is waiting for your answer')} · ${t('slot')} ${slot}` : t('subform is waiting for your answer'));
+    const said = slot ? `${t('subform is waiting for your answer')} · ${t('slot')} ${slot}` : t('subform is waiting for your answer');
+    setText(this.gateText, said);
+    if (this.open && this.announced !== g.id) { this.announced = g.id; setText(this.gateLive, said); }
     setTitle(this.gateText, g.message);
     setText(this.gateMore, list.length > 1 ? `+${list.length - 1}` : '');
     setHidden(this.gateMore, list.length < 2);
@@ -424,7 +433,7 @@ export class TerminalDock {
   }
 
   private async showTab(tab: Tab, focus: boolean): Promise<void> {
-    await this.fonts();
+    await Promise.all([this.fonts(), loadXterm()]);
     if (this.active !== tab.info.id || !this.open) return;
     if (!tab.host) {
       tab.host = el<HTMLElement>('<div class="ft-term"></div>');
@@ -501,7 +510,8 @@ export class TerminalDock {
   }
 
   private build(tab: Tab, host: HTMLElement): void {
-    const term = new Terminal({
+    if (!xterm) return;
+    const term = new xterm.Terminal({
       fontFamily: this.fontFamily(),
       fontSize: this.fontSize(),
       theme: this.readTheme(),
@@ -509,7 +519,7 @@ export class TerminalDock {
       scrollback: 5000,
       allowProposedApi: false,
     });
-    const fit = new FitAddon();
+    const fit = new xterm.FitAddon();
     term.loadAddon(fit);
     term.open(host);
     const view: View = { term, fit, gl: null };
@@ -567,9 +577,9 @@ export class TerminalDock {
   }
 
   private attachGl(view: View): void {
-    if (view.gl || !this.glOk || !this.open) return;
+    if (view.gl || !this.glOk || !this.open || !xterm) return;
     try {
-      const gl = new WebglAddon();
+      const gl = new xterm.WebglAddon();
       gl.onContextLoss(() => { this.dropGl(view); });
       view.term.loadAddon(gl);
       view.gl = gl;

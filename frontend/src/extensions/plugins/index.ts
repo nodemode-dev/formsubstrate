@@ -4,7 +4,7 @@ import { toast } from '../../ui/toast';
 import { fail, toolsChanged } from '../manager/parts';
 import { register, type ExtensionContext } from '../registry';
 
-export { PluginsView } from '../manager/plugins-view';
+export type { PluginsView } from '../manager/plugins-view';
 
 register({
   id: 'plugins',

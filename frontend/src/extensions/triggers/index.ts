@@ -9,7 +9,7 @@ import { toast } from '../../ui/toast';
 import { FOCUS_EVENT } from '../../ui/workbench';
 import { recipesApi } from '../recipes/client';
 import { fillModes } from '../recipes/dialogs';
-import { register, type ExtensionContext, type Shell, type SidebarSection } from '../registry';
+import { booted, lazyPanel, register, type ExtensionContext, type Shell, type SidebarSection } from '../registry';
 import { clock, TRIGGERS_CHANGED, triggersApi, type Trigger, type TriggerKind } from './client';
 import { WebhookDialog } from './dialogs';
 
@@ -274,12 +274,12 @@ register({
     };
     ctx.store.on('workspace', announce);
     window.addEventListener(TRUST_EVENT, announce);
-    announce();
+    void booted.then(announce);
     const section: SidebarSection = shell.sidebarSection({
       id: 'triggers',
       title: 'Triggers',
       icon: 'rcpBolt',
-      render: (host) => { new TriggersPanel(host, ctx); },
+      render: (host) => { lazyPanel(host, () => Promise.resolve(), () => { new TriggersPanel(host, ctx); }); },
     });
     ctx.commands.add({ id: 'triggers-panel', label: 'Triggers', run: () => { section.reveal(); } });
   },

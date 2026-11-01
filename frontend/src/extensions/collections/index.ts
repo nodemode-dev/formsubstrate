@@ -1,6 +1,6 @@
 import { mountOnce } from '../../ui/dom';
-import { register, type ExtensionContext, type Shell } from '../registry';
-import { CollectionsPanel } from './panel';
+import { lazyPanel, register, type ExtensionContext, type Shell } from '../registry';
+import type { CollectionsPanel } from './panel';
 
 register({
   id: 'collections',
@@ -15,8 +15,10 @@ register({
       icon: 'libStack',
       render: (host) => {
         mountOnce(host, '<div class="cv-lib-host"></div>');
-        panel = new CollectionsPanel(host.firstElementChild as HTMLElement);
-        void panel.refresh();
+        lazyPanel(host, () => import('./panel'), (m) => {
+          panel = new m.CollectionsPanel(host.firstElementChild as HTMLElement);
+          void panel.refresh();
+        });
       },
     });
     ctx.store.on('workspace', () => { void panel?.refresh(); });

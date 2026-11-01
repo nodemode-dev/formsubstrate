@@ -1,6 +1,6 @@
 import { git } from '../../io/git';
 import { detailOf } from '../../io/workspace';
-import { OPEN_REVIEW } from '../../ui/review/review-pane';
+import { OPEN_REVIEW } from '../git';
 import { fmtUsage, RUN_SELECTED, RUN_STARTED, runsApi, tailRun, type Park, type ParkedOn, type RunDetail, type RunEvent, type RunMode, type RunSummary } from '../../io/runs';
 import { workspaceTrusted } from '../../io/trust';
 import { confirmAction } from '../../ui/dialogs';
@@ -10,7 +10,7 @@ import { icon } from '../../ui/icons';
 import { NodeInspector } from '../../ui/inspector';
 import { RUN_EVENT, studio } from '../../ui/studio/api';
 import { toast } from '../../ui/toast';
-import { register, type ExtensionContext, type Shell } from '../registry';
+import { lazyPanel, register, type ExtensionContext, type Shell } from '../registry';
 
 const MODE_KEY = 'subform.runs.mode';
 const LIST_MS = 3000;
@@ -457,21 +457,22 @@ register({
       render: (host) => { inspector = new NodeInspector(host, { engine: studio.engine }); },
     });
     let panel: RunsPanel | null = null;
+    let runsStart: (() => Promise<void>) | null = null;
     const runsSection = shell.rightSection?.({
       id: 'runs-list',
       title: 'Runs',
       icon: 'play',
-      render: (host) => { if (inspector) panel = new RunsPanel(host, inspector); },
+      render: (host) => { runsStart = lazyPanel(host, () => Promise.resolve(), () => { if (inspector) panel = new RunsPanel(host, inspector); }, true); },
     });
     studio.onSelect((sel) => {
       inspector?.show(sel && sel.kind === 'node' ? sel.id : null);
     });
     studio.onChange(() => inspector?.nodeChanged());
-    const runNow = (): void => { runsSection?.reveal(); void panel?.start(); };
+    const runNow = (): void => { runsSection?.reveal(); void runsStart?.().then(() => panel?.start()); };
     studio.registerAction({ id: 'runs-run', label: 'Run', icon: 'play', title: 'Run the graph', run: runNow });
     ctx.commands.add(
       { id: 'runs-run', label: 'Run Graph', keys: ['Alt+Mod+R'], enabled: () => !!ctx.store.workspace, run: runNow },
-      { id: 'runs-show', label: 'Show Runs', run: () => { runsSection?.reveal(); panel?.focusTask(); } },
+      { id: 'runs-show', label: 'Show Runs', run: () => { runsSection?.reveal(); void runsStart?.().then(() => panel?.focusTask()); } },
       { id: 'runs-node', label: 'Show Node Inspector', run: () => { nodeSection?.reveal(); } },
     );
   },

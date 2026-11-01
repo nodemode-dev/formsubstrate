@@ -5,7 +5,7 @@ import { onLanguage, t, tn } from '../../ui/i18n';
 import { icon } from '../../ui/icons';
 import { FOCUS_EVENT } from '../../ui/workbench';
 import { RUN_STARTED } from '../recipes/client';
-import { register, type ExtensionContext, type Shell } from '../registry';
+import { lazyPanel, register, type ExtensionContext, type Shell } from '../registry';
 import { clock, TRIGGERS_CHANGED, triggersApi, type Trigger } from '../triggers/client';
 
 const POLL_MS = 4000;
@@ -135,7 +135,7 @@ register({
       id: 'automation',
       title: 'Automation',
       icon: 'history',
-      render: (host) => { new AutomationPanel(host, ctx); },
+      render: (host) => { lazyPanel(host, () => Promise.resolve(), () => { new AutomationPanel(host, ctx); }); },
     });
     ctx.commands.add({ id: 'automation-panel', label: 'Automation', enabled: () => !!section, run: () => { shell.toggleRight?.(true); section?.reveal(); } });
   },

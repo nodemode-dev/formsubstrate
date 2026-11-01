@@ -5,7 +5,7 @@ import { onLanguage, t } from '../../ui/i18n';
 import { icon } from '../../ui/icons';
 import { toast } from '../../ui/toast';
 import { FOCUS_EVENT } from '../../ui/workbench';
-import { register, type ExtensionContext, type Shell, type SidebarSection } from '../registry';
+import { lazyPanel, register, type ExtensionContext, type Shell, type SidebarSection } from '../registry';
 import { RECIPES_CHANGED, RUN_STARTED, recipesApi, type RecipeRow, type RunStarted } from './client';
 import { NewRecipeDialog, RunDialog } from './dialogs';
 
@@ -184,15 +184,16 @@ register({
   description: 'Parameterised bundles of a graph, a task template and declared inputs, run from a form.',
   setup(ctx: ExtensionContext, shell: Shell): void {
     let panel: RecipesPanel | null = null;
+    let start: (() => Promise<void>) | null = null;
     const section: SidebarSection = shell.sidebarSection({
       id: 'recipes',
       title: 'Recipes',
       icon: 'rcpBook',
-      render: (host) => { panel = new RecipesPanel(host, ctx, shell); },
+      render: (host) => { start = lazyPanel(host, () => Promise.resolve(), () => { panel = new RecipesPanel(host, ctx, shell); }); },
     });
     ctx.commands.add(
       { id: 'recipes-panel', label: 'Recipes', run: () => { section.reveal(); } },
-      { id: 'recipes-new', label: 'New Recipe...', mutates: true, enabled: () => !!ctx.store.workspace, run: () => { section.reveal(); panel?.newRecipe(); } },
+      { id: 'recipes-new', label: 'New Recipe...', mutates: true, enabled: () => !!ctx.store.workspace, run: () => { section.reveal(); void start?.().then(() => panel?.newRecipe()); } },
     );
   },
 });

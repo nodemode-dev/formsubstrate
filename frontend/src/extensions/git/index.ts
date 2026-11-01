@@ -5,7 +5,7 @@ import { el, mountOnce, patchList, q, setClass, setDisabled, setHidden, setText,
 import { onLanguage, t } from '../../ui/i18n';
 import { icon } from '../../ui/icons';
 import { FOCUS_EVENT } from '../../ui/workbench';
-import { register, type ExtensionContext, type Shell, type SidebarSection } from '../registry';
+import { lazyPanel, register, type ExtensionContext, type Shell, type SidebarSection } from '../registry';
 
 export const GIT_CHANGED = 'subform:git-changed';
 export const OPEN_DIFF = 'subform:open-diff';
@@ -690,7 +690,7 @@ register({
       id: 'git',
       title: 'Source Control',
       icon: 'branch',
-      render: (host) => { panel = new GitPanel(host, ctx, shell); },
+      render: (host) => { lazyPanel(host, () => Promise.resolve(), () => { panel = new GitPanel(host, ctx, shell); }, true); },
     });
     const ws = (): boolean => !!ctx.store.workspace && !!panel;
     window.addEventListener(FOCUS_COMMIT, (e) => {

@@ -5,7 +5,7 @@ import { icon } from '../../ui/icons';
 import { toast } from '../../ui/toast';
 import { studio, STUDIO_FILE, STUDIO_GRAPHS_CHANGED } from '../../ui/studio/api';
 import { newGraph, removeSaved } from '../../ui/studio/studio-file';
-import { register, type ExtensionContext, type Shell } from '../registry';
+import { lazyPanel, register, type ExtensionContext, type Shell } from '../registry';
 
 class GraphsPanel {
   private readonly saved: HTMLElement;
@@ -164,7 +164,7 @@ register({
       id: 'graphs',
       title: 'Graphs',
       icon: 'studio',
-      render: (host) => { new GraphsPanel(host, ctx); },
+      render: (host) => { lazyPanel(host, () => Promise.resolve(), () => { new GraphsPanel(host, ctx); }, true); },
     });
     ctx.commands.add({
       id: 'studio-graphs',

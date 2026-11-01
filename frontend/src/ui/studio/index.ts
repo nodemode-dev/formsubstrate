@@ -4,7 +4,9 @@ import type { Views } from '../review/views';
 import type { WorkspaceStore } from '../workspace-store';
 import { studio, STUDIO_OPEN } from './api';
 import { loadSaved, newGraph, saveCurrent } from './studio-file';
-import { StudioTab, STUDIO_ID } from './studio-view';
+import type { StudioTab } from './studio-view';
+
+const STUDIO_ID = 'studio';
 
 export { studio } from './api';
 export type { StudioAction, Selection } from './api';
@@ -20,11 +22,12 @@ export function installStudio(store: WorkspaceStore, commands: Commands, views: 
     if (doc && store.active?.id === STUDIO_ID) store.openDoc({ id: STUDIO_ID, name: doc.name, path, modified: doc.modified });
   };
 
-  const show = (): void => {
+  const show = async (): Promise<void> => {
     if (!store.workspace) return;
+    const { StudioTab: Tab } = await import('./studio-view');
     path = `${t('Studio')}: ${studio.getDoc().name}`;
     views.open(STUDIO_ID, { name: t('Studio'), path }, () => {
-      tab = new StudioTab(retitle, (dirty) => views.setModified(STUDIO_ID, dirty));
+      tab = new Tab(retitle, (dirty) => views.setModified(STUDIO_ID, dirty));
       return tab;
     });
     views.show(STUDIO_ID);
@@ -34,7 +37,7 @@ export function installStudio(store: WorkspaceStore, commands: Commands, views: 
   const open = async (name: string | null): Promise<boolean> => {
     if (!store.workspace) return false;
     if (name !== null && !(await loadSaved(name))) return false;
-    show();
+    await show();
     if (name !== null) tab?.requestFit();
     return true;
   };
@@ -49,12 +52,12 @@ export function installStudio(store: WorkspaceStore, commands: Commands, views: 
   });
 
   commands.add(
-    { id: 'view-studio', label: 'Studio', keys: ['Alt+Shift+S'], enabled: () => !!store.workspace, run: show },
+    { id: 'view-studio', label: 'Studio', keys: ['Alt+Shift+S'], enabled: () => !!store.workspace, run: () => { void show(); } },
     {
       id: 'studio-new',
       label: 'New Graph',
       enabled: () => !!store.workspace,
-      run: () => { void newGraph().then((ok) => { if (ok) { show(); tab?.requestFit(); } }); },
+      run: () => { void newGraph().then(async (ok) => { if (ok) { await show(); tab?.requestFit(); } }); },
     },
     {
       id: 'studio-save',

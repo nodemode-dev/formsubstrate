@@ -4,7 +4,7 @@ import { breakpointPaths, breakpointsOf, clearBreakpoints, onBreakpoints, setDeb
 import { onLanguage, t } from '../../ui/i18n';
 import { icon } from '../../ui/icons';
 import { FOCUS_EVENT } from '../../ui/workbench';
-import { register, type ExtensionContext, type Shell, type SidebarSection } from '../registry';
+import { lazyPanel, register, type ExtensionContext, type Shell, type SidebarSection } from '../registry';
 
 type Phase = 'idle' | 'starting' | 'running' | 'paused';
 type StepKind = 'next' | 'stepIn' | 'stepOut';
@@ -701,7 +701,7 @@ register({
       id: 'debug',
       title: 'Run and Debug',
       icon: 'bug',
-      render: (host) => { panel = new DebugPanel(host, ctx, shell); },
+      render: (host) => { lazyPanel(host, () => Promise.resolve(), () => { panel = new DebugPanel(host, ctx, shell); }, true); },
     });
     const ws = (): boolean => !!ctx.store.workspace && !!panel;
     ctx.commands.add(

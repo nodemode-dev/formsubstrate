@@ -4,9 +4,12 @@ import { baseName } from '../editor/languages';
 import { t } from '../i18n';
 import { loadPrefs } from '../prefs';
 import type { WorkspaceStore } from '../workspace-store';
-import { DiffTab, diffId, type DiffTarget } from './diff-view';
-import { OPEN_DIFF, OPEN_REVIEW, ReviewPane } from './review-pane';
+import type { DiffTarget } from './diff-view';
 import { Views } from './views';
+
+const OPEN_DIFF = 'subform:open-diff';
+const OPEN_REVIEW = 'subform:open-review';
+const diffId = (x: DiffTarget): string => `diff:${x.session ?? 'workspace'}:${x.staged ? 'staged' : 'work'}:${x.path}`;
 
 const reviewId = (session: string | null): string => `review:${session ?? 'workspace'}`;
 
@@ -23,15 +26,19 @@ export function installReview(store: WorkspaceStore, commands: Commands, area: H
   const openDiff = (x: DiffTarget): void => {
     const id = diffId(x);
     const where = x.staged ? t('staged') : x.session ? t('session') : t('working tree');
-    views.open(id, { name: `${baseName(x.path)} (${where})`, path: `${t('Diff')}: ${x.path}` }, () => new DiffTab(x, views.prefs, (dirty) => views.setModified(id, dirty)));
-    views.show(id);
+    void import('./diff-view').then(({ DiffTab }) => {
+      views.open(id, { name: `${baseName(x.path)} (${where})`, path: `${t('Diff')}: ${x.path}` }, () => new DiffTab(x, views.prefs, (dirty) => views.setModified(id, dirty)));
+      views.show(id);
+    });
   };
 
   const openReview = (session: string | null): void => {
     const id = reviewId(session);
     const label = session ? (sessionsClient.get(session)?.title ?? session) : t('workspace');
-    views.open(id, { name: `${t('Review')}: ${label}`, path: `${t('Review changes')}: ${label}` }, () => new ReviewPane(session));
-    views.show(id);
+    void import('./review-pane').then(({ ReviewPane }) => {
+      views.open(id, { name: `${t('Review')}: ${label}`, path: `${t('Review changes')}: ${label}` }, () => new ReviewPane(session));
+      views.show(id);
+    });
   };
 
   window.addEventListener(OPEN_DIFF, (e) => {
