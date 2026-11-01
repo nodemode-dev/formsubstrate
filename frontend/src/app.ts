@@ -351,6 +351,7 @@ export async function startApp(): Promise<void> {
   };
   for (const ev of ['workspace', 'docs', 'active', 'sessions'] as const) store.on(ev, syncChrome);
   commands.onRun = syncChrome;
+  dock.onChange = syncChrome;
   onLanguage(() => { setText(empty, t('Open a folder or a Form repository to begin')); syncChrome(); });
   syncChrome();
 

@@ -1348,6 +1348,16 @@ One multiplexed WebSocket per window (the F5 contract). Output frames are 0x01, 
 
 editorWordWrap now defaults to true. Every save writes the whole Prefs object, so a store written before v0.5.0 holds editorWordWrap false whether or not the person ever chose it. prefsRevision (now 2) marks stores written by this version: a store below revision 2 takes the new default once, and from then on the stored value is the person's choice. Bump prefsRevision and add a branch the same way when another default must change for existing stores.
 
+### F5 review fixes (v0.5.1)
+
+- refers-to: frontend/src/ui/menu.ts :: MenuBar.key, MenuBar.altUp; frontend/src/io/sessions.ts :: SessionsClient.refresh; frontend/src/ui/editor/theme.ts :: .cv-wrap-line; frontend/src/styles/tokens.css :: --ft-ansi-*; frontend/src/io/terminals.ts :: Channel.epoch; frontend/src/extensions/sessions/index.ts :: SkillsPanel key; frontend/src/app.ts :: dock.onChange
+- kind: bug-context
+- logged: v0.5.1 · 2026-10-30
+
+From the fresh-context review of 006c86b..v0.5.0. The menu bar's capture-phase Alt mnemonics and lone-Alt focus now stand aside while focus is in a terminal (`.ft-dock-stage`), so Alt+F, Alt+B and friends reach readline and Claude Code; the dock's own buttons still take mnemonics. `refresh()` carries a sequence number and drops a reply that a later refresh overtook, never re-adds a session removed while the request was in flight, never overwrites a row with an older `updated`, and prunes only ids that existed when the request began, so a session created during the request is kept. The hanging indent is capped at 40% of the line box in CSS (`min(var(--cv-wrap-indent), 40%)` in both text-indent and padding-left), so a deep indent in a narrow editor still leaves most of the width for text. The 32 ANSI colour literals moved from terminal.css into tokens.css (dark in :root, light in body.theme-light), as the token rule requires. Each channel has an attach epoch: an xterm write callback queued before a reconnect no longer adds to the new ack window. Skills rows are keyed by source and path, so two skills of one name no longer collapse. `dock.onChange` is wired to syncChrome, so the Toggle Terminal check follows the hide button and `reveal()`.
+
+Known and left for F6: an unselected background tab is attached to the socket only when first shown, so its title and exit state go stale until then; and an indent of tabs followed by spaces whose width is not a multiple of the tab size can offset the first line's text from the continuation lines by up to one tab stop (needs a browser check).
+
 ### src/ui/prefs.ts · fields added in v0.4.0
 
 - refers-to: frontend/src/ui/prefs.ts :: Prefs

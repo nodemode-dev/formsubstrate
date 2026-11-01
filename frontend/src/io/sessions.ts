@@ -85,6 +85,7 @@ export class SessionsClient {
   private wanted = false;
   private online = false;
   private seq = 0;
+  private refreshSeq = 0;
   private sorted: readonly Session[] = [];
 
   on<K extends keyof SessionsEvents>(event: K, fn: Listener<K>): () => void {
@@ -137,14 +138,20 @@ export class SessionsClient {
   }
 
   async refresh(): Promise<void> {
+    const mine = ++this.refreshSeq;
+    const before = new Set(this.byId.keys());
     const reply = await request<{ sessions: Session[] }>('/api/sessions');
+    if (mine !== this.refreshSeq) return;
     const seen = new Set<string>();
     for (const s of reply.sessions) {
       if (!isSession(s)) continue;
       seen.add(s.id);
+      const have = this.byId.get(s.id);
+      if (!have && before.has(s.id)) continue;
+      if (have && stamp(have.updated) > stamp(s.updated)) continue;
       this.merge(s, false);
     }
-    for (const id of Array.from(this.byId.keys())) if (!seen.has(id)) { this.byId.delete(id); this.lines.delete(id); }
+    for (const id of before) if (!seen.has(id) && this.byId.has(id)) { this.byId.delete(id); this.lines.delete(id); }
     this.publish();
   }
 

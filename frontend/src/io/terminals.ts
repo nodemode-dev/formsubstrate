@@ -58,6 +58,7 @@ interface Channel {
   next: number;
   got: boolean;
   unacked: number;
+  epoch: number;
   exited: boolean;
   cols: number;
   rows: number;
@@ -90,7 +91,7 @@ export class TerminalSocket {
   }
 
   attach(id: string, handlers: ChannelHandlers, from: number | null): void {
-    this.channels.set(id, { id, handlers, start: from, next: from ?? 0, got: false, unacked: 0, exited: false, cols: 0, rows: 0 });
+    this.channels.set(id, { id, handlers, start: from, next: from ?? 0, got: false, unacked: 0, epoch: 0, exited: false, cols: 0, rows: 0 });
     if (this.ws && this.ws.readyState === WebSocket.OPEN) this.sendAttach(this.channels.get(id) as Channel);
     else this.ensure();
   }
@@ -167,6 +168,7 @@ export class TerminalSocket {
 
   private sendAttach(c: Channel): void {
     c.unacked = 0;
+    c.epoch++;
     this.send({ t: 'attach', id: c.id, from: c.got ? c.next : c.start });
     if (c.cols > 0 && c.rows > 0) this.send({ t: 'resize', id: c.id, cols: c.cols, rows: c.rows });
   }
@@ -208,8 +210,9 @@ export class TerminalSocket {
     }
     c.got = true;
     c.next = begin + bytes.length;
-    const size = bytes.length;
+    const size = bytes.length, epoch = c.epoch;
     c.handlers.data(bytes, () => {
+      if (epoch !== c.epoch) return;
       c.unacked += size;
       if (c.unacked < ACK_EVERY) return;
       const n = c.unacked;

@@ -293,7 +293,7 @@ class SkillsPanel {
 
   private paint(): void {
     patchList(this.list, this.skills, {
-      key: (s) => `${s.source}:${s.name}`,
+      key: (s) => `${s.source}:${s.path}`,
       create: (s) => {
         const n = el(`<div class="cv-sk-row" role="listitem"><div class="cv-sk-top"><span class="cv-sk-name"></span><span class="cv-sk-src"></span></div><div class="cv-sk-desc"></div></div>`);
         this.fill(n, s);

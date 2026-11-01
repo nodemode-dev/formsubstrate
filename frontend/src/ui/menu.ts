@@ -228,6 +228,7 @@ export class MenuBar {
   private altUp(e: KeyboardEvent): void {
     if (e.key !== 'Alt') return;
     setClass(document.documentElement, 'is-menu-mnemonics', false);
+    if ((e.target as Element | null)?.closest?.('.ft-dock-stage')) { this.altLone = false; return; }
     if (!this.altLone) return;
     this.altLone = false;
     if (this.openIndex >= 0 || anyDialogOpen() || !this.bars.length) return;
@@ -246,6 +247,7 @@ export class MenuBar {
   private key(e: KeyboardEvent): void {
     const stop = (): void => { e.preventDefault(); e.stopPropagation(); };
     const mac = /Mac/.test(navigator.platform);
+    if (this.openIndex < 0 && (e.altKey || e.key === 'Alt') && (e.target as Element | null)?.closest?.('.ft-dock-stage')) { this.altLone = false; return; }
     if (e.key === 'Alt') {
       if (!e.repeat && !mac && this.openIndex < 0 && !anyDialogOpen() && !e.ctrlKey && !e.metaKey && !e.shiftKey) { this.altLone = true; setClass(document.documentElement, 'is-menu-mnemonics', true); }
       return;
