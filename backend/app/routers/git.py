@@ -58,7 +58,7 @@ class CommentBody(BaseModel):
 class WorktreeFileBody(BaseModel):
     session: str = ""
     path: str = ""
-    text: str | None = None
+    text: str | None = Field(default=None, max_length=8 * 1024 * 1024)
     expectedMtime: float | None = None
 
 

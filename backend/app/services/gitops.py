@@ -100,16 +100,26 @@ async def _exec(argv: list[str], cwd: str | None, env: dict | None = None, stdin
     try:
         out, err = await asyncio.wait_for(proc.communicate(stdin), timeout)
     except asyncio.TimeoutError:
-        try:
-            if os.name == "posix":
-                os.killpg(proc.pid, signal.SIGKILL)
-            else:
-                proc.kill()
-        except (ProcessLookupError, PermissionError):
-            proc.kill()
-        await proc.wait()
+        await _reap(proc)
         return 124, b"", b"git timed out"
+    except BaseException:
+        await asyncio.shield(_reap(proc))
+        raise
     return proc.returncode or 0, out, err
+
+
+async def _reap(proc: asyncio.subprocess.Process) -> None:
+    try:
+        if os.name == "posix":
+            os.killpg(proc.pid, signal.SIGKILL)
+        else:
+            proc.kill()
+    except (ProcessLookupError, PermissionError):
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass
+    await proc.wait()
 
 
 def _text(raw: bytes) -> str:
@@ -487,7 +497,17 @@ async def write_worktree_file(t: Target, path: object, text: object, expected: o
         raise Refused(400, "expectedMtime must be a number or null")
     rel = clean_path(t.root, path)
     full = os.path.join(t.root, *rel.split("/"))
-    base = os.path.realpath(t.root)
+    try:
+        data = await asyncio.to_thread(text.encode, "utf-8")
+    except UnicodeEncodeError:
+        raise Refused(400, "text is not valid unicode")
+    if len(data) > WRITE_MAX:
+        raise Refused(413, "file is larger than 8 MiB")
+    return await asyncio.to_thread(_write_checked, t.root, rel, full, data, expected)
+
+
+def _write_checked(root: str, rel: str, full: str, data: bytes, expected: float | None) -> dict:
+    base = os.path.realpath(root)
     real = os.path.realpath(full)
     if not real.startswith(base.rstrip(os.sep) + os.sep):
         raise Refused(400, "bad path")
@@ -497,18 +517,16 @@ async def write_worktree_file(t: Target, path: object, text: object, expected: o
         raise Refused(404, "no such file in the worktree")
     if not os.access(full, os.W_OK):
         raise Refused(403, "file is read only")
-    if expected is not None:
-        if abs(os.stat(full).st_mtime - float(expected)) > 1e-6:
-            raise Refused(409, "file changed on disk")
     try:
-        data = text.encode("utf-8")
-    except UnicodeEncodeError:
-        raise Refused(400, "text is not valid unicode")
-    try:
+        if expected is not None:
+            if abs(os.stat(full).st_mtime - float(expected)) > 1e-6:
+                raise Refused(409, "file changed on disk")
         _write_atomic(full, data)
+        info = os.stat(full)
+    except FileNotFoundError:
+        raise Refused(404, "no such file in the worktree")
     except PermissionError:
         raise Refused(403, "permission denied")
-    info = os.stat(full)
     return {"path": rel, "size": info.st_size, "mtime": info.st_mtime}
 
 
@@ -1092,6 +1110,14 @@ async def push(t: Target, remote: object, branch: object) -> dict:
     return {"ok": True, "check": found["check"], "output": _combined(out, err)}
 
 
+async def _agent_identity(t: Target) -> str:
+    code, name, _ = await run(t.root, ["config", "--worktree", "--get", "user.name"])
+    code2, email, _ = await run(t.root, ["config", "--worktree", "--get", "user.email"])
+    if code != 0 or code2 != 0 or not name.strip() or not email.strip():
+        return ""
+    return f"{name.strip()} <{email.strip()}>"
+
+
 async def sign_and_push(t: Target, remote: object, branch: object) -> dict:
     ident = await identity_get()
     if ident["source"] != "subform" or not ident["sign"] or not ident["signingKey"]:
@@ -1123,11 +1149,15 @@ async def sign_and_push(t: Target, remote: object, branch: object) -> dict:
     merges = (await must(t.root, ["rev-list", "--merges", "--count", span])).strip()
     if merges not in ("", "0"):
         raise Refused(409, f"the range holds {merges} merge commit(s); signing would flatten them, so nothing was changed")
-    authors = [line for line in (await must(t.root, ["log", "--format=%an <%ae>", span])).split("\n") if line]
-    foreign = sum(1 for a in authors if a != want_before)
-    if foreign and t.session is None:
+    allowed = {want_before}
+    if t.session is not None:
+        allowed.add(await _agent_identity(t))
+    pre_rows = [line.split("\0") for line in (await must(t.root, ["log", "--format=%an <%ae>%x00%cn <%ce>%x00%T%x00%s", span])).split("\n") if line]
+    foreign = sum(1 for row in pre_rows if row[0] not in allowed or row[1] not in allowed)
+    if foreign:
         check = f"New: {count}  Unsigned: -  Other identity: {foreign}  Trailers: -"
-        raise Refused(409, f"not signed: {foreign} commit(s) in the range are by another author, and signing would take them over; nothing was changed", {"ok": False, "check": check, "output": ""})
+        raise Refused(409, f"not signed: {foreign} commit(s) in the range are by an author or committer who is neither you nor this session's agent, and signing would take them over; nothing was changed", {"ok": False, "check": check, "output": ""})
+    pre_shape = [(row[2], row[3]) for row in pre_rows]
     code, dirty, _ = await run(t.root, ["status", "--porcelain", "--untracked-files=no"])
     if code == 0 and dirty.strip():
         raise Refused(409, "there are uncommitted changes to tracked files; commit or discard them first, because signing rewrites the new commits")
@@ -1142,11 +1172,16 @@ async def sign_and_push(t: Target, remote: object, branch: object) -> dict:
         await run(t.root, ["reset", "--keep", original])
     found = await _range_check(t.root, [span], ident, True)
     unsigned, other, trailers, check = found["unsigned"], found["other"], found["trailers"], found["check"]
+    post_rows = [line.split("\0") for line in (await run(t.root, ["log", "--format=%T%x00%s", span]))[1].split("\n") if line]
+    if [(row[0], row[1]) for row in post_rows] != pre_shape:
+        other += 1
+        check += "  Rewritten commits do not match the originals"
     if unsigned or other or trailers:
         await restore()
         raise Refused(409, "not pushed, and the branch was put back as it was: " + check, {"ok": False, "check": check, "output": ""})
     args, push_configs = _push_args(remote, name)
     code, out, err = await run(t.root, args, configs=push_configs, timeout=NET_TIMEOUT)
     if code != 0:
-        raise Refused(409, _clip(_pub(err) or _pub(out) or "git push failed"), {"ok": False, "check": check, "output": ""})
+        await restore()
+        raise Refused(409, "not pushed, and the branch was put back as it was: " + _clip(_pub(err) or _pub(out) or "git push failed"), {"ok": False, "check": check, "output": ""})
     return {"ok": True, "check": check, "output": _combined(out, err)}

@@ -467,3 +467,51 @@ The `-c remote.<r>.push=` clearing from v0.6.1 is removed. On git 2.43 an empty 
 - logged: v0.7.0 · 2026-10-30
 
 review5 L5: on timeout only the git process was killed, not ssh or hooks it had started. On POSIX the process starts a new session and the timeout kills the whole group (`killpg` with SIGKILL, falling back to `kill`). Windows has no sessions and keeps `kill`.
+
+### backend/app/services/gitops.py · sign_and_push, _agent_identity
+
+- refers-to: backend/app/services/gitops.py :: sign_and_push; backend/app/services/gitops.py :: _agent_identity
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+review H2: for a session the "another author" refusal used to be skipped and the rebase then reset every commit in the range to the stored identity, so commits made by other people (fetched or cherry-picked into the session branch, or made with another `--author`) were taken over and signed, and the post-rebase identity count ran on the already rewritten commits and could never fail. Now the author and the committer of every commit in the range are compared before the rebase. Allowed are the stored identity and, for a session only, the exact `Name <email>` that `configure_worktree` wrote into that worktree's own config (read back with `git config --worktree`, which is what the agent commits as). Anything else refuses with nothing changed. The workspace target keeps its refusal with an allowed set of just the stored identity, and now compares the committer too. The agent identity is read from the worktree rather than remembered because it is what git itself will stamp on the agent's commits; if the worktree has none, only the stored identity passes. The post-rebase check is meaningful now: the tree hash and subject of each commit in the range are recorded before the rebase and must match one to one afterwards (same count, same order), otherwise the branch is put back. Floor: the session branch's first reflog entry, which is the point `git worktree add -b` created it from, is kept as the floor. It already is the session's own start, and a stored tip in the session record would only restate it while adding a field that can drift from the branch; commits by others inside that span are now refused instead of re-signed, which is what the owner's rule needs. When the push step fails after signing, the branch is restored to its original tip exactly like the check-failure path, and the refusal says so. The rule: only the commits the agent session made are re-signed or re-authored; nothing else is rewritten; nothing is force-pushed.
+
+### backend/app/services/gitops.py · write_worktree_file, _write_checked
+
+- refers-to: backend/app/services/gitops.py :: write_worktree_file; backend/app/services/gitops.py :: _write_checked
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+review LOW: the encode, the path checks, `fsync` and the replace of up to 8 MiB ran on the event loop while the target lock was held. The encode now runs in `asyncio.to_thread` and the checks plus the write run in `_write_checked`, also in a thread. `WRITE_MAX` is compared to the encoded byte length as well as the character count (the cheap character check stays first, so an obviously huge body is refused before encoding). A `FileNotFoundError` from the mtime stat, the temp-file chmod or the final stat, when the file is deleted between the existence check and the write, is Refused(404) instead of a 500. The symlink-swap race between check and replace is known and accepted: the session itself owns the worktree, and the path stays confined by the realpath check.
+
+### backend/app/services/gitops.py · _exec, _reap
+
+- refers-to: backend/app/services/gitops.py :: _exec; backend/app/services/gitops.py :: _reap
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+review LOW: a client disconnect cancels the request task while `communicate` is awaited, and the git child (and any ssh or hook under it) was left running. Timeout and any other exit from the wait (cancellation included) now kill the whole process group through `_reap`; on cancellation the reap runs shielded so the wait for the child is not itself cancelled.
+
+### backend/app/services/gates.py · session token, session_env, verify, verify_gate
+
+- refers-to: backend/app/services/gates.py :: _mint, verify, verify_gate, session_env
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+review H1: each session launch mints a random token (`SUBFORM_GATE_TOKEN` in the session env, kept in `_tokens` in memory). `gate_hook.py` sends it as `X-Subform-Session`. `POST /api/gates` requires it to match the session named in the body, and `GET /api/gates/{id}/wait` requires it to match the gate's session. It is not accepted on the answer route, which wants the window token (see core/HASHOUT_LOG.md, local_guard.py). `close_session` forgets the token. A session that survives an engine restart keeps its old token, which no longer matches; its hook then gets a 403, falls back to showing the context without a gate, and the next resume gets a fresh token. The hook matcher stays `Write|Edit|MultiEdit`: `formslot check` judges a `file_path`, a `Bash` command has none, so adding `Bash` would only hand the check an input it does not understand. Writes made through Bash are therefore not gated.
+
+### backend/app/services/gates.py · create, _close, _prune, wait
+
+- refers-to: backend/app/services/gates.py :: create, _close, _prune, wait
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+review M2. State: the old code remembered the prior message per gate and only for the gate that flipped the session, so two overlapping gates left the session in needs-input for good. The prior message is now kept per session (`_prior`) when a gate moves a working session to needs-input; when the last open gate of that session closes the entry is popped and a still needs-input session returns to working with that message. A needs-input that did not come from a gate is not touched. Expiry: `_touched` records creation and the end of each wait, `_waiting` counts live waits; an open gate with no waiter whose last touch is older than `WAIT_MAX + ABANDON_MARGIN` (150 s) is closed as `abandoned` by `_prune`, which runs on create and on the open list. That covers a hook that died between the POST and the wait. Caps: 5 open gates per session and 50 in total (429); the body model bounds `message` at 8000 characters (422), `path` 4000, `tool` and `session` 200, and `create` still trims the message to 4000. The hook trims its own message and slot list to those limits so a long check output does not turn into a 422.
+
+### backend/app/services/formslot.py · index, start, mcp
+
+- refers-to: backend/app/services/formslot.py :: index, _allowed_roots, start, mcp
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+review M5: an explicit `path` for `/formslot/index` must be the open workspace, inside it, or inside a known session worktree (403 otherwise), so a local caller cannot index `~/.ssh` and read it back through the mcp forwarder. Without a path it still indexes the open workspace. LOW: `start` runs under an asyncio lock so two concurrent starts cannot launch two `serve` processes, and the `Popen` handle is waited on in a daemon thread so the child is reaped. `mcp` answers 400 for an empty list or more than 20 messages, before it checks that formslot is running. `_discovery` still trusts `service.json` on pid liveness alone; unchanged.
