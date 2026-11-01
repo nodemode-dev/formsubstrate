@@ -33,6 +33,10 @@ export interface Prefs {
   formslotAutoStart: boolean;
   gitSignOnCommit: boolean;
   recoveryMinutes: number;
+  largeTabs: boolean;
+  reopenLastWorkspace: boolean;
+  hiddenFolders: string[];
+  sidebarWidth: number;
 }
 
 export const MENU_COLORS: readonly string[] = ['red', 'orange', 'yellow', 'green', 'blue', 'violet', 'gray'];
@@ -47,6 +51,7 @@ export const DEFAULT_PREFS: Prefs = {
   shortcuts: {}, shortcutSets: {}, menuHidden: [], menuColors: {}, dialogValues: {},
   editorFontSize: 13, editorTabSize: 2, editorWordWrap: false, terminalFontSize: 13,
   agentDefaultModel: '', formslotEnabled: true, formslotAutoStart: true, gitSignOnCommit: true, recoveryMinutes: 1,
+  largeTabs: false, reopenLastWorkspace: true, hiddenFolders: [], sidebarWidth: 280,
 };
 
 const KEY = 'subform.prefs';
@@ -141,6 +146,10 @@ export function loadPrefs(): Prefs {
       formslotAutoStart: flag(r.formslotAutoStart, d.formslotAutoStart),
       gitSignOnCommit: flag(r.gitSignOnCommit, d.gitSignOnCommit),
       recoveryMinutes: Math.round(num(r.recoveryMinutes, 1, 60, d.recoveryMinutes)),
+      largeTabs: flag(r.largeTabs, d.largeTabs),
+      reopenLastWorkspace: flag(r.reopenLastWorkspace, d.reopenLastWorkspace),
+      hiddenFolders: strings(r.hiddenFolders, 200, 200),
+      sidebarWidth: Math.round(num(r.sidebarWidth, 180, 600, d.sidebarWidth)),
     };
   } catch {
     return { ...d, language: 'en' };

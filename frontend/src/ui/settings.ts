@@ -1,0 +1,549 @@
+import { hasSecret, removeSecret, saveSecret } from '../io/secrets';
+import { systemStatus } from '../io/api';
+import { formatKeys, type Commands } from './commands';
+import { confirmAction, Dialog } from './dialogs';
+import { el, patchList, q, setChecked, setClass, setHidden, setText, setTitle, setValue } from './dom';
+import { icon } from './icons';
+import { languages, onLanguage, setLanguage, t } from './i18n';
+import { colorRow, numberRow, selectRow, sliderRow, toggleRow, type Row } from './panels/controls';
+import { loadPrefs, savePrefs, setUiScale, setUpdateAtStart, UI_FONT_SIZES, UI_SCALES, uiScaleChoice, updateAtStart, type Prefs, type UiFontSize } from './prefs';
+import { readChoice, setAccent, setIntensity, setTheme, THEMES, themeSwatchesHtml } from './themes';
+import { toast } from './toast';
+
+export interface SettingsContext { commands: Commands; onPrefs: (p: Prefs) => void }
+
+const RAIL_KEY = 'subform.prefsRailCollapsed';
+const API_KEY_SECRET = 'anthropic-api-key';
+const OWN_KEY_PREFIX = 'subform.';
+const SHARED_THEME_KEY = 'nodemode_ui_settings';
+const SPY_MUTE_MS = 700;
+const SCROLL_PAD = 12;
+const SPY_EDGE = 24;
+const WIRE_RADIUS = 10;
+const MODELS = ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'];
+
+const RAIL_ICONS: Record<string, string> = {
+  General: 'pfGeneral', Interface: 'pfInterface', Workspace: 'pfWorkspace', Editor: 'code', Terminal: 'terminal', Agents: 'agent',
+  'Git and Identity': 'branch', formslot: 'slot', 'Language Servers': 'pfPlugins', Keys: 'pfTools', Updates: 'refresh',
+};
+
+const SECTIONS = ['General', 'Interface', 'Workspace', 'Editor', 'Terminal', 'Agents', 'Git and Identity', 'formslot', 'Language Servers', 'Keys', 'Updates'] as const;
+
+interface KeyItem { id: string; label: string; keys: string }
+
+const grp = (label: string, ...content: HTMLElement[]): HTMLElement => {
+  const g = el('<section class="cv-prefs-group"><h3 class="cv-prefs-label"></h3></section>');
+  const h = q(g, '.cv-prefs-label');
+  setText(h, t(label));
+  onLanguage(() => setText(h, t(label)));
+  g.append(...content);
+  return g;
+};
+
+const nt = (text: string): HTMLElement => {
+  const p = el('<p class="cv-note"></p>');
+  setText(p, t(text));
+  onLanguage(() => setText(p, t(text)));
+  return p;
+};
+
+const valueRow = (label: string, text: string): { el: HTMLElement; value: HTMLElement } => {
+  const row = el('<div class="cv-field"><span></span><span class="cv-prefs-value"></span></div>');
+  setText(q(row, 'span'), label);
+  const value = q(row, '.cv-prefs-value');
+  setText(value, text);
+  return { el: row, value };
+};
+
+export class SettingsDialog {
+  private readonly dlg: Dialog;
+  private readonly ctx: SettingsContext;
+  private prefs: Prefs = loadPrefs();
+  private readonly sections = new Map<string, HTMLElement>();
+  private readonly nav = el('<div class="cv-prefs-nav" role="tablist"></div>');
+  private readonly pages = el('<div class="cv-prefs-pages"></div>');
+  private readonly frame: HTMLElement;
+  private readonly rail = el('<div class="cv-prefs-rail"></div>');
+  private readonly port = el('<span class="cv-prefs-port" aria-hidden="true"></span>');
+  private readonly shade: SVGPathElement;
+  private readonly line: SVGPathElement;
+  private current = '';
+  private spyMuted = 0;
+  private spyRaf = 0;
+  private wireRaf = 0;
+  private wireD = '';
+  private portY = -1;
+
+  private readonly grid = el('<div class="nm-theme-grid" role="group"></div>');
+  private readonly accent: Row<string>;
+  private readonly intensity: Row<number>;
+
+  private readonly language: Row<string>;
+  private readonly updatesGeneral: Row<boolean>;
+  private readonly updatesPanel: Row<boolean>;
+  private readonly notice: ReturnType<typeof numberRow>;
+  private readonly scale: Row<string>;
+  private readonly fontSize: Row<string>;
+  private readonly animations: Row<boolean>;
+  private readonly largeTabs: Row<boolean>;
+  private readonly themeAuto: Row<boolean>;
+  private readonly themeLight: Row<string>;
+  private readonly themeDark: Row<string>;
+  private readonly titleBar: Row<boolean>;
+  private readonly menusRow: Row<boolean>;
+  private readonly windowGroup: HTMLElement;
+  private readonly reopen: Row<boolean>;
+  private readonly recovery: ReturnType<typeof numberRow>;
+  private readonly hidden = el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" aria-label="Hidden folders">');
+  private readonly editorFont: ReturnType<typeof numberRow>;
+  private readonly editorTab: ReturnType<typeof numberRow>;
+  private readonly editorWrap: Row<boolean>;
+  private readonly terminalFont: ReturnType<typeof numberRow>;
+  private readonly model: Row<string>;
+  private readonly keyInput = el<HTMLInputElement>('<input class="cv-input" type="password" autocomplete="new-password" spellcheck="false" aria-label="Anthropic API key">');
+  private readonly keyStatus = el('<p class="cv-note cv-prefs-status" role="status"></p>');
+  private readonly keySave: HTMLButtonElement;
+  private readonly keyRemove: HTMLButtonElement;
+  private keyPresent: boolean | null = null;
+  private keyBusy = false;
+  private readonly sign: Row<boolean>;
+  private readonly slotEnabled: Row<boolean>;
+  private readonly slotAuto: Row<boolean>;
+  private readonly keyList = el('<div class="cv-prefs-keys"></div>');
+  private readonly version: HTMLElement;
+
+  constructor(ctx: SettingsContext) {
+    this.ctx = ctx;
+    this.dlg = new Dialog('Preferences', 620);
+    this.frame = q(this.dlg.scrim, '.cv-dialog');
+
+    const pick = (p: Partial<Prefs>): void => this.change(p);
+    this.language = selectRow('Language', languages().map(([c, n]) => [c, n]), (v) => { pick({ language: v as Prefs['language'] }); void setLanguage(v as Prefs['language']); });
+    this.updatesGeneral = toggleRow('Check for updates at start', (v) => { setUpdateAtStart(v); this.sync(); });
+    this.updatesPanel = toggleRow('Check for updates at start', (v) => { setUpdateAtStart(v); this.sync(); });
+    this.notice = numberRow('Notice seconds (0 for the default)', 0, 60, 1, (v) => pick({ noticeSeconds: v }));
+    this.scale = selectRow('Interface scale', UI_SCALES.map(([k, l]) => [k, l]), (v) => { setUiScale(v); });
+    this.fontSize = selectRow('Interface text size', UI_FONT_SIZES.map(([k, l]) => [k, l]), (v) => pick({ uiFontSize: v as UiFontSize }));
+    this.animations = toggleRow('Animations', (v) => pick({ animations: v }));
+    this.largeTabs = toggleRow('Large tabs', (v) => pick({ largeTabs: v }));
+    this.themeAuto = toggleRow('Follow system appearance', (v) => pick({ themeAuto: v }));
+    const pair = (light: boolean): Array<[string, string]> => Object.entries(THEMES).filter(([, th]) => !!th.light === light).map(([id, th]) => [id, th.label]);
+    this.themeLight = selectRow('Light theme', pair(true), (v) => pick({ themeLight: v }));
+    this.themeDark = selectRow('Dark theme', pair(false), (v) => pick({ themeDark: v }));
+    this.titleBar = toggleRow('Custom title bar', () => { ctx.commands.run('custom-title-bar'); this.sync(); });
+    this.menusRow = toggleRow('Menus in window', () => { ctx.commands.run('menus-in-window'); this.sync(); });
+    this.reopen = toggleRow('Reopen the last workspace at start', (v) => pick({ reopenLastWorkspace: v }));
+    this.recovery = numberRow('Recovery save every (minutes)', 1, 60, 1, (v) => pick({ recoveryMinutes: v }));
+    this.editorFont = numberRow('Font size', 8, 32, 1, (v) => pick({ editorFontSize: v }));
+    this.editorTab = numberRow('Tab size', 1, 8, 1, (v) => pick({ editorTabSize: v }));
+    this.editorWrap = toggleRow('Word wrap', (v) => pick({ editorWordWrap: v }));
+    this.terminalFont = numberRow('Font size', 8, 32, 1, (v) => pick({ terminalFontSize: v }));
+    this.model = selectRow('Default model', [['', 'Choose when starting'], ...MODELS.map((m): [string, string] => [m, m])], (v) => pick({ agentDefaultModel: v }));
+    this.sign = toggleRow('Sign commits', (v) => pick({ gitSignOnCommit: v }));
+    this.slotEnabled = toggleRow('Enabled', (v) => pick({ formslotEnabled: v }));
+    this.slotAuto = toggleRow('Start automatically', (v) => pick({ formslotAutoStart: v }));
+    this.accent = colorRow('Accent colour', (hex) => { setAccent(hex); this.sync(); });
+    this.intensity = sliderRow('Accent intensity', 0, 1.5, 0.05, (v) => setIntensity(v), { def: 1 });
+    this.windowGroup = grp('Window', this.titleBar.el, this.menusRow.el, nt('The custom title bar and the menus in the window change from the next start where they apply.'));
+
+    this.hidden.addEventListener('change', () => pick({ hiddenFolders: this.hidden.value.split(/[\n,]/).map((s) => s.trim()).filter(Boolean) }));
+
+    const swatches = document.createElement('template');
+    swatches.innerHTML = themeSwatchesHtml();
+    this.grid.append(swatches.content);
+    this.grid.addEventListener('click', (e) => {
+      const b = e.target instanceof Element ? e.target.closest<HTMLElement>('[data-theme-id]') : null;
+      if (!b?.dataset.themeId) return;
+      setTheme(b.dataset.themeId);
+      this.sync();
+    });
+    this.grid.addEventListener('contextmenu', (e) => {
+      const b = e.target instanceof Element ? e.target.closest<HTMLElement>('[data-theme-id]') : null;
+      if (!b?.dataset.themeId) return;
+      e.preventDefault();
+      const id = b.dataset.themeId, cur = this.prefs.favouriteThemes;
+      pick({ favouriteThemes: cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id] });
+      this.sync();
+    });
+
+    this.keySave = el<HTMLButtonElement>('<button class="cv-btn cv-btn-primary" type="button"></button>');
+    this.keyRemove = el<HTMLButtonElement>('<button class="cv-btn cv-btn-danger" type="button"></button>');
+    setText(this.keySave, t('Save'));
+    setText(this.keyRemove, t('Remove'));
+    this.keySave.addEventListener('click', () => { void this.storeKey(); });
+    this.keyRemove.addEventListener('click', () => { void this.dropKey(); });
+    this.keyInput.addEventListener('input', () => this.paintKey());
+    this.keyInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); this.keySave.click(); } });
+    const versionRow = valueRow('Current version', '');
+    this.version = versionRow.value;
+
+    const content: Record<(typeof SECTIONS)[number], HTMLElement[]> = {
+      General: [
+        grp('Language', this.language.el),
+        grp('Startup', this.updatesGeneral.el),
+        grp('Notices', this.notice.el),
+      ],
+      Interface: [
+        grp('Theme', this.grid, this.accent.el, this.intensity.el),
+        grp('Appearance', this.themeAuto.el, this.themeLight.el, this.themeDark.el),
+        grp('Text and Scale', this.scale.el, this.fontSize.el),
+        grp('Motion and Tabs', this.animations.el, this.largeTabs.el),
+        this.windowGroup,
+      ],
+      Workspace: [
+        grp('Startup', this.reopen.el, this.recovery.el),
+        grp('Hidden folders', this.hiddenRow(), nt('Folder names separated by commas stay out of the file tree.')),
+      ],
+      Editor: [grp('Text', this.editorFont.el, this.editorTab.el, this.editorWrap.el)],
+      Terminal: [grp('Text', this.terminalFont.el)],
+      Agents: [
+        grp('Claude Code', this.model.el),
+        grp('Anthropic API key', this.keyRow(), this.keyStatus, nt('The key goes to the engine and is kept in the system keychain. This page never reads it back.')),
+      ],
+      'Git and Identity': [
+        grp('Commits', this.sign.el, this.identityRow('Author name'), this.identityRow('Author email'), nt('Commits use the identity set in the repository.')),
+      ],
+      formslot: [
+        grp('Service', this.slotEnabled.el, this.slotAuto.el, valueRow('Service status', t('Not running')).el),
+      ],
+      'Language Servers': [grp('Servers', nt('Language servers are found on this system and used when they are installed.'))],
+      Keys: [grp('Shortcuts', this.keyList, nt('Shortcuts can be changed in a later version.'))],
+      Updates: [grp('Version', versionRow.el, this.updatesPanel.el)],
+    };
+    for (const name of SECTIONS) this.add(name, ...content[name]);
+
+    const wrap = el('<div class="cv-prefs"></div>');
+    wrap.append(this.pages);
+    this.dlg.body.appendChild(wrap);
+    this.frame.classList.add('cv-prefs-dlg');
+    q(this.dlg.scrim, '.cv-dialog-head').prepend(el(`<span class="cv-prefs-headicon">${icon('settings', 16)}</span>`));
+
+    let collapsed = false;
+    try { collapsed = localStorage.getItem(RAIL_KEY) === '1'; } catch { collapsed = false; }
+    const fold = el<HTMLButtonElement>(`<button class="cv-prefs-fold" type="button">${icon('pfFold', 16)}</button>`);
+    const paintRail = (): void => {
+      setClass(this.frame, 'is-rail-collapsed', collapsed);
+      const label = t(collapsed ? 'Expand tabs' : 'Collapse tabs');
+      setTitle(fold, label);
+      fold.setAttribute('aria-label', label);
+      fold.setAttribute('aria-expanded', String(!collapsed));
+    };
+    fold.addEventListener('click', () => {
+      collapsed = !collapsed;
+      try { localStorage.setItem(RAIL_KEY, collapsed ? '1' : '0'); } catch { paintRail(); }
+      paintRail();
+      this.queueWire();
+    });
+    paintRail();
+    onLanguage(paintRail);
+    this.rail.append(this.nav, fold);
+    const wire = el('<svg class="cv-prefs-wire" aria-hidden="true"><path class="cv-prefs-wire-shade"></path><path class="cv-prefs-wire-line"></path></svg>');
+    this.shade = q<SVGPathElement>(wire, '.cv-prefs-wire-shade');
+    this.line = q<SVGPathElement>(wire, '.cv-prefs-wire-line');
+    this.frame.append(this.rail, wire, this.port);
+
+    this.pages.addEventListener('scroll', () => this.queueSpy(), { passive: true });
+    new ResizeObserver(() => this.queueWire()).observe(this.frame);
+    window.addEventListener('resize', () => this.queueWire());
+    document.addEventListener('nm:ui-settings-changed', () => { if (this.dlg.isOpen) this.sync(); });
+
+    const reset = this.dlg.button('Reset', 'danger', () => { void this.reset(); });
+    reset.classList.add('cv-btn-apart');
+    this.dlg.button('Done', 'primary', () => this.dlg.close());
+    this.markSection('General');
+  }
+
+  open(section?: string): void {
+    this.prefs = loadPrefs();
+    this.sync();
+    const name = section && this.sections.has(section) ? section : this.current || 'General';
+    this.markSection(name);
+    const tab = this.nav.querySelector<HTMLElement>(`[data-section="${name}"]`);
+    this.dlg.open(tab);
+    this.scrollToSection(name, 'auto');
+    this.queueWire();
+    void this.refreshRemote();
+  }
+
+  close(): void { this.dlg.close(); }
+
+  get isOpen(): boolean { return this.dlg.isOpen; }
+
+  private hiddenRow(): HTMLElement {
+    const row = el('<label class="cv-field"><span></span></label>');
+    setText(q(row, 'span'), t('Folders to hide'));
+    row.appendChild(this.hidden);
+    return row;
+  }
+
+  private identityRow(label: string): HTMLElement {
+    const row = el('<label class="cv-field"><span></span><input class="cv-input" type="text" readonly tabindex="-1"></label>');
+    setText(q(row, 'span'), label);
+    q<HTMLInputElement>(row, 'input').placeholder = t('From the repository');
+    return row;
+  }
+
+  private keyRow(): HTMLElement {
+    const wrap = el('<div class="cv-prefs-secret"></div>');
+    const row = el('<label class="cv-field"><span></span></label>');
+    setText(q(row, 'span'), t('Key'));
+    row.appendChild(this.keyInput);
+    const actions = el('<div class="cv-prefs-actions"></div>');
+    actions.append(this.keySave, this.keyRemove);
+    wrap.append(row, actions);
+    return wrap;
+  }
+
+  private add(name: string, ...content: HTMLElement[]): void {
+    const iconName = RAIL_ICONS[name] ?? 'pfGeneral';
+    const tab = el<HTMLButtonElement>(`<button class="cv-prefs-railtab" type="button" role="tab" aria-selected="false"><span class="cv-prefs-tabicon">${icon(iconName, 18)}</span><span class="cv-prefs-tablabel"></span></button>`);
+    tab.dataset.section = name;
+    const label = q(tab, '.cv-prefs-tablabel');
+    const paint = (): void => { setText(label, t(name)); setTitle(tab, t(name)); };
+    paint();
+    onLanguage(paint);
+    tab.addEventListener('click', () => this.showSection(name, 'smooth'));
+    this.nav.appendChild(tab);
+
+    const page = el(`<section class="cv-prefs-page cv-prefs-sec" role="tabpanel"><button class="cv-prefs-sechead" type="button" aria-expanded="true"><span class="cv-prefs-secicon">${icon(iconName, 16)}</span><span class="cv-prefs-seclabel"></span><span class="cv-prefs-chev">${icon('chevronDown', 14)}</span></button><div class="cv-prefs-secbody"></div></section>`);
+    page.dataset.section = name;
+    const headLabel = q(page, '.cv-prefs-seclabel');
+    const paintHead = (): void => setText(headLabel, t(name));
+    paintHead();
+    onLanguage(paintHead);
+    q(page, '.cv-prefs-sechead').addEventListener('click', () => this.foldSection(name));
+    q(page, '.cv-prefs-secbody').append(...content);
+    this.pages.appendChild(page);
+    this.sections.set(name, page);
+  }
+
+  private change(patch: Partial<Prefs>): void {
+    savePrefs({ ...loadPrefs(), ...patch });
+    this.prefs = loadPrefs();
+    this.ctx.onPrefs(this.prefs);
+  }
+
+  private showSection(name: string, scroll: ScrollBehavior | null): void {
+    if (!this.sections.has(name)) return;
+    this.markSection(name);
+    if (scroll) this.scrollToSection(name, scroll);
+  }
+
+  private markSection(name: string): void {
+    if (this.current === name) return;
+    this.current = name;
+    for (const [n, page] of this.sections) setClass(page, 'is-current', n === name);
+    for (const tab of Array.from(this.nav.children) as HTMLElement[]) {
+      const on = tab.dataset.section === name;
+      setClass(tab, 'is-active', on);
+      const sel = String(on);
+      if (tab.getAttribute('aria-selected') !== sel) tab.setAttribute('aria-selected', sel);
+    }
+    this.queueWire();
+  }
+
+  private scrollToSection(name: string, behavior: ScrollBehavior): void {
+    const sec = this.sections.get(name);
+    if (!sec) return;
+    if (sec.classList.contains('is-folded')) this.foldSection(name);
+    const top = sec.getBoundingClientRect().top - this.pages.getBoundingClientRect().top + this.pages.scrollTop - SCROLL_PAD;
+    this.spyMuted = performance.now() + SPY_MUTE_MS;
+    this.pages.scrollTo({ top, behavior });
+  }
+
+  private foldSection(name: string): void {
+    const sec = this.sections.get(name);
+    if (!sec) return;
+    const folded = !sec.classList.contains('is-folded');
+    setClass(sec, 'is-folded', folded);
+    setHidden(q(sec, '.cv-prefs-secbody'), folded);
+    q(sec, '.cv-prefs-sechead').setAttribute('aria-expanded', String(!folded));
+    this.queueWire();
+    this.queueSpy();
+  }
+
+  private queueSpy(): void {
+    if (this.spyRaf) return;
+    this.spyRaf = requestAnimationFrame(() => {
+      this.spyRaf = 0;
+      const pages = this.pages;
+      if (!pages.clientHeight || performance.now() < this.spyMuted) return;
+      const edge = pages.getBoundingClientRect().top + SPY_EDGE;
+      const names = Array.from(this.sections.keys());
+      let best = '', bestD = Infinity;
+      if (pages.scrollHeight > pages.clientHeight + 4 && pages.scrollTop + pages.clientHeight >= pages.scrollHeight - 2) best = names[names.length - 1] ?? '';
+      else {
+        for (const [n, sec] of this.sections) {
+          const top = sec.getBoundingClientRect().top, d = top <= edge ? edge - top : top - edge + 100000;
+          if (d < bestD) { bestD = d; best = n; }
+        }
+      }
+      if (best) this.markSection(best);
+    });
+  }
+
+  private queueWire(): void {
+    if (this.wireRaf) return;
+    this.wireRaf = requestAnimationFrame(() => { this.wireRaf = 0; this.drawWire(); });
+  }
+
+  private drawWire(): void {
+    if (this.dlg.scrim.hidden) return;
+    const F = this.frame.getBoundingClientRect();
+    const tab = this.nav.querySelector<HTMLElement>('.cv-prefs-railtab.is-active');
+    const head = this.frame.querySelector<HTMLElement>('.cv-dialog-head');
+    if (!F.width || !tab || !head) return;
+    const N = this.nav.getBoundingClientRect();
+    let T = tab.getBoundingClientRect();
+    if (T.top < N.top || T.bottom > N.bottom) {
+      this.nav.scrollTop += T.top < N.top ? T.top - N.top - 6 : T.bottom - N.bottom + 6;
+      T = tab.getBoundingClientRect();
+    }
+    const R = this.rail.getBoundingClientRect(), H = head.getBoundingClientRect();
+    const portY = Math.round(H.bottom - F.top), sx = Math.round(T.right - F.left), ty = Math.round(T.top - F.top + T.height / 2);
+    const rr = R.right - F.left, trunk = Math.round(rr - rr * 0.45), dy = portY - ty, r = WIRE_RADIUS, dir = dy > 0 ? 1 : -1;
+    const d = Math.abs(dy) < 2 * r
+      ? `M ${sx} ${ty} H ${trunk} V ${portY} H -7`
+      : `M ${sx} ${ty} H ${trunk - r} a ${r} ${r} 0 0 ${dir > 0 ? 1 : 0} ${r} ${dir * r} V ${portY - dir * r} a ${r} ${r} 0 0 ${dir > 0 ? 0 : 1} ${r} ${dir * r} H -7`;
+    if (d !== this.wireD) { this.wireD = d; this.shade.setAttribute('d', d); this.line.setAttribute('d', d); }
+    if (portY !== this.portY) { this.portY = portY; this.port.style.transform = `translateY(${portY}px)`; }
+  }
+
+  private sync(): void {
+    const p = this.prefs;
+    this.language.set(p.language);
+    const upd = updateAtStart();
+    this.updatesGeneral.set(upd);
+    this.updatesPanel.set(upd);
+    this.notice.set(p.noticeSeconds);
+    this.scale.set(uiScaleChoice());
+    this.fontSize.set(p.uiFontSize);
+    this.animations.set(p.animations);
+    this.largeTabs.set(p.largeTabs);
+    this.themeAuto.set(p.themeAuto);
+    this.themeLight.set(p.themeLight);
+    this.themeDark.set(p.themeDark);
+    this.reopen.set(p.reopenLastWorkspace);
+    this.recovery.set(p.recoveryMinutes);
+    setValue(this.hidden, p.hiddenFolders.join(', '));
+    this.editorFont.set(p.editorFontSize);
+    this.editorTab.set(p.editorTabSize);
+    this.editorWrap.set(p.editorWordWrap);
+    this.terminalFont.set(p.terminalFontSize);
+    this.model.set(p.agentDefaultModel);
+    this.sign.set(p.gitSignOnCommit);
+    this.slotEnabled.set(p.formslotEnabled);
+    this.slotAuto.set(p.formslotAutoStart);
+
+    const c = readChoice();
+    this.accent.set(c.accentColor);
+    this.intensity.set(c.intensity ?? 1);
+    for (const b of Array.from(this.grid.querySelectorAll<HTMLElement>('[data-theme-id]'))) {
+      const id = b.dataset.themeId ?? '';
+      const active = id === c.theme, fav = p.favouriteThemes.includes(id);
+      setClass(b, 'is-active', active);
+      setClass(b, 'is-fav', fav);
+      const order = fav ? '-1' : '0';
+      if (b.style.order !== order) b.style.order = order;
+      const label = THEMES[id]?.label ?? id;
+      setTitle(b, fav ? `${label} (${t('favourite, right-click to remove')})` : `${label} (${t('right-click to add to favourites')})`);
+      const border = active ? c.accentColor : THEMES[id]?.vars['--border-color'] ?? '';
+      if (b.dataset.border !== border) { b.dataset.border = border; b.style.borderColor = border; }
+    }
+
+    const tb = this.ctx.commands.get('custom-title-bar'), mw = this.ctx.commands.get('menus-in-window');
+    const tbOn = !!tb && this.ctx.commands.enabled(tb), mwOn = !!mw && this.ctx.commands.enabled(mw);
+    setHidden(this.titleBar.el, !tbOn);
+    setHidden(this.menusRow.el, !mwOn);
+    setHidden(this.windowGroup, !tbOn && !mwOn);
+    this.titleBar.set(!!tb?.checked?.());
+    this.menusRow.set(!!mw?.checked?.());
+
+    const items: KeyItem[] = this.ctx.commands.all().filter((cmd) => cmd.keys && cmd.keys.length > 0).map((cmd) => ({
+      id: cmd.id, label: this.ctx.commands.label(cmd).replace(/\.\.\.$/, ''), keys: (cmd.keys ?? []).map(formatKeys).join('  ·  '),
+    }));
+    const paintKeyRow = (node: HTMLElement, i: KeyItem): void => { setText(q(node, '.cv-prefs-keyname'), t(i.label)); setText(q(node, '.cv-prefs-keycombo'), i.keys); };
+    patchList(this.keyList, items, {
+      key: (i) => i.id,
+      create: (i) => { const node = el('<div class="cv-prefs-keyrow"><span class="cv-prefs-keyname"></span><span class="cv-prefs-keycombo"></span></div>'); paintKeyRow(node, i); return node; },
+      update: paintKeyRow,
+    });
+    this.paintKey();
+  }
+
+  private async refreshRemote(): Promise<void> {
+    try {
+      const s = await systemStatus();
+      setText(this.version, s.version);
+    } catch {
+      setText(this.version, t('Engine offline'));
+    }
+    try {
+      this.keyPresent = await hasSecret(API_KEY_SECRET);
+      this.keyNote = '';
+    } catch (e) {
+      this.keyPresent = null;
+      this.keyNote = /^503/.test(e instanceof Error ? e.message : '') ? 'The system keychain is not available.' : 'The engine is not answering.';
+    }
+    this.paintKey();
+  }
+
+  private keyNote = '';
+
+  private paintKey(): void {
+    const typed = this.keyInput.value.length > 0;
+    setText(this.keyStatus, this.keyNote ? t(this.keyNote) : this.keyPresent === null ? '' : t(this.keyPresent ? 'Saved in the system keychain' : 'Not set'));
+    const save = this.keySave, remove = this.keyRemove;
+    const off = (b: HTMLButtonElement, v: boolean): void => { if (b.disabled !== v) b.disabled = v; };
+    off(save, !typed || this.keyBusy || this.keyPresent === null && !!this.keyNote);
+    off(remove, this.keyPresent !== true || this.keyBusy);
+  }
+
+  private async storeKey(): Promise<void> {
+    const value = this.keyInput.value.trim();
+    if (!value || this.keyBusy) return;
+    this.keyBusy = true;
+    this.paintKey();
+    try {
+      await saveSecret(API_KEY_SECRET, value);
+      this.keyInput.value = '';
+      this.keyPresent = true;
+      this.keyNote = '';
+    } catch (e) {
+      toast(`${t('The key was not saved')}: ${e instanceof Error ? e.message : ''}`, 'error');
+    } finally {
+      this.keyBusy = false;
+      this.paintKey();
+    }
+  }
+
+  private async dropKey(): Promise<void> {
+    if (this.keyBusy) return;
+    this.keyBusy = true;
+    this.paintKey();
+    try {
+      await removeSecret(API_KEY_SECRET);
+      this.keyPresent = false;
+      this.keyNote = '';
+    } catch (e) {
+      toast(`${t('The key was not removed')}: ${e instanceof Error ? e.message : ''}`, 'error');
+    } finally {
+      this.keyBusy = false;
+      this.paintKey();
+    }
+  }
+
+  private async reset(): Promise<void> {
+    const ok = await confirmAction('Reset all preferences?', t('Every preference and the theme go back to how subform comes. Your files are kept. subform reloads.'), 'Reset', true);
+    if (!ok) return;
+    try {
+      const keys: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && (k.startsWith(OWN_KEY_PREFIX) || k === SHARED_THEME_KEY)) keys.push(k); }
+      for (const k of keys) localStorage.removeItem(k);
+    } catch {
+      toast(t('The preferences could not be reset.'), 'error');
+      return;
+    }
+    location.reload();
+  }
+}
