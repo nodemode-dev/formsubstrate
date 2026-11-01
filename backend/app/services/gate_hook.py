@@ -58,7 +58,7 @@ def engine_base():
 
 def call(method, url, body=None, timeout=10):
     data = json.dumps(body).encode("utf-8") if body is not None else None
-    request = urllib.request.Request(url, data=data, method=method, headers={"Content-Type": "application/json"})
+    request = urllib.request.Request(url, data=data, method=method, headers={"Content-Type": "application/json", "X-Subform-Session": os.environ.get("SUBFORM_GATE_TOKEN", "")})
     with urllib.request.urlopen(request, timeout=timeout) as reply:
         return json.loads(reply.read().decode("utf-8"))
 
@@ -127,7 +127,7 @@ def main():
     except ValueError:
         wait = WAIT_DEFAULT
     try:
-        gate = call("POST", base + "/api/gates", {"session": session, "tool": event.get("tool_name") or "Write", "path": tool_input.get("file_path") or "", "message": context, "slots": slots, "tokens": estimate(binary, slots)})
+        gate = call("POST", base + "/api/gates", {"session": session, "tool": event.get("tool_name") or "Write", "path": tool_input.get("file_path") or "", "message": context[:4000], "slots": slots[:10], "tokens": estimate(binary, slots)})
         result = call("GET", "%s/api/gates/%s/wait?timeout=%d" % (base, gate["id"], wait), timeout=wait + 15)
     except (OSError, ValueError, KeyError, urllib.error.URLError):
         context_only(context)

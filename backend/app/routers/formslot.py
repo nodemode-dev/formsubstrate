@@ -1,9 +1,10 @@
 from typing import Any, Literal
 
-from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
+from app.core.local_guard import hand_out_token, require_window
 from app.services import formslot as svc
 from app.services import gates
 from app.services import sessions as session_svc
@@ -24,10 +25,10 @@ class ConfirmBody(BaseModel):
 
 
 class GateBody(BaseModel):
-    session: str
-    tool: str = "Write"
-    path: str = ""
-    message: str = ""
+    session: str = Field(max_length=200)
+    tool: str = Field(default="Write", max_length=200)
+    path: str = Field(default="", max_length=4000)
+    message: str = Field(default="", max_length=gates.MESSAGE_BODY_MAX)
     slots: list[dict] = Field(default_factory=list, max_length=50)
     tokens: int = 0
 
@@ -40,12 +41,17 @@ def _fail(err: svc.Refused | session_svc.Refused) -> HTTPException:
     return HTTPException(status_code=err.status, detail=err.detail)
 
 
+@router.post("/window-token")
+def window_token(request: Request) -> dict:
+    return {"token": hand_out_token(request)}
+
+
 @router.get("/formslot/status")
 async def status() -> dict:
     return await svc.status()
 
 
-@router.post("/formslot/start")
+@router.post("/formslot/start", dependencies=[Depends(require_window)])
 async def start() -> dict:
     try:
         return await svc.start()
@@ -53,7 +59,7 @@ async def start() -> dict:
         raise _fail(err)
 
 
-@router.post("/formslot/index")
+@router.post("/formslot/index", dependencies=[Depends(require_window)])
 async def index(body: IndexBody | None = None) -> dict:
     try:
         return await svc.index(body.path if body else None)
@@ -61,7 +67,7 @@ async def index(body: IndexBody | None = None) -> dict:
         raise _fail(err)
 
 
-@router.post("/formslot/install")
+@router.post("/formslot/install", dependencies=[Depends(require_window)])
 async def install(body: InstallBody) -> dict:
     try:
         return await svc.install(body.mode)
@@ -69,7 +75,7 @@ async def install(body: InstallBody) -> dict:
         raise _fail(err)
 
 
-@router.post("/formslot/mcp")
+@router.post("/formslot/mcp", dependencies=[Depends(require_window)])
 async def mcp(body: Any = Body(...)):
     try:
         answer = await svc.mcp(body)
@@ -80,7 +86,7 @@ async def mcp(body: Any = Body(...)):
     return JSONResponse(answer)
 
 
-@router.post("/formslot/confirm")
+@router.post("/formslot/confirm", dependencies=[Depends(require_window)])
 async def confirm(body: ConfirmBody) -> dict:
     try:
         return await svc.confirm(body.id)
@@ -88,7 +94,7 @@ async def confirm(body: ConfirmBody) -> dict:
         raise _fail(err)
 
 
-@router.get("/formslot/drift")
+@router.get("/formslot/drift", dependencies=[Depends(require_window)])
 async def drift() -> dict:
     try:
         return await svc.drift()
@@ -97,8 +103,9 @@ async def drift() -> dict:
 
 
 @router.post("/gates")
-async def open_gate(body: GateBody) -> dict:
+async def open_gate(body: GateBody, session_token: str | None = Header(default=None, alias="X-Subform-Session")) -> dict:
     try:
+        gates.verify(body.session, session_token)
         return gates.create(body.model_dump())
     except session_svc.Refused as err:
         raise _fail(err)
@@ -109,7 +116,7 @@ def list_gates() -> dict:
     return {"gates": gates.open_list()}
 
 
-@router.post("/gates/{gate_id}/answer")
+@router.post("/gates/{gate_id}/answer", dependencies=[Depends(require_window)])
 def answer_gate(gate_id: str, body: AnswerBody) -> dict:
     try:
         return gates.answer(gate_id, body.choice)
@@ -118,8 +125,9 @@ def answer_gate(gate_id: str, body: AnswerBody) -> dict:
 
 
 @router.get("/gates/{gate_id}/wait")
-async def wait_gate(gate_id: str, request: Request, timeout: float = 120) -> dict:
+async def wait_gate(gate_id: str, request: Request, timeout: float = 120, session_token: str | None = Header(default=None, alias="X-Subform-Session")) -> dict:
     try:
+        gates.verify_gate(gate_id, session_token)
         return await gates.wait(gate_id, timeout, request)
     except session_svc.Refused as err:
         raise _fail(err)

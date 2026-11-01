@@ -232,7 +232,9 @@ export class SessionsClient {
     source.addEventListener('gate', (e) => {
       try {
         const g = asGate(JSON.parse((e as MessageEvent<string>).data));
-        if (!g || g.choice !== null) return;
+        if (!g) return;
+        if (g.choice !== null) { this.closeGate(g.id); return; }
+        if (this.openGates.has(g.id)) { this.openGates.set(g.id, g); return; }
         this.openGates.set(g.id, g);
         this.emit('gate', g);
         this.emit('gates', this.gates);

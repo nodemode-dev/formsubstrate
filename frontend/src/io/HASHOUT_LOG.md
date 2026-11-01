@@ -52,3 +52,27 @@ Minimal DAP client over the relay socket: seq numbered requests with a 20 s time
 - logged: v0.7.0 · 2026-10-30
 
 Push and Sign and Push share one function that reads the refusal body (`check`, `output`) from a 409; the old signAndPush body moved into it unchanged. `git.push` now returns `{ok, check, output}`. `audit` and `writeWorktreeFile` wrap the two new routes. `FileDiff` gains `mtime`.
+
+### frontend/src/io/formslot.ts · owner, ensureToken
+
+- refers-to: frontend/src/io/formslot.ts :: owner, ensureToken, formslot, gates
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+review H1: the owner calls (start, index, install, confirm, drift, the mcp forwarder and the gate answer) go through `owner`, which sends the engine's window token as `X-Subform-Window`. The token comes from `POST /api/window-token`, is fetched once and cached as a promise (a failed fetch clears the cache), and on a 403 is dropped and fetched again once before the call is retried. Status polling and the gate list do not need it.
+
+### frontend/src/io/formslot.ts · FormslotState fixes
+
+- refers-to: frontend/src/io/formslot.ts :: FormslotState.phase, start, ensureDrift, forgetDrift, asGate
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+review LOW 7: `phase` is `unreachable` whenever the last poll failed, not only before the first status, so the status bar stops claiming formslot is running while the engine is down. LOW 9: `start` returns the shared in-flight promise, so a second caller waits for the real start. LOW 8: a generation counter is bumped by `forgetDrift`; a drift answer from the previous workspace is ignored and cannot set the 20 s freshness stamp, and `ensureDrift(true)` during a fetch waits for it and then fetches again. LOW 11: `asGate` keeps only slots with a string id and path and coerces `line` to a non-negative number.
+
+### frontend/src/io/sessions.ts · gate event
+
+- refers-to: frontend/src/io/sessions.ts :: SessionsClient.connect (gate listener)
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+review LOW 12: a repeated `gate` event for an id already open updates the stored gate and no longer re-emits, so reconnects do not repeat desktop notifications; a `gate` event that already carries a choice closes that gate.

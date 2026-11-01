@@ -1,6 +1,11 @@
+import secrets
 from urllib.parse import urlsplit
 
+from fastapi import Header, HTTPException, Request
+
 LOOPBACK = {"127.0.0.1", "localhost", "::1"}
+WINDOW_HEADER = "X-Subform-Window"
+WINDOW_TOKEN = secrets.token_urlsafe(32)
 
 
 def _host_of(value: str) -> str:
@@ -57,3 +62,28 @@ class LocalGuard:
         body = b'{"detail":"subform answers this computer\'s own window and agents only"}'
         await send({"type": "http.response.start", "status": 403, "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())]})
         await send({"type": "http.response.body", "body": body})
+
+
+def window_origin_ok(request: Request) -> bool:
+    from app.core import config
+
+    origin = request.headers.get("origin")
+    key = _origin_key(origin) if origin else None
+    if key is None:
+        return False
+    allowed = {k for k in (_origin_key(o) for o in config.window_origins()) if k is not None}
+    if key in allowed:
+        return True
+    own = _origin_key(f"{key[0]}://{request.headers.get('host', '')}")
+    return key[0] == "http" and own is not None and own == key
+
+
+def hand_out_token(request: Request) -> str:
+    if not window_origin_ok(request):
+        raise HTTPException(status_code=403, detail="the window token is given to the app window only")
+    return WINDOW_TOKEN
+
+
+def require_window(token: str | None = Header(default=None, alias=WINDOW_HEADER)) -> None:
+    if not token or not secrets.compare_digest(token.encode("utf-8"), WINDOW_TOKEN.encode("utf-8")):
+        raise HTTPException(status_code=403, detail="this action is for the app window only")

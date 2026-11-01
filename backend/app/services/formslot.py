@@ -4,6 +4,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 import httpx
@@ -19,6 +20,9 @@ OUTPUT_MAX = 20000
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9.\-]{0,127}$")
 MCP_TOOLS = ("slot_find", "slot_get", "slot_similar", "slot_usages", "slot_status", "slot_conventions", "slot_context_pack")
 MODES = ("warn", "deny")
+BATCH_MAX = 20
+
+_start_lock = asyncio.Lock()
 
 
 class Refused(Exception):
@@ -166,30 +170,44 @@ async def status() -> dict:
 
 async def start() -> dict:
     found = _need_binary()
-    if _discovery() is None:
-        data_folder().mkdir(parents=True, exist_ok=True)
-        kwargs: dict = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL, "env": dict(os.environ)}
-        if sys.platform == "win32":
-            kwargs["creationflags"] = 0x00000008 | 0x00000200
-        else:
-            kwargs["start_new_session"] = True
-        try:
-            subprocess.Popen([found, "serve"], **kwargs)
-        except OSError as err:
-            raise Refused(500, f"formslot could not be started: {err}")
-        waited = 0.0
-        while waited < START_WAIT and _discovery() is None:
-            await asyncio.sleep(0.1)
-            waited += 0.1
+    async with _start_lock:
+        if _discovery() is None:
+            data_folder().mkdir(parents=True, exist_ok=True)
+            kwargs: dict = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL, "env": dict(os.environ)}
+            if sys.platform == "win32":
+                kwargs["creationflags"] = 0x00000008 | 0x00000200
+            else:
+                kwargs["start_new_session"] = True
+            try:
+                proc = subprocess.Popen([found, "serve"], **kwargs)
+            except OSError as err:
+                raise Refused(500, f"formslot could not be started: {err}")
+            threading.Thread(target=proc.wait, daemon=True).start()
+            waited = 0.0
+            while waited < START_WAIT and _discovery() is None:
+                await asyncio.sleep(0.1)
+                waited += 0.1
     result = await status()
     if not result["running"]:
         result["note"] = "formslot was started and has not answered yet"
     return result
 
 
+def _allowed_roots() -> list[str]:
+    from app.services import sessions
+
+    roots = [str(item.get("worktree")) for item in sessions._sessions.values() if isinstance(item.get("worktree"), str) and item.get("worktree")]
+    current = ws.current()
+    if current:
+        roots.append(current)
+    return roots
+
+
 async def index(path: str | None) -> dict:
     found = _need_binary()
     root = workspace(path)
+    if path and not any(_inside(root, base) for base in _allowed_roots()):
+        raise Refused(403, "only the open folder or a session worktree can be indexed")
     current = await status()
     name = None
     for corpus in current["corpora"]:
@@ -209,10 +227,12 @@ async def install(mode: str) -> dict:
 
 
 async def mcp(body: object):
+    messages = body if isinstance(body, list) else [body]
+    if not messages or len(messages) > BATCH_MAX:
+        raise Refused(400, f"send between 1 and {BATCH_MAX} messages")
     info = _discovery()
     if info is None:
         raise Refused(409, "formslot is not running; start it first")
-    messages = body if isinstance(body, list) else [body]
     for message in messages:
         if not isinstance(message, dict) or message.get("jsonrpc") != "2.0" or message.get("method") != "tools/call":
             raise Refused(400, "only JSON-RPC tools/call is forwarded")

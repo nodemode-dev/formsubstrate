@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import secrets
 import shlex
 import sys
 import time
@@ -21,11 +22,19 @@ CHOICES = ("use", "adapt", "write")
 TEXT_MAX = 4000
 SLOTS_MAX = 10
 TOKENS_MAX = 10_000_000
+OPEN_PER_SESSION = 5
+OPEN_TOTAL = 50
+ABANDON_MARGIN = 30
+MESSAGE_BODY_MAX = 8000
+TOKEN_ENV = "SUBFORM_GATE_TOKEN"
 
 _gates: dict[str, dict] = {}
 _events: dict[str, asyncio.Event] = {}
-_entered: dict[str, dict | None] = {}
 _closed_at: dict[str, float] = {}
+_prior: dict[str, str | None] = {}
+_touched: dict[str, float] = {}
+_waiting: dict[str, int] = {}
+_tokens: dict[str, str] = {}
 
 
 def script_path():
@@ -78,12 +87,31 @@ def merged_settings(existing: object) -> dict:
     return body
 
 
+def _mint(session_id: str) -> str:
+    _tokens[session_id] = secrets.token_urlsafe(24)
+    return _tokens[session_id]
+
+
+def verify(session_id: object, token: str | None) -> None:
+    known = _tokens.get(session_id) if isinstance(session_id, str) else None
+    if not known or not token or not secrets.compare_digest(known.encode("utf-8"), token.encode("utf-8")):
+        raise svc.Refused(403, "that session token is not valid")
+
+
+def verify_gate(gate_id: str, token: str | None) -> None:
+    gate = _gates.get(gate_id)
+    if gate is None:
+        raise svc.Refused(404, "no such gate")
+    verify(gate["session"], token)
+
+
 def session_env(item: dict) -> dict[str, str]:
     env = {
         "SUBFORM_ENGINE": engine_addr.base(),
         "SUBFORM_SESSION": item["id"],
         "SUBFORM_WORKTREE": item["worktree"],
         "SUBFORM_REPO": item["repo"],
+        TOKEN_ENV: _mint(item["id"]),
     }
     found = formslot.binary()
     if found:
@@ -96,16 +124,22 @@ def _public(gate: dict) -> dict:
 
 
 def open_list() -> list[dict]:
+    _prune()
     return [_public(g) for g in sorted(_gates.values(), key=lambda g: g["created"]) if g["choice"] is None]
 
 
 def _prune() -> None:
-    cutoff = time.time() - KEEP_SECONDS
+    now = time.time()
+    cutoff = now - KEEP_SECONDS
     for gate_id in [i for i, at in _closed_at.items() if at < cutoff]:
         _gates.pop(gate_id, None)
         _events.pop(gate_id, None)
-        _entered.pop(gate_id, None)
         _closed_at.pop(gate_id, None)
+        _touched.pop(gate_id, None)
+    idle = now - (WAIT_MAX + ABANDON_MARGIN)
+    for gate in [g for g in _gates.values() if g["choice"] is None]:
+        if not _waiting.get(gate["id"]) and _touched.get(gate["id"], now) < idle:
+            _close(gate, "abandoned")
 
 
 def _slots(raw: object) -> list[dict]:
@@ -127,6 +161,9 @@ def create(body: dict) -> dict:
     item = svc._sessions.get(session_id) if isinstance(session_id, str) else None
     if item is None:
         raise svc.Refused(404, "no such session")
+    mine = [g for g in _gates.values() if g["choice"] is None]
+    if len(mine) >= OPEN_TOTAL or sum(1 for g in mine if g["session"] == session_id) >= OPEN_PER_SESSION:
+        raise svc.Refused(429, "too many open gates")
     tokens = body.get("tokens")
     gate = {
         "id": uuid.uuid4().hex[:16],
@@ -141,9 +178,9 @@ def create(body: dict) -> dict:
     }
     _gates[gate["id"]] = gate
     _events[gate["id"]] = asyncio.Event()
-    _entered[gate["id"]] = None
+    _touched[gate["id"]] = time.time()
     if item["state"] == "working":
-        _entered[gate["id"]] = {"prior": item.get("lastMessage")}
+        _prior[session_id] = item.get("lastMessage")
         first = gate["slots"][0]["id"] if gate["slots"] else "a reusable slot"
         svc._set_state(item, "needs-input", f"Existing slot found: {first}")
     svc._publish("gate", _public(gate))
@@ -159,9 +196,12 @@ def _close(gate: dict, choice: str) -> None:
     if item is not None:
         if choice in ("use", "adapt") and gate["tokens"]:
             item["tokensSaved"] = int(item.get("tokensSaved") or 0) + gate["tokens"]
-        entered = _entered.get(gate["id"])
-        if entered is not None and not _others_open(gate["session"], gate["id"]) and item["state"] == "needs-input":
-            svc._set_state(item, "working", entered["prior"] or "Working")
+        if gate["session"] in _prior and not _others_open(gate["session"], gate["id"]):
+            prior = _prior.pop(gate["session"])
+            if item["state"] == "needs-input":
+                svc._set_state(item, "working", prior or "Working")
+            else:
+                svc._changed(item)
         else:
             svc._changed(item)
     event = _events.get(gate["id"])
@@ -189,21 +229,31 @@ async def wait(gate_id: str, timeout: float, request) -> dict:
     limit = max(0.5, min(float(timeout), WAIT_MAX))
     deadline = time.monotonic() + limit
     event = _events[gate_id]
-    while gate["choice"] is None:
-        left = deadline - time.monotonic()
-        if left <= 0:
-            _close(gate, "timeout")
-            break
-        try:
-            await asyncio.wait_for(event.wait(), min(1.0, left))
-        except asyncio.TimeoutError:
-            if await request.is_disconnected():
-                _close(gate, "abandoned")
+    _waiting[gate_id] = _waiting.get(gate_id, 0) + 1
+    try:
+        while gate["choice"] is None:
+            left = deadline - time.monotonic()
+            if left <= 0:
+                _close(gate, "timeout")
                 break
+            try:
+                await asyncio.wait_for(event.wait(), min(1.0, left))
+            except asyncio.TimeoutError:
+                if await request.is_disconnected():
+                    _close(gate, "abandoned")
+                    break
+    finally:
+        _touched[gate_id] = time.time()
+        left_over = _waiting.get(gate_id, 1) - 1
+        if left_over > 0:
+            _waiting[gate_id] = left_over
+        else:
+            _waiting.pop(gate_id, None)
     return _public(gate)
 
 
 def close_session(session_id: str) -> None:
+    _prior.pop(session_id, None)
+    _tokens.pop(session_id, None)
     for gate in [g for g in _gates.values() if g["session"] == session_id and g["choice"] is None]:
-        _entered[gate["id"]] = None
         _close(gate, "abandoned")

@@ -23,7 +23,7 @@ def port() -> int:
         return int(raw)
     try:
         found = int(json.loads((config.data_dir() / "engine.port").read_text(encoding="utf-8")).get("port", 0))
-    except (OSError, ValueError, AttributeError):
+    except (OSError, ValueError, AttributeError, TypeError):
         found = 0
     return found if found > 0 else config.BACKEND_PORT
 

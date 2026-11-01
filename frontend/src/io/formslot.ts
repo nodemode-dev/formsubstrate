@@ -91,6 +91,33 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   }
 }
 
+const WINDOW_HEADER = 'X-Subform-Window';
+let windowToken: Promise<string> | null = null;
+
+function ensureToken(): Promise<string> {
+  if (!windowToken) {
+    const fresh = request<{ token: string }>('/api/window-token', { method: 'POST' }).then((r) => r.token);
+    windowToken = fresh;
+    fresh.catch(() => { if (windowToken === fresh) windowToken = null; });
+  }
+  return windowToken;
+}
+
+async function owner<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const send = async (): Promise<T> => {
+    const headers = new Headers(init.headers);
+    headers.set(WINDOW_HEADER, await ensureToken());
+    return call<T>(path, { ...init, headers });
+  };
+  try {
+    return await send();
+  } catch (err) {
+    if (asError(err).status !== 403) throw err;
+    windowToken = null;
+    return send();
+  }
+}
+
 const post = (body?: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body ?? {}) });
 
 interface McpContent { type?: string; text?: string }
@@ -102,7 +129,7 @@ interface McpReply {
 let rpcId = 0;
 
 async function tool<T>(name: string, args: Record<string, unknown>): Promise<T> {
-  const reply = await call<McpReply>('/api/formslot/mcp', post({ jsonrpc: '2.0', id: ++rpcId, method: 'tools/call', params: { name, arguments: args } }));
+  const reply = await owner<McpReply>('/api/formslot/mcp', post({ jsonrpc: '2.0', id: ++rpcId, method: 'tools/call', params: { name, arguments: args } }));
   if (reply.error) throw new FormslotError(reply.error.message ?? 'formslot error', 0);
   const r = reply.result;
   if (!r) throw new FormslotError('formslot answered without a result', 0);
@@ -118,11 +145,11 @@ async function tool<T>(name: string, args: Record<string, unknown>): Promise<T> 
 
 export const formslot = {
   status: (): Promise<FormslotStatus> => call<FormslotStatus>('/api/formslot/status'),
-  start: (): Promise<FormslotStatus> => call<FormslotStatus>('/api/formslot/start', post()),
-  index: (path?: string): Promise<ActionResult> => call<ActionResult>('/api/formslot/index', post(path ? { path } : {})),
-  install: (mode: InstallMode): Promise<ActionResult> => call<ActionResult>('/api/formslot/install', post({ mode })),
-  confirm: (id: string): Promise<ActionResult> => call<ActionResult>('/api/formslot/confirm', post({ id })),
-  drift: (): Promise<DriftReport> => call<DriftReport>('/api/formslot/drift'),
+  start: (): Promise<FormslotStatus> => owner<FormslotStatus>('/api/formslot/start', post()),
+  index: (path?: string): Promise<ActionResult> => owner<ActionResult>('/api/formslot/index', post(path ? { path } : {})),
+  install: (mode: InstallMode): Promise<ActionResult> => owner<ActionResult>('/api/formslot/install', post({ mode })),
+  confirm: (id: string): Promise<ActionResult> => owner<ActionResult>('/api/formslot/confirm', post({ id })),
+  drift: (): Promise<DriftReport> => owner<DriftReport>('/api/formslot/drift'),
   find: (query: string, limit = 12): Promise<{ hits: SlotHit[] }> => tool<{ hits: SlotHit[] }>('slot_find', { query, limit, response_format: 'concise' }),
   get: (id: string): Promise<SlotDetail> => tool<SlotDetail>('slot_get', { id }),
   similar: (target: string, limit = 10): Promise<{ similar: SlotCopy[] }> => tool<{ similar: SlotCopy[] }>('slot_similar', { target, limit }),
@@ -132,7 +159,7 @@ export const formslot = {
 
 export const gates = {
   list: (): Promise<Gate[]> => call<{ gates: Gate[] }>('/api/gates').then((r) => r.gates),
-  answer: (id: string, choice: GateChoice): Promise<unknown> => call<unknown>(`/api/gates/${encodeURIComponent(id)}/answer`, post({ choice })),
+  answer: (id: string, choice: GateChoice): Promise<unknown> => owner<unknown>(`/api/gates/${encodeURIComponent(id)}/answer`, post({ choice })),
 };
 
 export const isGate = (v: unknown): v is Gate => {
@@ -151,7 +178,9 @@ export const asGate = (raw: unknown): Gate | null => {
     tool: typeof o.tool === 'string' ? o.tool : '',
     path: typeof o.path === 'string' ? o.path : '',
     message: typeof o.message === 'string' ? o.message : '',
-    slots: Array.isArray(o.slots) ? o.slots.filter((s) => s && typeof s.id === 'string') : [],
+    slots: Array.isArray(o.slots)
+      ? o.slots.filter((s) => s && typeof s.id === 'string' && typeof s.path === 'string').map((s) => ({ id: s.id, path: s.path, line: typeof s.line === 'number' && s.line >= 0 ? s.line : 0 }))
+      : [],
     tokens: typeof o.tokens === 'number' ? o.tokens : 0,
     created: o.created ?? 0,
     choice: typeof o.choice === 'string' ? o.choice : null,
@@ -172,6 +201,8 @@ class FormslotState {
   private current: FormslotStatus | null = null;
   private failure = '';
   private starting = false;
+  private startInflight: Promise<void> | null = null;
+  private driftGen = 0;
   private inflight: Promise<FormslotStatus | null> | null = null;
   private timer = 0;
   private enabled = true;
@@ -196,7 +227,7 @@ class FormslotState {
   get activeSession(): string | null { return this.selected; }
 
   get phase(): FormslotPhase {
-    if (this.failure && !this.current) return 'unreachable';
+    if (this.failure) return 'unreachable';
     const s = this.current;
     if (!s) return 'unknown';
     if (!s.installed) return 'missing';
@@ -242,20 +273,24 @@ class FormslotState {
     return this.inflight;
   }
 
-  async start(): Promise<void> {
-    if (this.starting) return;
+  start(): Promise<void> {
+    if (this.startInflight) return this.startInflight;
     this.starting = true;
     this.emit('status');
-    try {
-      this.current = await formslot.start();
-      this.failure = '';
-    } catch (err) {
-      this.starting = false;
-      this.emit('status');
-      throw asError(err);
-    }
-    this.starting = false;
-    this.emit('status');
+    const run = (async () => {
+      try {
+        this.current = await formslot.start();
+        this.failure = '';
+      } catch (err) {
+        throw asError(err);
+      } finally {
+        this.starting = false;
+        this.startInflight = null;
+        this.emit('status');
+      }
+    })();
+    this.startInflight = run;
+    return run;
   }
 
   driftFor(path: string): DriftFile | undefined { return this.driftMap.get(path); }
@@ -264,23 +299,29 @@ class FormslotState {
 
   ensureDrift(force = false): Promise<void> {
     if (!this.enabled || !this.current?.installed) return Promise.resolve();
-    if (this.driftInflight) return this.driftInflight;
+    if (this.driftInflight) return force ? this.driftInflight.then(() => this.ensureDrift(true)) : this.driftInflight;
     if (!force && Date.now() - this.driftAt < DRIFT_MAX_AGE_MS) return Promise.resolve();
-    this.driftInflight = formslot.drift().then((r) => {
+    const gen = this.driftGen;
+    const run: Promise<void> = formslot.drift().then((r) => {
+      if (gen !== this.driftGen) return;
       const next = new Map<string, DriftFile>();
       for (const f of r.files ?? []) if (f && typeof f.path === 'string') next.set(f.path, f);
       this.driftMap = next;
     }).catch(() => {
-      this.driftMap = new Map();
+      if (gen === this.driftGen) this.driftMap = new Map();
     }).then(() => {
+      if (gen !== this.driftGen) return;
       this.driftAt = Date.now();
       this.driftInflight = null;
       this.emit('drift');
     });
-    return this.driftInflight;
+    this.driftInflight = run;
+    return run;
   }
 
   forgetDrift(): void {
+    this.driftGen++;
+    this.driftInflight = null;
     this.driftAt = 0;
     this.driftMap = new Map();
     this.emit('drift');
