@@ -1,7 +1,9 @@
 import { activateAll } from './extensions/registry';
 import { PATHS_CHANGED, type PathsChanged } from './extensions/files';
 import './extensions/search';
+import { setTerminalHook } from './extensions/sessions';
 import { systemStatus } from './io/api';
+import { sessionsClient } from './io/sessions';
 import { forgetRecent, readFile, recentWorkspaces, writeFile } from './io/workspace';
 import { CaptionButtons, wantsCustomTitleBar } from './ui/caption-buttons';
 import { CommandPalette } from './ui/command-palette';
@@ -22,6 +24,7 @@ import { applyUiFontSize, autoUiScale, followSystemTheme, loadPrefs, setUiScale,
 import { SettingsDialog } from './ui/settings';
 import { StatusBar } from './ui/status';
 import { Tabs } from './ui/tabs';
+import { TerminalDock } from './ui/terminal-dock';
 import { THEMES, applyTheme, readChoice, setTheme } from './ui/themes';
 import { TitleTools } from './ui/titlebar-tools';
 import { toast } from './ui/toast';
@@ -159,6 +162,7 @@ export async function startApp(): Promise<void> {
   const later = new Set<string>();
   const soon = (cmd: Command): Command => { later.add(cmd.id); return { ...cmd, enabled: () => false }; };
   commands.blocked = (cmd) => (later.has(cmd.id) ? t('Not available yet') : '');
+  const dock = new TerminalDock(root, commands);
 
   let lastField: HTMLElement | null = null;
   document.addEventListener('focusin', (e) => { if (textFieldFocused() && e.target instanceof HTMLElement) lastField = e.target; }, true);
@@ -187,7 +191,7 @@ export async function startApp(): Promise<void> {
   const toggleTheme = (): void => { setTheme(THEMES[readChoice().theme]?.light ? 'studio' : 'light'); };
 
   const about = new AboutDialog();
-  const settings = new SettingsDialog({ commands, onPrefs: (p) => { applyUiPrefs(p); followSystemTheme(p); editor?.setOptions({ fontSize: p.editorFontSize, tabSize: p.editorTabSize, wordWrap: p.editorWordWrap }); } });
+  const settings = new SettingsDialog({ commands, onPrefs: (p) => { applyUiPrefs(p); followSystemTheme(p); editor?.setOptions({ fontSize: p.editorFontSize, tabSize: p.editorTabSize, wordWrap: p.editorWordWrap }); dock.refreshFont(); } });
   const palette = new CommandPalette(commands, () => menus);
   let captionButtons: CaptionButtons;
 
@@ -235,10 +239,9 @@ export async function startApp(): Promise<void> {
     { id: 'previous-tab', label: 'Previous Tab', keys: ['Alt+Mod+Left'], enabled: () => store.docs.length > 1, run: () => stepTab(-1) },
     soon({ id: 'run-task', label: 'Run Task...', keys: ['Shift+Mod+B'], run: () => undefined }),
     soon({ id: 'run-stop', label: 'Stop Task', run: () => undefined }),
-    soon({ id: 'terminal-toggle', label: 'Toggle Terminal', keys: ['Mod+J'], run: () => undefined }),
-    soon({ id: 'terminal-new', label: 'New Terminal', run: () => undefined }),
-    soon({ id: 'agent-new', label: 'New Claude Code Session', keys: ['Shift+Mod+A'], run: () => undefined }),
-    soon({ id: 'agent-sessions', label: 'Agent Sessions', run: () => undefined }),
+    { id: 'terminal-toggle', label: 'Toggle Terminal', keys: ['Mod+J'], checked: () => dock.isOpen, run: () => dock.toggle() },
+    { id: 'terminal-new', label: 'New Terminal', run: () => { void dock.create('shell'); } },
+    { id: 'terminal-new-claude', label: 'New Claude Code Terminal', run: () => { void dock.create('claude'); } },
     soon({ id: 'git-status', label: 'Git Status', run: () => undefined }),
     soon({ id: 'git-commit', label: 'Commit...', run: () => undefined }),
     { id: 'minimize', label: 'Minimize', keys: ['Mod+M'], enabled: isTauri, run: () => { void useWindow((w) => w.minimize()); } },
@@ -259,7 +262,7 @@ export async function startApp(): Promise<void> {
     { label: 'View', items: ['home-toggle', 'command-palette', '-', 'toggle-sidebar', 'focus-files', 'focus-search', '-', 'toggle-word-wrap', '-', 'toggle-theme', 'menus-in-window', 'custom-title-bar', '-', 'zoom-in', 'zoom-out', 'zoom-reset'] },
     { label: 'Go', items: ['go-to-file', '-', 'next-tab', 'previous-tab'] },
     { label: 'Run', items: ['run-task', 'run-stop'] },
-    { label: 'Terminal', items: ['terminal-toggle', 'terminal-new'] },
+    { label: 'Terminal', items: ['terminal-toggle', '-', 'terminal-new', 'terminal-new-claude'] },
     { label: 'Agents', items: ['agent-new', 'agent-sessions'] },
     { label: 'Git', items: ['git-status', 'git-commit'] },
     { label: 'Window', items: ['minimize', 'zoom'] },
@@ -267,6 +270,14 @@ export async function startApp(): Promise<void> {
   ];
 
   const home = new Home(stage, store, commands, { recent: recentWorkspaces, openPath: openFolderAt, forget: forgetRecent });
+  const syncSessions = (): void => {
+    store.setSessions(sessionsClient.summary());
+    home.setSessions(sessionsClient.homeList());
+  };
+  sessionsClient.on('sessions', syncSessions);
+  window.setInterval(() => { if (sessionsClient.summary().working > 0) home.setSessions(sessionsClient.homeList()); }, 5000);
+  syncSessions();
+  setTerminalHook({ openTerminal: (id) => { void dock.reveal(id); } });
   const brand = q(root, '.cv-brand');
   brand.setAttribute('role', 'button');
   brand.tabIndex = 0;
