@@ -25,6 +25,8 @@ def selfcheck() -> int:
     info["dist_bundled"] = os.path.isdir(os.path.join(resource_dir(), "frontend_dist"))
     try:
         import app.main
+        import app.services.gate_hook
+        import subform_ptyhost
 
         info["app"] = "ok"
     except Exception as exc:
@@ -105,6 +107,10 @@ def announce_port(server, data) -> None:
 def main() -> int:
     if (len(sys.argv) > 1 and sys.argv[1] == "selfcheck") or "--selfcheck" in sys.argv:
         return selfcheck()
+    if "--ptyhost" in sys.argv:
+        import subform_ptyhost
+
+        return subform_ptyhost.main() or 0
     from app.core import runtime
 
     runtime.apply_switches(sys.argv[1:])

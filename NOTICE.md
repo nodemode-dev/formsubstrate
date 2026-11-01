@@ -25,6 +25,32 @@ The file-by-file map from formvis and substrata paths to subform paths is kept i
 
 Transitive packages of fastapi and uvicorn[standard] (starlette, pydantic, click, h11, httptools, uvloop, watchfiles, websockets, python-dotenv, PyYAML and others) get rows when the engine is first frozen (Phase F9).
 
+Frozen with PyInstaller, these are the packages the engine folder carries besides the five direct ones (versions as installed from `requirements.txt` on 2026-10-30):
+
+| Package | Version | Licence |
+| --- | --- | --- |
+| starlette | 1.10.0 | BSD-3-Clause |
+| pydantic, pydantic_core | 2.14.2, 2.50.2 | MIT |
+| annotated-types, annotated-doc, typing-inspection | 0.8.0, 0.0.5, 0.4.4 | MIT |
+| typing_extensions | 4.16.0 | PSF-2.0 |
+| anyio, idna | 4.15.1, 3.20 | MIT, BSD-3-Clause |
+| click, h11, httpcore | 8.5.0, 0.16.0, 1.0.9 | BSD-3-Clause, MIT, BSD-3-Clause |
+| certifi | 2026.10.23 | MPL-2.0 (the CA bundle file is shipped unedited) |
+| httptools, uvloop, watchfiles | 0.9.0, 0.23.0, 1.3.0 | MIT |
+| websockets, python-dotenv, PyYAML | 17.3, 1.2.4, 6.0.3 | BSD-3-Clause, BSD-3-Clause, MIT |
+| SecretStorage (Linux keyring backend), jeepney | 3.5.0, 0.9.0 | BSD-3-Clause, MIT |
+| cryptography (via SecretStorage) | 50.0.2 | Apache-2.0 OR BSD-3-Clause |
+| cffi, pycparser | 2.1.1, 3.12 | MIT-0, BSD-3-Clause |
+| jaraco.classes, jaraco.context, jaraco.functools, more-itertools | 3.4.0, 6.1.2, 4.6.0, 11.2.1 | MIT |
+
+## Freeze tool (Python, build only)
+
+| Package | Version | Licence | Use |
+| --- | --- | --- | --- |
+| pyinstaller | 6.22.3 | GPL-2.0-or-later with the bootloader exception | build tool only: `setup/freeze_backend` freezes the engine into a one-folder app. The exception grants unlimited permission to link or embed the compiled bootloader and related files into other programs and distribute the combination, so the frozen engine in the app may be distributed under this repository's licence; its run-time hooks are Apache-2.0. The tool and its bootloader are not modified |
+| pyinstaller-hooks-contrib | 2026.9 | GPL-2.0-or-later (hooks), Apache-2.0 (run-time hooks) | build tool only; pulled by pyinstaller |
+| altgraph, packaging, setuptools | 0.17.5, 26.3, 84.2.1 | MIT, Apache-2.0 OR BSD-2-Clause, MIT | build tool only; pulled by pyinstaller |
+
 ## Window (TypeScript)
 
 | Package | Version | Licence | Use |

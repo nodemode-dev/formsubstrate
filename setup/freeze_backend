@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -e
+source "$(dirname "$0")/lib.sh"
+if [ -n "${SUBFORM_BUILD_VENV:-}" ]; then
+  source "$SUBFORM_BUILD_VENV/bin/activate"
+else
+  sf_venv
+fi
+python -c "import PyInstaller" 2>/dev/null || sf_die "PyInstaller missing: pip install -r backend/requirements_build.txt in the engine venv (build_app does this)"
+dist="${SUBFORM_FRONTEND_DIST:-$SUBFORM_ROOT/frontend/dist}"
+[ -f "$dist/index.html" ] || sf_die "the built window is missing at $dist: run ./build_app, or cd frontend && npx vite build"
+work="${SUBFORM_FREEZE_WORK:-$SUBFORM_ROOT/backend}"
+out="${SUBFORM_ENGINE_OUT:-$SUBFORM_ROOT/src-tauri/engine}"
+sep=":"
+[ "$(sf_os)" = windows ] && sep=";"
+ext=""
+[ "$(sf_os)" = windows ] && ext=".exe"
+extra=()
+[ -z "${SUBFORM_PYI_ARCH:-}" ] || extra+=(--target-arch "$SUBFORM_PYI_ARCH")
+if [ "$(sf_os)" = macos ] && [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
+  extra+=(--codesign-identity "$APPLE_SIGNING_IDENTITY" --osx-entitlements-file "$SUBFORM_ROOT/src-tauri/entitlements.plist")
+fi
+mkdir -p "$work"
+rm -rf "$work/build/pyinstaller" "$work/dist-engine"
+cd "$SUBFORM_ROOT/backend"
+pyinstaller --noconfirm --clean --onedir --name subform-engine \
+  --distpath "$work/dist-engine" --workpath "$work/build/pyinstaller" --specpath "$work/build/pyinstaller" \
+  --add-data "$dist${sep}frontend_dist" \
+  --collect-submodules app --collect-submodules uvicorn --collect-submodules keyring \
+  --copy-metadata keyring \
+  --hidden-import subform_ptyhost --hidden-import ptyprocess \
+  --hidden-import app.services.gate_hook \
+  --exclude-module tkinter \
+  ${extra[@]+"${extra[@]}"} \
+  "$SUBFORM_ROOT/backend/subform_engine.py"
+rm -rf "$out"
+mkdir -p "$(dirname "$out")"
+cp -R "$work/dist-engine/subform-engine" "$out"
+"$out/subform-engine$ext" --selfcheck
+sf_say "engine folder ready: $out ($(du -sh "$out" | awk '{print $1}'))"

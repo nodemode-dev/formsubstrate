@@ -326,3 +326,23 @@ The package now holds ptyhost_client.py and sessions.py (Phase F5); their entrie
 - kind: todo
 - logged: v0.1.0 · 2026-10-30
 - None is called by a kept script. `install_backend` and `install_frontend` were thin wrappers the root script never used. Freeze, desktop and packaging scripts return with porting-map step 15; mcp_stdio.py and agents.py with step 14; `collect_licenses.py` should be ported before the first release for NOTICE.md.
+
+### setup/freeze_backend · one-folder engine
+- refers-to: setup/freeze_backend :: pyinstaller
+- kind: explainer
+- logged: v0.10.0 · 2026-10-30
+- Ported from formvis `setup/freeze_backend` (Apache-2.0, owner's). Differences: always `--onedir` (B04: signable file by file, fast start, no `_MEI` unpack folder), output `src-tauri/engine`, no ML or FFmpeg branches, hidden imports `subform_ptyhost`, `ptyprocess` (`winpty` in the .bat) and `app.services.gate_hook` (the hook script is a string constant, so no data file), `--collect-submodules` for app, uvicorn and keyring, `--copy-metadata keyring`. The window goes in as `frontend_dist`, which `subform_engine.py` already reads. Environment overrides used for builds outside the tree: `SUBFORM_BUILD_VENV`, `SUBFORM_FRONTEND_DIST`, `SUBFORM_FREEZE_WORK`, `SUBFORM_ENGINE_OUT`. With `APPLE_SIGNING_IDENTITY` PyInstaller signs the folder with `src-tauri/entitlements.plist`. `backend/requirements_build.txt` pins PyInstaller 6.22.3 and its hooks 2026.9; it is separate from `requirements.txt` so the tool never reaches the engine's own install.
+
+### subform_engine.py · main
+- refers-to: backend/subform_engine.py :: main
+- kind: warning-context
+- logged: v0.10.0 · 2026-10-30
+- Found while freezing: `ptyhost_client.host_command` starts a frozen engine as `subform-engine --ptyhost --data-dir <dir>`, but `main()` has no `--ptyhost` branch, so the frozen binary starts a second engine instead of the pty host (checked: it printed a uvicorn banner on a random port). The fix belongs in the engine entry, before `runtime.claim`: when `--ptyhost` is in argv, `import subform_ptyhost` and `return subform_ptyhost.main()`. The module is already frozen in.
+
+### backend/subform_engine.py · main (--ptyhost)
+
+- refers-to: backend/subform_engine.py :: main, selfcheck
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+A frozen engine is one program, so the pty-host is started as `subform-engine --ptyhost --data-dir X`; main now hands that to `subform_ptyhost.main()` before claiming the engine lock, which reads its own arguments. Without it the frozen app started a second full engine and its terminals did not work. The selfcheck also imports the gate hook module and the pty-host so a freeze that misses them fails its check.

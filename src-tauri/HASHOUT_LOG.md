@@ -291,3 +291,23 @@ src-tauri/
 - kind: todo
 - logged: v0.1.0 · 2026-10-30
 - Renderer crash recovery and interface zoom return when the page needs them; they bring webkit2gtk (Linux) back as a dependency.
+
+### tauri.conf.json · bundle.resources passed by build_app
+- refers-to: build_app :: tauri_args
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+- The frozen engine is a PyInstaller one-folder tree, which `externalBin` cannot carry (it takes one file named with a target triple), so it ships as the resource `engine` and `packaged.rs` runs `engine/subform-engine`. `build_app` adds `bundle.resources` with `--config` on every platform instead of storing it in `tauri.conf.json`, because tauri-build refuses to compile when a listed resource folder is missing, which would break `cargo build` and `tauri dev` for anyone without a frozen engine. `tauri.macos.conf.json` keeps its own entry for a direct macOS `tauri build`. `tauri.conf.json`, `Cargo.toml` and the capabilities are unchanged: name, identifier, version 0.8.0, icons, the macOS hardened runtime and `entitlements.plist` were already set, and the Rust side spawns the engine itself so the shell plugin needs no sidecar permission.
+
+### src/packaged.rs · Linux and Windows lookup
+- refers-to: src-tauri/src/packaged.rs :: engine_folder
+- kind: todo
+- logged: v0.10.0 · 2026-10-30
+- `engine_folder` checks `../Resources/engine` (macOS) and `engine` beside the executable (Windows, a bare Linux binary). A Linux `.deb` or AppImage puts bundle resources in `../lib/subform/engine` relative to the executable, so that candidate has to be added before a Linux package can start its engine. Not edited here: the file belongs to the shell owner.
+
+### src-tauri/src/packaged.rs · engine_folder (Linux packages)
+
+- refers-to: src-tauri/src/packaged.rs :: engine_folder
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+The third candidate `../lib/subform/engine` is where a `.deb` or AppImage places the bundle resources, so a Linux package finds its frozen engine; macOS (`../Resources/engine`) and a bare binary with `engine/` beside it are unchanged.
