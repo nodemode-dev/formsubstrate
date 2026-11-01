@@ -56,8 +56,8 @@ export function readFile(path: string): Promise<FileContent> {
   return request<FileContent>(`/api/workspace/file?path=${encodeURIComponent(path)}`);
 }
 
-export function writeFile(path: string, text: string, expectedMtime: number | null): Promise<FileSaved> {
-  return request<FileSaved>('/api/workspace/file', { method: 'PUT', body: JSON.stringify({ path, text, expectedMtime }) });
+export function writeFile(path: string, text: string, expectedMtime: number | null, create = false): Promise<FileSaved> {
+  return request<FileSaved>('/api/workspace/file', { method: 'PUT', body: JSON.stringify({ path, text, expectedMtime, create }) });
 }
 
 export async function makeDir(path: string): Promise<void> {

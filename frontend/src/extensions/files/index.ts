@@ -344,7 +344,7 @@ class FilesTree {
     if (!name) return;
     const path = joinPath(dir, name);
     try {
-      if (kind === 'file') await writeFile(path, '', null); else await makeDir(path);
+      if (kind === 'file') await writeFile(path, '', null, true); else await makeDir(path);
     } catch (err) {
       this.fail(err);
       return;

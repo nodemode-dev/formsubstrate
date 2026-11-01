@@ -237,12 +237,13 @@ export class EditorHost {
     setHidden(this.empty, false);
   }
 
-  async open(path: string, line?: number, col?: number): Promise<void> {
+  async open(path: string, line?: number, col?: number): Promise<boolean> {
     const seq = ++this.showSeq;
     const d = await this.ensure(path);
-    if (!d) return;
-    if (seq === this.showSeq) this.swapTo(d);
-    if (line !== undefined && this.current === d) this.placeCursor(line, col);
+    if (!d || seq !== this.showSeq) return false;
+    this.swapTo(d);
+    if (line !== undefined) this.placeCursor(line, col);
+    return true;
   }
 
   show(path: string): void {

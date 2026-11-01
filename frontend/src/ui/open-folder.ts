@@ -1,5 +1,5 @@
 import { openWorkspace } from '../io/workspace';
-import { promptName } from './dialogs';
+import { confirmAction, promptName } from './dialogs';
 import { t } from './i18n';
 import { toast } from './toast';
 import { workspace as store } from './workspace-store';
@@ -17,6 +17,7 @@ async function pickPath(): Promise<string | null> {
 }
 
 export async function openFolderAt(path: string): Promise<void> {
+  if (store.docs.some((d) => d.modified) && !(await confirmAction('Open another folder', t('Files in this folder have unsaved changes. Opening another folder closes them without saving.'), 'Open', true))) return;
   const info = await openWorkspace(path);
   store.setWorkspace(info);
 }

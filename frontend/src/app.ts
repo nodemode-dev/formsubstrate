@@ -144,12 +144,12 @@ export async function startApp(): Promise<void> {
   let editor: EditorHost | null = null;
   const openInEditor = async (path: string, line?: number, col?: number): Promise<void> => {
     if (!editor) return;
-    await editor.open(path, line, col);
+    if (!(await editor.open(path, line, col))) return;
     store.openDoc({ id: path, path, name: path.split('/').pop() || path, modified: editor.isDirty(path) });
   };
   const wb = new Workbench(stage, {
     store,
-    editor: () => (editor ? { open: openInEditor, revealLine: (p: string, l: number, c?: number) => editor?.revealLine(p, l, c) } : null),
+    editor: () => (editor ? { open: openInEditor, revealLine: openInEditor } : null),
     setHint: (s) => status.setHint(s),
     flashError: (s) => status.flashError(s),
   });
@@ -195,14 +195,17 @@ export async function startApp(): Promise<void> {
     { id: 'open-folder', label: 'Open Folder...', keys: ['Mod+O'], run: () => { void openFolderPrompt(); } },
     { id: 'open-recent', label: 'Open Recent', run: () => home.show('recent') },
     { id: 'home-toggle', label: 'Home', run: () => home.toggle() },
-    { id: 'home-back', label: 'Back', keys: ['Escape'], enabled: () => home.isOpen && !!store.workspace, run: () => home.hide() },
+    { id: 'home-back', label: 'Back', keys: ['Escape'], enabled: () => home.isOpen && !!store.workspace && !textFieldFocused(), run: () => home.hide() },
     soon({ id: 'clone-repo', label: 'Clone Repo...', run: () => undefined }),
     soon({ id: 'new-form-app', label: 'New Form App', run: () => undefined }),
     { id: 'save', label: 'Save', keys: ['Mod+S'], enabled: () => !!store.active, run: () => { void editor?.save(); } },
     { id: 'save-all', label: 'Save All', keys: ['Alt+Mod+S'], enabled: () => store.docs.some((d) => d.modified), run: () => { void editor?.saveAll(); } },
     { id: 'close-tab', label: 'Close Tab', keys: ['Mod+W'], enabled: () => !!store.active, run: () => { if (store.active) void requestClose(store.active.id); } },
     { id: 'settings', label: 'Preferences...', keys: ['Mod+,'], run: () => settings.open() },
-    { id: 'quit', label: 'Quit', run: () => { if (isTauri()) void useWindow((w) => w.close()); else window.close(); } },
+    { id: 'quit', label: 'Quit', run: () => { void (async () => {
+      if (store.docs.some((d) => d.modified) && !(await confirmAction('Quit without saving', t('Some files have unsaved changes.'), 'Quit', true))) return;
+      if (isTauri()) void useWindow((w) => w.close()); else window.close();
+    })(); } },
     edit('undo', 'Undo', ['Mod+Z']),
     edit('redo', 'Redo', ['Shift+Mod+Z']),
     edit('cut', 'Cut', ['Mod+X']),
@@ -287,8 +290,21 @@ export async function startApp(): Promise<void> {
   store.on('active', (id) => { if (id) editor?.show(id); });
   window.addEventListener(PATHS_CHANGED, (e) => {
     const { from } = (e as CustomEvent<PathsChanged>).detail;
-    for (const d of [...store.docs]) if (d.path === from || d.path.startsWith(`${from}/`)) { editor?.close(d.path); store.closeDoc(d.id); }
+    for (const d of [...store.docs]) {
+      if (d.path !== from && !d.path.startsWith(`${from}/`)) continue;
+      if (d.modified) { toast(`${d.name}: ${t('kept open with unsaved changes; saving writes it back under its old path.')}`, 'info'); continue; }
+      editor?.close(d.path);
+      store.closeDoc(d.id);
+    }
   });
+  let shownRoot = store.workspace?.path ?? '';
+  store.on('workspace', (ws) => {
+    const next = ws?.path ?? '';
+    if (next === shownRoot) return;
+    shownRoot = next;
+    for (const d of [...store.docs]) { editor?.close(d.path); store.closeDoc(d.id); }
+  });
+  window.addEventListener('beforeunload', (e) => { if (store.docs.some((d) => d.modified)) e.preventDefault(); });
 
   let native: NativeMenus | null = null;
   if (wantsNativeMenus()) {
