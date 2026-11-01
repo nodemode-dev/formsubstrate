@@ -1,4 +1,5 @@
 import { request } from './api';
+import { trustQuery } from './trust';
 
 export interface DebugCandidate { python: string; source: string; debugpy: string | null }
 
@@ -68,7 +69,7 @@ export class DapConnection {
     const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
     return new Promise((resolve, reject) => {
       let ws: WebSocket;
-      try { ws = new WebSocket(`${scheme}://${location.host}${WS_PATH}`); } catch (err) { reject(err instanceof Error ? err : new Error(String(err))); return; }
+      try { ws = new WebSocket(`${scheme}://${location.host}${WS_PATH}${trustQuery('?')}`); } catch (err) { reject(err instanceof Error ? err : new Error(String(err))); return; }
       this.ws = ws;
       const timer = window.setTimeout(() => { reject(new Error('The engine did not answer')); this.close(); }, OPEN_TIMEOUT_MS);
       ws.onopen = () => { window.clearTimeout(timer); resolve(); };

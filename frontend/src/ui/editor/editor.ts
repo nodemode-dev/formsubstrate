@@ -66,6 +66,7 @@ const searchPhrases = (): Record<string, string> => ({
 export class EditorHost {
   extensionsFor: (path: string) => Extension[] = () => [];
   onClosed: (path: string) => void = () => undefined;
+  onChanged: (path: string) => void = () => undefined;
 
   private readonly root: HTMLElement;
   private readonly empty: HTMLElement;
@@ -141,7 +142,7 @@ export class EditorHost {
 
   private onUpdate(d: Doc, u: ViewUpdate): void {
     if (this.current !== d) return;
-    if (u.docChanged) this.syncDirty(d, u.state.doc);
+    if (u.docChanged) { this.syncDirty(d, u.state.doc); this.onChanged(d.path); }
     if (u.docChanged || u.selectionSet) this.reportPosition(u.state);
   }
 
@@ -301,6 +302,11 @@ export class EditorHost {
 
   isDirty(path: string): boolean {
     return this.docs.get(path)?.dirty ?? false;
+  }
+
+  textOf(path: string): string | null {
+    const d = this.docs.get(path);
+    return d ? this.liveState(d).doc.toString() : null;
   }
 
   dirtyPaths(): string[] {

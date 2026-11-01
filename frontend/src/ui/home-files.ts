@@ -2,7 +2,7 @@ import { el, patchList, q, setClass, setHidden, setText, setTitle } from './dom'
 import { t } from './i18n';
 import { icon } from './icons';
 
-export interface RecentEntry { path: string; name: string; opened: string; formRepo?: boolean }
+export interface RecentEntry { path: string; name: string; opened: string; formRepo?: boolean; branch?: string | null; changed?: number; missing?: boolean }
 
 export interface HomeFilesDeps {
   open: (path: string) => void;
@@ -48,7 +48,7 @@ export class HomeFiles {
         <button class="cv-hf-view" type="button" data-view="list" title="${t('List')}" aria-label="${t('List')}">${icon('viewList', 16)}</button>
       </div>
     </div>
-    <div class="cv-hf-head" aria-hidden="true"><span></span><span>${t('Name')}</span><span>${t('Path')}</span><span>${t('Last opened')}</span><span></span><span></span></div>
+    <div class="cv-hf-head" aria-hidden="true"><span></span><span>${t('Name')}</span><span>${t('Path')}</span><span>${t('Branch')}</span><span>${t('Last opened')}</span><span></span><span></span></div>
     <div class="cv-hf-items" role="list"></div>
     <p class="cv-hf-empty" hidden></p>
   </div>`);
@@ -123,7 +123,7 @@ export class HomeFiles {
 
   private row(e: RecentEntry): HTMLElement {
     const n = el(`<div class="cv-hf-item" role="listitem">
-      <button class="cv-hf-open" type="button"><span class="cv-hf-thumb"><span class="cv-hf-glyph">${icon('folder', 22)}</span></span><span class="cv-hf-name"></span><span class="cv-hf-kind"></span><span class="cv-hf-when"></span><span class="cv-hf-badge" hidden>${t('Form repo')}</span></button>
+      <button class="cv-hf-open" type="button"><span class="cv-hf-thumb"><span class="cv-hf-glyph">${icon('folder', 22)}</span></span><span class="cv-hf-name"></span><span class="cv-hf-kind"></span><span class="cv-hf-git"><span class="cv-hf-branch"></span><span class="cv-hf-changed" hidden></span></span><span class="cv-hf-when"></span><span class="cv-hf-badge" hidden>${t('Form repo')}</span></button>
       <button class="cv-hf-remove" type="button" title="${t('Remove from Recent')}" aria-label="${t('Remove from Recent')}">${icon('close', 12)}</button>
     </div>`);
     this.fillRow(n, e);
@@ -133,7 +133,13 @@ export class HomeFiles {
   private fillRow(n: HTMLElement, e: RecentEntry): void {
     setText(q(n, '.cv-hf-name'), e.name);
     setText(q(n, '.cv-hf-kind'), e.path);
-    setText(q(n, '.cv-hf-when'), e.path === this.current ? t('Open now') : whenText(e.opened));
+    const git = q(n, '.cv-hf-git'), changed = q(n, '.cv-hf-changed');
+    setText(q(n, '.cv-hf-branch'), e.branch ?? '');
+    setHidden(q(git, '.cv-hf-branch'), !e.branch);
+    setText(changed, e.changed ? `${e.changed} ${t('changed')}` : '');
+    setHidden(changed, !e.changed);
+    setClass(n, 'is-missing', !!e.missing);
+    setText(q(n, '.cv-hf-when'), e.missing ? t('Missing') : e.path === this.current ? t('Open now') : whenText(e.opened));
     setHidden(q(n, '.cv-hf-badge'), !e.formRepo);
     setTitle(q(n, '.cv-hf-open'), e.path);
     setClass(n, 'is-current', e.path === this.current);

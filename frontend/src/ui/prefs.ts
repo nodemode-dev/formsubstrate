@@ -37,6 +37,9 @@ export interface Prefs {
   largeTabs: boolean;
   reopenLastWorkspace: boolean;
   hiddenFolders: string[];
+  allowTypedPaths: boolean;
+  trustedWorkspaces: string[];
+  trustAsked: string[];
   sidebarWidth: number;
   prefsRevision: number;
 }
@@ -49,11 +52,11 @@ export const RECOVERY_CHOICES: ReadonlyArray<readonly [string, string]> = [['1',
 export const DEFAULT_PREFS: Prefs = {
   language: 'en', uiFontSize: 'default', animations: true, showTooltips: true, noticeSeconds: 0,
   autoShowHome: true, homeOnLastClose: false, whatsNewAuto: true, whatsNewSeen: '',
-  favouriteThemes: [], themeAuto: false, themeLight: 'light', themeDark: 'studio',
+  favouriteThemes: [], themeAuto: false, themeLight: 'light', themeDark: 'substrata',
   shortcuts: {}, shortcutSets: {}, menuHidden: [], menuColors: {}, dialogValues: {},
   editorFontSize: 13, editorTabSize: 2, editorWordWrap: true, terminalFontSize: 13, terminalDockHeight: 260,
   agentDefaultModel: '', formslotEnabled: true, formslotAutoStart: true, gitSignOnCommit: true, recoveryMinutes: 1,
-  largeTabs: false, reopenLastWorkspace: true, hiddenFolders: [], sidebarWidth: 280, prefsRevision: 2,
+  largeTabs: false, reopenLastWorkspace: true, hiddenFolders: [], allowTypedPaths: false, trustedWorkspaces: [], trustAsked: [], sidebarWidth: 280, prefsRevision: 3,
 };
 
 const KEY = 'subform.prefs';
@@ -152,6 +155,9 @@ export function loadPrefs(): Prefs {
       largeTabs: flag(r.largeTabs, d.largeTabs),
       reopenLastWorkspace: flag(r.reopenLastWorkspace, d.reopenLastWorkspace),
       hiddenFolders: strings(r.hiddenFolders, 200, 200),
+      allowTypedPaths: r.allowTypedPaths === true,
+      trustedWorkspaces: Array.from(new Set(strings(r.trustedWorkspaces, 200, 1024))),
+      trustAsked: Array.from(new Set(strings(r.trustAsked, 200, 1024))),
       sidebarWidth: Math.round(num(r.sidebarWidth, 180, 600, d.sidebarWidth)),
       prefsRevision: d.prefsRevision,
     };

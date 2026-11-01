@@ -1,4 +1,4 @@
-export interface WorkspaceInfo { path: string; name: string; isFormRepo: boolean; branch: string }
+export interface WorkspaceInfo { path: string; name: string; isFormRepo: boolean; branch: string; localTools?: string[] }
 export interface OpenDoc { id: string; path: string; name: string; modified: boolean }
 export interface Job { id: string; label: string; progress: number; done: boolean; cancel?: () => void }
 export interface SessionsSummary { working: number; needsInput: number }

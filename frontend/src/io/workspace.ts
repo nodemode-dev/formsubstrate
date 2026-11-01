@@ -1,9 +1,11 @@
 import { request } from './api';
 import type { WorkspaceInfo } from '../ui/workspace-store';
 
-interface WorkspaceReply { root: string; name: string; isFormRepo: boolean; branch: string }
+interface WorkspaceReply { root: string; name: string; isFormRepo: boolean; branch: string; localTools?: string[] }
 
-export interface RecentWorkspace { path: string; name: string; opened: string; formRepo?: boolean }
+export interface RecentWorkspace { path: string; name: string; opened: string; formRepo?: boolean; branch?: string | null; changed?: number; missing?: boolean }
+export interface BrowseEntry { name: string; path: string; kind: EntryKind }
+export interface BrowseListing { path: string; parent: string | null; home: string; roots: string[]; entries: BrowseEntry[]; truncated: boolean }
 export type EntryKind = 'file' | 'dir';
 export interface DirEntry { name: string; path: string; kind: EntryKind; size: number; mtime: number }
 export interface DirListing { path: string; entries: DirEntry[] }
@@ -15,7 +17,12 @@ export interface SearchOptions { q: string; regex?: boolean; caseSensitive?: boo
 
 const json = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) });
 
-const info = (r: WorkspaceReply): WorkspaceInfo => ({ path: r.root, name: r.name, isFormRepo: r.isFormRepo, branch: r.branch });
+const info = (r: WorkspaceReply): WorkspaceInfo => ({ path: r.root, name: r.name, isFormRepo: r.isFormRepo, branch: r.branch, localTools: r.localTools ?? [] });
+
+export function browseDir(path: string, files: boolean, hidden: boolean): Promise<BrowseListing> {
+  const p = new URLSearchParams({ path, files: String(files), hidden: String(hidden) });
+  return request<BrowseListing>(`/api/workspace/browse?${p.toString()}`);
+}
 
 export function statusOf(err: unknown): number {
   const m = err instanceof Error ? /^(\d{3})\b/.exec(err.message) : null;

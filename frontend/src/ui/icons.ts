@@ -92,10 +92,17 @@ export const ICONS: Record<string, string> = {
   session: `<svg ${S}><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/><path d="M12 3.5v1.6"/></svg>`,
   slot: `<svg ${S}><rect x="4" y="3.5" width="16" height="4.4" rx="2.2"/><rect x="4" y="9.8" width="16" height="4.4" rx="2.2"/><rect x="4" y="16.1" width="16" height="4.4" rx="2.2"/></svg>`,
   debugContinue: `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="4.5" y="5" width="2.4" height="14" rx="1"/><path d="M10 5.8v12.4a.8.8 0 0 0 1.25.66l9-6.2a.8.8 0 0 0 0-1.32l-9-6.2A.8.8 0 0 0 10 5.8z"/></svg>`,
+  shield: `<svg ${S}><path d="M12 3.5 5 6v5.6c0 4.2 2.9 7.4 7 8.9 4.1-1.5 7-4.7 7-8.9V6z"/><path d="m9 12 2.2 2.2L15.2 10"/></svg>`,
   stepOver: `<svg ${S}><path d="M5 13a7 7 0 0 1 12.2-4.7M18.2 4.2v4.4h-4.4"/><circle cx="12" cy="18.5" r="1.7" fill="currentColor" stroke="none"/></svg>`,
   stepInto: `<svg ${S}><path d="M12 3.5v10M8 9.5l4 4 4-4"/><circle cx="12" cy="19" r="1.7" fill="currentColor" stroke="none"/></svg>`,
   stepOut: `<svg ${S}><path d="M12 13.5v-10M8 7.5l4-4 4 4"/><circle cx="12" cy="19" r="1.7" fill="currentColor" stroke="none"/></svg>`,
   bug: `<svg ${S}><rect x="8" y="8" width="8" height="11" rx="4"/><path d="M9.5 8a2.5 2.5 0 0 1 5 0M4 12h4M16 12h4M5 6.5l3 2.5M19 6.5 16 9M5 18l3-2.3M19 18l-3-2.3M12 11v8"/></svg>`,
+  previewSide: `<svg ${S}><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M12 4.5v15M15 9h3M15 12h3M15 15h2"/></svg>`,
+  fitScreen: `<svg ${S}><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/><rect x="8.5" y="8.5" width="7" height="7" rx="1"/></svg>`,
+  actualSize: `<svg ${S}><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M8.5 9.5 10.5 8v8M14 9a1.6 1.6 0 0 1 3.2 0v6a1.6 1.6 0 0 1-3.2 0z"/></svg>`,
+  audioWave: `<svg ${S}><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 10.5v3"/></svg>`,
+  graph: `<svg ${S}><circle cx="6" cy="6.5" r="2.2"/><circle cx="18" cy="8" r="2.2"/><circle cx="12" cy="18" r="2.2"/><path d="M8 7l8 .7M7.2 8.4l3.6 7.6M16.8 10l-3.6 6.2"/></svg>`,
+  fit: `<svg ${S}><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>`,
 };
 
 export function icon(name: string, size = 16): string {

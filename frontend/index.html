@@ -17,10 +17,12 @@
   <script>
 (function () {
   var KEY = 'nodemode_ui_settings';
-  var DEFAULT_THEME = 'studio';
+  var DEFAULT_THEME = 'substrata';
+  var ACCENTS = { 'substrata': '#c661ff' };
   var DEFAULT_ACCENT = '#f97316';
   var LIGHT = { 'light': 1, 'sand': 1, 'nineties': 1, 'duck': 1, 'pro-light-grey': 1, 'pro-light': 1, 'classic': 1, 'adwaita-light': 1, 'soft-light': 1 };
   var PROFILES = {
+    'substrata':     ['#07030a', '#100d13', '#1a1620', '#261f2c', '#372f3f', '#f4f1f6', '#ac9cb4', '#7d6f85', '#07030a', 'rgba(198,97,255,0.06)', '#100d13'],
     'studio':        ['#111111', '#17151b', '#222127', '#2a2a2a', '#34333a', '#f7f7f7', '#a4a4a4', '#717072', '#1c1b1d', '#5e5e60', '#191919'],
     'nodemode-dark': ['#0a0a0a', '#121218', '#1a1a24', '#2a2a35', '#3a3a48', '#e8e8ee', '#a8a8b8', '#6a6a7a', '#0a0a0a', 'rgba(255,255,255,0.04)'],
     'light':         ['#ecebe6', '#f7f6f1', '#e2e0d8', '#d1cdc1', '#beb9aa', '#26241d', '#4c4a40', '#8b887a', '#e7e5dd', 'rgba(70,60,30,0.10)', '#f4f3ed'],
@@ -51,7 +53,7 @@
     'soft-dark':       ['#22262b', '#2b3036', '#353b43', '#454c56', '#7c8693', '#e1e6ec', '#b9c1cb', '#9ca6b2', '#1b1e22', 'rgba(225,230,236,0.06)']
   };
   var NAMES = ['--bg-primary', '--bg-secondary', '--bg-tertiary', '--border-color', '--border-light', '--text-primary', '--text-secondary', '--text-muted', '--canvas-bg', '--grid-color'];
-  var theme = DEFAULT_THEME, accent = DEFAULT_ACCENT, intensity = 1;
+  var theme = DEFAULT_THEME, accent = '', intensity = 1;
   try {
     var raw = localStorage.getItem(KEY);
     if (raw) {
@@ -63,7 +65,9 @@
   } catch (e) {
     theme = DEFAULT_THEME;
   }
+  if (!accent) accent = ACCENTS[theme] || DEFAULT_ACCENT;
   var p = PROFILES[theme], root = document.documentElement, i;
+  root.setAttribute('data-theme-profile', theme);
   for (i = 0; i < NAMES.length; i++) root.style.setProperty(NAMES[i], p[i]);
   root.style.setProperty('--bg-node', p[10] || p[1]);
   root.style.setProperty('--shadow-lg', LIGHT[theme] ? '0 4px 14px rgba(96, 90, 70, 0.16)' : '0 8px 32px rgba(0, 0, 0, 0.5)');
@@ -92,8 +96,11 @@
   <link rel="stylesheet" href="/src/styles/formslot.css">
   <link rel="stylesheet" href="/src/styles/home.css">
   <link rel="stylesheet" href="/src/styles/dialogs.css">
+  <link rel="stylesheet" href="/src/styles/path-picker.css">
   <link rel="stylesheet" href="/src/styles/editor.css">
   <link rel="stylesheet" href="/src/styles/review.css">
+  <link rel="stylesheet" href="/src/styles/graph.css">
+  <link rel="stylesheet" href="/src/styles/preview.css">
   <link rel="stylesheet" href="/src/styles/lsp.css">
   <link rel="stylesheet" href="/src/styles/terminal.css">
   <link rel="stylesheet" href="/src/styles/light-mode.css">

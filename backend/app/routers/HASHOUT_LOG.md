@@ -171,3 +171,27 @@ review M1: the `serverStarted` send was outside the try/finally, so a client tha
 - logged: v0.7.1 · 2026-10-30
 
 review M3, M4, M6 and LOW: `?trust=1` on the debug socket lets the workspace venv python run (probe, adapter, debuggee); `GET /api/debug/adapters` never runs it. The unavailable answer reuses the resolved result instead of calling `describe` again on the event loop (a 2 s python no longer stalls other requests: worst concurrent poll 0.03 s). The relay uses the `ALLOWED` list, clears the debuggee on exited and terminated, and closes with 4500 after an `adapterError` event if the adapter sends an over-long header line.
+
+### backend/app/routers/media.py · media_raw, media_info
+
+- refers-to: backend/app/routers/media.py :: media_raw, media_info, _file
+- kind: warning-context
+- logged: v0.8.0 · 2026-10-30
+
+Read-only bytes for the preview tabs. The path goes through `workspace_root.resolve` (no `..`, no absolute path, realpath must stay inside the open workspace, so a symlink out is refused) and only an allowlist of image, video, audio and PDF extensions is served; anything else is 415, so this route cannot be used to read source or secrets. Starlette's FileResponse supplies Range (206, 416), ETag and Last-Modified, which video seeking needs; the route answers GET and HEAD behind LocalGuard like every route. Every response is `nosniff`; all but PDF also carry a sandbox Content-Security-Policy so an svg opened directly in the webview cannot run script (it is only ever used through an img tag). A PDF cannot carry sandbox because the viewer would not load. `Cache-Control: no-cache` makes the browser revalidate, and the window adds `v=mtime` to its URLs.
+
+### backend/app/routers/graph.py · graph
+
+- refers-to: backend/app/routers/graph.py :: graph
+- kind: explainer
+- logged: v0.8.0 · 2026-10-30
+
+`GET /api/graph?sig=` returns the workspace file graph (nodes as path, size, mtime; edges as index pairs importer to imported) or `{unchanged: true, sig}` when `sig` matches. No open workspace is 409 through `workspace_root.Refused`. The computation and its bounds are described in backend/app/services/HASHOUT_LOG.md under services/graph.py.
+
+### backend/app/routers/workspace.py · browse, get_recent, _state
+
+- refers-to: backend/app/routers/workspace.py :: browse, get_recent, _recent_row, _git_summary, _local_tools, _state
+- kind: rationale
+- logged: v0.8.0 · 2026-10-30
+
+`GET /api/workspace/browse` lists any absolute directory for the window's own folder and file picker (the browser build has no native dialog). It only scandirs: nothing is opened, read or run, symlinks are followed only to decide folder or file, dot names are left out unless `hidden=true`, files are left out unless `files=true`, and the answer is capped at 5000 entries. It sits beside the workspace routes but does not use the workspace guard on purpose, because choosing a workspace has to reach outside the current one. `get_recent` now adds `branch`, `changed` (tracked files with changes, from one `git status --porcelain -b -uno` with a 2 s limit, four at a time), `formRepo` and `missing` per row, so Home can show branch and status without opening each folder. `_state` carries `localTools`: names of workspace-local language servers and the workspace venv python that exist on disk. It only looks at files; the window asks the person before the engine is told `trust=1`.

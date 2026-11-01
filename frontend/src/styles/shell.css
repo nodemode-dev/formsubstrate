@@ -97,7 +97,7 @@ body.narrow-options { --cv-options-h: 32px; }
 .cv-doc-tabs { display: flex; align-items: flex-end; height: var(--cv-tabs-h); padding: 0 var(--space-2) 0 0; background: var(--surface-0); border-bottom: 1px solid var(--line-0); }
 .cv-brand { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); color: var(--accent-color); }
 .cv-brand[role="button"] { cursor: pointer; }
-.cv-doc-tabs .cv-brand { flex: none; align-self: center; justify-content: center; width: max(var(--cv-rail-w, 52px), 44px); margin-right: var(--space-2); }
+.cv-doc-tabs .cv-brand { flex: none; align-self: center; justify-content: center; width: var(--cv-rail-w); margin-right: var(--space-2); border-right: 1px solid transparent; box-sizing: border-box; }
 .cv-doc-tabs .cv-brand::after { content: ''; position: absolute; right: 0; top: 50%; width: 1px; height: 20px; transform: translateY(-50%); background: var(--line-2); }
 .cv-tabs { display: flex; align-items: flex-end; gap: var(--space-0); min-width: 0; height: 100%; }
 .cv-tab-strip { display: flex; align-items: center; gap: var(--space-1); min-width: 0; overflow-x: auto; }

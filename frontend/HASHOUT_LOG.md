@@ -1847,3 +1847,19 @@ The flag card matches the other cards: same absolute overlay in the stack, fixed
 - logged: v0.7.1 · 2026-10-30
 
 Reserved widths are multiples of the control-height token, so no raw pixel size was added. Reviewer item 19 (existing raw pixel widths in other sheets) is not changed here. Sanitizer rationale is logged in src/ui/editor/HASHOUT_LOG.md.
+
+### frontend/src/ui/themes.ts · substrata profile
+
+- refers-to: frontend/src/ui/themes.ts :: THEMES.substrata, accentFor, setTheme; frontend/src/styles/tokens.css :: :root[data-theme-profile="substrata"]; frontend/index.html :: theme boot
+- kind: rationale
+- logged: v0.8.0 · 2026-10-30
+
+The ten core variables follow the existing profile shape so the boot arrays stay one row per theme. Everything else the old substrata theme defined (glass, radii, status colours, syntax, terminal ANSI) lives in one tokens.css block keyed by the data-theme-profile attribute, which the boot script and applyTheme both set. That keeps one source of truth, needs no cleanup when the profile changes, and paints with the stylesheet before first frame. The accent is a profile default (accentFor) used only when no accent was saved, and setTheme moves the accent along only when the current accent is still the previous profile default, so a custom accent is never overridden. Substrata is the fresh-install default; a stored theme choice is read as before, and prefs themeDark only changes for fresh prefs, so prefsRevision is not bumped. The interactive cell background of the old app (ui/theme/background.ts) is not ported: the shell here has opaque panes and no gaps for a canvas to show through.
+
+### frontend/src/ui/panels/stage-panels.ts · StagePanels
+
+- refers-to: frontend/src/ui/panels/stage-panels.ts :: StagePanels; frontend/src/ui/panels/sash.ts :: bindSash; frontend/src/ui/workbench.ts :: Workbench
+- kind: rationale
+- logged: v0.8.0 · 2026-10-30
+
+The old app had a right rail and a stage split between canvas and code, each with a drag sash and persisted size. StagePanels holds both as hosts (a tabbed right panel, and a split pane beside the editor whose width is a percentage of the editor area) so other features mount into rightSection and splitHost. State lives in its own localStorage key and is applied to CSS variables when the workbench is built, before the window is shown, so there is no layout shift on start. The right column is 0px when closed or empty. bindSash is shared: pointer capture with one rAF write per frame, arrow keys (Shift for larger steps), Home or double-click to reset, Enter to collapse. The sidebar and terminal dock keep their own sash code, which already persists to prefs.

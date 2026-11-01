@@ -1,6 +1,7 @@
 import { git, type Identity } from '../io/git';
 import { hasSecret, removeSecret, saveSecret } from '../io/secrets';
 import { systemStatus } from '../io/api';
+import { setTrusted } from '../io/trust';
 import { formatKeys, type Commands } from './commands';
 import { confirmAction, Dialog } from './dialogs';
 import { el, patchList, q, setChecked, setClass, setHidden, setText, setTitle, setValue } from './dom';
@@ -94,6 +95,9 @@ export class SettingsDialog {
   private readonly menusRow: Row<boolean>;
   private readonly windowGroup: HTMLElement;
   private readonly reopen: Row<boolean>;
+  private readonly typedPaths: Row<boolean>;
+  private readonly trustList = el('<div class="cv-prefs-keys"></div>');
+  private readonly trustNone = el('<p class="cv-note"></p>');
   private readonly recovery: ReturnType<typeof numberRow>;
   private readonly hidden = el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" aria-label="Hidden folders">');
   private readonly editorFont: ReturnType<typeof numberRow>;
@@ -146,6 +150,15 @@ export class SettingsDialog {
     this.titleBar = toggleRow('Custom title bar', () => { ctx.commands.run('custom-title-bar'); this.sync(); });
     this.menusRow = toggleRow('Menus in window', () => { ctx.commands.run('menus-in-window'); this.sync(); });
     this.reopen = toggleRow('Reopen the last workspace at start', (v) => pick({ reopenLastWorkspace: v }));
+    this.typedPaths = toggleRow('Allow typing absolute paths', (v) => pick({ allowTypedPaths: v }));
+    setText(this.trustNone, t('No workspace is trusted.'));
+    this.trustList.addEventListener('click', (e) => {
+      const b = e.target instanceof Element ? e.target.closest<HTMLElement>('[data-revoke]') : null;
+      if (!b?.dataset.revoke) return;
+      setTrusted(b.dataset.revoke, false);
+      this.prefs = loadPrefs();
+      this.sync();
+    });
     this.recovery = numberRow('Recovery save every (minutes)', 1, 60, 1, (v) => pick({ recoveryMinutes: v }));
     this.editorFont = numberRow('Font size', 8, 32, 1, (v) => pick({ editorFontSize: v }));
     this.editorTab = numberRow('Tab size', 1, 8, 1, (v) => pick({ editorTabSize: v }));
@@ -212,6 +225,8 @@ export class SettingsDialog {
       ],
       Workspace: [
         grp('Startup', this.reopen.el, this.recovery.el),
+        grp('Folders and files', this.typedPaths.el, nt('Off by default. Open Folder and Open File use the pickers; turning this on also shows a field for typing an absolute path.')),
+        grp('Trusted workspaces', this.trustList, this.trustNone, nt('A trusted workspace may run its own language servers and its Python environment. Revoke to stop.')),
         grp('Hidden folders', this.hiddenRow(), nt('Folder names separated by commas stay out of the file tree.')),
       ],
       Editor: [grp('Text', this.editorFont.el, this.editorTab.el, this.editorWrap.el)],
@@ -451,6 +466,14 @@ export class SettingsDialog {
     this.themeLight.set(p.themeLight);
     this.themeDark.set(p.themeDark);
     this.reopen.set(p.reopenLastWorkspace);
+    this.typedPaths.set(p.allowTypedPaths);
+    const paintTrust = (node: HTMLElement, path: string): void => { setText(q(node, '.cv-prefs-keyname'), path); setTitle(q(node, '[data-revoke]'), t('Revoke')); q(node, '[data-revoke]').dataset.revoke = path; };
+    patchList(this.trustList, p.trustedWorkspaces, {
+      key: (path) => path,
+      create: (path) => { const node = el(`<div class="cv-prefs-keyrow"><span class="cv-prefs-keyname"></span><button class="cv-btn cv-btn-danger" type="button" data-revoke="">${t('Revoke')}</button></div>`); paintTrust(node, path); return node; },
+      update: paintTrust,
+    });
+    setHidden(this.trustNone, p.trustedWorkspaces.length > 0);
     this.recovery.set(p.recoveryMinutes);
     setValue(this.hidden, p.hiddenFolders.join(', '));
     this.editorFont.set(p.editorFontSize);

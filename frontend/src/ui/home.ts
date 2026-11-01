@@ -3,6 +3,7 @@ import { el, isMac, patchList, q, setClass, setHidden, setHtml, setText, setTitl
 import { HomeFiles, type HomeFilesDeps, type RecentEntry } from './home-files';
 import { t } from './i18n';
 import { icon } from './icons';
+import { loadPrefs } from './prefs';
 import { toast } from './toast';
 import type { WorkspaceStore } from './workspace-store';
 
@@ -34,6 +35,15 @@ const GROUPS: ReadonlyArray<{ state: SessionState; label: string }> = [
 ];
 
 const CHIPS = ['Form repo', 'Git', 'Rust', 'TypeScript', 'Python', 'Markdown'];
+
+const TILES: ReadonlyArray<{ cmd: string; icon: string; title: string; sub: string }> = [
+  { cmd: 'agent-new', icon: 'agent', title: 'New Claude session', sub: 'Work in its own git worktree' },
+  { cmd: 'terminal-new-claude', icon: 'terminal', title: 'Claude terminal', sub: 'The claude command in the workspace' },
+  { cmd: 'new-form-app', icon: 'newFile', title: 'New Form app', sub: 'Start from the Form family shell' },
+  { cmd: 'git-review', icon: 'diff', title: 'Review changes', sub: 'Read, comment and commit session work' },
+  { cmd: 'formslot-start', icon: 'slot', title: 'Start formslot', sub: 'Slots and prompts for the family' },
+  { cmd: 'lsp-servers', icon: 'pfPlugins', title: 'Language servers', sub: 'TypeScript, Python and trust' },
+];
 const START_LIMIT = 5;
 
 function greeting(): string {
@@ -85,25 +95,27 @@ export class Home {
       ${this.nav('start', 'home', 'Start')}${this.nav('recent', 'history', 'Recent')}${this.nav('workspaces', 'pfWorkspace', 'Workspaces')}${this.nav('sessions', 'agentChat', 'Sessions')}
       <div class="cv-home-nav-sep"></div>
       <div class="cv-home-nav-title">${t('Create')}</div>
-      ${this.cmd('new-form-app', 'newFile', 'New Form app')}${this.cmd('open-folder', 'folderOpen', 'Open folder')}${this.cmd('clone-repo', 'clone', 'Clone repo')}${this.cmd('agent-new', 'agent', 'New agent session')}
+      ${this.cmd('open-folder', 'folderOpen', 'Open folder')}${this.cmd('open-file', 'file', 'Open file')}${this.cmd('clone-repo', 'clone', 'Clone repo')}${this.cmd('new-form-app', 'newFile', 'New Form app')}${this.cmd('agent-new', 'agent', 'New Claude session')}
       <div class="cv-home-nav-foot"><button class="cv-home-nav-item cv-home-back" type="button" data-cmd="home-back" hidden>${icon('chevronLeft', 16)}<span>${t('Back')}</span></button>${this.cmd('settings', 'settings', 'Preferences')}${this.cmd('help', 'info', 'Help')}</div>
     </nav>
     <div class="cv-home-main">
       <div class="cv-home-narrow">${this.nav('start', 'home', 'Start')}${this.nav('recent', 'history', 'Recent')}${this.nav('workspaces', 'pfWorkspace', 'Workspaces')}${this.nav('sessions', 'agentChat', 'Sessions')}</div>
       <div class="cv-home-page" data-page="start">
-        <div class="cv-home-head"><div><h1 class="cv-home-title"></h1><p class="cv-home-sub">${t('Open a repository or a folder, or start a new Form app.')}</p></div></div>
+        <div class="cv-home-head"><div><h1 class="cv-home-title"></h1><p class="cv-home-sub">${t('Open a repository, start a Claude session, or build a new Form family app.')}</p></div></div>
         <div class="cv-home-hero">
           <span class="cv-home-hero-icon">${icon('folderOpen', 26)}</span>
           <div class="cv-home-hero-text"><div class="cv-home-hero-title">${t('Open a repo or a folder')}</div>
             <div class="cv-home-hero-sub">${t('Drop a folder anywhere in the window to open it as a workspace. Form repositories open with their slots, tasks and agent sessions.')}</div>
-            <div class="cv-home-formats">${CHIPS.map((c) => `<span class="cv-home-format">${t(c)}</span>`).join('')}</div></div>
+            <div class="cv-home-formats">${CHIPS.map((c) => `<span class="cv-home-format">${t(c)}</span>`).join('')}</div>
+            <form class="cv-home-typed is-off" inert><input class="cv-home-typed-input" type="text" spellcheck="false" autocomplete="off" placeholder="${t('Type an absolute path')}" aria-label="${t('Absolute path')}"><button class="cv-btn" type="submit">${t('Open')}</button></form></div>
           <div class="cv-home-hero-actions">
             <button class="cv-home-action is-primary" type="button" data-cmd="open-folder">${icon('folderOpen', 16)}<span class="cv-home-label">${t('Open folder...')}</span><span class="cv-home-keys" data-keys="open-folder"></span></button>
-            <button class="cv-home-action" type="button" data-cmd="clone-repo">${icon('clone', 16)}<span class="cv-home-label">${t('Clone repo...')}</span></button>
-            <button class="cv-home-action is-ghost" type="button" data-cmd="new-form-app">${icon('newFile', 16)}<span class="cv-home-label">${t('New Form app')}</span></button>
+            <button class="cv-home-action" type="button" data-cmd="open-file">${icon('file', 16)}<span class="cv-home-label">${t('Open file...')}</span><span class="cv-home-keys" data-keys="open-file"></span></button>
+            <button class="cv-home-action is-ghost" type="button" data-cmd="clone-repo">${icon('clone', 16)}<span class="cv-home-label">${t('Clone repo...')}</span></button>
           </div>
         </div>
-        <section class="cv-home-section"><div class="cv-home-section-head"><h2 class="cv-home-section-title">${t('Recent')}</h2><button class="cv-btn cv-btn-ghost" type="button" data-v="recent">${t('See all')}</button></div><div class="cv-home-slot" data-slot="start-recent"></div></section>
+        <section class="cv-home-section"><div class="cv-home-section-head"><h2 class="cv-home-section-title">${t('Quick actions')}</h2></div><div class="cv-home-tiles">${TILES.map((x) => this.tile(x)).join('')}</div></section>
+        <section class="cv-home-section"><div class="cv-home-section-head"><h2 class="cv-home-section-title">${t('Recent workspaces')}</h2><button class="cv-btn cv-btn-ghost" type="button" data-v="recent">${t('See all')}</button></div><div class="cv-home-slot" data-slot="start-recent"></div></section>
         <section class="cv-home-section"><div class="cv-home-section-head"><h2 class="cv-home-section-title">${t('Sessions')}</h2><button class="cv-btn cv-btn-ghost" type="button" data-v="sessions">${t('See all')}</button></div><div class="cv-home-slot" data-slot="start-sessions"></div></section>
       </div>
       <div class="cv-home-page" data-page="recent" hidden><div class="cv-home-head"><div><h1 class="cv-home-title">${t('Recent')}</h1><p class="cv-home-sub">${t('Folders you opened, newest first.')}</p></div></div><div class="cv-home-slot" data-slot="recent"></div></div>
@@ -115,6 +127,8 @@ export class Home {
   private readonly back = q(this.el, '.cv-home-back');
   private readonly drop = q(this.el, '.cv-drop');
   private readonly title = q(this.el, '[data-page="start"] .cv-home-title');
+  private readonly typed = q<HTMLFormElement>(this.el, '.cv-home-typed');
+  private readonly typedInput = q<HTMLInputElement>(this.el, '.cv-home-typed-input');
   private readonly recentLists: HomeFiles[] = [];
   private readonly workspaceList: HomeFiles;
   private readonly startSessions = new HomeSessions();
@@ -159,6 +173,12 @@ export class Home {
       if (v) this.go(v);
     });
     this.wireDrop();
+    this.typed.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const v = this.typedInput.value.trim();
+      if (v && loadPrefs().allowTypedPaths) void this.openPath(v);
+    });
+    this.syncPrefs();
     store.on('workspace', (ws) => {
       if (ws) { this.forced = false; this.sync(); } else this.sync();
       void this.refresh();
@@ -172,6 +192,10 @@ export class Home {
 
   private nav(v: Page, ic: string, label: string): string {
     return `<button class="cv-home-nav-item" type="button" data-v="${v}">${icon(ic, 16)}<span>${t(label)}</span>${v === 'start' ? '' : '<span class="cv-home-count">0</span>'}</button>`;
+  }
+
+  private tile(x: { cmd: string; icon: string; title: string; sub: string }): string {
+    return `<button class="cv-home-tile" type="button" data-cmd="${x.cmd}"><span class="cv-home-tile-icon">${icon(x.icon, 18)}</span><span class="cv-home-tile-title">${t(x.title)}</span><span class="cv-home-tile-sub">${t(x.sub)}</span></button>`;
   }
 
   private cmd(id: string, ic: string, label: string): string {
@@ -191,6 +215,12 @@ export class Home {
   }
 
   get isOpen(): boolean { return this.open; }
+
+  syncPrefs(): void {
+    const on = loadPrefs().allowTypedPaths;
+    setClass(this.typed, 'is-off', !on);
+    if (this.typed.inert === on) this.typed.inert = !on;
+  }
 
   show(page?: Page): void {
     if (page) this.go(page);
@@ -275,7 +305,7 @@ export class Home {
       e.preventDefault();
       this.depth = 0;
       showDrop(false);
-      toast(t('Browsers do not reveal folder paths. Use Open folder and enter the path.'), 'info');
+      toast(t('Browsers do not reveal folder paths. Use Open Folder to choose it.'), 'info');
     });
     if (!('__TAURI_INTERNALS__' in window)) return;
     void import('@tauri-apps/api/event').then(async (m) => {

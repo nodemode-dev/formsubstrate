@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import threading
 import tomllib
+from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
@@ -103,11 +104,25 @@ def _branch(root: str) -> str | None:
     return text if result.returncode == 0 and text else None
 
 
+def _local_tools(root: str) -> list[str]:
+    from app.core import debug as debug_core
+    from app.core import lsp as lsp_core
+
+    found: list[str] = []
+    for lang in lsp_core.LANGS.values():
+        for cand in lang["candidates"]:
+            if lsp_core._local(root, cand["exe"]) and cand["name"] not in found:
+                found.append(cand["name"])
+    if debug_core.venv_python(root):
+        found.append("workspace python")
+    return found
+
+
 def _state() -> dict:
     root = ws.current()
     if root is None:
-        return {"root": None, "name": None, "isFormRepo": False, "branch": None}
-    return {"root": root, "name": ws.display_name(root), "isFormRepo": _is_form_repo(root), "branch": _branch(root)}
+        return {"root": None, "name": None, "isFormRepo": False, "branch": None, "localTools": []}
+    return {"root": root, "name": ws.display_name(root), "isFormRepo": _is_form_repo(root), "branch": _branch(root), "localTools": _local_tools(root)}
 
 
 @router.get("/workspace")
@@ -128,9 +143,79 @@ async def open_workspace(request: Request) -> dict:
     return await run_in_threadpool(_state)
 
 
+def _git_summary(root: str) -> dict:
+    git = shutil.which("git")
+    if not git or not os.path.isdir(os.path.join(root, ".git")):
+        return {"branch": None, "changed": 0}
+    try:
+        result = subprocess.run([git, "status", "--porcelain", "-b", "-uno"], cwd=root, capture_output=True, text=True, timeout=2, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return {"branch": None, "changed": 0}
+    if result.returncode != 0:
+        return {"branch": None, "changed": 0}
+    lines = result.stdout.splitlines()
+    head = lines[0][3:] if lines and lines[0].startswith("## ") else ""
+    name = head.split("...")[0].split(" ")[0] if head else None
+    return {"branch": name or None, "changed": max(0, len(lines) - 1)}
+
+
+def _recent_row(item: dict) -> dict:
+    path = item["path"]
+    if not os.path.isdir(path):
+        return {**item, "missing": True, "formRepo": False, "branch": None, "changed": 0}
+    return {**item, "missing": False, "formRepo": _is_form_repo(path), **_git_summary(path)}
+
+
 @router.get("/workspace/recent")
 def get_recent() -> dict:
-    return {"recent": ws.recent_list()}
+    items = ws.recent_list()
+    if not items:
+        return {"recent": []}
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        rows = list(pool.map(_recent_row, items))
+    return {"recent": rows}
+
+
+BROWSE_MAX = 5000
+
+
+def _browse_roots() -> list[str]:
+    if os.name != "nt":
+        return ["/"]
+    return [f"{letter}:\\" for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" if os.path.isdir(f"{letter}:\\")]
+
+
+@router.get("/workspace/browse")
+def browse(path: str = "", files: bool = False, hidden: bool = False) -> dict:
+    home = os.path.expanduser("~")
+    target = path or home
+    if "\0" in target or not os.path.isabs(target):
+        raise HTTPException(status_code=400, detail="path must be absolute")
+    real = os.path.normpath(target)
+    if not os.path.isdir(real):
+        raise HTTPException(status_code=404, detail="not a directory")
+    entries: list[dict] = []
+    truncated = False
+    try:
+        with os.scandir(real) as scan:
+            for item in scan:
+                if not hidden and item.name.startswith("."):
+                    continue
+                try:
+                    is_dir = item.is_dir()
+                    if not is_dir and not files:
+                        continue
+                except OSError:
+                    continue
+                if len(entries) >= BROWSE_MAX:
+                    truncated = True
+                    break
+                entries.append({"name": item.name, "path": os.path.join(real, item.name), "kind": "dir" if is_dir else "file"})
+    except PermissionError:
+        raise HTTPException(status_code=403, detail="permission denied")
+    entries.sort(key=lambda e: (e["kind"] != "dir", e["name"].lower(), e["name"]))
+    parent = os.path.dirname(real)
+    return {"path": real, "parent": parent if parent != real else None, "home": home, "roots": _browse_roots(), "entries": entries, "truncated": truncated}
 
 
 @router.delete("/workspace/recent")

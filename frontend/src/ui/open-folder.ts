@@ -1,19 +1,27 @@
 import { openWorkspace } from '../io/workspace';
-import { confirmAction, promptName } from './dialogs';
+import { confirmAction } from './dialogs';
 import { t } from './i18n';
+import { pickPath } from './path-picker';
 import { toast } from './toast';
 import { workspace as store } from './workspace-store';
 
-const isTauri = (): boolean => '__TAURI_INTERNALS__' in window;
+let fileOpener: ((relative: string) => Promise<void>) | null = null;
 
-async function pickPath(): Promise<string | null> {
-  if (isTauri()) {
-    const { open } = await import('@tauri-apps/plugin-dialog');
-    const chosen = await open({ directory: true, multiple: false, title: t('Open folder') });
-    return typeof chosen === 'string' ? chosen : null;
-  }
-  const typed = await promptName(t('Open folder: absolute path'), '', t('Open'));
-  return typed && typed.trim() ? typed.trim() : null;
+export function setFileOpener(fn: (relative: string) => Promise<void>): void {
+  fileOpener = fn;
+}
+
+function split(abs: string): { dir: string; name: string; sep: string } {
+  const at = Math.max(abs.lastIndexOf('/'), abs.lastIndexOf('\\'));
+  const sep = abs.includes('\\') && !abs.includes('/') ? '\\' : '/';
+  const dir = at <= 0 ? abs.slice(0, at + 1) || sep : abs.slice(0, at);
+  return { dir: /^[A-Za-z]:$/.test(dir) ? dir + sep : dir, name: abs.slice(at + 1), sep };
+}
+
+function insideOf(root: string, abs: string): string | null {
+  const flat = (s: string): string => s.replace(/\\/g, '/').replace(/\/+$/, '');
+  const base = flat(root), file = flat(abs);
+  return file.startsWith(`${base}/`) ? file.slice(base.length + 1) : null;
 }
 
 export async function openFolderAt(path: string): Promise<void> {
@@ -24,9 +32,32 @@ export async function openFolderAt(path: string): Promise<void> {
 
 export async function openFolderPrompt(): Promise<void> {
   try {
-    const path = await pickPath();
+    const path = await pickPath('folder');
     if (path) await openFolderAt(path);
   } catch (e) {
     toast(e instanceof Error && e.message ? e.message : t('Could not open the folder.'), 'error');
+  }
+}
+
+export async function openFileAt(abs: string): Promise<void> {
+  const open = store.workspace?.path;
+  const inside = open ? insideOf(open, abs) : null;
+  if (inside === null) {
+    const { dir, name } = split(abs);
+    if (open && !(await confirmAction('Open file', `${t('This file is outside the open workspace. Its folder becomes the workspace:')} ${dir}`, 'Open', false))) return;
+    await openFolderAt(dir);
+    if (store.workspace?.path !== dir && store.workspace?.path.replace(/\\/g, '/') !== dir.replace(/\\/g, '/')) return;
+    await fileOpener?.(name);
+    return;
+  }
+  await fileOpener?.(inside);
+}
+
+export async function openFilePrompt(): Promise<void> {
+  try {
+    const path = await pickPath('file');
+    if (path) await openFileAt(path);
+  } catch (e) {
+    toast(e instanceof Error && e.message ? e.message : t('Could not open the file.'), 'error');
   }
 }

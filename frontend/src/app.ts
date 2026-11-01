@@ -25,7 +25,9 @@ import { icon } from './ui/icons';
 import { MenuBar, setMenuStyle, type MenuDef } from './ui/menu';
 import { menusInWindow, MENUS_IN_WINDOW_KEY, NativeMenus, textFieldFocused, wantsNativeMenus } from './ui/native-menu';
 import { installNumberFields } from './ui/number-fields';
-import { openFolderAt, openFolderPrompt } from './ui/open-folder';
+import { openFilePrompt, openFolderAt, openFolderPrompt, setFileOpener } from './ui/open-folder';
+import { isTrusted, setTrusted, TRUST_EVENT } from './io/trust';
+import { TrustBanner } from './ui/trust-banner';
 import { REOPENED_EVENT, reopenLastWorkspace } from './ui/reopen';
 import { applyUiFontSize, autoUiScale, followSystemTheme, loadPrefs, setUiScale, uiScaleChoice, updatePrefs, type Prefs } from './ui/prefs';
 import { SettingsDialog } from './ui/settings';
@@ -37,6 +39,8 @@ import { TitleTools } from './ui/titlebar-tools';
 import { toast } from './ui/toast';
 import { Workbench } from './ui/workbench';
 import { installReview } from './ui/review/index';
+import { installGraph } from './ui/graph/index';
+import { installPreview, type PreviewApi } from './ui/preview/index';
 import { workspace as store } from './ui/workspace-store';
 
 const APP = 'subform';
@@ -153,8 +157,10 @@ export async function startApp(): Promise<void> {
   const stage = q(root, '.cv-stage');
   const empty = el<HTMLElement>(`<p class="cv-stage-empty cv-note">${t('Open a folder or a Form repository to begin')}</p>`);
   let editor: EditorHost | null = null;
+  let preview: PreviewApi | null = null;
   const openInEditor = async (path: string, line?: number, col?: number): Promise<void> => {
     if (!editor) return;
+    if (preview?.openMedia(path)) return;
     if (!(await editor.open(path, line, col))) return;
     store.openDoc({ id: path, path, name: path.split('/').pop() || path, modified: editor.isDirty(path) });
   };
@@ -168,6 +174,7 @@ export async function startApp(): Promise<void> {
 
   const commands = new Commands();
   const views = installReview(store, commands, wb.editorArea, wb.editorHost);
+  installGraph(store, commands, views, (path) => { void openInEditor(path); });
   const later = new Set<string>();
   const soon = (cmd: Command): Command => { later.add(cmd.id); return { ...cmd, enabled: () => false }; };
   commands.blocked = (cmd) => (later.has(cmd.id) ? t('Not available yet') : '');
@@ -200,15 +207,20 @@ export async function startApp(): Promise<void> {
     const docs = store.docs, at = docs.findIndex((d) => d.id === store.active?.id);
     if (docs.length > 1 && at >= 0) store.setActive(docs[(at + by + docs.length) % docs.length].id);
   };
-  const toggleTheme = (): void => { setTheme(THEMES[readChoice().theme]?.light ? 'studio' : 'light'); };
+  const toggleTheme = (): void => { setTheme(THEMES[readChoice().theme]?.light ? loadPrefs().themeDark : 'light'); };
 
   const about = new AboutDialog();
-  const settings = new SettingsDialog({ commands, onPrefs: (p) => { applyUiPrefs(p); followSystemTheme(p); editor?.setOptions({ fontSize: p.editorFontSize, tabSize: p.editorTabSize, wordWrap: p.editorWordWrap }); views.setOptions({ fontSize: p.editorFontSize, tabSize: p.editorTabSize, wordWrap: p.editorWordWrap }); dock.refreshFont(); } });
+  const settings = new SettingsDialog({ commands, onPrefs: (p) => { applyUiPrefs(p); followSystemTheme(p); editor?.setOptions({ fontSize: p.editorFontSize, tabSize: p.editorTabSize, wordWrap: p.editorWordWrap }); views.setOptions({ fontSize: p.editorFontSize, tabSize: p.editorTabSize, wordWrap: p.editorWordWrap }); dock.refreshFont(); home.syncPrefs(); } });
   const palette = new CommandPalette(commands, () => menus);
   let captionButtons: CaptionButtons;
 
   commands.add(
     { id: 'open-folder', label: 'Open Folder...', keys: ['Mod+O'], run: () => { void openFolderPrompt(); } },
+    { id: 'open-file', label: 'Open File...', keys: ['Shift+Mod+O'], run: () => { void openFilePrompt(); } },
+    { id: 'workspace-trust', label: 'Trust This Workspace', enabled: () => !!store.workspace, checked: () => isTrusted(store.workspace?.path), run: () => {
+      const path = store.workspace?.path;
+      if (path) setTrusted(path, !isTrusted(path));
+    } },
     { id: 'open-recent', label: 'Open Recent', run: () => home.show('recent') },
     { id: 'home-toggle', label: 'Home', run: () => home.toggle() },
     { id: 'home-back', label: 'Back', keys: ['Escape'], enabled: () => home.isOpen && !!store.workspace && !textFieldFocused(), run: () => home.hide() },
@@ -261,16 +273,18 @@ export async function startApp(): Promise<void> {
     { id: 'about', label: 'About subform', run: () => about.show() },
     soon({ id: 'report-issue', label: 'Report an Issue...', run: () => undefined }),
     { id: 'toggle-sidebar', label: 'Toggle Side Bar', keys: ['Mod+B'], run: () => wb.toggleSidebar() },
+    { id: 'toggle-right-panel', label: 'Toggle Right Panel', keys: ['Alt+Mod+B'], checked: () => wb.rightVisible, run: () => wb.toggleRight() },
+    { id: 'toggle-split', label: 'Toggle Editor Split', keys: ['Alt+Mod+\\'], checked: () => wb.splitVisible, run: () => wb.toggleSplit() },
     { id: 'focus-files', label: 'Focus Files', keys: ['Shift+Mod+E'], run: () => wb.showPanel('files', true) },
     { id: 'focus-search', label: 'Focus Search', run: () => wb.showPanel('search', true) },
   );
   activateAll({ store, commands }, wb);
 
   const menus: MenuDef[] = [
-    { label: 'File', items: ['open-folder', 'open-recent', 'clone-repo', 'new-form-app', '-', 'save', 'save-all', '-', 'close-tab', '-', 'settings', '-', 'quit'] },
+    { label: 'File', items: ['open-folder', 'open-file', 'open-recent', 'clone-repo', 'new-form-app', '-', 'save', 'save-all', '-', 'close-tab', '-', 'workspace-trust', 'settings', '-', 'quit'] },
     { label: 'Edit', items: ['undo', 'redo', '-', 'cut', 'copy', 'paste', '-', 'select-all', '-', 'find', 'search-in-files'] },
     { label: 'Selection', items: ['select-all', '-', 'select-next', 'select-all-occurrences'] },
-    { label: 'View', items: ['home-toggle', 'command-palette', '-', 'toggle-sidebar', 'focus-files', 'focus-search', '-', 'toggle-word-wrap', '-', 'toggle-theme', 'menus-in-window', 'custom-title-bar', '-', 'zoom-in', 'zoom-out', 'zoom-reset'] },
+    { label: 'View', items: ['home-toggle', 'command-palette', '-', 'toggle-sidebar', 'toggle-right-panel', 'toggle-split', 'focus-files', 'focus-search', 'view-graph', '-', 'toggle-word-wrap', '-', 'md-preview-toggle', 'md-preview-side', '-', 'toggle-theme', 'menus-in-window', 'custom-title-bar', '-', 'zoom-in', 'zoom-out', 'zoom-reset'] },
     { label: 'Go', items: ['go-to-file', '-', 'lsp-definition', 'lsp-references', 'lsp-rename', 'lsp-format', '-', 'lsp-outline', 'lsp-problems', 'lsp-servers', 'lsp-restart', '-', 'next-tab', 'previous-tab'] },
     { label: 'Run', items: ['debug-start', 'debug-stop', '-', 'debug-step-over', 'debug-step-into', 'debug-step-out', '-', 'debug-toggle-breakpoint', 'debug-focus', '-', 'run-task', 'run-stop'] },
     { label: 'Terminal', items: ['terminal-toggle', '-', 'terminal-new', 'terminal-new-claude'] },
@@ -281,6 +295,9 @@ export async function startApp(): Promise<void> {
   ];
 
   const home = new Home(stage, store, commands, { recent: recentWorkspaces, openPath: openFolderAt, forget: forgetRecent });
+  setFileOpener(openInEditor);
+  new TrustBanner(document.getElementById('overlay-root') ?? stage, store);
+  window.addEventListener(TRUST_EVENT, () => { if (commands.get('lsp-restart')) commands.run('lsp-restart'); });
   const syncSessions = (): void => {
     store.setSessions(sessionsClient.summary());
     home.setSessions(sessionsClient.homeList());
@@ -325,6 +342,7 @@ export async function startApp(): Promise<void> {
   });
   editor.extensionsFor = lsp.extensionsFor;
   editor.onClosed = (path) => lsp.release(path);
+  preview = installPreview({ store, commands, views, area: wb.editorArea, editor, openFile: (p) => { void openInEditor(p); }, hint: (s) => status.setHint(s) });
   store.on('active', (id) => { if (id && !views.show(id)) editor?.show(id); });
   window.addEventListener(PATHS_CHANGED, (e) => {
     const { from } = (e as CustomEvent<PathsChanged>).detail;

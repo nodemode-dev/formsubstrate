@@ -1,4 +1,5 @@
 import { request } from './api';
+import { trustQuery } from './trust';
 
 export type LspLang = 'typescript' | 'python';
 
@@ -35,5 +36,5 @@ export function lspServers(): Promise<LspServers> {
 
 export function lspSocketUrl(lang: LspLang): string {
   const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${scheme}://${location.host}/api/lsp/ws?lang=${lang}`;
+  return `${scheme}://${location.host}/api/lsp/ws?lang=${lang}${trustQuery('&')}`;
 }
