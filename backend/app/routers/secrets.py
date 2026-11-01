@@ -12,6 +12,8 @@ from app.core import config
 router = APIRouter()
 
 SERVICE = "subform"
+OLD_SERVICE = "substrataform"
+KEYRING_MARKER = ".keyring-migrated-from-substrataform"
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_.-]{0,63}$")
 INDEX_NAME = "secrets-index.json"
 VALUE_MAX = 65536
@@ -40,6 +42,51 @@ def _save(names: list[str]) -> None:
     temp = target.with_name(target.name + ".tmp")
     temp.write_text(json.dumps({"names": sorted(set(names))}), encoding="utf-8")
     os.replace(temp, target)
+
+
+def _old_names() -> list[str]:
+    old = config.old_data_dir()
+    if old is None:
+        return []
+    try:
+        data = json.loads((old / INDEX_NAME).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    items = data.get("names") if isinstance(data, dict) else None
+    if not isinstance(items, list):
+        return []
+    return [item for item in items if isinstance(item, str) and NAME_RE.fullmatch(item)]
+
+
+def migrate_keyring() -> list[str]:
+    marker = config.data_dir() / KEYRING_MARKER
+    if marker.exists():
+        return []
+    notes: list[str] = []
+    copied: list[str] = []
+    for name in sorted({*_names(), *_old_names()}):
+        try:
+            if keyring.get_password(SERVICE, name) is not None:
+                continue
+            value = keyring.get_password(OLD_SERVICE, name)
+            if value is None:
+                continue
+            keyring.set_password(SERVICE, name, value)
+            copied.append(name)
+        except Exception as error:
+            notes.append(f"keychain migration stopped at secret '{name}': {error.__class__.__name__}; it will be tried again at the next start")
+            return notes
+    if copied:
+        with _lock:
+            _save([*_names(), *copied])
+        notes.append(f"copied {len(copied)} secret(s) from the old keychain service to the new one: {', '.join(copied)}; the old entries were left in place")
+    else:
+        notes.append("keychain migration: nothing to copy from the old service")
+    try:
+        marker.write_text(json.dumps({"from": OLD_SERVICE, "copied": copied}), encoding="utf-8")
+    except OSError:
+        pass
+    return notes
 
 
 def _check(name: str) -> None:

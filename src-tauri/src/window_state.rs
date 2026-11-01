@@ -52,7 +52,45 @@ fn on_screen(handle: &tauri::AppHandle, place: &Place) -> bool {
     })
 }
 
+const OLD_ID: &str = "ai.nodemode.substrataform";
+
+fn is_empty_dir(dir: &std::path::Path) -> bool {
+    match std::fs::read_dir(dir) {
+        Ok(mut entries) => entries.next().is_none(),
+        Err(_) => !dir.exists(),
+    }
+}
+
+fn copy_tree(from: &std::path::Path, to: &std::path::Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(to)?;
+    for entry in std::fs::read_dir(from)? {
+        let entry = entry?;
+        let kind = entry.file_type()?;
+        let target = to.join(entry.file_name());
+        if kind.is_dir() {
+            copy_tree(&entry.path(), &target)?;
+        } else if kind.is_file() {
+            std::fs::copy(entry.path(), target)?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+fn adopt_old_state(handle: &tauri::AppHandle) {
+    let Some(new) = handle.path().app_config_dir().ok() else { return };
+    let Some(old) = new.parent().map(|parent| parent.join(OLD_ID)) else { return };
+    if old == new || !old.is_dir() || !is_empty_dir(&new) {
+        return;
+    }
+    let _ = copy_tree(&old, &new);
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
+fn adopt_old_state(_handle: &tauri::AppHandle) {}
+
 pub fn load(handle: &tauri::AppHandle) -> Place {
+    adopt_old_state(handle);
     let mut place = file(handle)
         .and_then(|file| std::fs::read_to_string(file).ok())
         .and_then(|text| serde_json::from_str::<Place>(&text).ok())

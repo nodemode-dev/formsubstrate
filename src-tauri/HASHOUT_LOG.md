@@ -351,3 +351,11 @@ Replaces the v0.1.0 todo. Interface zoom needs no shell code: Preferences > Inte
 - logged: v0.12.0 · 2026-10-30
 
 Closes the v0.10.0 todo. It was already done the same day: `engine_folder` lists `../Resources/engine`, `engine` beside the executable and `../lib/subform/engine`, and the earlier entry "src-tauri/src/packaged.rs · engine_folder (Linux packages)" records it. The third path matches the .deb layout for productName `subform` (`/usr/lib/subform/`). Windows is covered by the `engine` beside the executable candidate and the `.exe` suffix. Not run against a built .deb on this machine.
+
+### src/window_state.rs · adopt_old_state
+
+- refers-to: src-tauri/src/window_state.rs :: adopt_old_state, load
+- kind: rationale
+- logged: v0.14.0 · 2026-10-31
+
+The bundle id changed from `ai.nodemode.substrataform` to `ai.nodemode.subform`, which moves `app_config_dir` (window.json). On macOS and Linux `load` first copies the old id's config folder into the new one when the new one is empty or missing and the old exists; the old folder is never touched. Windows is skipped (no-op). Only the config folder is copied: the webview's own storage (macOS WKWebView, Linux WebKitGTK data dir) is created by the splash window before this runs and is not merged, so localStorage from the old id may be lost there; the page-side copy only helps where the storage survives. `cargo check` passes without warnings; the copy itself was not run here (no desktop session).
