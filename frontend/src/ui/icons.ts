@@ -88,6 +88,7 @@ export const ICONS: Record<string, string> = {
   branch: `<svg ${S}><circle cx="7" cy="5.5" r="2.2"/><circle cx="7" cy="18.5" r="2.2"/><circle cx="17" cy="9" r="2.2"/><path d="M7 7.7v8.6M17 11.2c0 3.2-3.5 3.6-8.4 5.6"/></svg>`,
   diff: `<svg ${S}><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M12 4v16M6.5 9.5h3M8 8v3M14.5 15h3"/></svg>`,
   terminalTab: `<svg ${S}><path d="M3.5 18.5V7a2 2 0 0 1 2-2H10l1.6 2.4h6.9a2 2 0 0 1 2 2v9.1a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2z"/><path d="M8 11.5l2.5 2-2.5 2M12.5 15.5h3.5"/></svg>`,
+  stop: `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>`,
   session: `<svg ${S}><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/><path d="M12 3.5v1.6"/></svg>`,
   slot: `<svg ${S}><rect x="4" y="3.5" width="16" height="4.4" rx="2.2"/><rect x="4" y="9.8" width="16" height="4.4" rx="2.2"/><rect x="4" y="16.1" width="16" height="4.4" rx="2.2"/></svg>`,
   bug: `<svg ${S}><rect x="8" y="8" width="8" height="11" rx="4"/><path d="M9.5 8a2.5 2.5 0 0 1 5 0M4 12h4M16 12h4M5 6.5l3 2.5M19 6.5 16 9M5 18l3-2.3M19 18l-3-2.3M12 11v8"/></svg>`,
