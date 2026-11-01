@@ -57,6 +57,7 @@
 
   --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', system-ui, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, 'JetBrains Mono', monospace;
+  --font-code: 'JetBrains Mono', ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
   --fs-9: 9px;
   --fs-10: 10px;
   --fs-11: 11px;
@@ -148,6 +149,32 @@
   --glass-highlight: color-mix(in srgb, var(--text-primary) 12%, transparent);
   --glass-filter: blur(40px) saturate(1.8);
   --glass-shadow: 0 22px 56px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.25);
+
+  --syn-blue: #7cb7ff;
+  --syn-violet: #c7a6ff;
+  --syn-teal: #5fd4c4;
+  --syn-keyword: var(--accent-ink);
+  --syn-string: var(--ok-soft);
+  --syn-regexp: var(--syn-teal);
+  --syn-number: var(--warn);
+  --syn-property: var(--syn-blue);
+  --syn-function: color-mix(in srgb, var(--syn-blue) 70%, var(--text-primary));
+  --syn-def: color-mix(in srgb, var(--syn-blue) 35%, var(--text-primary));
+  --syn-variable: var(--text-primary);
+  --syn-type: var(--syn-violet);
+  --syn-tag: var(--danger-soft);
+  --syn-attribute: color-mix(in srgb, var(--warn) 65%, var(--text-primary));
+  --syn-operator: var(--text-secondary);
+  --syn-punct: var(--text-secondary);
+  --syn-meta: var(--text-muted);
+  --syn-comment: var(--text-muted);
+  --syn-constant: var(--syn-teal);
+  --syn-heading: var(--accent-ink);
+  --syn-link: var(--syn-blue);
+  --syn-inserted: var(--ok);
+  --syn-deleted: var(--danger);
+  --syn-changed: var(--warn);
+  --syn-invalid: var(--danger-text);
 }
 
 body.theme-light {
@@ -164,6 +191,22 @@ body.theme-light {
   --border-soft: rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 4px 14px rgba(96, 90, 70, 0.16);
   --shadow-window: 0 18px 44px rgba(96, 90, 70, 0.22);
+  --syn-blue: #1d5fbf;
+  --syn-violet: #7a3fc2;
+  --syn-teal: #0d7a6e;
+  --syn-string: color-mix(in srgb, var(--ok) 65%, #000000);
+  --syn-regexp: var(--syn-teal);
+  --syn-number: color-mix(in srgb, var(--warn) 55%, #000000);
+  --syn-property: var(--syn-blue);
+  --syn-function: color-mix(in srgb, var(--syn-blue) 70%, var(--text-primary));
+  --syn-def: color-mix(in srgb, var(--syn-blue) 35%, var(--text-primary));
+  --syn-type: var(--syn-violet);
+  --syn-tag: color-mix(in srgb, var(--danger) 85%, #000000);
+  --syn-attribute: color-mix(in srgb, var(--warn) 50%, #000000);
+  --syn-constant: var(--syn-teal);
+  --syn-link: var(--syn-blue);
+  --syn-changed: color-mix(in srgb, var(--warn) 55%, #000000);
+  --syn-invalid: var(--danger);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }

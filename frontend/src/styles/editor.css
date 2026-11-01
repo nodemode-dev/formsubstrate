@@ -1,0 +1,7 @@
+.cv-editor { position: relative; width: 100%; height: 100%; min-height: 0; min-width: 0; overflow: hidden; background: var(--bg-primary); color: var(--text-primary); contain: layout paint; }
+.cv-editor-mount { position: absolute; inset: 0; }
+.cv-editor-mount[hidden], .cv-editor-empty[hidden] { display: none; }
+.cv-editor-mount > .cm-editor { height: 100%; }
+.cv-editor-mount .cm-scroller { overflow: auto; }
+.cv-editor-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-family: var(--font-ui); font-size: var(--fs-13); user-select: none; }
+.cv-editor .cm-editor, .cv-editor .cm-scroller, .cv-editor .cm-content { scrollbar-width: none; }
