@@ -1,4 +1,4 @@
-.cv-home { position: fixed; top: var(--cv-titlebar-h); left: 0; right: 0; bottom: 0; z-index: calc(var(--z-menu) - 1); display: grid; grid-template-columns: 232px minmax(0, 1fr); background: var(--group-head); color: var(--text-primary); user-select: none; -webkit-user-select: none; }
+.cv-home { position: fixed; top: var(--cv-titlebar-h); left: 0; right: 0; bottom: 0; z-index: var(--z-home-root); display: grid; grid-template-columns: 232px minmax(0, 1fr); background: var(--group-head); color: var(--text-primary); user-select: none; -webkit-user-select: none; }
 .cv-home[hidden] { display: none; }
 :root[data-ft-dock="open"] .cv-home { bottom: calc(var(--cv-status-h) + var(--ft-dock-h)); }
 .cv-home-nav { display: flex; flex-direction: column; gap: var(--space-0); min-height: 0; padding: var(--space-3h) var(--space-2h) var(--space-3); background: var(--surface-0); border-right: 1px solid var(--line-0); overflow-y: auto; }
