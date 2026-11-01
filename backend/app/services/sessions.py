@@ -421,14 +421,14 @@ def _mcp_arg(item: dict) -> list[str]:
 
 
 async def _start_claude_terminal(item: dict, args: list[str] | None = None) -> str:
-    return await _launch(item, [_claude(), *_mcp_arg(item), *(args or [])], False)
+    return await _launch(item, [_claude(), "--setting-sources", "user", *_mcp_arg(item), *(args or [])], False)
 
 
 async def _start_headless(item: dict, prompt: str, resume: str | None = None) -> str:
     mode = item.get("permissionMode")
     if mode not in PERMISSION_MODES:
         mode = DEFAULT_PERMISSION_MODE
-    argv = [_claude(), "-p", "--output-format", "stream-json", "--verbose", "--permission-mode", mode, *_mcp_arg(item), *(["--resume", resume] if resume else []), "--", prompt]
+    argv = [_claude(), "-p", "--output-format", "stream-json", "--verbose", "--setting-sources", "user", "--permission-mode", mode, *_mcp_arg(item), *(["--resume", resume] if resume else []), "--", prompt]
     return await _launch(item, argv, True)
 
 
