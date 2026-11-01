@@ -23,7 +23,7 @@ REAP_SECONDS = float(os.environ.get("SUBFORM_PTYHOST_REAP", "300"))
 ID_RE = re.compile(r"^[a-z0-9]{16}$")
 TAIL_LINES = 2000
 TAIL_BYTES = 256 * 1024
-TAIL_RAW = 1024 * 1024
+TAIL_RAW = 256 * 1024
 ANSI_RE = re.compile(
     r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?"
     r"|\x1b[PX^_][^\x1b]*(?:\x1b\\)?"
@@ -35,16 +35,216 @@ CTRL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 WINDOWS = sys.platform == "win32"
 
 
-def plain_text(raw):
-    text = raw.decode("utf-8", "replace").replace("\r\n", "\n")
-    text = ANSI_RE.sub("", text)
-    lines = []
-    for line in text.split("\n"):
-        if "\r" in line:
-            parts = [p for p in line.split("\r") if p]
-            line = parts[-1] if parts else ""
-        lines.append(CTRL_RE.sub("", line))
-    return lines
+TOKEN_RE = re.compile(
+    r"\x1b\[([0-?]*)[ -/]*([@-~])"
+    r"|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)"
+    r"|\x1b[PX^_][^\x1b]*(?:\x1b\\)?"
+    r"|\x1b[()*+][0-2AB]"
+    r"|\x1b([0-~])"
+    r"|([\x00-\x1a\x1c-\x1f\x7f])"
+    r"|([^\x00-\x1f\x7f]+)"
+)
+HISTORY_MAX = 20000
+
+
+class Screen:
+    def __init__(self, cols, rows):
+        self.cols = max(1, cols)
+        self.rows = max(1, rows)
+        self.grid = [[" "] * self.cols for _ in range(self.rows)]
+        self.history = []
+        self.r = 0
+        self.c = 0
+        self.top = 0
+        self.bot = self.rows - 1
+        self.saved = (0, 0)
+        self.main = None
+
+    def blank(self):
+        return [" "] * self.cols
+
+    def scroll_up(self, count):
+        for _ in range(min(count, self.bot - self.top + 1)):
+            gone = self.grid.pop(self.top)
+            if self.top == 0 and self.main is None:
+                self.history.append("".join(gone).rstrip())
+                if len(self.history) > HISTORY_MAX:
+                    del self.history[: len(self.history) - HISTORY_MAX]
+            self.grid.insert(self.bot, self.blank())
+
+    def scroll_down(self, count):
+        for _ in range(min(count, self.bot - self.top + 1)):
+            self.grid.pop(self.bot)
+            self.grid.insert(self.top, self.blank())
+
+    def linefeed(self):
+        if self.r == self.bot:
+            self.scroll_up(1)
+        else:
+            self.r = min(self.r + 1, self.rows - 1)
+
+    def put(self, text):
+        while text:
+            if self.c >= self.cols:
+                self.c = 0
+                self.linefeed()
+            room = self.cols - self.c
+            piece = text[:room]
+            self.grid[self.r][self.c : self.c + len(piece)] = list(piece)
+            self.c += len(piece)
+            text = text[room:]
+
+    def erase_line(self, mode):
+        row = self.grid[self.r]
+        if mode == 0:
+            row[self.c :] = [" "] * (self.cols - self.c)
+        elif mode == 1:
+            row[: self.c + 1] = [" "] * min(self.c + 1, self.cols)
+        else:
+            self.grid[self.r] = self.blank()
+
+    def erase_display(self, mode):
+        if mode == 0:
+            self.erase_line(0)
+            for i in range(self.r + 1, self.rows):
+                self.grid[i] = self.blank()
+        elif mode == 1:
+            self.erase_line(1)
+            for i in range(self.r):
+                self.grid[i] = self.blank()
+        else:
+            for i in range(self.rows):
+                self.grid[i] = self.blank()
+            if mode == 3:
+                self.history = []
+
+    def csi(self, params, final):
+        private = params[:1] in ("?", ">", "=", "<")
+        nums = [int(p) if p.isdigit() else 0 for p in params.lstrip("?>=<").split(";")] if params else []
+        first = nums[0] if nums else 0
+        one = first or 1
+        if private:
+            if final in ("h", "l") and any(n in (47, 1047, 1049) for n in nums):
+                if final == "h" and self.main is None:
+                    self.main = (self.grid, self.r, self.c, self.top, self.bot)
+                    self.grid = [self.blank() for _ in range(self.rows)]
+                    self.r = self.c = 0
+                    self.top, self.bot = 0, self.rows - 1
+                elif final == "l" and self.main is not None:
+                    self.grid, self.r, self.c, self.top, self.bot = self.main
+                    self.main = None
+            return
+        if final == "A":
+            self.r = max(0, self.r - one)
+        elif final in ("B", "e"):
+            self.r = min(self.rows - 1, self.r + one)
+        elif final in ("C", "a"):
+            self.c = min(self.cols - 1, self.c + one)
+        elif final == "D":
+            self.c = max(0, self.c - one)
+        elif final == "E":
+            self.r, self.c = min(self.rows - 1, self.r + one), 0
+        elif final == "F":
+            self.r, self.c = max(0, self.r - one), 0
+        elif final in ("G", "`"):
+            self.c = min(self.cols - 1, one - 1)
+        elif final == "d":
+            self.r = min(self.rows - 1, one - 1)
+        elif final in ("H", "f"):
+            self.r = min(self.rows - 1, (nums[0] or 1) - 1 if nums else 0)
+            self.c = min(self.cols - 1, (nums[1] or 1) - 1 if len(nums) > 1 else 0)
+        elif final == "J":
+            self.erase_display(first)
+        elif final == "K":
+            self.erase_line(first)
+        elif final == "X":
+            row = self.grid[self.r]
+            end = min(self.cols, self.c + one)
+            row[self.c : end] = [" "] * (end - self.c)
+        elif final == "P":
+            row = self.grid[self.r]
+            del row[self.c : self.c + one]
+            row.extend([" "] * (self.cols - len(row)))
+        elif final == "@":
+            row = self.grid[self.r]
+            row[self.c : self.c] = [" "] * one
+            del row[self.cols :]
+        elif final == "L" and self.top <= self.r <= self.bot:
+            for _ in range(min(one, self.bot - self.r + 1)):
+                self.grid.pop(self.bot)
+                self.grid.insert(self.r, self.blank())
+        elif final == "M" and self.top <= self.r <= self.bot:
+            for _ in range(min(one, self.bot - self.r + 1)):
+                self.grid.pop(self.r)
+                self.grid.insert(self.bot, self.blank())
+        elif final == "S":
+            self.scroll_up(one)
+        elif final == "T":
+            self.scroll_down(one)
+        elif final == "r":
+            top = (nums[0] or 1) - 1 if nums else 0
+            bot = (nums[1] or self.rows) - 1 if len(nums) > 1 else self.rows - 1
+            if 0 <= top < bot < self.rows:
+                self.top, self.bot = top, bot
+                self.r = self.c = 0
+        elif final == "s":
+            self.saved = (self.r, self.c)
+        elif final == "u":
+            self.r, self.c = self.saved
+
+    def esc(self, final):
+        if final == "7":
+            self.saved = (self.r, self.c)
+        elif final == "8":
+            self.r, self.c = self.saved
+        elif final == "M":
+            if self.r == self.top:
+                self.scroll_down(1)
+            else:
+                self.r = max(0, self.r - 1)
+        elif final == "D":
+            self.linefeed()
+        elif final == "E":
+            self.c = 0
+            self.linefeed()
+        elif final == "c":
+            self.__init__(self.cols, self.rows)
+
+    def control(self, char):
+        if char in ("\n", "\x0b", "\x0c"):
+            self.linefeed()
+        elif char == "\r":
+            self.c = 0
+        elif char == "\b":
+            self.c = max(0, self.c - 1)
+        elif char == "\t":
+            self.c = min(self.cols - 1, (self.c // 8 + 1) * 8)
+
+    def feed(self, text):
+        for match in TOKEN_RE.finditer(text):
+            params, final, esc, ctrl, run = match.groups()
+            if run is not None:
+                self.put(run)
+            elif final is not None:
+                self.csi(params, final)
+            elif ctrl is not None:
+                self.control(ctrl)
+            elif esc is not None:
+                self.esc(esc)
+
+    def lines(self):
+        shown = ["".join(row).rstrip() for row in self.grid]
+        while shown and not shown[-1]:
+            shown.pop()
+        if self.main is not None:
+            return list(shown)
+        return self.history + shown
+
+
+def plain_text(raw, cols=100, rows=30):
+    screen = Screen(min(max(int(cols), 10), MAX_COLS), min(max(int(rows), 4), MAX_ROWS))
+    screen.feed(raw.decode("utf-8", "replace"))
+    return [CTRL_RE.sub("", line) for line in screen.lines()]
 
 if not WINDOWS:
     import fcntl
@@ -522,8 +722,15 @@ class Host:
         missed = 0
         if since is not None:
             missed = max(0, start - since)
-        raw = bytes(term.buf[start - term.base:])
-        rows = plain_text(raw)
+        floor = max(term.base, total - TAIL_RAW)
+        raw = bytes(term.buf[floor - term.base:])
+        rows = plain_text(raw, term.cols, term.rows)
+        if since is not None and start > floor:
+            prior = plain_text(raw[: start - floor], term.cols, term.rows)
+            common = 0
+            while common < len(prior) and common < len(rows) and prior[common] == rows[common]:
+                common += 1
+            rows = rows[common:]
         if since is None and rows and rows[-1] == "":
             rows.pop()
         dropped = max(0, len(rows) - lines)
