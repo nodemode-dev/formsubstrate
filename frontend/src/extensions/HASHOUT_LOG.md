@@ -11,7 +11,7 @@ Last updated: 2026-10-30 · Phase F4
 - kind: rationale
 - logged: v0.4.0 · 2026-10-30
 
-`expectedMtime` is `number | null`: null means "do not check" (a new file, or Overwrite after a conflict); the engine answers 409 for any number when the file does not exist, so the files extension creates a file with null, not 0. `RecentWorkspace.opened` is the engine's ISO string and `formRepo` is optional, matching Home's RecentEntry.
+`expectedMtime` is `number | null`: null means "do not check" (Overwrite after a conflict); the engine answers 409 for any number when the file does not exist. Since v0.4.1 `writeFile` takes `create`, and New File sends `create: true`, so an existing file of that name is a 409 instead of being truncated (review). `RecentWorkspace.opened` is the engine's ISO string and `formRepo` is optional, matching Home's RecentEntry.
 
 ### frontend/src/io/workspace.ts · module
 

@@ -1350,6 +1350,14 @@ startLanguage and followSystemTheme run before mountOnce; installNumberFields, e
 
 The Workbench is mounted into .cv-stage before the reveal and the empty-stage note moves into its editor area. The EditorHost mounts on .cv-editor-host; its deps load and save through io/workspace.ts and report dirty state into the store. The Workbench's editor() adapter opens a file in the editor and then adds the tab (store.openDoc, id equals the workspace-relative path), so a file that cannot open never gets a tab. The store's active event shows that file in the editor; closing a tab closes its buffer; a rename or delete from the files tree closes buffers under the path. Save, Save All, Find, Add Next Occurrence and Select All Occurrences are real commands on the editor; CodeMirror handles Mod+S itself inside the editor and prevents the default, so the global handler never saves twice. Menu-clicked Undo and Redo still go through execCommand, which CodeMirror does not follow; keyboard Undo and Redo work. To fix with the editor command bridge.
 
+### src/app.ts · review fixes (v0.4.1)
+
+- refers-to: frontend/src/app.ts :: startApp; frontend/src/ui/open-folder.ts :: openFolderAt; frontend/src/ui/editor/editor.ts :: EditorHost.open
+- kind: rationale
+- logged: v0.4.1 · 2026-10-30
+
+From the fresh-context review. Opening another folder asks first when any file has unsaved changes, then closes every open file of the previous folder (paths are workspace-relative, so a same-named file in the new folder used to show and save the old folder's text). `EditorHost.open` returns whether the file is now showing; a tab is added only then, so a binary or unreadable file leaves no phantom tab and a slow open that a newer one overtook does not take the tab back. A search hit in an already-open file now activates its tab (the shell's revealLine goes through the same open path). A rename or delete in the tree closes only files without unsaved changes; a changed one stays open with a notice. Quit asks when files are unsaved, and the page refuses to unload with unsaved files (this also guards Preferences Reset); the desktop close request still needs its own check (F5, with session restore). Esc in a text field no longer closes Home. Home's layer is the token --z-home-root (199, just under --z-menu), not arithmetic in home.css. Not changed: dismissing the save-conflict dialog chooses Reload (the user's text stays in undo history); mixed line endings are written back with the dominant one; reopenLastWorkspace, recoveryMinutes and hiddenFolders are stored but not read yet; two listings of one folder can arrive out of order.
+
 ### F4 exit check
 
 - refers-to: frontend/src/app.ts :: startApp

@@ -89,3 +89,29 @@ workspace and secrets routers mounted under /api, behind the existing LocalGuard
 - logged: v0.4.0 · 2026-10-30
 
 Substrata's /browse, /locate, /upload and the plugin and skill loading in /configure are not ported: the folder picker is the desktop shell's, there are no plugins here, and upload is not in the contract.
+
+## Review fixes (v0.4.1)
+
+### backend/app/routers/workspace.py · hardening
+
+- refers-to: backend/app/routers/workspace.py :: open_workspace, write_file, rename, search, _regular
+- kind: rationale
+- logged: v0.4.1 · 2026-10-30
+
+From the fresh-context review, each reproduced first. The Form-repo probe reads CLAUDE.md, AGENTS.md, package.json and Cargo.toml only when they are regular files of at most 1 MiB, and runs in the thread pool: a FIFO named CLAUDE.md used to block the whole engine. Writes over 8 MiB are 413 (checked on Content-Length and on the text). `create: true` refuses an existing path with 409 so New File never truncates a file; null `expectedMtime` without `create` still means overwrite (the editor's Overwrite after a conflict). A read-only file is 403 instead of being replaced. Rename into itself or under itself is 409, and other OS errors from rename are 409, not 500. Malformed JSON is 400 on every route. A NUL in the query or glob is 400. ripgrep skips files over 4 MiB (`--max-filesize 4M`), matching the read limit. Without ripgrep a regular-expression search is refused with 400, because Python's `re` has no timeout and a hostile pattern could pin the engine; plain-text search still works.
+
+### backend/app/routers/secrets.py · names
+
+- refers-to: backend/app/routers/secrets.py :: _check
+- kind: rationale
+- logged: v0.4.1 · 2026-10-30
+
+Names are checked with `fullmatch`: `$` in `match` accepts a trailing newline.
+
+### backend/app/core/workspace_root.py · case of .git
+
+- refers-to: backend/app/core/workspace_root.py :: resolve
+- kind: rationale
+- logged: v0.4.1 · 2026-10-30
+
+On a case-insensitive file system (macOS default, Windows) a write to `.GIT/config` reaches the git folder, so the protected-name check compares lowercased parts. On Linux `.GIT` is a different folder and is refused too, which costs nothing.
