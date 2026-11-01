@@ -1,7 +1,7 @@
 # HASHOUT_LOG · frontend · subform
 
-Current build version: v0.2.1
-Last updated: 2026-10-30 · Phase F2, review fixes
+Current build version: v0.4.0
+Last updated: 2026-10-30 · Phases F3 and F4
 
 ## Org-navi-map
 
@@ -22,6 +22,9 @@ frontend/
     app.ts                F2 shell: commands, menus, title bar, tabs, status, palette, reveal
     io/
       api.ts              engine client (/api/health) for the status bar
+      workspace.ts        workspace, files and search client (log: src/extensions/HASHOUT_LOG.md)
+      secrets.ts          secret names and presence through the engine keyring
+    extensions/           registry, files tree, search (own log: src/extensions/HASHOUT_LOG.md)
     ui/
       dom.ts              zero-flash DOM helpers and revealApp
       icons.ts            inline currentColor SVG icons
@@ -45,6 +48,12 @@ frontend/
       status.ts           status bar slots
       jobs-list.ts        background jobs popup
       workspace-store.ts  shell state: workspace, documents, jobs, sessions
+      home.ts             Home: Start, Recent, Workspaces, Sessions
+      home-files.ts       Recent and Workspaces lists
+      open-folder.ts      folder picker (desktop dialog or typed path) and open
+      settings.ts         Preferences dialog, eleven sections
+      workbench.ts        activity rail, side panel, editor area (log: src/extensions/HASHOUT_LOG.md)
+      editor/             CodeMirror 6 editor host (own log: src/ui/editor/HASHOUT_LOG.md)
       panels/
         controls.ts       slider, select, check, toggle, colour and number rows
     styles/
@@ -54,6 +63,9 @@ frontend/
       dialogs.css         scrim, dialog frame, rows, Preferences
       light-mode.css      light-profile shadow overrides
       scrollbars.css      no scrollbar drawn anywhere
+      home.css            Home and its lists (.cv-home*, .cv-hf*, .cv-drop)
+      workbench.css       rail, side panel, tree, search (.cv-wb-*, .cv-tree-*, .cv-search-*)
+      editor.css          editor host (.cv-editor*)
 ```
 
 ## Table of contents
@@ -68,6 +80,8 @@ frontend/
 - src/ui shell modules (commands, menu, native-menu, command-palette, caption-buttons, titlebar-tools, tabs, status, jobs-list, workspace-store) and src/app.ts
 - F2 integration (index.html links, main.ts, io/api.ts, fixes)
 - F2 review fixes (v0.2.1)
+- F3 Home and Preferences (v0.4.0)
+- F4 integration (v0.4.0); editor, workbench and extensions have their own logs
 - vite.config.ts
 - package.json
 - boot_frontend and oc_install
@@ -1227,6 +1241,122 @@ The Working indicator went from display none to inline-flex at 296px, which refl
 - logged: v0.2.1 · 2026-10-30
 
 Not changed in v0.2.1: document tabs have no roving tabindex or arrow keys (F3, with Home); `installNumberFields`, `enhanceAllSelects`, `startLanguage`, `startPageTranslator` and `followSystemTheme` are not called yet and are wired when Preferences lands (F3), before first paint; the theme tables in themes.ts and the boot script in index.html keep literal colours, the documented exception that makes the first frame right.
+
+## F3 Home and Preferences (v0.4.0)
+
+### src/ui/home.ts · Home
+
+- refers-to: frontend/src/ui/home.ts :: Home
+- kind: explainer
+- logged: v0.4.0 · 2026-10-30
+
+Ported from formvis ui/home.ts (HomeScreen, Apache-2.0, owner's) per FORMVIS_HOME_MENUBAR_TITLEBAR_STATUSBAR_MAP.md section A: one section.cv-home built once into .cv-stage, pages toggled by hidden, nav item is-active, greeting from getHours (before 12 morning, before 18 afternoon, else evening) written when Home becomes visible, Back shown only while a workspace is open. Pages Start, Recent, Workspaces, Sessions; Create items New Form app, Open folder, Clone repo, New agent session; foot Back, Preferences, Help. Home runs its own data-cmd buttons and stops the click so the root handler in app.ts does not run them twice; syncChrome still sets their disabled state and titles.
+
+### src/ui/home.ts · visibility rule
+
+- refers-to: frontend/src/ui/home.ts :: Home.sync
+- kind: rationale
+- logged: v0.4.0 · 2026-10-30
+
+Home is open while forced (brand, View > Home) or while no workspace is open; the store's workspace event clears forced, so opening a folder closes Home. There is no auto-show preference as formvis had. Esc is the app's home-back command, enabled only while Home is open and a workspace is open (the formvis "Esc leaves Home while a document is open" rule through the command registry).
+
+### src/ui/home.ts · brand covered while Home is open
+
+- refers-to: frontend/src/styles/home.css :: .cv-home
+- kind: warning-context
+- logged: v0.4.0 · 2026-10-30
+
+The map fixes Home at top var(--cv-titlebar-h), so it covers the tab row and the .cv-brand Home button: the pointer cannot reach the brand while Home is open; Tab to it and Enter, Back, Esc and View > Home all work. This matches formvis. Changing top to calc(var(--cv-titlebar-h) + var(--cv-tabs-h)) would expose the brand; nothing else depends on it.
+
+### src/ui/home.ts · drop handling
+
+- refers-to: frontend/src/ui/home.ts :: Home.wireDrop
+- kind: rationale
+- logged: v0.4.0 · 2026-10-30
+
+A DOM drop gives files without a folder path, so the desktop window now lets Tauri handle drops (main.rs no longer calls disable_drag_drop_handler) and Home listens to tauri://drag-enter, drag-leave and drag-drop; the first path is opened while Home is open. The whole Home is the target because the payload position is in physical pixels and ignores the page zoom. Side effect: the desktop webview no longer receives DOM file drops; Home is the only drop target so far. In a browser a drop shows the toast that browsers do not reveal folder paths. Not run in a desktop build here.
+
+### src/ui/home.ts · HomeSessions
+
+- refers-to: frontend/src/ui/home.ts :: HomeSessions
+- kind: todo
+- logged: v0.4.0 · 2026-10-30
+
+Placeholder for B07's sessions grid: groups needs input, working, done, each hidden when empty, shared empty state "No agent sessions yet". setSessions(list) patches cards by id and is the F5 hook. Idle, failed and stopped fold into done until F5 decides.
+
+### src/ui/home-files.ts · HomeFiles
+
+- refers-to: frontend/src/ui/home-files.ts :: HomeFiles
+- kind: explainer
+- logged: v0.4.0 · 2026-10-30
+
+Ported from formvis ui/home-files.ts: thumbnails became rows of folder name, path, last opened and a Form-repo badge; filter, sort (Most recent, Name) and grid or list view kept (localStorage subform.home in try/catch); rows patched by path. Home fetches the recent list once and feeds every list. Workspaces lists entries marked formRepo plus the workspace open now. The item area has a min-height and the empty note sits over it, so rows arriving from the engine move nothing (layout shift 0 under 4x throttling).
+
+### src/ui/open-folder.ts · openFolderPrompt
+
+- refers-to: frontend/src/ui/open-folder.ts :: openFolderPrompt
+- kind: explainer
+- logged: v0.4.0 · 2026-10-30
+
+Desktop: @tauri-apps/plugin-dialog open({ directory: true }) through a dynamic import, with dialog:allow-open added to the capability. Browser: promptName asks for an absolute path. openFolderAt opens through the engine and then sets the store's workspace, which closes Home; it rethrows so Home's rows and drops show their own toast.
+
+### src/styles/home.css · rules
+
+- refers-to: frontend/src/styles/home.css :: .cv-home
+- kind: explainer
+- logged: v0.4.0 · 2026-10-30
+
+Ported from formvis shell.css (the .cv-home*, .cv-hf* and .cv-drop rules) onto tokens; fixed layout constants as in the map (232px nav, 1180px content). z-index calc(var(--z-menu) - 1). The dock-aware bottom rule formvis keeps in terminal.css lives here until terminal.css lands in F5.
+
+### src/ui/settings.ts · SettingsDialog
+
+- refers-to: frontend/src/ui/settings.ts :: SettingsDialog
+- kind: rationale
+- logged: v0.4.0 · 2026-10-30
+
+Ported from formvis app-dialogs.ts SettingsDialog per FORMVIS_SETTINGS_MAP.md: rail (fold key subform.prefsRailCollapsed), wire with trunk at 45 percent of the rail width and radius 10, port, scroll spy (edge 24, mute 700 ms), card fold, change and sync, section loop over General, Interface, Workspace, Editor, Terminal, Agents, Git and Identity, formslot, Language Servers, Keys, Updates. It wraps a Dialog because Dialog.open(focus) clashes with open(section?). Built once at start; rows are patched in sync(); the Keys list is patchList keyed by command id. The theme swatches come from a detached template once.
+
+### src/ui/settings.ts · Reset and secrets
+
+- refers-to: frontend/src/ui/settings.ts :: SettingsDialog
+- kind: warning-context
+- logged: v0.4.0 · 2026-10-30
+
+Reset removes only localStorage keys starting with subform. plus nodemode_ui_settings, then reloads. The API key field is a password input sent to PUT /api/secrets/anthropic-api-key and cleared; only presence is ever read back; it never reaches prefs or localStorage. With no system keyring the engine answers 503 and the row says so. Custom title bar and menus-in-window rows run the existing commands, which own their keys. Git author name and email are empty read-only fields until the git phase exposes an identity route.
+
+### src/ui/prefs.ts · fields added in v0.4.0
+
+- refers-to: frontend/src/ui/prefs.ts :: Prefs
+- kind: todo
+- logged: v0.4.0 · 2026-10-30
+
+largeTabs (applied as body.large-tabs), reopenLastWorkspace and hiddenFolders (stored; nothing reads them yet), sidebarWidth (180 to 600, default 280, read by the workbench).
+
+### src/app.ts · pre-paint wiring
+
+- refers-to: frontend/src/app.ts :: startApp
+- kind: explainer
+- logged: v0.4.0 · 2026-10-30
+
+startLanguage and followSystemTheme run before mountOnce; installNumberFields, enhanceAllSelects and startPageTranslator run just before revealApp, after every dialog and its selects exist. This closes the F2 review carry-over. Because every select is now shown as the glass list, the hidden title-bar workspace select carries data-native, or its empty button showed in the title bar (found in the F4 screenshot).
+
+## F4 integration (v0.4.0)
+
+### src/app.ts · editor and workbench wiring
+
+- refers-to: frontend/src/app.ts :: startApp
+- kind: rationale
+- logged: v0.4.0 · 2026-10-30
+
+The Workbench is mounted into .cv-stage before the reveal and the empty-stage note moves into its editor area. The EditorHost mounts on .cv-editor-host; its deps load and save through io/workspace.ts and report dirty state into the store. The Workbench's editor() adapter opens a file in the editor and then adds the tab (store.openDoc, id equals the workspace-relative path), so a file that cannot open never gets a tab. The store's active event shows that file in the editor; closing a tab closes its buffer; a rename or delete from the files tree closes buffers under the path. Save, Save All, Find, Add Next Occurrence and Select All Occurrences are real commands on the editor; CodeMirror handles Mod+S itself inside the editor and prevents the default, so the global handler never saves twice. Menu-clicked Undo and Redo still go through execCommand, which CodeMirror does not follow; keyboard Undo and Redo work. To fix with the editor command bridge.
+
+### F4 exit check
+
+- refers-to: frontend/src/app.ts :: startApp
+- kind: explainer
+- logged: v0.4.0 · 2026-10-30
+
+With the real engine on a copy of formvis, under 4x CPU throttling: Home at start; Ctrl+O, path, Enter opened the workspace and closed Home; frontend, frontend/src and frontend/src/ui expanded; dom.ts opened, edited, saved with Ctrl+S (the text reached the disk); Shift+Ctrl+F revealApp gave 10 results in 6 files from ripgrep; a hit opened its file; layout shift 0 during all of it and after a reload; no page errors.
 
 ## vite.config.ts
 
