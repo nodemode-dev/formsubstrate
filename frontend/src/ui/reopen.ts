@@ -5,6 +5,7 @@ import type { WorkspaceInfo } from './workspace-store';
 const DEADLINE_MS = 2000;
 const RETRY_MS = 250;
 const TRIES = 3;
+export const REOPENED_EVENT = 'subform:reopened';
 
 const pause = (ms: number): Promise<void> => new Promise((resolve) => { window.setTimeout(resolve, ms); });
 
@@ -27,6 +28,8 @@ export async function reopenLastWorkspace(): Promise<WorkspaceInfo | null> {
     }
     return null;
   })();
-  const limit = pause(DEADLINE_MS).then(() => null);
+  let late = false;
+  const limit = pause(DEADLINE_MS).then(() => { late = true; return null; });
+  void run.then((info) => { if (late && info) window.dispatchEvent(new CustomEvent<WorkspaceInfo>(REOPENED_EVENT, { detail: info })); });
   return Promise.race([run, limit]);
 }

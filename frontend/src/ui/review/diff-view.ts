@@ -142,7 +142,7 @@ export class DiffTab implements ViewDoc {
       const r = await writeFile(this.target.path, text, expected);
       this.mtime = r.mtime;
       this.saved = doc;
-      this.syncDirty(doc);
+      this.syncDirty(this.modifiedView()?.state.doc ?? doc);
       toast(`${t('Saved')} ${baseName(this.target.path)}`, 'info');
       window.dispatchEvent(new CustomEvent(GIT_CHANGED, { detail: { session: null } }));
       return true;
@@ -311,18 +311,27 @@ export class DiffTab implements ViewDoc {
       return;
     }
     setHidden(this.note, true);
-    if (mtime !== null) this.mtime = mtime;
     const view = this.modifiedView();
     const live = view ? view.state.doc.toString() : null;
     const fresh = d.modified.replace(/\r\n/g, '\n');
     const same = !!prev && !!view && prev.original === d.original && live === fresh;
-    if (same) { this.paint(); return; }
+    if (same) { if (mtime !== null) this.mtime = mtime; this.paint(); return; }
     if (view && this.dirty) {
       setHidden(this.stale, false);
       this.paint();
       return;
     }
+    if (mtime !== null) this.mtime = mtime;
     setHidden(this.stale, true);
+    if (view && prev && prev.original === d.original && live !== null) {
+      this.eol = dominantEol(d.modified);
+      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: fresh } });
+      this.saved = view.state.doc;
+      this.dirty = false;
+      this.modified(false);
+      this.paint();
+      return;
+    }
     this.eol = dominantEol(d.modified);
     this.destroyViews();
     this.build(d, d.modified, !view);

@@ -22,7 +22,7 @@ import { MenuBar, setMenuStyle, type MenuDef } from './ui/menu';
 import { menusInWindow, MENUS_IN_WINDOW_KEY, NativeMenus, textFieldFocused, wantsNativeMenus } from './ui/native-menu';
 import { installNumberFields } from './ui/number-fields';
 import { openFolderAt, openFolderPrompt } from './ui/open-folder';
-import { reopenLastWorkspace } from './ui/reopen';
+import { REOPENED_EVENT, reopenLastWorkspace } from './ui/reopen';
 import { applyUiFontSize, autoUiScale, followSystemTheme, loadPrefs, setUiScale, uiScaleChoice, updatePrefs, type Prefs } from './ui/prefs';
 import { SettingsDialog } from './ui/settings';
 import { StatusBar } from './ui/status';
@@ -408,6 +408,7 @@ export async function startApp(): Promise<void> {
   installNumberFields();
   enhanceAllSelects();
   startPageTranslator();
+  window.addEventListener(REOPENED_EVENT, (e) => { const info = (e as CustomEvent<NonNullable<typeof store.workspace>>).detail; if (info && !store.workspace) store.setWorkspace(info); });
   const [, last] = await Promise.all([fontsReady(), reopenLastWorkspace()]);
   if (last && !store.workspace) store.setWorkspace(last);
   revealApp();

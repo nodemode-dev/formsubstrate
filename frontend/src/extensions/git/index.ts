@@ -170,7 +170,13 @@ class GitPanel {
     window.addEventListener(GIT_CHANGED, () => { void this.refresh(); });
     window.addEventListener('focus', () => { if (this.visible()) void this.refresh(); });
     sessionsClient.on('sessions', () => this.schedule());
-    ctx.store.on('workspace', () => { this.status = null; this.snaps = []; this.done = null; this.schedule(); void this.refresh(); });
+    let root = ctx.store.workspace?.path ?? null;
+    ctx.store.on('workspace', () => {
+      const now = ctx.store.workspace?.path ?? null;
+      if (now === root) { this.schedule(); return; }
+      root = now;
+      this.status = null; this.snaps = []; this.done = null; this.schedule(); void this.refresh();
+    });
     new IntersectionObserver((records) => { if (records.some((r) => r.isIntersecting)) void this.refresh(); }).observe(host);
     window.setInterval(() => { if (this.visible() && document.hasFocus() && !document.hidden) void this.refresh(); }, POLL_MS);
     onLanguage(() => this.schedule());

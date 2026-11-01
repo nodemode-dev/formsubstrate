@@ -1,4 +1,4 @@
-const EDITOR = '.cm-editor';
+const EDITOR = '.cv-editor-host .cm-editor';
 const KEEP = '.cv-menu, .cv-menubar, .cv-title-tools, .cv-search-pop';
 
 let last = false;
