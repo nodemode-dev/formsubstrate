@@ -13,6 +13,7 @@ import { CaptionButtons, wantsCustomTitleBar } from './ui/caption-buttons';
 import { CommandPalette } from './ui/command-palette';
 import { comboOf, Commands, type Command } from './ui/commands';
 import { brandMark } from './ui/brand';
+import { installCloseGuard, leaveApp } from './ui/close-guard';
 import { anyDialogOpen, confirmAction, Dialog } from './ui/dialogs';
 import { el, mountOnce, q, revealApp, setClass, setDisabled, setHidden, setText, setTitle } from './ui/dom';
 import { enhanceAllSelects } from './ui/dropdown';
@@ -213,6 +214,7 @@ export async function startApp(): Promise<void> {
   const about = new AboutDialog();
   const settings = new SettingsDialog({ commands, onPrefs: (p) => { applyUiPrefs(p); followSystemTheme(p); editor?.setOptions({ fontSize: p.editorFontSize, tabSize: p.editorTabSize, wordWrap: p.editorWordWrap }); views.setOptions({ fontSize: p.editorFontSize, tabSize: p.editorTabSize, wordWrap: p.editorWordWrap }); dock.refreshFont(); home.syncPrefs(); } });
   const palette = new CommandPalette(commands, () => menus);
+  palette.onOpenSymbol = (path, line, col) => { wb.revealLine(path, line, col); };
   let cloneDialog: CloneDialog | null = null;
   let newAppDialog: NewAppDialog | null = null;
   let captionButtons: CaptionButtons;
@@ -235,7 +237,7 @@ export async function startApp(): Promise<void> {
     { id: 'settings', label: 'Preferences...', keys: ['Mod+,'], run: () => settings.open() },
     { id: 'quit', label: 'Quit', run: () => { void (async () => {
       if (store.docs.some((d) => d.modified) && !(await confirmAction('Quit without saving', t('Some files have unsaved changes.'), 'Quit', true))) return;
-      if (isTauri()) void useWindow((w) => w.destroy()); else window.close();
+      await leaveApp();
     })(); } },
     edit('undo', 'Undo', ['Mod+Z']),
     edit('redo', 'Redo', ['Shift+Mod+Z']),
@@ -263,6 +265,8 @@ export async function startApp(): Promise<void> {
     { id: 'zoom-out', label: 'Zoom Out', keys: ['Mod+-'], run: () => stepUiZoom(-1) },
     { id: 'zoom-reset', label: 'Reset Zoom', keys: ['Mod+0'], enabled: () => uiZoom() !== 1, run: () => { setUiScale('1'); applyUiZoom(); } },
     soon({ id: 'go-to-file', label: 'Go to File...', keys: ['Mod+P'], run: () => undefined }),
+    { id: 'go-to-symbol', label: 'Go to Symbol in File...', keys: ['Alt+Mod+O'], enabled: () => !!store.active, run: () => palette.show('@') },
+    { id: 'go-to-symbol-workspace', label: 'Go to Symbol in Workspace...', keys: ['Mod+T'], enabled: () => !!store.workspace, run: () => palette.show('#') },
     { id: 'next-tab', label: 'Next Tab', keys: ['Alt+Mod+Right'], enabled: () => store.docs.length > 1, run: () => stepTab(1) },
     { id: 'previous-tab', label: 'Previous Tab', keys: ['Alt+Mod+Left'], enabled: () => store.docs.length > 1, run: () => stepTab(-1) },
     soon({ id: 'run-task', label: 'Run Task...', keys: ['Shift+Mod+B'], run: () => undefined }),
@@ -288,7 +292,7 @@ export async function startApp(): Promise<void> {
     { label: 'Edit', items: ['undo', 'redo', '-', 'cut', 'copy', 'paste', '-', 'select-all', '-', 'find', 'search-in-files'] },
     { label: 'Selection', items: ['select-all', '-', 'select-next', 'select-all-occurrences'] },
     { label: 'View', items: ['home-toggle', 'command-palette', '-', 'toggle-sidebar', 'toggle-right-panel', 'toggle-split', 'focus-files', 'focus-search', 'view-graph', '-', 'toggle-word-wrap', '-', 'md-preview-toggle', 'md-preview-side', '-', 'toggle-theme', 'menus-in-window', 'custom-title-bar', '-', 'zoom-in', 'zoom-out', 'zoom-reset'] },
-    { label: 'Go', items: ['go-to-file', '-', 'lsp-definition', 'lsp-references', 'lsp-rename', 'lsp-format', '-', 'lsp-outline', 'lsp-problems', 'lsp-servers', 'lsp-restart', '-', 'next-tab', 'previous-tab'] },
+    { label: 'Go', items: ['go-to-file', 'go-to-symbol', 'go-to-symbol-workspace', '-', 'lsp-definition', 'lsp-references', 'lsp-rename', 'lsp-format', '-', 'lsp-outline', 'lsp-problems', 'lsp-servers', 'lsp-restart', '-', 'next-tab', 'previous-tab'] },
     { label: 'Run', items: ['debug-start', 'debug-stop', '-', 'debug-step-over', 'debug-step-into', 'debug-step-out', '-', 'debug-toggle-breakpoint', 'debug-focus', '-', 'run-task', 'run-stop'] },
     { label: 'Terminal', items: ['terminal-toggle', '-', 'terminal-new', 'terminal-new-claude'] },
     { label: 'Agents', items: ['agent-new', 'agent-sessions'] },
@@ -442,6 +446,7 @@ export async function startApp(): Promise<void> {
   void refreshEngine();
   window.setInterval(() => { void refreshEngine(); }, ENGINE_POLL_MS);
 
+  if (isTauri()) void installCloseGuard(store);
   installNumberFields();
   enhanceAllSelects();
   startPageTranslator();

@@ -8,6 +8,7 @@ use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_shell::process::{Command, CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
+mod close_guard;
 mod packaged;
 mod reveal;
 mod text_edit;
@@ -83,6 +84,9 @@ fn main() {
     let app = tauri::Builder::default()
         .manage(window_state::Memory::default())
         .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                close_guard::on_close(window, api);
+            }
             window_state::track(window, event);
             if window.label() == "main"
                 && matches!(event, WindowEvent::Resized(_) | WindowEvent::Focused(_) | WindowEvent::ThemeChanged(_) | WindowEvent::ScaleFactorChanged { .. })
@@ -94,12 +98,14 @@ fn main() {
             traffic_lights::set_window_title,
             reveal::app_ready,
             text_edit::text_edit,
-            window_token::window_token
+            window_token::window_token,
+            close_guard::close_guard
         ])
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .manage(Backend(Mutex::new(None)))
+        .manage(close_guard::CloseGuard::default())
         .setup(|app| {
             let handle = app.handle().clone();
             reveal::round_splash(&handle);
@@ -186,10 +192,17 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("error while building the subform app");
 
-    app.run(|handle, event| {
-        if let RunEvent::Exit = event {
+    app.run(|handle, event| match event {
+        RunEvent::ExitRequested { api, code: None, .. } => {
+            if handle.state::<close_guard::CloseGuard>().should_ask() {
+                api.prevent_exit();
+                close_guard::ask(handle);
+            }
+        }
+        RunEvent::Exit => {
             window_state::flush(handle);
             kill_backend(handle);
         }
+        _ => {}
     });
 }

@@ -67,6 +67,8 @@ export const DEFAULT_PREFS: Prefs = {
   largeTabs: false, reopenLastWorkspace: true, hiddenFolders: [], allowTypedPaths: false, trustedWorkspaces: [], trustAsked: [], sidebarWidth: 280, prefsRevision: 3,
 };
 
+export const HIDDEN_FOLDERS_EVENT = 'subform:hidden-folders';
+
 const KEY = 'subform.prefs';
 const ZOOM_KEY = 'subform.uiZoom';
 const UPDATE_KEY = 'subform.updateAtStart';

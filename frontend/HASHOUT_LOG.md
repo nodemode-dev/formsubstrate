@@ -1935,3 +1935,93 @@ Raw 18, 30, 160, 240 and 72 px sizes in dialogs, formslot, git, graph, home, lsp
 - logged: v0.11.0 · 2026-10-30
 
 Only the English table exists (LANG_CODES is ['en'], LOADERS is empty and English strings are the keys), so there is no language table to add entries to. The strings added in v0.11.0 (Link copied, Could not open the link, and reuse of Toggle Right Panel) are plain English keys through t().
+
+### Symbol search in the command palette
+
+- refers-to: frontend/src/ui/command-palette.ts :: CommandPalette; frontend/src/io/lsp.ts :: symbolHub; frontend/src/styles/lsp.css :: .cv-palette-kind, .cv-palette-badge, .cv-palette-row.is-symbol
+- kind: explainer
+- logged: v0.12.0 · 2026-10-30
+
+`@` in the palette lists the active file's symbols and `#` searches the workspace through the language servers; the design, the server behaviour measured, the row pool and the shortcut choice are in frontend/src/ui/palette/HASHOUT_LOG.md. Shared files touched: app.ts (two commands, two Go menu items, `palette.onOpenSymbol`) and styles/lsp.css (palette symbol rows, list scroll, hidden rows). New English strings are plain keys through t(). The Dialog title stays "Search". While this was verified, src/ui/preview/external.ts briefly held raw U+2028 and U+2029 characters inside a regular expression literal, which the Vite 8 transform rejects; its owner fixed it before the final build, and verification until then ran from a scratch copy of the frontend.
+
+## Window and shell todo review (v0.12.0)
+
+### index.html · terminal dock boot script return (closed)
+
+- refers-to: frontend/index.html :: head; frontend/src/ui/terminal-dock.ts :: TerminalDock
+- kind: rationale
+- logged: v0.12.0 · 2026-10-30
+
+Closes the v0.1.0 todo of the same name, as moot. The dock never starts open: `open` is false in the constructor and only `toggle`, `create` and `show` set it, and the dock height lives in the prefs (`terminalDockHeight`, 120 to 800, read in the constructor through `loadPrefs`), not under a `subform.terminal` key. Nothing about the dock is visible before the page script runs, so a pre-paint script would paint nothing and would add a second copy of the clamp. `terminal.css` is linked in index.html (after lsp.css). `--ft-dock-h` is only set while the dock is open, so the closed layout is the same on every start.
+
+### src/main.ts · language and startApp return (closed)
+
+- refers-to: frontend/src/main.ts :: module body; frontend/src/app.ts :: startApp
+- kind: rationale
+- logged: v0.12.0 · 2026-10-30
+
+Closes the v0.1.0 todo. `startApp` awaits `startLanguage()` before `mountOnce(host, SHELL)`, so the shell is built from the saved language table; the shell stays `visibility: hidden` until `revealApp`.
+
+### src/ui/dialogs.ts · live mode classes (closed, guidance kept)
+
+- refers-to: frontend/src/ui/dialogs.ts :: Dialog; frontend/src/styles/dialogs.css :: cv-scrim-through, cv-scrim-side, cv-scrim-hosted
+- kind: rationale
+- logged: v0.12.0 · 2026-10-30
+
+Closes the v0.2.0 todo. It was a note for call sites, not pending work: the three classes are defined in dialogs.css, `Dialog` sets none, and no dialog in `src` needs live mode today (grep finds no use). A future dialog adds the class on `dialog.scrim`.
+
+### src/app.ts · soon (partly closed, five stay open)
+
+- refers-to: frontend/src/app.ts :: startApp
+- kind: todo
+- logged: v0.12.0 · 2026-10-30
+
+Replaces the v0.2.0 todo. Done since: open-folder, open-recent, save, save-all, find, select-next, select-all-occurrences, settings, terminal-toggle, terminal-new, agent-new, agent-sessions, git-status and git-commit are real commands. Still `soon()`: go-to-file (belongs with the command palette work, held by another owner this turn), run-task and run-stop (no task runner exists in the engine or the window), help and report-issue (no documentation or issue address is decided for the product; the repository has none in tree). They stay disabled with the "Not available yet" tooltip.
+
+### carried from the review (closed except the colour tables)
+
+- refers-to: frontend/src/ui/tabs.ts :: Tabs; frontend/src/app.ts :: startApp; frontend/src/ui/themes.ts :: THEMES
+- kind: rationale
+- logged: v0.12.0 · 2026-10-30
+
+Closes the v0.2.1 todo. Document tabs have a roving tabindex and ArrowLeft and ArrowRight (tabs.ts). `installNumberFields`, `enhanceAllSelects`, `startPageTranslator`, `startLanguage` and `followSystemTheme` are all called in `startApp` before `revealApp`. The literal colours in themes.ts and the index.html boot script stay by design: they make the first frame right.
+
+### src/ui/home.ts · HomeSessions (closed)
+
+- refers-to: frontend/src/ui/home.ts :: HomeSessions; frontend/src/io/sessions.ts :: homeList; frontend/src/app.ts :: startApp
+- kind: rationale
+- logged: v0.12.0 · 2026-10-30
+
+Closes the v0.4.0 todo. `setSessions` is fed by `sessionsClient.homeList()` on every session change and every 5 s while one is working. The open question is decided in `homeList`: idle, failed and stopped fold into Done, and failed and stopped say so in the card's elapsed text.
+
+### src/ui/prefs.ts · fields added in v0.4.0 (hiddenFolders fixed, rest closed)
+
+- refers-to: frontend/src/ui/prefs.ts :: Prefs, HIDDEN_FOLDERS_EVENT; frontend/src/extensions/files/index.ts :: FilesTree.flatten; frontend/src/ui/settings.ts :: SettingsDialog.change; frontend/src/ui/dom.ts :: patchList
+- kind: rationale
+- logged: v0.12.0 · 2026-10-30
+
+Closes the v0.4.0 todo. `largeTabs` is applied as body.large-tabs (app.ts), `reopenLastWorkspace` is read by reopen.ts and `sidebarWidth` by the workbench. `hiddenFolders` was stored and shown in Preferences ("stay out of the file tree") but nothing read it: the file tree now filters directory entries whose name is in the list in `flatten`, at every depth, and Preferences dispatches `HIDDEN_FOLDERS_EVENT` when the list changes so the tree re-renders in place (one queued frame). Only directories are matched, by exact name. Measured at 4x CPU throttle on a scratch workspace: hiding `src` removes one row and showing it adds one, no other node touches the DOM; the row below moves up by one row height, the direct result of the change (layout shift 0.00018 per change, not zero). While measuring, `patchList` was found to remove and re-insert (move) every keyed row that followed a removed one, because stale rows were removed after the insert pass; stale rows are now removed first, so a removal is one mutation for every list that uses it.
+
+### frontend/src/extensions/git/index.ts · known list shifts (snapshot shift closed, staged moves accepted)
+
+- refers-to: frontend/src/extensions/git/index.ts :: GitPanel.update
+- kind: rationale
+- logged: v0.12.0 · 2026-10-30
+
+Closes the v0.6.0 todo as written there. The snapshot list renders oldest first (`[...this.snaps].reverse()`), so a new snapshot appends and nothing moves. The row moving between Staged and Changes stays: it is the direct result of the click that staged or unstaged it, which the v0.6.0 entry already measured inside Chrome's recent-input window.
+
+### src/ui/preview/external.ts · BAD_CHARS
+
+- refers-to: frontend/src/ui/preview/external.ts :: BAD_CHARS
+- kind: rationale
+- logged: v0.12.0 · 2026-10-30
+
+The regular expression held raw U+2028 and U+2029 characters, which Vite 8 rejects ("Unterminated regular expression"), so the dev server and the build failed (see the symbol search entry above). `\s` matches both, so the class now ends at the C1 control range end; behaviour is unchanged. The Edit tool could not match the raw characters, so the 51-line file was rewritten whole with Write, identical apart from that line (this entry's author is the fixer the entry above mentions).
+
+### src/ui/close-guard.ts · installCloseGuard, leaveApp
+
+- refers-to: frontend/src/ui/close-guard.ts :: installCloseGuard, leaveApp; src-tauri/src/close_guard.rs :: CloseGuard; frontend/src/app.ts :: quit
+- kind: rationale
+- logged: v0.12.0 · 2026-10-30
+
+Page half of the quit gate described in src-tauri/HASHOUT_LOG.md. In the desktop app the page tells the shell whether any document is modified (`close_guard` with armed true or false, on every `docs` change). When the shell asks (event `subform://close-requested`), the page shows the same "Quit without saving" confirm the Quit command uses; Quit disarms the guard and destroys the window, Cancel re-arms it, which also resets the shell's one-ask flag. The Quit command now goes through `leaveApp`, because destroying the last window while armed would otherwise make the shell ask a second time. Browser builds do nothing here. Checked in Chromium with a stubbed Tauri bridge at 4x throttle: after typing, `close_guard(true)` is sent; the event opens the dialog; Cancel sends `close_guard(true)` again; the second event and Quit send `close_guard(false)` then `plugin:window|destroy`; layout shift 0. The real window close and Cmd+Q paths could not be run here (no desktop session): see the src-tauri entry.

@@ -1,7 +1,7 @@
 import { t } from '../i18n';
 import { toast } from '../toast';
 
-const BAD_CHARS = /[\s\u0000-\u001f\u007f-\u009f  ]/;
+const BAD_CHARS = /[\s\u0000-\u001f\u007f-\u009f]/;
 const SHOWN_MAX = 200;
 
 function checked(url: string): string | null {

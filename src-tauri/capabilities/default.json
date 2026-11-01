@@ -21,6 +21,7 @@
     "allow-set-window-title",
     "allow-app-ready",
     "allow-text-edit",
-    "allow-window-token"
+    "allow-window-token",
+    "allow-close-guard"
   ]
 }

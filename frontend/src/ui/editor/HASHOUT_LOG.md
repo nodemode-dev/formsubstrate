@@ -204,3 +204,11 @@ An edit to a document that is open but not shown (LSP rename or format) only rep
 - logged: v0.7.1 · 2026-10-30
 
 Breakpoints live in a module-level map keyed by workspace-relative path, so they leaked into the next workspace. clearBreakpoints empties the map; the debug panel calls it when the workspace path changes. Dots already drawn in an open editor are not removed by it; they leave with that editor when its tab closes.
+
+### frontend/src/ui/editor/editor.ts · extensionsFor (closed, format-before-save stays open)
+
+- refers-to: frontend/src/ui/editor/editor.ts :: EditorHost.extensionsFor, EditorHost.refreshExtensions; frontend/src/app.ts :: startApp
+- kind: rationale
+- logged: v0.12.0 · 2026-10-30
+
+Closes the v0.4.0 todo for the extension point: `startApp` assigns `editor.extensionsFor = lsp.extensionsFor` before any document opens and the LSP controller calls `refreshExtensions` through `attach({ refresh })`, so language-server extensions, diagnostics and breakpoints reach every document. The aside about format-before-save is still open on purpose: the LSP phase landed with Format Document as an explicit command (lsp-format, Shift+Alt+F) and `save()` has no hook. Formatting every file on every save would rewrite files the user did not ask to change, so it needs a Preferences switch (default off) and a `beforeSave` dep on `EditorHost` that awaits the server's edits before `deps.save`; that is a feature decision for the owner, not a leftover.

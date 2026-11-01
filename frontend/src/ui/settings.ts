@@ -8,7 +8,7 @@ import { el, patchList, q, setChecked, setClass, setHidden, setText, setTitle, s
 import { icon } from './icons';
 import { languages, onLanguage, setLanguage, t } from './i18n';
 import { colorRow, numberRow, selectRow, sliderRow, toggleRow, type Row } from './panels/controls';
-import { PERMISSION_MODES, loadPrefs, savePrefs, setUiScale, setUpdateAtStart, UI_FONT_SIZES, UI_SCALES, uiScaleChoice, updateAtStart, type AgentPermissionMode, type Prefs, type UiFontSize } from './prefs';
+import { HIDDEN_FOLDERS_EVENT, PERMISSION_MODES, loadPrefs, savePrefs, setUiScale, setUpdateAtStart, UI_FONT_SIZES, UI_SCALES, uiScaleChoice, updateAtStart, type AgentPermissionMode, type Prefs, type UiFontSize } from './prefs';
 import { readChoice, setAccent, setIntensity, setTheme, THEMES, themeSwatchesHtml } from './themes';
 import { toast } from './toast';
 
@@ -366,6 +366,7 @@ export class SettingsDialog {
     savePrefs({ ...loadPrefs(), ...patch });
     this.prefs = loadPrefs();
     this.ctx.onPrefs(this.prefs);
+    if (patch.hiddenFolders) document.dispatchEvent(new CustomEvent(HIDDEN_FOLDERS_EVENT));
   }
 
   private showSection(name: string, scroll: ScrollBehavior | null): void {

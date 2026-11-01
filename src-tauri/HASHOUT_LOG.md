@@ -327,3 +327,27 @@ review M3. At setup the shell mints 32 random bytes (hex) with `getrandom` (alre
 - logged: v0.11.0 · 2026-10-30
 
 review L5. `plugins.shell.open` is `^(https?://[^\s]+|mailto:[^\s]+)$`: http, https and mailto with no whitespace. The remote capability `http://127.0.0.1:*` stays as it is: the engine picks its port at run time (the shell reads it from the engine's first output line), a capability file is static, and no other capability names a port, so there is no origin to write there. Any page served from a loopback port inside the main window could call the permitted commands; the main window only navigates to the engine, and the engine's LocalGuard, the window token and the open scope above are what limit a rogue loopback page.
+
+### src/main.rs, src/close_guard.rs · quit without page confirmation (closed)
+
+- refers-to: src-tauri/src/close_guard.rs :: CloseGuard, close_guard, on_close; src-tauri/src/main.rs :: main; src-tauri/build.rs :: APP_COMMANDS; src-tauri/capabilities/default.json :: allow-close-guard; frontend/src/ui/close-guard.ts :: installCloseGuard
+- kind: rationale
+- logged: v0.12.0 · 2026-10-30
+
+Closes the v0.1.0 todo. Closing the main window (caption button, window manager, Alt+F4) or quitting from the OS (Cmd+Q) used to exit at once and lose unsaved buffers; only the in-page Quit command asked. Now the page arms a `CloseGuard` through the `close_guard` command whenever a document is modified. On a close request or an exit request with no exit code (`RunEvent::ExitRequested`), an armed guard prevents it, sets an `asked` flag and emits `subform://close-requested` to the main window; the page shows its confirm and either disarms and destroys the window (`destroy` skips the close request) or re-arms, which clears `asked`. Two safety valves: with nothing modified the guard is not armed and the close is untouched, and a second close request while the first is unanswered goes through, so a hung or crashed page cannot make the window unclosable. Explicit exits (`handle.exit(1)` from `engine_failed`) carry a code and are never held. The command refuses any window except `main`, has an `allow-close-guard` permission in capabilities/default.json and is listed in build.rs. No new dependency. `cargo check` (dev profile, no warnings) passes. The real close and Cmd+Q paths were not run: this machine has no desktop session; the page half was run against a stubbed bridge (see frontend/HASHOUT_LOG.md, src/ui/close-guard.ts). The page does not look at unsaved state of review or graph views beyond `store.docs`, the same scope the Quit command had.
+
+### src/window_state.rs · renderer recovery and zoom (zoom closed, recovery stays open)
+
+- refers-to: src-tauri/src/window_state.rs :: Place; frontend/src/app.ts :: applyUiZoom
+- kind: todo
+- logged: v0.12.0 · 2026-10-30
+
+Replaces the v0.1.0 todo. Interface zoom needs no shell code: Preferences > Interface scale and Zoom In, Zoom Out and Reset Zoom set `documentElement.style.zoom` in the page and keep the factor in localStorage (`subform.uiZoom`), so it works in the browser and the desktop app alike and the removed `ui_zoom` command stays removed. Renderer recovery stays open: Tauri 2 has no cross-platform event for a dead web view process; formvis wired it per platform (webkit2gtk, WebView2, WKWebView), which would bring `webkit2gtk` and `webview2-com` calls back into the crate for a failure that cannot be reproduced on this machine, so it is not written blind. If it is added, keep the old rule (reload once, a second stop within two minutes offers restart or quit).
+
+### src/packaged.rs · Linux and Windows lookup (closed)
+
+- refers-to: src-tauri/src/packaged.rs :: engine_folder; src-tauri/tauri.conf.json :: productName
+- kind: rationale
+- logged: v0.12.0 · 2026-10-30
+
+Closes the v0.10.0 todo. It was already done the same day: `engine_folder` lists `../Resources/engine`, `engine` beside the executable and `../lib/subform/engine`, and the earlier entry "src-tauri/src/packaged.rs · engine_folder (Linux packages)" records it. The third path matches the .deb layout for productName `subform` (`/usr/lib/subform/`). Windows is covered by the `engine` beside the executable candidate and the `.exe` suffix. Not run against a built .deb on this machine.

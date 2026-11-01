@@ -27,11 +27,11 @@ export function patchList<T>(container: HTMLElement, items: T[], opts: PatchList
     const k = (child as HTMLElement).dataset.key;
     if (k !== undefined) byKey.set(k, child as HTMLElement);
   }
+  const seen = new Set<string>(items.map((item) => opts.key(item)));
+  for (const [k, node] of byKey) if (!seen.has(k)) node.remove();
   let cursor: Element | null = container.firstElementChild;
-  const seen = new Set<string>();
   for (const item of items) {
     const k = opts.key(item);
-    seen.add(k);
     let node = byKey.get(k);
     if (node) {
       opts.update(node, item);
@@ -42,7 +42,6 @@ export function patchList<T>(container: HTMLElement, items: T[], opts: PatchList
     if (node !== cursor) container.insertBefore(node, cursor);
     else cursor = cursor.nextElementSibling;
   }
-  for (const [k, node] of byKey) if (!seen.has(k)) node.remove();
 }
 
 export function swapMedia(img: HTMLImageElement, nextSrc: string): Promise<void> {

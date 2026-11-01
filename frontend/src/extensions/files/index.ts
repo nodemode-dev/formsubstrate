@@ -5,6 +5,7 @@ import { FOCUS_EVENT } from '../../ui/workbench';
 import { Commands } from '../../ui/commands';
 import { onLanguage, t } from '../../ui/i18n';
 import { icon } from '../../ui/icons';
+import { HIDDEN_FOLDERS_EVENT, loadPrefs } from '../../ui/prefs';
 import { PopupMenu } from '../../ui/menu';
 import type { WorkspaceInfo } from '../../ui/workspace-store';
 import { register, type ExtensionContext, type Shell } from '../registry';
@@ -84,6 +85,7 @@ class FilesTree {
     onLanguage(() => this.relabel(host));
     ctx.store.on('workspace', (ws) => this.switchTo(ws));
     ctx.store.on('active', () => this.queue());
+    document.addEventListener(HIDDEN_FOLDERS_EVENT, () => this.queue());
     host.addEventListener(FOCUS_EVENT, () => this.tree.focus());
     this.switchTo(ctx.store.workspace);
   }
@@ -136,12 +138,14 @@ class FilesTree {
 
   private flatten(): Row[] {
     const out: Row[] = [];
+    const hide = new Set(loadPrefs().hiddenFolders);
     const walk = (dir: string, depth: number): void => {
       const list = this.listings.get(dir);
       if (!list) return;
       if (list.entries) {
-        if (!list.entries.length) out.push({ key: `n:${dir}:empty`, path: dir, name: t('Empty folder'), kind: 'note', depth, open: false, loading: false });
-        for (const e of list.entries) {
+        const shown = hide.size ? list.entries.filter((e) => e.kind !== 'dir' || !hide.has(e.name)) : list.entries;
+        if (!shown.length) out.push({ key: `n:${dir}:empty`, path: dir, name: t('Empty folder'), kind: 'note', depth, open: false, loading: false });
+        for (const e of shown) {
           const isDir = e.kind === 'dir', open = isDir && this.expanded.has(e.path);
           out.push({ key: `${isDir ? 'd' : 'f'}:${e.path}`, path: e.path, name: e.name, kind: e.kind, depth, open, loading: open && (this.listings.get(e.path)?.loading ?? false) });
           if (open) {
