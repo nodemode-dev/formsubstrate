@@ -132,9 +132,9 @@ def claim(data: Path) -> Path:
 
 
 def release(data: Path) -> None:
-    lock = data / LOCK_NAME
-    try:
-        if int(json.loads(lock.read_text()).get("pid", 0)) == os.getpid():
-            lock.unlink()
-    except (OSError, ValueError, AttributeError):
-        pass
+    for owned in (data / LOCK_NAME, data / "engine.port"):
+        try:
+            if int(json.loads(owned.read_text()).get("pid", 0)) == os.getpid():
+                owned.unlink()
+        except (OSError, ValueError, AttributeError):
+            pass
