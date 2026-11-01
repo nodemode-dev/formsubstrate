@@ -5,6 +5,21 @@ import './extensions/git';
 import './extensions/lsp';
 import './extensions/debug';
 import './extensions/formslot';
+import './extensions/cogentics';
+import './extensions/console';
+import './extensions/recipes';
+import './extensions/triggers';
+import './extensions/approvals';
+import './extensions/automation';
+import './extensions/manager';
+import './extensions/plugins';
+import './extensions/tools';
+import './extensions/blocks';
+import './extensions/collections';
+import './extensions/activity';
+import './extensions/system';
+import './extensions/runs';
+import './extensions/welcome';
 import { setTerminalHook } from './extensions/sessions';
 import { systemStatus } from './io/api';
 import { sessionsClient } from './io/sessions';
@@ -42,6 +57,8 @@ import { toast } from './ui/toast';
 import { Workbench } from './ui/workbench';
 import { installReview } from './ui/review/index';
 import { installGraph } from './ui/graph/index';
+import { installStudio } from './ui/studio/index';
+import './extensions/studio';
 import { installPreview, type PreviewApi } from './ui/preview/index';
 import { workspace as store } from './ui/workspace-store';
 
@@ -177,6 +194,7 @@ export async function startApp(): Promise<void> {
   const commands = new Commands();
   const views = installReview(store, commands, wb.editorArea, wb.editorHost);
   installGraph(store, commands, views, (path) => { void openInEditor(path); });
+  installStudio(store, commands, views);
   const later = new Set<string>();
   const soon = (cmd: Command): Command => { later.add(cmd.id); return { ...cmd, enabled: () => false }; };
   commands.blocked = (cmd) => (later.has(cmd.id) ? t('Not available yet') : '');
@@ -291,17 +309,17 @@ export async function startApp(): Promise<void> {
     { label: 'File', items: ['open-folder', 'open-file', 'open-recent', 'clone-repo', 'new-form-app', '-', 'save', 'save-all', '-', 'close-tab', '-', 'workspace-trust', 'settings', '-', 'quit'] },
     { label: 'Edit', items: ['undo', 'redo', '-', 'cut', 'copy', 'paste', '-', 'select-all', '-', 'find', 'search-in-files'] },
     { label: 'Selection', items: ['select-all', '-', 'select-next', 'select-all-occurrences'] },
-    { label: 'View', items: ['home-toggle', 'command-palette', '-', 'toggle-sidebar', 'toggle-right-panel', 'toggle-split', 'focus-files', 'focus-search', 'view-graph', '-', 'toggle-word-wrap', '-', 'md-preview-toggle', 'md-preview-side', '-', 'toggle-theme', 'menus-in-window', 'custom-title-bar', '-', 'zoom-in', 'zoom-out', 'zoom-reset'] },
+    { label: 'View', items: ['home-toggle', 'command-palette', '-', 'toggle-sidebar', 'toggle-right-panel', 'toggle-split', 'focus-files', 'focus-search', 'view-graph', 'view-studio', 'studio-new', '-', 'toggle-word-wrap', '-', 'md-preview-toggle', 'md-preview-side', '-', 'toggle-theme', 'menus-in-window', 'custom-title-bar', '-', 'zoom-in', 'zoom-out', 'zoom-reset'] },
     { label: 'Go', items: ['go-to-file', 'go-to-symbol', 'go-to-symbol-workspace', '-', 'lsp-definition', 'lsp-references', 'lsp-rename', 'lsp-format', '-', 'lsp-outline', 'lsp-problems', 'lsp-servers', 'lsp-restart', '-', 'next-tab', 'previous-tab'] },
     { label: 'Run', items: ['debug-start', 'debug-stop', '-', 'debug-step-over', 'debug-step-into', 'debug-step-out', '-', 'debug-toggle-breakpoint', 'debug-focus', '-', 'run-task', 'run-stop'] },
     { label: 'Terminal', items: ['terminal-toggle', '-', 'terminal-new', 'terminal-new-claude'] },
     { label: 'Agents', items: ['agent-new', 'agent-sessions'] },
     { label: 'Git', items: ['git-status', 'git-commit', 'git-commit-all', '-', 'git-snapshot', 'git-review', '-', 'git-push', 'git-sign-push'] },
     { label: 'Window', items: ['minimize', 'zoom'] },
-    { label: 'Help', items: ['help', 'about', '-', 'report-issue'] },
+    { label: 'Help', items: ['help', 'welcome', 'system-status', 'about', '-', 'report-issue'] },
   ];
 
-  const home = new Home(stage, store, commands, { recent: recentWorkspaces, openPath: openFolderAt, forget: forgetRecent });
+  const home = new Home(stage, store, commands, { recent: recentWorkspaces, openPath: openFolderAt, forget: forgetRecent, openTerminal: (id) => { void dock.reveal(id); } });
   setFileOpener(openInEditor);
   new TrustBanner(document.getElementById('overlay-root') ?? stage, store);
   window.addEventListener(TRUST_EVENT, () => { if (commands.get('lsp-restart')) commands.run('lsp-restart'); });

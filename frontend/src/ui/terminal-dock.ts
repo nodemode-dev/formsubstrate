@@ -6,6 +6,7 @@ import type { Gate, GateChoice } from '../io/formslot';
 import { sessionsClient } from '../io/sessions';
 import { createTerminal, deleteTerminal, listTerminals, terminalSocket, type TerminalInfo, type TerminalKind } from '../io/terminals';
 import type { Commands } from './commands';
+import { DockPanes, setPaneOpener } from './dock-panes';
 import { el, isMac, patchList, q, setClass, setDisabled, setHidden, setStyleVar, setText, setTitle } from './dom';
 import { CHOICES, answerOpenGate } from './gate-cards';
 import { t } from './i18n';
@@ -61,6 +62,7 @@ export class TerminalDock {
 <div class="ft-dock-grip" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="${t('Resize the terminal')}" aria-valuemin="${DOCK_MIN}" aria-valuemax="${DOCK_MAX}"></div>
 <div class="ft-dock-head">
 <div class="ft-dock-tabs" role="tablist" aria-label="${t('Terminals')}"></div>
+<div class="ft-dock-ptabs" role="tablist" aria-label="${t('Panels')}" hidden></div>
 <button type="button" class="cv-tt-btn ft-dock-new" title="${t('New terminal')}" aria-label="${t('New terminal')}" aria-haspopup="menu">${icon('plus', 15)}</button>
 <span class="ft-dock-conn" role="status" hidden>${t('Reconnecting')}</span>
 <span class="ft-dock-spacer"></span>
@@ -74,6 +76,7 @@ export class TerminalDock {
   private readonly grip = q(this.root, '.ft-dock-grip');
   private readonly tabsEl = q(this.root, '.ft-dock-tabs');
   private readonly stage = q(this.root, '.ft-dock-stage');
+  private readonly panes: DockPanes;
   private readonly empty = q(this.root, '.ft-dock-empty');
   private readonly conn = q(this.root, '.ft-dock-conn');
   private readonly newBtn = q<HTMLButtonElement>(this.root, '.ft-dock-new');
@@ -104,6 +107,8 @@ export class TerminalDock {
   constructor(private readonly app: HTMLElement, private readonly commands: Commands) {
     this.height = clampHeight(loadPrefs().terminalDockHeight);
     this.menu = new PopupMenu(commands, null, true);
+    this.panes = new DockPanes(q(this.root, '.ft-dock-ptabs'), this.stage, (id) => { void this.openPane(id); });
+    setPaneOpener((id) => { void this.openPane(id); });
     const status = app.querySelector('.cv-status');
     app.insertBefore(this.root, status);
     this.newBtn.addEventListener('click', () => {
@@ -376,12 +381,32 @@ export class TerminalDock {
   }
 
   private syncEmpty(): void {
-    setHidden(this.empty, this.order.length > 0);
+    setHidden(this.empty, this.order.length > 0 || this.panes.current !== '');
+  }
+
+  async openPane(id: string): Promise<void> {
+    if (!this.open) {
+      this.open = true;
+      document.documentElement.setAttribute('data-ft-dock', 'open');
+      this.applyHeight();
+      this.onChange();
+    }
+    await this.boot(true);
+    const prev = this.active ? this.tabs.get(this.active) : undefined;
+    if (prev) {
+      if (prev.view) this.dropGl(prev.view);
+      if (prev.host) setHidden(prev.host, true);
+    }
+    this.active = null;
+    this.patchTabs();
+    this.panes.show(id);
+    this.syncEmpty();
   }
 
   select(id: string, focus: boolean): void {
     const tab = this.tabs.get(id);
     if (!tab) return;
+    if (this.panes.current) { this.panes.hide(); this.syncEmpty(); }
     const prev = this.active && this.active !== id ? this.tabs.get(this.active) : undefined;
     if (prev) {
       if (prev.view) this.dropGl(prev.view);

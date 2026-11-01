@@ -16,6 +16,21 @@
   </style>
   <script>
 (function () {
+  try {
+    var OLD_PREFIX = 'substrataform.', NEW_PREFIX = 'subform.', DONE = 'nodemode.subform.migrated', ls = window.localStorage;
+    if (!ls.getItem(DONE)) {
+      var olds = [], n, j;
+      for (j = 0; j < ls.length; j++) {
+        n = ls.key(j);
+        if (n && n.indexOf(OLD_PREFIX) === 0) olds.push(n);
+      }
+      for (j = 0; j < olds.length; j++) {
+        n = NEW_PREFIX + olds[j].slice(OLD_PREFIX.length);
+        if (ls.getItem(n) === null) ls.setItem(n, ls.getItem(olds[j]));
+      }
+      ls.setItem(DONE, String(olds.length));
+    }
+  } catch (e) {}
   var KEY = 'nodemode_ui_settings';
   var DEFAULT_THEME = 'substrata';
   var ACCENTS = { 'substrata': '#c661ff' };
@@ -101,9 +116,15 @@
   <link rel="stylesheet" href="/src/styles/editor.css">
   <link rel="stylesheet" href="/src/styles/review.css">
   <link rel="stylesheet" href="/src/styles/graph.css">
+  <link rel="stylesheet" href="/src/styles/studio.css">
   <link rel="stylesheet" href="/src/styles/preview.css">
+  <link rel="stylesheet" href="/src/styles/cogentics.css">
+  <link rel="stylesheet" href="/src/styles/console.css">
   <link rel="stylesheet" href="/src/styles/lsp.css">
   <link rel="stylesheet" href="/src/styles/terminal.css">
+  <link rel="stylesheet" href="/src/styles/recipes.css">
+  <link rel="stylesheet" href="/src/styles/library.css">
+  <link rel="stylesheet" href="/src/styles/runs.css">
   <link rel="stylesheet" href="/src/styles/light-mode.css">
   <link rel="stylesheet" href="/src/styles/scrollbars.css">
 </head>

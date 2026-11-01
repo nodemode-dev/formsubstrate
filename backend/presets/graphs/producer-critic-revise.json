@@ -1,0 +1,67 @@
+{
+ "description": "The core loop: writer produces, critic verifies with real commands, revise until accepted.",
+ "doc": {
+  "version": 1,
+  "name": "producer-critic-revise",
+  "nodes": [
+   {
+    "id": "s",
+    "kind": "start",
+    "label": "start",
+    "x": 40,
+    "y": 150
+   },
+   {
+    "id": "w",
+    "kind": "agent",
+    "label": "writer",
+    "x": 260,
+    "y": 90,
+    "config": {
+     "prompt": "You are a careful writer agent. Do the task with tools; make real changes."
+    }
+   },
+   {
+    "id": "c",
+    "kind": "evaluator",
+    "label": "critic",
+    "x": 500,
+    "y": 150,
+    "config": {
+     "prompt": "You are a strict critic. Verify the work by executing commands. VERDICT: accept or revise."
+    }
+   },
+   {
+    "id": "e",
+    "kind": "end",
+    "label": "end",
+    "x": 720,
+    "y": 150
+   }
+  ],
+  "edges": [
+   {
+    "id": "1",
+    "from": "s",
+    "to": "w"
+   },
+   {
+    "id": "2",
+    "from": "w",
+    "to": "c"
+   },
+   {
+    "id": "3",
+    "from": "c",
+    "to": "w",
+    "label": "revise"
+   },
+   {
+    "id": "4",
+    "from": "c",
+    "to": "e",
+    "label": "accept"
+   }
+  ]
+ }
+}

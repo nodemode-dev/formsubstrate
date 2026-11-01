@@ -58,6 +58,9 @@
 .cv-rv-title { font-size: var(--fs-13); font-weight: 600; flex: none; }
 .cv-rv-target { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cv-rv-summary { flex: none; }
+.cv-rv-skips { flex: none; box-sizing: border-box; min-width: calc(var(--ctl) * 3); padding: 0 var(--space-1h); border: 1px solid var(--line-2); border-radius: var(--radius-pill); color: var(--warn); font-size: var(--fs-10); line-height: 16px; text-align: center; white-space: nowrap; }
+.cv-rv-skips[data-on="0"] { visibility: hidden; }
+.cv-rv-file-head .cv-fs-prov[data-state="skipped"] { color: var(--text-muted); border-style: dashed; border-color: var(--warn); }
 .cv-rv-tools { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; flex: none; }
 .cv-rv .cv-btn { height: var(--ctl-sm); padding: 0 var(--space-2h); font-size: var(--fs-11); gap: var(--space-1h); }
 .cv-rv-notice { flex: none; height: var(--ctl-sm); margin: 0; padding: 0 var(--space-3); display: flex; align-items: center; font-size: var(--fs-11); color: var(--text-secondary); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

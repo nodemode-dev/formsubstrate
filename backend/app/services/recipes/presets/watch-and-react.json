@@ -1,0 +1,10 @@
+{
+ "name": "watch-and-react",
+ "description": "File-watch pipeline: parks until a matching file changes, then an agent reacts to the change.",
+ "doc": {"version": 1, "name": "watch-pipeline", "nodes": [{"id": "s", "kind": "start", "label": "start", "x": 40, "y": 150}, {"id": "y", "kind": "yield", "label": "on-change", "x": 240, "y": 150, "config": {"event": {"type": "watch", "glob": "src/**"}}}, {"id": "a", "kind": "agent", "label": "reactor", "x": 460, "y": 150, "config": {"prompt": "A watched file changed. Inspect the change and act on the task."}}, {"id": "e", "kind": "end", "label": "end", "x": 680, "y": 150}], "edges": [{"id": "1", "from": "s", "to": "y"}, {"id": "2", "from": "y", "to": "a"}, {"id": "3", "from": "a", "to": "e"}]},
+ "task_template": "When files matching the watch pattern change, do this: {reaction}",
+ "inputs": [
+  {"name": "reaction", "label": "what to do on change", "type": "text", "required": true, "placeholder": "summarize the diff into CHANGELOG.md"}
+ ],
+ "skills": []
+}

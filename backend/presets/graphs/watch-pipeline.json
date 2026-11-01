@@ -1,0 +1,63 @@
+{
+ "description": "Event-driven: parks until a watched file changes, then an agent reacts. Walk away from the screen.",
+ "doc": {
+  "version": 1,
+  "name": "watch-pipeline",
+  "nodes": [
+   {
+    "id": "s",
+    "kind": "start",
+    "label": "start",
+    "x": 40,
+    "y": 150
+   },
+   {
+    "id": "y",
+    "kind": "yield",
+    "label": "on-change",
+    "x": 240,
+    "y": 150,
+    "config": {
+     "event": {
+      "type": "watch",
+      "glob": "src/**"
+     }
+    }
+   },
+   {
+    "id": "a",
+    "kind": "agent",
+    "label": "reactor",
+    "x": 460,
+    "y": 150,
+    "config": {
+     "prompt": "A watched file changed. Inspect the change and act on the task."
+    }
+   },
+   {
+    "id": "e",
+    "kind": "end",
+    "label": "end",
+    "x": 680,
+    "y": 150
+   }
+  ],
+  "edges": [
+   {
+    "id": "1",
+    "from": "s",
+    "to": "y"
+   },
+   {
+    "id": "2",
+    "from": "y",
+    "to": "a"
+   },
+   {
+    "id": "3",
+    "from": "a",
+    "to": "e"
+   }
+  ]
+ }
+}

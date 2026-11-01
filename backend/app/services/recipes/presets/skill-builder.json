@@ -1,0 +1,13 @@
+{
+ "name": "skill-builder",
+ "description": "Interview-driven skill factory: a writer agent turns your answers into a structured SKILL.md in the workspace skill tree, and a critic verifies the structure before accepting. New skills are picked up by every agent automatically.",
+ "doc": {"version": 1, "name": "skill-builder", "nodes": [{"id": "s", "kind": "start", "label": "start", "x": 40, "y": 150}, {"id": "w", "kind": "agent", "label": "skill writer", "x": 260, "y": 90, "config": {"prompt": "You are a skill author. Write a SKILL.md knowledge construct into .subform/skills/<slug>/SKILL.md using write_file, where <slug> is a short kebab-case name for the topic. Structure it exactly: line 1 is '# <skill name>'; the first paragraph after it is a one-line description of WHEN to use the skill (this becomes its index entry); then sections: ## When to use, ## Approach (numbered, concrete), ## Rules (hard constraints), ## Examples (at least one worked example). Distill the user's guidance faithfully; do not pad."}}, {"id": "c", "kind": "evaluator", "label": "skill critic", "x": 500, "y": 150, "config": {"prompt": "You are a strict skill reviewer. Use run_shell or read_file to inspect the SKILL.md the writer produced. Verify: it exists under .subform/skills/, line 1 starts with '# ', a description paragraph follows the title, and the When to use / Approach / Rules / Examples sections are present and non-empty. VERDICT: accept only when the structure holds; otherwise VERDICT: revise with concrete fixes."}}, {"id": "e", "kind": "end", "label": "end", "x": 720, "y": 150}], "edges": [{"id": "1", "from": "s", "to": "w"}, {"id": "2", "from": "w", "to": "c"}, {"id": "3", "from": "c", "to": "w", "label": "revise"}, {"id": "4", "from": "c", "to": "e", "label": "accept"}]},
+ "task_template": "Create a reusable skill named \"{skill_name}\" (SKILL.md).\n\nWhat the skill should teach or encode: {what}\n\nHard rules or constraints it must include: {rules}\n\nA concrete example it should contain: {example}",
+ "inputs": [
+  {"name": "skill_name", "label": "skill name", "type": "text", "required": true, "placeholder": "commit-hygiene"},
+  {"name": "what", "label": "what should it teach?", "type": "text", "required": true, "placeholder": "how to write small, reviewable commits with clear messages"},
+  {"name": "rules", "label": "hard rules", "type": "text", "default": "keep it concise; no vague advice", "placeholder": "one logical change per commit; imperative mood subjects"},
+  {"name": "example", "label": "worked example", "type": "text", "default": "include at least one realistic before/after example", "placeholder": "a bad message rewritten into a good one"}
+ ],
+ "skills": []
+}

@@ -1,0 +1,18 @@
+{
+  "description": "Human in the loop: the shell step parks for approval before it executes.",
+  "doc": {
+    "version": 1,
+    "name": "gated-deploy",
+    "nodes": [
+      {"id": "s", "kind": "start", "label": "start", "x": 40, "y": 150},
+      {"id": "a", "kind": "agent", "label": "preparer", "x": 240, "y": 150, "config": {"prompt": "Prepare the change and summarize exactly what the deploy step will run."}},
+      {"id": "t", "kind": "tool", "label": "deploy", "x": 470, "y": 150, "config": {"tool": "run_shell", "args": {"command": "echo deploy-here"}}},
+      {"id": "e", "kind": "end", "label": "end", "x": 690, "y": 150}
+    ],
+    "edges": [
+      {"id": "1", "from": "s", "to": "a"},
+      {"id": "2", "from": "a", "to": "t"},
+      {"id": "3", "from": "t", "to": "e"}
+    ]
+  }
+}

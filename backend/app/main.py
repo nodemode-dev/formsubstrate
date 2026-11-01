@@ -14,9 +14,23 @@ from app.core.local_guard import LocalGuard, token_mode
 from app.routers import debug, formslot, git, secrets, sessions, skills, system, terminal, workspace
 from app.routers import lsp as lsp_router
 from app.routers import graph as graph_router
+from app.routers import graphs as graphs_router
 from app.routers import media as media_router
 from app.routers import create as create_router
 from app.routers import mcp as mcp_router
+from app.routers import cogentics as cogentics_router
+from app.routers import insight as insight_router
+from app.services.cogentics.hub import hub as cogentics_hub
+from app.routers import harness as harness_router
+from app.routers import collections as collections_router
+from app.routers import tools as tools_router
+from app.routers import plugins as plugins_router
+from app.routers import mcp_servers as mcp_servers_router
+from app.routers import recipes as recipes_router
+from app.routers import triggers as triggers_router
+from app.services.triggers.manager import triggers as trigger_service
+from app.routers import runs as runs_router
+from app.services.runs import manager as runs_manager
 from app.services import create as create_service
 from app.services import sessions as session_service
 
@@ -47,12 +61,23 @@ def _end_streams_on_signal() -> list[tuple[int, object]]:
 async def lifespan(_: FastAPI):
     data = config.data_dir()
     runtime.start_logging(data)
-    logging.getLogger("subform").info("%s", token_mode())
+    log = logging.getLogger("subform")
+    log.info("%s", token_mode())
+    for key in config.DEPRECATED_ENV:
+        log.warning("environment variable %s is deprecated and will stop working in the next release; use %s%s (the new name wins when both are set)", key, config.NEW_ENV_PREFIX, key[len(config.OLD_ENV_PREFIX):])
+    for note in config.MIGRATION_NOTES:
+        log.info("%s", note)
+    for note in await asyncio.to_thread(secrets.migrate_keyring):
+        log.info("%s", note)
     saved = _end_streams_on_signal()
     await session_service.reconcile()
+    trigger_service.start()
     yield
+    await trigger_service.stop()
+    await runs_manager.shutdown()
     session_service.close_streams()
     await create_service.shutdown()
+    await cogentics_hub().shutdown()
     for number, previous in saved:
         try:
             signal.signal(number, previous)
@@ -82,7 +107,18 @@ app.include_router(debug.router, prefix="/api")
 app.include_router(lsp_router.router, prefix="/api")
 app.include_router(media_router.router, prefix="/api")
 app.include_router(graph_router.router, prefix="/api")
+app.include_router(graphs_router.router, prefix="/api")
 app.include_router(create_router.router, prefix="/api")
+app.include_router(harness_router.router, prefix="/api")
+app.include_router(collections_router.router, prefix="/api")
+app.include_router(tools_router.router, prefix="/api")
+app.include_router(plugins_router.router, prefix="/api")
+app.include_router(mcp_servers_router.router, prefix="/api")
+app.include_router(recipes_router.router, prefix="/api")
+app.include_router(triggers_router.router, prefix="/api")
+app.include_router(runs_router.router, prefix="/api")
+app.include_router(cogentics_router.router, prefix="/api")
+app.include_router(insight_router.router, prefix="/api")
 app.include_router(mcp_router.router)
 
 _dist = config.dist_dir()

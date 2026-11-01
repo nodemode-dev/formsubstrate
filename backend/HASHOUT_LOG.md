@@ -370,3 +370,35 @@ review M4. The launcher sends the bearer token with `urllib`, which uses `http_p
 - logged: v0.10.0 · 2026-10-30
 
 review L9, L1. `rm -rf` on paths built from `SUBFORM_FREEZE_WORK` and `SUBFORM_ENGINE_OUT` could remove the wrong folder when a variable is wrong. `safe_rm` refuses an empty path, `/` and `$HOME`, and requires the folder name to be the expected one (`pyinstaller`, `dist-engine`, `engine`). `build_app` now builds the `tauri build --config` JSON with `json.dumps` in Python instead of string interpolation, so a path with a quote or backslash cannot break or alter it. `subform` and `subform.bat` list `mcp` in their usage text. The Windows scripts keep their plain `rmdir` and string config; they are not changed beyond `--add-data` (M7).
+
+### backend/app/services/library · pointer
+
+- refers-to: backend/app/services/library/HASHOUT_LOG.md; backend/app/main.py :: app.include_router
+- kind: explainer
+- logged: v0.14.0 · 2026-10-31
+
+Collections, tools, plugins, MCP servers and the activity feed (ported from substrata) are mounted under `/api` as `/collections`, `/tools`, `/activity`, `/plugins` and `/mcp-servers`. Their log is beside the code in services/library.
+
+### backend/app/services/cogentics · pointer
+
+- refers-to: backend/app/services/cogentics/HASHOUT_LOG.md; backend/app/main.py :: app.include_router
+- kind: explainer
+- logged: v0.14.0 · 2026-10-31
+
+Cogentics channels and the insight routes (ported from substrata) are mounted under `/api` as `/cogentics` and `/insight`. Their log is beside the code in services/cogentics.
+
+### backend/app/routers/graphs.py · pointer
+
+- refers-to: backend/app/models/HASHOUT_LOG.md; backend/app/main.py :: app.include_router
+- kind: explainer
+- logged: v0.14.0 · 2026-10-31
+
+The Studio's graph model, validation, saved-graph routes (`/api/graphs`) and preset graphs (`backend/app/templates/graphs`) are ported from substrata. Their log is beside the code in backend/app/models.
+
+### backend/app/routers/recipes.py · pointer
+
+- refers-to: backend/app/services/recipes/HASHOUT_LOG.md; backend/app/services/triggers/HASHOUT_LOG.md; backend/app/main.py :: app.include_router, lifespan
+- kind: explainer
+- logged: v0.14.0 · 2026-10-31
+
+Recipes (`/api/recipes`) and triggers (`/api/triggers`, the signed webhook `/api/hooks/{id}`) are ported from substrata and mounted under `/api`. `main.py` starts the trigger loop after the sessions reconcile and stops it first at shutdown. Triggers run only while the engine runs; their table is kept in the data folder, not in the workspace. The logs are beside the code in services/recipes and services/triggers.

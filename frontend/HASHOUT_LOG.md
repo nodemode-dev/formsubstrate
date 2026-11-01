@@ -2033,3 +2033,83 @@ Page half of the quit gate described in src-tauri/HASHOUT_LOG.md. In the desktop
 - logged: v0.13.0 · 2026-10-30
 
 Supersedes the limitation in the GateCards entry ("not placed inside the terminal dock itself"). While a gate is open Claude Code's own terminal shows only "running PreToolUse hook" and, once the hook returns, its permission dialog, with nothing saying subform is waiting; the 120 s gate timed out twice while a tester was slow. The dock now builds one banner inside `.ft-dock-stage` at construction (mark, text, "+N" count, the three choice buttons) and toggles `hidden` and patches text, title and disabled in place; the active tab's session (`TerminalInfo.sessionId`) selects the oldest open gate, as the cards answer oldest first. The banner overlays the top of the stage (`position: absolute`, `z-index: var(--z-raised)`; the stage got `isolation: isolate` so xterm's own z-indexes stay beneath) and never resizes the xterm host, so no fit runs. Each tab gets a badge dot built once in the tab row and shown with `hidden`; it is absolutely placed on the tab corner so the tab keeps its width. Updates ride `sessionsClient` events through one rAF and the existing keyed `patchTabs`. The buttons use `answerOpenGate` (new, exported from gate-cards.ts and now also used by GateCards.answer), which calls `sessionsClient.answerGate` with the window token and treats 404 and 410 as closed, so both surfaces share one answer path; button mousedown is prevented so the terminal keeps focus. The global card stays. Checked in Chromium at 4x CPU throttle against a live engine and a real Claude Code session terminal: banner shown 1.1 s after the hook opened the gate, the `.ft-term` host, the `.xterm` element and the banner node are the same objects before and after, no child-list mutation on the stage, xterm box 1264 by 219 before, during and after, banner z-index 8, badge shown then hidden; Use in the banner answered the gate and the hook returned the deny. Layout shift attributable to the banner is 0. One shift of 0.0039 occurs when any gate opens, with the dock closed and no banner as well: it is the "Install formslot for this repository" toast moving up as the "Existing slot found" toast stacks under it, outside this scope (toast.ts).
+
+### frontend/src/ui/home-formslot.ts · HomeFormslot
+
+- refers-to: frontend/src/ui/home-formslot.ts :: HomeFormslot, stateOf; frontend/src/ui/home.ts :: Home; frontend/src/styles/home.css :: .cv-hfs
+- kind: rationale
+- logged: v0.14.0 · 2026-10-31
+
+The formslot card on Home (between the hero and Quick actions) is built once and only patches text, hidden flags, disabled and data-state. Four states from GET /api/formslot/onboard: missing (no binary), setup (binary found, no data folder or no corpora and no service), add (set up, but this workspace is not indexed or not connected) and ready (service, project count, tokens saved from the sessions client). The card has a min-height of five space-8 steps, the tallest state (field row shown), and the text rows have min-heights, so a state change moves nothing. Buttons run commands in a shell terminal made through the existing /api/terminals route and typed into it over the terminal socket: the checkout's `./formslot_oc_install`, `formslot setup`, and `formslot setup --yes --repo WS --no-path; exit` (the last exits so the card knows it is done). While the launched terminal is alive the card re-reads the status every 3 s (10 min cap) and once more when it is gone. Paths with quotes, backticks, dollar signs or newlines are refused. The checkout/binary path is kept in localStorage `subform.formslot.checkout` because Preferences (prefs.ts, settings.ts) is not in this unit; moving it there is a todo. A terminal needs an open workspace (terminal.py confines the cwd), so with no folder open the button is disabled and the card says to open one; an engine-side home-folder cwd for this case is a todo. Home passes `openTerminal` through HomeDeps, which app.ts should bind to `dock.reveal`.
+
+### frontend/src/extensions/formslot/index.ts · offer
+
+- refers-to: frontend/src/extensions/formslot/index.ts :: register
+- kind: removed-code
+- logged: v0.14.0 · 2026-10-31
+
+One install path: the toast offer no longer runs `formslot.install('warn')` itself. It says "Add this project to formslot" and its action opens Home, where the card runs `formslot setup --yes --repo`.
+
+### frontend/index.html · pre-paint localStorage copy from substrataform.*
+
+- refers-to: frontend/index.html :: pre-paint script; frontend/src/ui/settings.ts :: OWN_KEY_PREFIX
+- kind: rationale
+- logged: v0.14.0 · 2026-10-31
+
+First statement of the pre-paint script, before the theme boot reads storage: every `substrataform.*` key is copied to `subform.*` when the new key is absent, then `nodemode.subform.migrated` is set, so it runs once. The flag is outside the `subform.` prefix on purpose: "reset preferences" removes every `subform.` key and must not make the old values come back. Old keys stay. There is no key module (each file owns its const), so nothing else changed; `nodemode_ui_settings` (theme) was never renamed. Checked in Chromium at 4x CPU throttle on a copy of the page: old keys copied, an existing new key kept, flag set, theme attribute set once with no later change. A changed bundle id also changes the webview storage location on macOS, so the old values may not be reachable there at all; see src-tauri/HASHOUT_LOG.md. The Install plugin button and command in the formslot panel remain for the warn/deny choice.
+
+### frontend/src/extensions/manager, tools, plugins, blocks, collections, activity · port map
+
+- refers-to: frontend/src/extensions/manager/index.ts :: register; frontend/src/extensions/tools/index.ts :: register; frontend/src/extensions/collections/index.ts :: register; frontend/src/extensions/activity/index.ts :: register; frontend/src/extensions/blocks/registry.ts :: registerBlock; frontend/src/io/library.ts :: library
+- kind: explainer
+- logged: v0.14.0 · 2026-10-31
+
+Ported from substrata (MIT, owner's) frontend/src/extensions/manager, tools, plugins, blocks, collections and activity, rewritten as classes that build each panel once and patch keyed rows (`patchList`) with no innerHTML on live containers. Where they live: the left rail has "Extensions" (tabs Extensions, Plugins, MCP) and "Tools" (tabs Tools, Blocks); the right panel has "Collections" and "Activity". The Extensions tab lists the registry (`listExtensions`) and flips `setEnabled`; a disable of an active extension says to reload because the registry cannot unload panels. substrata's install from zip or git url is not ported: it loaded foreign JavaScript into the window. The call form of a tool and the settings form of a plugin expand inside their row (substrata used a document-level drawer and a modal). The per-plugin settings form is built on first open from the declared schema. Strings go through `t()`. Clients for every route are in io/library.ts; state changes use `owner` (the window token) and plugin calls add `trust=1` through `trustQuery`.
+
+### frontend/src/extensions/blocks/registry.ts · block registry for the Studio palette
+
+- refers-to: frontend/src/extensions/blocks/registry.ts :: Block, registerBlock, replaceGroup, listBlocks, onBlocks, insertAtCursor; frontend/src/extensions/tools/panel.ts :: toBlocks
+- kind: explainer
+- logged: v0.14.0 · 2026-10-31
+
+For port-studio. Import from `../blocks` (or `../blocks/registry`): `listBlocks(group?)` returns `Block[]` (`{id, group, label, hint, icon, code?, tool?, data?}`), `onBlocks(fn)` subscribes (returns an unsubscribe; calls are coalesced into one microtask), and the window event `subform:blocks-changed` fires too. Groups: `snippet` (HTML for the editor cursor, `code`), `tool` (one per engine tool: `tool.name`, `tool.source` such as `builtin` or `plugin:clock`, `tool.parameters` JSON schema, id `tool:<name>`), `mcp` (tools mounted from MCP servers, same shape, source `mcp:<server>`), `studio` (free for the Studio to register its own with `registerBlock`). The tools extension refreshes the `tool` and `mcp` groups on start, on workspace change, on trust change and after any plugin or MCP action (`subform:tools-changed`). To run a tool block from a graph node, POST `/api/tools/call` with `{name, args}` and the window token (`library.call` in io/library.ts); engine-side runs can use `app.services.library.registry.tools.call(name, args)`. A tool block's icon is `nkTool` or `libServer`. The Studio can post run events to the feed with the window event `subform:run-event` (`detail: {label, phase, note}`) and `subform:run-started` to clear it.
+
+### frontend/src/extensions/collections, activity · polling
+
+- refers-to: frontend/src/extensions/collections/panel.ts :: CollectionsPanel; frontend/src/extensions/activity/panel.ts :: ActivityPanel
+- kind: rationale
+- logged: v0.14.0 · 2026-10-31
+
+Both right-panel views poll their route (4 s and 2 s) only while their host is laid out (`offsetParent`) and the document is visible, because the engine has no event stream for them. New feed rows are appended once and never rebuilt; the feed keeps 300 rows; consecutive `delta` events of one label grow a single stream row. Phase chips toggle `hidden` on rows in place. Search hits reuse indexed rows through `patchList`.
+
+### frontend/src/extensions/cogentics · pointer
+
+- refers-to: frontend/src/extensions/cogentics/HASHOUT_LOG.md; frontend/src/ui/terminal-dock.ts :: openPane; frontend/src/ui/dock-panes.ts
+- kind: explainer
+- logged: v0.14.0 · 2026-10-31
+
+Cogentics, Insight (right panel sections) and the Console tab of the terminal dock are ported from substrata. Their log is beside the code in extensions/cogentics. The dock gained a second tab group for panes (`dock-panes.ts`) and `openPane`; the terminal tab list is unchanged.
+
+### frontend/src/ui/studio · pointer
+
+- refers-to: frontend/src/ui/studio/HASHOUT_LOG.md; frontend/src/app.ts :: installStudio; frontend/src/ui/icons.ts :: studio
+- kind: explainer
+- logged: v0.14.0 · 2026-10-31
+
+The Studio (node canvas, graph engine in `src/engine`, saved-graphs sidebar in `extensions/studio`, `styles/studio.css`) is ported from substrata. Its log, including the API the running side uses, is beside the code in ui/studio. `app.ts` installs it next to the file graph and adds Studio and New Graph to the View menu; `icons.ts` gained the studio, node kind, auto layout, zoom and canvas view icons.
+
+### frontend/src/extensions/recipes · pointer
+
+- refers-to: frontend/src/extensions/recipes/HASHOUT_LOG.md; frontend/src/app.ts :: extension imports; frontend/src/ui/icons.ts :: rcpBook, rcpBolt, rcpCopy, rcpApprove; frontend/index.html :: recipes.css
+- kind: explainer
+- logged: v0.14.0 · 2026-10-31
+
+The recipes and triggers sidebar sections and the approvals and automation right-panel sections are ported from substrata and imported by `app.ts`. `styles/recipes.css` serves all four and is linked in `index.html`; `icons.ts` gained rcpBook, rcpBolt, rcpCopy and rcpApprove. Logs are beside the code in each extension folder.
+
+### frontend/src/ui/toast.ts · stack, leave, syncActions
+
+- refers-to: frontend/src/ui/toast.ts :: toast, stack, leave, syncActions; frontend/src/styles/shell.css :: #toast-root, .cv-toast
+- kind: rationale
+- logged: v0.14.0 · 2026-10-31
+
+Closes the 0.0039 shift noted in the terminal-dock gate entry. The old stack was a bottom-anchored flex column, so a new toast pushed every older one up by layout. Now `#toast-root` is a fixed, zero-height layer on `--z-toast` and every `.cv-toast` is absolutely placed at its bottom edge; `stack` measures heights (offsetHeight, a read) and gives each live toast `translateY(-offset)`, newest at the bottom. Nothing is in flow, so a toast arriving, changing size or leaving cannot shift anything. A new toast starts 8px low and transparent with transitions off, is flushed, then transitions to its slot with `is-in` (opacity and transform only). `leave` replaces `remove`: it adds `is-leaving` (opacity 0, drops by one gap), restacks the others by transform, and removes the node after its computed transition time; close, action click, expiry, the returned dismiss function and the cap all use it. Cap: 4 visible, the oldest leave. Keyed toasts: a new `key` option (default the text when there are no actions) finds the live toast and patches text, error class and action buttons in place (`syncActions` reuses buttons), re-arms the timer and restacks; no node is rebuilt. Width is `--size-gate-w` (360px, was 380px literal) so only tokens are used; transitions use `--transition-fast` and `--transition-normal`, and Preferences' animations-off and reduced motion zero them, so removal is then immediate. Measured in Chromium at 4x CPU throttle on Vite 5658 with a scratch engine: toasts arriving one by one (3), three at once, six arrivals (4 stay visible), update in place of a keyed toast, closing a middle toast and closing all: layout shift 0 (observer total 0), the untransformed offset box of every existing toast unchanged (the only change is the updated toast itself resizing to its new text), the page grid children's rects unchanged, 12 child-list mutations on the root for 7 new nodes and 5 removals (no rebuild), stack gaps 7.8px between neighbours, root position fixed, z-index 3000.

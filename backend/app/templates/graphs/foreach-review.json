@@ -1,0 +1,25 @@
+{
+  "description": "Flow control: a branch picks the path, a foreach reviews every item in parallel, a transform joins the result.",
+  "doc": {
+    "version": 1,
+    "name": "foreach-review",
+    "nodes": [
+      {"id": "s", "kind": "start", "label": "start", "x": 40, "y": 160},
+      {"id": "b", "kind": "branch", "label": "has files", "x": 230, "y": 160, "config": {"expr": "len(inputs.get('files', [])) > 0"}},
+      {"id": "f", "kind": "foreach", "label": "each file", "x": 440, "y": 80, "config": {"items": "inputs['files']", "parallel": 3}},
+      {"id": "r", "kind": "agent", "label": "review", "x": 650, "y": 20, "config": {"prompt": "Review {{item}} and list concrete problems."}},
+      {"id": "t", "kind": "transform", "label": "report", "x": 650, "y": 160, "config": {"template": "Review of {{task}}:\n{{context}}"}},
+      {"id": "n", "kind": "agent", "label": "explain", "x": 440, "y": 260, "config": {"prompt": "No files were given. Say what input is missing."}},
+      {"id": "e", "kind": "end", "label": "end", "x": 880, "y": 160}
+    ],
+    "edges": [
+      {"id": "1", "from": "s", "to": "b"},
+      {"id": "2", "from": "b", "to": "f", "label": "true"},
+      {"id": "3", "from": "b", "to": "n", "label": "false"},
+      {"id": "4", "from": "f", "to": "r", "label": "each"},
+      {"id": "5", "from": "f", "to": "t", "label": "done"},
+      {"id": "6", "from": "t", "to": "e"},
+      {"id": "7", "from": "n", "to": "e"}
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+ "name": "benchmark-review",
+ "description": "Fan-out review: parallel reviewers examine the workspace from different angles, then a joiner synthesizes one report.",
+ "doc": {"version": 1, "name": "bench-review", "nodes": [{"id": "s", "kind": "start", "label": "start", "x": 40, "y": 220}, {"id": "a1", "kind": "agent", "label": "architect", "x": 240, "y": 60, "config": {"prompt": "You are the architect. Argue from system design."}}, {"id": "a2", "kind": "agent", "label": "skeptic", "x": 240, "y": 170, "config": {"prompt": "You are the skeptic. Find what breaks."}}, {"id": "a3", "kind": "agent", "label": "pragmatist", "x": 240, "y": 280, "config": {"prompt": "You are the pragmatist. Argue from cost and delivery."}}, {"id": "a4", "kind": "agent", "label": "critic", "x": 240, "y": 390, "config": {"prompt": "You are the critic. Judge the quality of the arguments."}}, {"id": "b", "kind": "agent", "label": "bench", "x": 470, "y": 220, "config": {"prompt": "You are the bench. Synthesize all four positions faithfully."}}, {"id": "ch", "kind": "evaluator", "label": "chair", "x": 660, "y": 220, "config": {"prompt": "You are the chair. Accept only a decisive, actionable synthesis. VERDICT: accept or revise."}}, {"id": "w", "kind": "agent", "label": "write", "x": 850, "y": 220, "config": {"prompt": "Write the final decision document to the workspace."}}, {"id": "e", "kind": "end", "label": "end", "x": 1030, "y": 220}], "edges": [{"id": "1", "from": "s", "to": "a1"}, {"id": "2", "from": "s", "to": "a2"}, {"id": "3", "from": "s", "to": "a3"}, {"id": "4", "from": "s", "to": "a4"}, {"id": "5", "from": "a1", "to": "b"}, {"id": "6", "from": "a2", "to": "b"}, {"id": "7", "from": "a3", "to": "b"}, {"id": "8", "from": "a4", "to": "b"}, {"id": "9", "from": "b", "to": "ch"}, {"id": "10", "from": "ch", "to": "b", "label": "revise"}, {"id": "11", "from": "ch", "to": "w", "label": "accept"}, {"id": "12", "from": "w", "to": "e"}]},
+ "task_template": "Review the workspace with this focus: {focus}. Produce a single synthesized report at {report_path}.",
+ "inputs": [
+  {"name": "focus", "label": "review focus", "type": "text", "default": "code quality, structure, and risks"},
+  {"name": "report_path", "label": "report file", "type": "text", "default": "REVIEW.md"}
+ ],
+ "skills": ["code-review"]
+}
