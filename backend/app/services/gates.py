@@ -14,8 +14,11 @@ from app.services.gate_hook import SCRIPT
 
 SCRIPT_NAME = "sf_gate.py"
 HOOK_DIR = "hooks"
-HOOK_MATCHER = "Write|Edit|MultiEdit"
+HOOK_MATCHER = "Write|Edit|MultiEdit|Bash"
 HOOK_TIMEOUT = 135
+POST_MATCHER = "Bash"
+POST_TIMEOUT = 5
+NOTES_MAX = 50
 WAIT_MAX = 120
 KEEP_SECONDS = 600
 CHOICES = ("use", "adapt", "write")
@@ -35,6 +38,7 @@ _prior: dict[str, str | None] = {}
 _touched: dict[str, float] = {}
 _waiting: dict[str, int] = {}
 _tokens: dict[str, str] = {}
+_notes: dict[str, list[dict]] = {}
 
 
 def script_path():
@@ -83,8 +87,32 @@ def merged_settings(existing: object) -> dict:
     pre = [entry for entry in hooks.get("PreToolUse", []) if not _ours(entry)] if isinstance(hooks.get("PreToolUse"), list) else []
     pre.append({"matcher": HOOK_MATCHER, "hooks": [{"type": "command", "command": hook_command(), "timeout": HOOK_TIMEOUT}]})
     hooks["PreToolUse"] = pre
+    post = [entry for entry in hooks.get("PostToolUse", []) if not _ours(entry)] if isinstance(hooks.get("PostToolUse"), list) else []
+    post.append({"matcher": POST_MATCHER, "hooks": [{"type": "command", "command": hook_command(), "timeout": POST_TIMEOUT}]})
+    hooks["PostToolUse"] = post
     body["hooks"] = hooks
     return body
+
+
+def add_note(body: dict) -> dict:
+    session_id = body.get("session")
+    if not isinstance(session_id, str) or svc._sessions.get(session_id) is None:
+        raise svc.Refused(404, "no such session")
+    note = {
+        "path": str(body.get("path") or "")[:2000],
+        "slot": str(body.get("slot") or "")[:200],
+        "tool": str(body.get("tool") or "Bash")[:40],
+        "message": str(body.get("message") or "")[:TEXT_MAX],
+        "created": svc._now(),
+    }
+    kept = [n for n in _notes.get(session_id, []) if n["path"] != note["path"]]
+    kept.append(note)
+    _notes[session_id] = kept[-NOTES_MAX:]
+    return {"ok": True}
+
+
+def notes_for(session_id: str) -> list[dict]:
+    return list(_notes.get(session_id, []))
 
 
 def _mint(session_id: str) -> str:
@@ -255,5 +283,6 @@ async def wait(gate_id: str, timeout: float, request) -> dict:
 def close_session(session_id: str) -> None:
     _prior.pop(session_id, None)
     _tokens.pop(session_id, None)
+    _notes.pop(session_id, None)
     for gate in [g for g in _gates.values() if g["session"] == session_id and g["choice"] is None]:
         _close(gate, "abandoned")

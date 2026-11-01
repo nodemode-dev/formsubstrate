@@ -205,6 +205,16 @@ export class SessionsClient {
     this.emit('gates', this.gates);
   }
 
+  async bashNotes(session: string): Promise<Array<{ path: string; slot: string }>> {
+    const r = await request<{ notes?: unknown }>(`/api/gates/notes?session=${encodeURIComponent(session)}`);
+    const out: Array<{ path: string; slot: string }> = [];
+    for (const n of Array.isArray(r.notes) ? r.notes : []) {
+      const o = n as { path?: unknown; slot?: unknown };
+      if (typeof o.path === 'string' && typeof o.slot === 'string') out.push({ path: o.path, slot: o.slot });
+    }
+    return out;
+  }
+
   async answerGate(id: string, choice: GateChoice): Promise<void> {
     await gatesApi.answer(id, choice);
     this.closeGate(id);

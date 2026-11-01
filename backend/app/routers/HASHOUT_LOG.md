@@ -227,3 +227,11 @@ Every route of the Create actions sits behind `require_window`, so a local agent
 - logged: v0.10.0 · 2026-10-30
 
 The port route resolves the destination and checks the block in the threadpool, because both touch the disk and the sibling scan could block (see the services log, M5). The `/create/*` routes still depend on `require_window`, so they are behind the window token like the formslot actions.
+
+### backend/app/routers/formslot.py · add_gate_note, list_gate_notes
+
+- refers-to: backend/app/routers/formslot.py :: add_gate_note, list_gate_notes
+- kind: rationale
+- logged: v0.11.0 · 2026-10-30
+
+`POST /api/gates/notes` takes the per-session token like `POST /api/gates` (the Bash PostToolUse hook records a file written by Bash that overlaps a slot). `GET /api/gates/notes?session=` has LocalGuard only, like `GET /api/gates`, and returns repository-relative paths, slot ids and the formslot text; nothing owner-only changes state. See the services log, gate_hook.py (Bash tool, PostToolUse).

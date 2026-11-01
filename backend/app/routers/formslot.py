@@ -33,6 +33,14 @@ class GateBody(BaseModel):
     tokens: int = 0
 
 
+class NoteBody(BaseModel):
+    session: str = Field(max_length=200)
+    tool: str = Field(default="Bash", max_length=200)
+    path: str = Field(default="", max_length=4000)
+    slot: str = Field(default="", max_length=200)
+    message: str = Field(default="", max_length=gates.MESSAGE_BODY_MAX)
+
+
 class AnswerBody(BaseModel):
     choice: Literal["use", "adapt", "write"]
 
@@ -114,6 +122,20 @@ async def open_gate(body: GateBody, session_token: str | None = Header(default=N
 @router.get("/gates")
 def list_gates() -> dict:
     return {"gates": gates.open_list()}
+
+
+@router.post("/gates/notes")
+def add_gate_note(body: NoteBody, session_token: str | None = Header(default=None, alias="X-Subform-Session")) -> dict:
+    try:
+        gates.verify(body.session, session_token)
+        return gates.add_note(body.model_dump())
+    except session_svc.Refused as err:
+        raise _fail(err)
+
+
+@router.get("/gates/notes")
+def list_gate_notes(session: str) -> dict:
+    return {"notes": gates.notes_for(session)}
 
 
 @router.post("/gates/{gate_id}/answer", dependencies=[Depends(require_window)])

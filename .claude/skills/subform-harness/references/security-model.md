@@ -24,7 +24,7 @@ It guards: formslot start, index, install, mcp, confirm, drift, gate answer, and
 
 ## 3. Session token (agent to engine)
 
-`SUBFORM_GATE_TOKEN` is minted per session and handed to that session through its environment only. It authorises `POST /api/gates` and `GET /api/gates/[id]/wait` for that session, sent as `X-Subform-Session`. It cannot answer a gate.
+`SUBFORM_GATE_TOKEN` is minted per session and handed to that session through its environment only. It authorises `POST /api/gates`, `POST /api/gates/notes` and `GET /api/gates/[id]/wait` for that session, sent as `X-Subform-Session`. It cannot answer a gate. The gate hook also sees the `Bash` tool: the command is parsed, never run, for common write forms, and the PostToolUse safety net can only warn, not block; a write through a program the parser does not know (a script file, a compiler) is gated only after the fact.
 
 ## Workspace trust
 

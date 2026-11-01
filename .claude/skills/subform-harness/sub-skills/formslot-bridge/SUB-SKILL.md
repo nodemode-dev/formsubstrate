@@ -22,8 +22,8 @@ formslot is the Form family slot index. subform finds it on the system and never
 
 ## Gate flow
 
-1. A session launches with `SUBFORM_ENGINE`, `SUBFORM_SESSION`, `SUBFORM_WORKTREE`, `SUBFORM_REPO`, `SUBFORM_GATE_TOKEN` (minted per session) and `FORMSLOT_BIN` in its environment, and a `--settings` file whose `hooks.PreToolUse` matcher is `Write|Edit|MultiEdit`.
-2. The hook asks formslot whether a slot exists for the write. On a hit it posts `POST /api/gates` with header `X-Subform-Session`, then waits on `GET /api/gates/[id]/wait` (up to 120 s).
+1. A session launches with `SUBFORM_ENGINE`, `SUBFORM_SESSION`, `SUBFORM_WORKTREE`, `SUBFORM_REPO`, `SUBFORM_GATE_TOKEN` (minted per session) and `FORMSLOT_BIN` in its environment, and a `--settings` file whose `hooks.PreToolUse` matcher is `Write|Edit|MultiEdit|Bash` and whose `hooks.PostToolUse` matcher is `Bash` (`gates.merged_settings` replaces older entries naming `sf_gate.py`).
+2. The hook asks formslot whether a slot exists for the write. For a `Bash` call it parses the command without running it (redirects, `tee`, heredocs, `cp`, `mv`, `sed -i`, `python -c` or `node -e` with a literal `open(..., 'w')`, `git apply`, `patch`), builds a Write-like or Edit-like payload for each target inside the worktree and checks each one; a declined feature or an owner Use or Adapt decision denies the whole call. Unparseable commands pass. After the call the PostToolUse hook compares `git status` with the snapshot taken before it (at most 50 files, 2 s), checks new or changed files, adds the warning as context and records it with `POST /api/gates/notes`; the review pane shows it as a badge "Bash · slot X". On a hit it posts `POST /api/gates` with header `X-Subform-Session`, then waits on `GET /api/gates/[id]/wait` (up to 120 s).
 3. The window shows the card (Use, Adapt, Write new anyway) and answers with `POST /api/gates/[id]/answer`, which needs the window token. The session token cannot answer its own gate.
 4. Gates are capped per session and in total; closed ones are kept briefly (`KEEP_SECONDS`).
 

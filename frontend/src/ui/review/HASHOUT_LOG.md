@@ -44,3 +44,11 @@ Find, Add Next Occurrence and Select All Occurrences acted on the hidden file ed
 - logged: v0.7.1 · 2026-10-30
 
 The badge toggled between display none and shown when drift arrived, which reflowed the file row and the diff bar. The fix is in CSS only: while formslot is enabled the badge in those two places keeps a fixed width and hides with visibility, so the filename never re-truncates. provenance.ts is unchanged.
+
+### frontend/src/ui/review/review-pane.ts · paintBadge
+
+- refers-to: frontend/src/ui/review/review-pane.ts :: paintBadge, load; frontend/src/io/sessions.ts :: SessionsClient.bashNotes
+- kind: explainer
+- logged: v0.11.0 · 2026-10-30
+
+`load` also reads `GET /api/gates/notes?session=` (errors read as none) into a path to slot map. `paintBadge` calls `paintProvenance` and, when the file has a note, reuses the same badge element for the text "Bash · slot X" (title "Written by Bash, overlaps slot X", warn colour through `data-state="behind"`). No node is added, so the fixed-width badge keeps the row layout. The notes are fetched on each reload, which the git change events already trigger after a Bash write.

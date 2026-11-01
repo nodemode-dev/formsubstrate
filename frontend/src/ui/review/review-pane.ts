@@ -75,6 +75,7 @@ export class ReviewPane implements ViewDoc {
   private timer = 0;
   private noticeTimer = 0;
   private flagged: FlaggedCommit[] = [];
+  private bashSlots = new Map<string, string>();
   private flash = '';
   private flashBad = false;
   private fixing = false;
@@ -106,7 +107,17 @@ export class ReviewPane implements ViewDoc {
   }
 
   private provenance(): void {
-    for (const n of Array.from(this.list.children) as HTMLElement[]) paintProvenance(q(n, '.cv-fs-prov'), n.dataset.key ?? '');
+    for (const n of Array.from(this.list.children) as HTMLElement[]) this.paintBadge(q(n, '.cv-fs-prov'), n.dataset.key ?? '');
+  }
+
+  private paintBadge(badge: HTMLElement, path: string): void {
+    paintProvenance(badge, path);
+    const slot = this.bashSlots.get(path);
+    if (!slot) return;
+    setHidden(badge, false);
+    setText(badge, `${t('Bash')} · ${t('slot')} ${slot}`);
+    setTitle(badge, `${t('Written by Bash, overlaps slot')} ${slot}`);
+    if (badge.dataset.state !== 'behind') badge.dataset.state = 'behind';
   }
 
   activate(): void {
@@ -142,9 +153,10 @@ export class ReviewPane implements ViewDoc {
     const mine = ++this.seq;
     const stop = delayedIndicator(() => { this.loadingNow = true; this.paintEmpty(); }, () => { this.loadingNow = false; this.paintEmpty(); });
     try {
-      const [r, flagged] = await Promise.all([git.review(this.session), this.session ? git.audit(this.session).catch(() => null) : Promise.resolve([] as FlaggedCommit[])]);
+      const [r, flagged, bash] = await Promise.all([git.review(this.session), this.session ? git.audit(this.session).catch(() => null) : Promise.resolve([] as FlaggedCommit[]), this.session ? sessionsClient.bashNotes(this.session).catch(() => []) : Promise.resolve([])]);
       if (mine !== this.seq || this.disposed) return;
       this.review = r;
+      this.bashSlots = new Map(bash.map((n) => [n.path, n.slot]));
       if (flagged) this.flagged = flagged;
       this.failed = '';
     } catch (err) {
@@ -395,7 +407,7 @@ ${PROVENANCE_HTML}
     if (q(n, '.cv-rv-kind').dataset.kind !== f.kind) q(n, '.cv-rv-kind').dataset.kind = f.kind;
     setText(q(n, '.cv-rv-add'), `+${f.added}`);
     setText(q(n, '.cv-rv-del'), `-${f.removed}`);
-    paintProvenance(q(n, '.cv-fs-prov'), f.path);
+    this.paintBadge(q(n, '.cv-fs-prov'), f.path);
     setClass(n, 'is-collapsed', collapsed);
     this.label(q(n, '[data-act="toggle"]'), t(collapsed ? 'Expand' : 'Collapse'));
     this.label(q(n, '[data-act="open"]'), t('Open diff'));

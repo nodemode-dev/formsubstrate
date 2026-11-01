@@ -1,10 +1,13 @@
-SCRIPT = r'''import json
+SCRIPT = r'''import ast
+import json
 import math
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -14,6 +17,24 @@ WAIT_MAX = 120
 LINE_TOKENS = 10
 SLOT_RE = re.compile(r"slot (\S+) \(\w+\) at (\S+?):(\d+)")
 UNIT_RE = re.compile(r"unit (\S+) \((\S+?):(\d+)\)")
+BASH_CAP = 8
+BASH_WAIT = 125
+READ_MAX = 1048576
+SNAP_KEEP = 86400
+POST_BUDGET = 1.7
+POST_FILES = 50
+POST_BYTES = 262144
+WRAPPERS = ("sudo", "env", "command", "builtin", "exec", "nohup", "time", "nice", "stdbuf")
+SHELLS = ("bash", "sh", "zsh", "dash")
+INTERP = re.compile(r"^(python[0-9.]*|node|nodejs|bun|deno|ruby)$")
+OPS = ("<<<", "<<-", "&>>", ">>", ">|", ">&", "<&", "&>", "&&", "||", ";;", "<<", ">", "<", "|", ";", "&", "(", ")")
+SEPS = (";", "&&", "||", "|", "&", ";;", "(", ")")
+ESC = {"n": "\n", "t": "\t", "r": "\r", "\\": "\\", "'": "'", '"': '"', "a": "\a", "0": "\0"}
+DQ = r'"(?:[^"\\\n]|\\.)*"'
+SQ = r"'(?:[^'\\\n]|\\.)*'"
+TDQ = r'"""[\s\S]*?"""'
+TSQ = "'" * 3 + r"[\s\S]*?" + "'" * 3
+STR = "(?:[rRbBuUfF]{0,2})(?:" + "|".join((TDQ, TSQ, DQ, SQ)) + ")"
 
 
 def formslot_bin():
@@ -84,8 +105,8 @@ def emit(payload):
     sys.stdout.flush()
 
 
-def context_only(text):
-    emit({"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": text}})
+def context_only(text, name="PreToolUse"):
+    emit({"hookSpecificOutput": {"hookEventName": name, "additionalContext": text}})
 
 
 def denial(reason):
@@ -99,45 +120,915 @@ def reason_for(choice, slot):
     return "The owner chose to adapt the existing slot %s at %s. Do not write a parallel copy. Start from that code and change only what this task needs." % (slot["id"], where)
 
 
-def main():
-    event = json.loads(sys.stdin.read())
-    binary = formslot_bin()
-    if not binary:
-        return
-    done = subprocess.run([binary, "check", "--mode", "warn"], input=json.dumps(remap(event)), capture_output=True, text=True, timeout=10)
-    text = done.stdout.strip()
-    if not text:
-        return
+def run_check(binary, payload, limit=10):
+    done = subprocess.run([binary, "check", "--mode", "warn"], input=json.dumps(remap(payload)), capture_output=True, text=True, timeout=limit)
+    return done.stdout.strip()
+
+
+def spec_of(text):
     answer = json.loads(text)
     spec = answer.get("hookSpecificOutput") if isinstance(answer, dict) else None
-    spec = spec if isinstance(spec, dict) else {}
+    return spec if isinstance(spec, dict) else {}
+
+
+def from_raw(text):
+    spec = spec_of(text)
+    if spec.get("permissionDecision"):
+        return ("deny", str(spec.get("permissionDecisionReason") or "formslot declined this write"))
+    context = spec.get("additionalContext")
+    if isinstance(context, str) and context:
+        return ("context", context)
+    return None
+
+
+def judge(binary, payload, tool_name, shown, deadline):
+    text = run_check(binary, payload)
+    if not text:
+        return None
+    spec = spec_of(text)
     context = spec.get("additionalContext")
     if spec.get("permissionDecision") or not isinstance(context, str) or not context:
-        sys.stdout.write(text)
-        return
+        return ("raw", text)
     slots = [{"id": m.group(1), "path": m.group(2), "line": int(m.group(3))} for m in SLOT_RE.finditer(context)]
     slots += [{"id": m.group(1), "path": m.group(2), "line": int(m.group(3))} for m in UNIT_RE.finditer(context)]
     base = engine_base()
     session = os.environ.get("SUBFORM_SESSION", "")
     if not base or not session or not slots:
-        sys.stdout.write(text)
-        return
-    tool_input = event.get("tool_input") if isinstance(event.get("tool_input"), dict) else {}
+        return ("raw", text)
     try:
         wait = max(1, min(WAIT_MAX, int(os.environ.get("SUBFORM_GATE_TIMEOUT", WAIT_DEFAULT))))
     except ValueError:
         wait = WAIT_DEFAULT
+    wait = min(wait, int(deadline - time.monotonic()))
+    if wait < 1:
+        return ("context", context)
     try:
-        gate = call("POST", base + "/api/gates", {"session": session, "tool": event.get("tool_name") or "Write", "path": tool_input.get("file_path") or "", "message": context[:4000], "slots": slots[:10], "tokens": estimate(binary, slots)})
+        gate = call("POST", base + "/api/gates", {"session": session, "tool": tool_name, "path": shown, "message": context[:4000], "slots": slots[:10], "tokens": estimate(binary, slots)})
         result = call("GET", "%s/api/gates/%s/wait?timeout=%d" % (base, gate["id"], wait), timeout=wait + 15)
     except (OSError, ValueError, KeyError, urllib.error.URLError):
-        context_only(context)
-        return
+        return ("context", context)
     choice = result.get("choice")
     if choice in ("use", "adapt"):
-        denial(reason_for(choice, slots[0]))
-    elif choice != "write":
-        context_only(context)
+        return ("deny", reason_for(choice, slots[0]))
+    if choice != "write":
+        return ("context", context)
+    return None
+
+
+def single(event, binary):
+    tool_input = event.get("tool_input") if isinstance(event.get("tool_input"), dict) else {}
+    outcome = judge(binary, event, event.get("tool_name") or "Write", tool_input.get("file_path") or "", time.monotonic() + WAIT_MAX + 5)
+    if outcome is None:
+        return
+    if outcome[0] == "raw":
+        sys.stdout.write(outcome[1])
+    elif outcome[0] == "deny":
+        denial(outcome[1])
+    else:
+        context_only(outcome[1])
+
+
+def unesc(text):
+    return re.sub(r"\\(.)", lambda m: ESC.get(m.group(1), m.group(0)), text, flags=re.S)
+
+
+def heredoc_bodies(text, i, pend, out):
+    n = len(text)
+    for index, delim in pend:
+        strip = out[index - 1][1] == "<<-"
+        lines = []
+        while i < n:
+            j = text.find("\n", i)
+            end = n if j < 0 else j
+            line = text[i:end]
+            i = end + 1
+            probe = line.lstrip("\t") if strip else line
+            if probe == delim:
+                break
+            lines.append(probe if strip else line)
+        out[index] = ("heredoc", "".join(item + "\n" for item in lines), False)
+    return min(i, n)
+
+
+def lex(text):
+    out = []
+    pend = []
+    state = {"word": None, "dyn": False, "delim": False}
+    n = len(text)
+    i = 0
+
+    def add(chunk):
+        if state["word"] is None:
+            state["word"] = []
+        state["word"].append(chunk)
+
+    def put():
+        if state["word"] is None:
+            return
+        word = "".join(state["word"])
+        if state["delim"]:
+            state["delim"] = False
+            pend.append((len(out), word))
+        out.append(("word", word, state["dyn"]))
+        state["word"] = None
+        state["dyn"] = False
+
+    while i < n:
+        c = text[i]
+        nxt = text[i + 1 : i + 2]
+        if c in " \t":
+            put()
+            i += 1
+        elif c == "\n":
+            put()
+            i += 1
+            if pend:
+                i = heredoc_bodies(text, i, pend, out)
+                pend.clear()
+            out.append(("op", ";", None))
+        elif c == "\\":
+            if nxt == "\n":
+                i += 2
+            elif nxt:
+                add(nxt)
+                i += 2
+            else:
+                add(c)
+                i += 1
+        elif c == "'":
+            j = text.find("'", i + 1)
+            if j < 0:
+                return None
+            add(text[i + 1 : j])
+            i = j + 1
+        elif c == '"':
+            j = i + 1
+            buf = []
+            while j < n and text[j] != '"':
+                if text[j] == "\\" and j + 1 < n and text[j + 1] in '"\\$`\n':
+                    if text[j + 1] != "\n":
+                        buf.append(text[j + 1])
+                    j += 2
+                    continue
+                if text[j] in "$`":
+                    state["dyn"] = True
+                buf.append(text[j])
+                j += 1
+            if j >= n:
+                return None
+            add("".join(buf))
+            i = j + 1
+        elif c == "$" and nxt == "'":
+            j = i + 2
+            buf = []
+            while j < n and text[j] != "'":
+                if text[j] == "\\" and j + 1 < n:
+                    buf.append(ESC.get(text[j + 1], text[j + 1]))
+                    j += 2
+                else:
+                    buf.append(text[j])
+                    j += 1
+            if j >= n:
+                return None
+            add("".join(buf))
+            i = j + 1
+        elif c == "$" and nxt == "(":
+            depth = 0
+            j = i + 1
+            while j < n:
+                if text[j] == "(":
+                    depth += 1
+                elif text[j] == ")":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                j += 1
+            if j >= n:
+                return None
+            add(text[i : j + 1])
+            state["dyn"] = True
+            i = j + 1
+        elif c == "$":
+            state["dyn"] = True
+            add(c)
+            i += 1
+        elif c == "`":
+            j = text.find("`", i + 1)
+            if j < 0:
+                return None
+            add(text[i : j + 1])
+            state["dyn"] = True
+            i = j + 1
+        elif c == "#" and state["word"] is None:
+            j = text.find("\n", i)
+            i = n if j < 0 else j
+        else:
+            op = next((o for o in OPS if text.startswith(o, i)), None)
+            if op is None:
+                add(c)
+                i += 1
+                continue
+            fd = None
+            if op[0] in "<>" and state["word"] is not None and not state["dyn"] and "".join(state["word"]).isdigit():
+                fd = "".join(state["word"])
+                state["word"] = None
+            put()
+            out.append(("op", op, fd))
+            i += len(op)
+            if op in ("<<", "<<-"):
+                state["delim"] = True
+    put()
+    if pend:
+        heredoc_bodies(text, n, pend, out)
+    return out
+
+
+def commands(tokens):
+    found = []
+    cur = {"words": [], "redir": [], "docs": [], "here": [], "stdin": None, "sep": None}
+
+    def used():
+        return cur["words"] or cur["redir"] or cur["docs"] or cur["here"] or cur["stdin"]
+
+    i = 0
+    while i < len(tokens):
+        kind, val, extra = tokens[i]
+        if kind == "op" and val in SEPS:
+            if used():
+                cur["sep"] = val
+                found.append(cur)
+            cur = {"words": [], "redir": [], "docs": [], "here": [], "stdin": None, "sep": None}
+        elif kind == "op":
+            target = tokens[i + 1] if i + 1 < len(tokens) and tokens[i + 1][0] in ("word", "heredoc") else None
+            if target is not None:
+                i += 1
+                if val in ("<<", "<<-"):
+                    cur["docs"].append(target[1])
+                elif val == "<<<":
+                    cur["here"].append(target[1] + "\n")
+                elif val in (">", ">>", ">|", "&>", "&>>"):
+                    cur["redir"].append((val, extra, target))
+                elif val == ">&" and not (target[1].isdigit() or target[1] == "-"):
+                    cur["redir"].append((">", extra, target))
+                elif val == "<":
+                    cur["stdin"] = target
+        else:
+            cur["words"].append((val, extra))
+        i += 1
+    if used():
+        found.append(cur)
+    return found
+
+
+def resolve(word, dyn, cwd):
+    if dyn or cwd is None or not word or any(ch in word for ch in "*?[{"):
+        return None
+    path = os.path.expanduser(word) if word.startswith("~") else word
+    return os.path.normpath(path if os.path.isabs(path) else os.path.join(cwd, path))
+
+
+def read_text(path, limit=READ_MAX):
+    try:
+        if os.path.getsize(path) > limit:
+            return None
+        with open(path, "rb") as handle:
+            raw = handle.read()
+    except OSError:
+        return None
+    if b"\0" in raw[:4096]:
+        return None
+    return raw.decode("utf-8", "replace")
+
+
+def out_text(name, words, stdin, ctx):
+    rest = words[1:]
+    if any(d for _, d in rest):
+        return None
+    vals = [w for w, _ in rest]
+    if name == "echo":
+        newline = True
+        interpret = False
+        while vals and re.fullmatch(r"-[neE]+", vals[0]):
+            flag = vals.pop(0)
+            newline = newline and "n" not in flag
+            interpret = interpret or "e" in flag
+        text = " ".join(vals)
+        return (unesc(text) if interpret else text) + ("\n" if newline else "")
+    if name == "printf":
+        if not vals:
+            return None
+        fmt = vals[0]
+        args = vals[1:]
+        count = sum(1 for s in re.findall(r"%[%sdb]", fmt) if s != "%%")
+        if count == 0 and not args:
+            return unesc(fmt.replace("%%", "%"))
+        if count and count == len(args):
+            it = iter(args)
+            return unesc(re.sub(r"%[%sdb]", lambda m: "%" if m.group(0) == "%%" else next(it), fmt))
+        return None
+    if name == "cat":
+        files = [w for w in vals if w != "-" and not w.startswith("-")]
+        if not files:
+            return stdin
+        parts = []
+        for item in files:
+            path = resolve(item, False, ctx["cwd"])
+            text = ctx["known"].get(path) if path else None
+            if text is None and path:
+                text = read_text(path)
+            if text is None:
+                return None
+            parts.append(text)
+        return "".join(parts)
+    return None
+
+
+def add_write(ctx, path, append, text):
+    if append:
+        ctx["found"].append({"path": path, "tool": "Edit", "old": "", "new": text or ""})
+        if text is not None:
+            ctx["known"][path] = (ctx["known"].get(path) or "") + text
+    else:
+        ctx["found"].append({"path": path, "tool": "Write", "content": text})
+        if text is not None:
+            ctx["known"][path] = text
+
+
+def lit(raw):
+    try:
+        value = ast.literal_eval(raw)
+    except (ValueError, SyntaxError, MemoryError, RecursionError):
+        return None
+    if isinstance(value, bytes):
+        return value.decode("utf-8", "replace")
+    return value if isinstance(value, str) else None
+
+
+def code_writes(code, ctx):
+    cwd = ctx["cwd"]
+    for m in re.finditer(r"open\(\s*(" + STR + r")\s*,\s*(?:mode\s*=\s*)?(" + STR + r")", code):
+        path = lit(m.group(1))
+        mode = lit(m.group(2))
+        if not path or not mode or not re.search(r"[wax]", mode):
+            continue
+        parts = [lit(x) for x in re.findall(r"\.write\(\s*(" + STR + r")", code[m.end():])]
+        text = "".join(parts) if parts and all(p is not None for p in parts) else None
+        target = resolve(path, False, cwd)
+        if target:
+            add_write(ctx, target, "a" in mode, text)
+    for m in re.finditer(r"Path\(\s*(" + STR + r")\s*\)\s*\.\s*write_(?:text|bytes)\(\s*(" + STR + r")?", code):
+        path = lit(m.group(1))
+        target = resolve(path, False, cwd) if path else None
+        if target:
+            add_write(ctx, target, False, lit(m.group(2)) if m.group(2) else None)
+    for m in re.finditer(r"\b(writeFileSync|writeFile|appendFileSync|appendFile)\(\s*(" + STR + r")\s*(?:,\s*(" + STR + r"))?", code):
+        path = lit(m.group(2))
+        target = resolve(path, False, cwd) if path else None
+        if target:
+            add_write(ctx, target, m.group(1).startswith("append"), lit(m.group(3)) if m.group(3) else None)
+    for m in re.finditer(r"File\.write\(\s*(" + STR + r")\s*,\s*(" + STR + r")", code):
+        path = lit(m.group(1))
+        target = resolve(path, False, cwd) if path else None
+        if target:
+            add_write(ctx, target, False, lit(m.group(2)))
+
+
+def subst(script):
+    m = re.search(r"(?:^|[;{\s])s([^\w\s\\])", script)
+    if not m:
+        return None
+    delim = m.group(1)
+    parts = []
+    cur = []
+    k = m.end()
+    while k < len(script) and len(parts) < 2:
+        ch = script[k]
+        if ch == "\\" and k + 1 < len(script):
+            cur.append(delim if script[k + 1] == delim else ch + script[k + 1])
+            k += 2
+            continue
+        if ch == delim:
+            parts.append("".join(cur))
+            cur = []
+        else:
+            cur.append(ch)
+        k += 1
+    return (parts[0], parts[1]) if len(parts) == 2 else None
+
+
+def sed_targets(words, ctx):
+    vals = [w for w, _ in words[1:]]
+    inplace = False
+    scripts = []
+    files = []
+    k = 0
+    while k < len(vals):
+        v = vals[k]
+        if v == "--in-place" or v.startswith("--in-place="):
+            inplace = True
+        elif v in ("-e", "--expression") and k + 1 < len(vals):
+            scripts.append(vals[k + 1])
+            k += 1
+        elif v.startswith("--expression="):
+            scripts.append(v.split("=", 1)[1])
+        elif v in ("-f", "--file"):
+            k += 1
+        elif v.startswith("--"):
+            pass
+        elif v.startswith("-") and len(v) > 1:
+            cluster = v[1:]
+            if "i" in cluster:
+                inplace = True
+            elif cluster.endswith("e") and k + 1 < len(vals):
+                scripts.append(vals[k + 1])
+                k += 1
+        else:
+            files.append(words[k + 1])
+        k += 1
+    if not inplace:
+        return
+    if not scripts and files:
+        scripts.append(files.pop(0)[0])
+    pair = None
+    for script in scripts:
+        pair = subst(script)
+        if pair:
+            break
+    for v, d in files:
+        path = resolve(v, d, ctx["cwd"])
+        if path:
+            ctx["found"].append({"path": path, "tool": "Edit", "old": pair[0] if pair else "", "new": pair[1] if pair else ""})
+
+
+def header(raw):
+    value = raw.split("\t")[0].strip()
+    if len(value) > 1 and value[0] == '"' and value[-1] == '"':
+        value = value[1:-1]
+    return value
+
+
+def cut(path, strip):
+    if path == "/dev/null":
+        return None
+    parts = path.split("/")
+    return "/".join(parts[strip:]) if len(parts) > strip else None
+
+
+def diff_targets(text, strip):
+    found = []
+    lines = text.split("\n")
+    cur = None
+    k = 0
+    while k < len(lines):
+        line = lines[k]
+        if line.startswith("--- ") and k + 1 < len(lines) and lines[k + 1].startswith("+++ "):
+            cur = {"old": header(line[4:]), "new": header(lines[k + 1][4:]), "add": [], "del": []}
+            found.append(cur)
+            k += 2
+            continue
+        if cur is not None:
+            if line.startswith("diff "):
+                cur = None
+            elif line.startswith("+"):
+                cur["add"].append(line[1:])
+            elif line.startswith("-"):
+                cur["del"].append(line[1:])
+        k += 1
+    out = []
+    for item in found:
+        fresh = item["old"] == "/dev/null"
+        name = cut(item["new"], strip) or None
+        if name is None:
+            continue
+        out.append({"rel": name, "fresh": fresh, "add": "\n".join(item["add"]) + ("\n" if item["add"] else ""), "del": "\n".join(item["del"]) + ("\n" if item["del"] else "")})
+    return out
+
+
+def patch_writes(name, words, stdin, ctx):
+    vals = [w for w, _ in words[1:]]
+    strip = 1 if name == "git" else 0
+    base = ctx["root"] if name == "git" else ctx["cwd"]
+    files = []
+    k = 0
+    if name == "git":
+        while k < len(vals) and vals[k] != "apply":
+            k += 2 if vals[k] in ("-C", "-c") else 1
+        k += 1
+    pending_input = None
+    while k < len(vals):
+        v = vals[k]
+        m = re.fullmatch(r"-p(\d*)", v)
+        if m:
+            if m.group(1):
+                strip = int(m.group(1))
+            elif k + 1 < len(vals) and vals[k + 1].isdigit():
+                strip = int(vals[k + 1])
+                k += 1
+        elif v in ("-i", "--input") and k + 1 < len(vals):
+            pending_input = vals[k + 1]
+            k += 1
+        elif v.startswith("--input="):
+            pending_input = v.split("=", 1)[1]
+        elif v in ("-d", "--directory", "-C") and k + 1 < len(vals):
+            k += 1
+        elif v.startswith("-") and v != "-":
+            pass
+        else:
+            files.append(v)
+        k += 1
+    text = stdin
+    explicit = None
+    if name == "patch":
+        if pending_input:
+            path = resolve(pending_input, False, ctx["cwd"])
+            text = read_text(path) if path else None
+        if files:
+            explicit = files[0]
+    else:
+        names = [f for f in files if f != "-"]
+        if names and stdin is None:
+            path = resolve(names[0], False, ctx["root"])
+            text = read_text(path) if path else None
+    if not text or base is None:
+        return
+    for item in diff_targets(text, strip):
+        rel = explicit or item["rel"]
+        path = resolve(rel, False, base)
+        if not path:
+            continue
+        if item["fresh"] and not explicit:
+            ctx["found"].append({"path": path, "tool": "Write", "content": item["add"]})
+        else:
+            ctx["found"].append({"path": path, "tool": "Edit", "old": item["del"], "new": item["add"]})
+
+
+def copy_writes(name, words, ctx):
+    rest = words[1:]
+    pos = []
+    target_dir = None
+    j = 0
+    while j < len(rest):
+        v, d = rest[j]
+        if v in ("-t", "--target-directory") and j + 1 < len(rest):
+            target_dir = rest[j + 1]
+            j += 1
+        elif v.startswith("--target-directory="):
+            target_dir = (v.split("=", 1)[1], d)
+        elif v in ("-S", "-m", "-o", "-g", "--suffix", "--mode") and j + 1 < len(rest):
+            j += 1
+        elif v == "-d":
+            return
+        elif v.startswith("-") and len(v) > 1:
+            pass
+        else:
+            pos.append((v, d))
+        j += 1
+    if target_dir is not None:
+        dst, srcs = target_dir, pos
+    elif len(pos) >= 2:
+        dst, srcs = pos[-1], pos[:-1]
+    else:
+        return
+    dpath = resolve(dst[0], dst[1], ctx["cwd"])
+    if not dpath:
+        return
+    as_dir = target_dir is not None or len(srcs) > 1 or dst[0].endswith("/") or os.path.isdir(dpath)
+    for sv, sd in srcs:
+        spath = resolve(sv, sd, ctx["cwd"])
+        if spath is None or os.path.isdir(spath):
+            continue
+        final = os.path.join(dpath, os.path.basename(spath)) if as_dir else dpath
+        text = ctx["known"].get(spath)
+        if text is None:
+            text = read_text(spath)
+        add_write(ctx, final, False, text)
+        if name == "mv":
+            ctx["known"].pop(spath, None)
+
+
+def run_simple(cmd, ctx, pipe_in, depth):
+    words = list(cmd["words"])
+    while words:
+        head = words[0][0]
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", head):
+            words.pop(0)
+        elif head in WRAPPERS:
+            words.pop(0)
+            while words and words[0][0].startswith("-"):
+                words.pop(0)
+        else:
+            break
+    name = os.path.basename(words[0][0]) if words else ""
+    vals = [w for w, _ in words[1:]]
+    dyn = any(d for _, d in words[1:])
+    stdin = cmd["docs"][-1] if cmd["docs"] else cmd["here"][-1] if cmd["here"] else None
+    if stdin is None and cmd["stdin"] is not None:
+        path = resolve(cmd["stdin"][1], cmd["stdin"][2], ctx["cwd"])
+        stdin = read_text(path) if path else None
+    if stdin is None:
+        stdin = pipe_in
+    if name in ("cd", "pushd"):
+        if vals and not dyn and ctx["cwd"] is not None:
+            ctx["cwd"] = resolve(vals[0], False, ctx["cwd"])
+        else:
+            ctx["cwd"] = None
+        return None
+    if name in SHELLS or name == "eval":
+        code = None
+        if name == "eval" and not dyn:
+            code = " ".join(vals)
+        else:
+            for k, v in enumerate(vals[:-1]):
+                if re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", v) and not words[k + 2][1]:
+                    code = vals[k + 1]
+                    break
+            if code is None and name in SHELLS and stdin is not None and not [v for v in vals if not v.startswith("-")]:
+                code = stdin
+        if code is not None and depth < 3:
+            walk(code, ctx, depth + 1)
+        return None
+    produced = out_text(name, words, stdin, ctx)
+    stdout_taken = False
+    for op, fd, tgt in cmd["redir"]:
+        to_out = fd in (None, "1")
+        stdout_taken = stdout_taken or to_out
+        path = resolve(tgt[1], tgt[2], ctx["cwd"])
+        if path:
+            add_write(ctx, path, op in (">>", "&>>"), produced if to_out else None)
+    if name == "tee":
+        append = any(v in ("-a", "--append") for v in vals)
+        for v, d in words[1:]:
+            if not v.startswith("-"):
+                path = resolve(v, d, ctx["cwd"])
+                if path:
+                    add_write(ctx, path, append, stdin)
+    elif name == "touch":
+        for v, d in words[1:]:
+            path = resolve(v, d, ctx["cwd"]) if not v.startswith("-") else None
+            if path and not os.path.exists(path):
+                add_write(ctx, path, False, "")
+    elif name in ("cp", "mv", "install"):
+        copy_writes(name, words, ctx)
+    elif name == "sed":
+        sed_targets(words, ctx)
+    elif INTERP.match(name):
+        code = None
+        for k, v in enumerate(vals[:-1]):
+            if v in ("-c", "-e", "-p", "--eval", "--print") and not words[k + 2][1]:
+                code = vals[k + 1]
+                break
+        if code is None:
+            files = [v for v in vals if not v.startswith("-") or v == "-"]
+            if stdin is not None and (not files or files == ["-"]):
+                code = stdin
+        if code:
+            code_writes(code, ctx)
+    elif name == "patch" or (name == "git" and "apply" in vals):
+        patch_writes(name, words, stdin, ctx)
+    return None if stdout_taken else produced
+
+
+def walk(text, ctx, depth):
+    tokens = lex(text)
+    if tokens is None:
+        return
+    carry = None
+    for cmd in commands(tokens):
+        carry = run_simple(cmd, ctx, carry, depth)
+        if cmd["sep"] != "|":
+            carry = None
+
+
+def work_root(event):
+    root = os.environ.get("SUBFORM_WORKTREE", "")
+    if root:
+        return root
+    cwd = event.get("cwd")
+    return cwd if isinstance(cwd, str) else ""
+
+
+def inside(path, root):
+    for base in {os.path.normpath(root), os.path.realpath(root)}:
+        if path == base or path.startswith(base + os.sep):
+            rel = os.path.relpath(path, base)
+            return rel.split(os.sep)[0] not in (".git", ".subform") and rel != "."
+    return False
+
+
+def bash_targets(command, event):
+    root = work_root(event)
+    if not root:
+        return []
+    cwd = event.get("cwd")
+    ctx = {"root": os.path.normpath(root), "cwd": os.path.normpath(cwd) if isinstance(cwd, str) and cwd else os.path.normpath(root), "known": {}, "found": []}
+    try:
+        walk(command, ctx, 0)
+    except (ValueError, IndexError, KeyError, TypeError, re.error):
+        return []
+    keep = []
+    seen = set()
+    for item in ctx["found"]:
+        key = (item["path"], item["tool"])
+        if key in seen or not inside(item["path"], root):
+            continue
+        seen.add(key)
+        keep.append(item)
+    return keep[:BASH_CAP]
+
+
+def payload_for(event, item):
+    if item["tool"] == "Edit":
+        tool_input = {"file_path": item["path"], "old_string": item.get("old") or "", "new_string": item.get("new") or ""}
+    else:
+        tool_input = {"file_path": item["path"], "content": item.get("content") or ""}
+    return {"hook_event_name": "PreToolUse", "tool_name": item["tool"], "tool_input": tool_input, "cwd": event.get("cwd"), "session_id": event.get("session_id")}
+
+
+def worktree_state(root):
+    try:
+        done = subprocess.run(["git", "-C", root, "status", "--porcelain=v1", "-z", "--untracked-files=all"], capture_output=True, text=True, encoding="utf-8", errors="surrogateescape", timeout=1.5)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if done.returncode != 0:
+        return None
+    entries = {}
+    parts = done.stdout.split("\0")
+    k = 0
+    while k < len(parts):
+        item = parts[k]
+        k += 1
+        if len(item) < 4:
+            continue
+        code, rel = item[:2], item[3:]
+        if code[0] in "RC":
+            k += 1
+        if rel.split("/")[0] in (".git", ".subform"):
+            continue
+        try:
+            info = os.lstat(os.path.join(root, rel))
+        except OSError:
+            continue
+        if stat.S_ISREG(info.st_mode):
+            entries[rel] = [info.st_mtime_ns, info.st_size, code]
+    return entries
+
+
+def snap_dir():
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "bash-snap")
+
+
+def snap_key(event):
+    raw = str(event.get("tool_use_id") or "")
+    if not raw:
+        raw = "s-" + str(event.get("session_id") or "")
+    key = re.sub(r"[^A-Za-z0-9_-]", "_", raw)[:120]
+    return key if key and key != "s-" else None
+
+
+def snapshot_save(event):
+    key = snap_key(event)
+    root = work_root(event)
+    if not key or not root:
+        return
+    state = worktree_state(root)
+    if state is None:
+        return
+    folder = snap_dir()
+    os.makedirs(folder, mode=0o700, exist_ok=True)
+    now = time.time()
+    for name in os.listdir(folder):
+        old = os.path.join(folder, name)
+        try:
+            if now - os.path.getmtime(old) > SNAP_KEEP:
+                os.remove(old)
+        except OSError:
+            pass
+    with open(os.path.join(folder, key + ".json"), "w", encoding="utf-8") as handle:
+        json.dump({"files": state}, handle)
+
+
+def pre_bash(event, binary):
+    start = time.monotonic()
+    try:
+        snapshot_save(event)
+    except (OSError, ValueError):
+        pass
+    tool_input = event.get("tool_input") if isinstance(event.get("tool_input"), dict) else {}
+    command = tool_input.get("command")
+    if not isinstance(command, str) or not command.strip():
+        return
+    items = bash_targets(command, event)
+    root = work_root(event)
+    contexts = []
+    for item in items:
+        rel = os.path.relpath(item["path"], os.path.normpath(root))
+        outcome = judge(binary, payload_for(event, item), "Bash", item["path"], start + BASH_WAIT)
+        if outcome is None:
+            continue
+        if outcome[0] == "raw":
+            outcome = from_raw(outcome[1])
+            if outcome is None:
+                continue
+        if outcome[0] == "deny":
+            denial("This Bash command writes %s. %s" % (rel, outcome[1]))
+            return
+        contexts.append("Bash command writes %s. %s" % (rel, outcome[1]))
+    if contexts:
+        context_only("\n".join(contexts)[:4000])
+
+
+def post_payload(root, rel, code, event):
+    path = os.path.join(root, rel)
+    tracked = code.strip() in ("M", "MM", "R", "RM") or code in (" M", "M ", "MM")
+    if tracked:
+        try:
+            done = subprocess.run(["git", "-C", root, "diff", "HEAD", "-U0", "--no-color", "--", rel], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=1)
+        except (OSError, subprocess.SubprocessError):
+            return None
+        found = diff_targets(done.stdout, 1)
+        if not found:
+            return None
+        tool_input = {"file_path": path, "old_string": found[0]["del"], "new_string": found[0]["add"]}
+        tool = "Edit"
+    else:
+        text = read_text(path, POST_BYTES)
+        if text is None:
+            return None
+        tool_input = {"file_path": path, "content": text}
+        tool = "Write"
+    return {"hook_event_name": "PreToolUse", "tool_name": tool, "tool_input": tool_input, "cwd": event.get("cwd") or root, "session_id": event.get("session_id")}
+
+
+def post_bash(event, binary):
+    start = time.monotonic()
+    key = snap_key(event)
+    root = work_root(event)
+    if not key or not root:
+        return
+    saved = os.path.join(snap_dir(), key + ".json")
+    try:
+        with open(saved, encoding="utf-8") as handle:
+            before = json.load(handle)["files"]
+        os.remove(saved)
+    except (OSError, ValueError, KeyError, TypeError):
+        return
+    state = worktree_state(root)
+    if state is None:
+        return
+    changed = sorted(rel for rel, value in state.items() if before.get(rel, [None, None])[:2] != value[:2])
+    if not changed or len(changed) > POST_FILES:
+        return
+    lines = []
+    found = []
+    for rel in changed:
+        left = POST_BUDGET + 0.3 - (time.monotonic() - start)
+        if left < 0.3:
+            break
+        payload = post_payload(root, rel, state[rel][2], event)
+        if payload is None:
+            continue
+        try:
+            text = run_check(binary, payload, left)
+            outcome = from_raw(text) if text else None
+        except (subprocess.SubprocessError, ValueError):
+            break
+        if outcome is None:
+            continue
+        label = "declined feature: " if outcome[0] == "deny" else ""
+        lines.append("- %s: %s%s" % (rel, label, outcome[1]))
+        match = SLOT_RE.search(outcome[1])
+        unit = UNIT_RE.search(outcome[1])
+        found.append((rel, match.group(1) if match else unit.group(1) if unit else "", outcome[1]))
+    if not lines:
+        return
+    base = engine_base()
+    session = os.environ.get("SUBFORM_SESSION", "")
+    for rel, slot, message in found:
+        if not base or not session or time.monotonic() - start > POST_BUDGET + 0.3:
+            break
+        try:
+            call("POST", base + "/api/gates/notes", {"session": session, "tool": "Bash", "path": rel, "slot": slot, "message": message[:4000]}, timeout=1)
+        except (OSError, ValueError, urllib.error.URLError):
+            break
+    head = "formslot: files written by the Bash command overlap existing code or a declined feature. The write already happened and was not blocked; reuse or remove it, or say why a separate one is intended."
+    context_only((head + "\n" + "\n".join(lines))[:4000], "PostToolUse")
+
+
+def main():
+    event = json.loads(sys.stdin.read())
+    binary = formslot_bin()
+    if not binary:
+        return
+    name = event.get("hook_event_name")
+    if event.get("tool_name") == "Bash":
+        if name == "PostToolUse":
+            post_bash(event, binary)
+        else:
+            pre_bash(event, binary)
+        return
+    if name == "PostToolUse":
+        return
+    single(event, binary)
 
 
 try:
