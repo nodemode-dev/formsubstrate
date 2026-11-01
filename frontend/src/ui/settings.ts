@@ -8,7 +8,7 @@ import { el, patchList, q, setChecked, setClass, setHidden, setText, setTitle, s
 import { icon } from './icons';
 import { languages, onLanguage, setLanguage, t } from './i18n';
 import { colorRow, numberRow, selectRow, sliderRow, toggleRow, type Row } from './panels/controls';
-import { loadPrefs, savePrefs, setUiScale, setUpdateAtStart, UI_FONT_SIZES, UI_SCALES, uiScaleChoice, updateAtStart, type Prefs, type UiFontSize } from './prefs';
+import { PERMISSION_MODES, loadPrefs, savePrefs, setUiScale, setUpdateAtStart, UI_FONT_SIZES, UI_SCALES, uiScaleChoice, updateAtStart, type AgentPermissionMode, type Prefs, type UiFontSize } from './prefs';
 import { readChoice, setAccent, setIntensity, setTheme, THEMES, themeSwatchesHtml } from './themes';
 import { toast } from './toast';
 
@@ -105,6 +105,7 @@ export class SettingsDialog {
   private readonly editorWrap: Row<boolean>;
   private readonly terminalFont: ReturnType<typeof numberRow>;
   private readonly model: Row<string>;
+  private readonly permission: Row<string>;
   private readonly keyInput = el<HTMLInputElement>('<input class="cv-input" type="password" autocomplete="new-password" spellcheck="false" aria-label="Anthropic API key">');
   private readonly keyStatus = el('<p class="cv-note cv-prefs-status" role="status"></p>');
   private readonly keySave: HTMLButtonElement;
@@ -165,6 +166,7 @@ export class SettingsDialog {
     this.editorWrap = toggleRow('Word wrap', (v) => pick({ editorWordWrap: v }));
     this.terminalFont = numberRow('Font size', 8, 32, 1, (v) => pick({ terminalFontSize: v }));
     this.model = selectRow('Default model', [['', 'Choose when starting'], ...MODELS.map((m): [string, string] => [m, m])], (v) => pick({ agentDefaultModel: v }));
+    this.permission = selectRow('Headless permission mode', PERMISSION_MODES.map(([k, l]): [string, string] => [k, l]), (v) => pick({ agentPermissionMode: v as AgentPermissionMode }));
     this.sign = toggleRow('Sign commits', (v) => { this.gitSign = v; this.touchGit(); });
     this.slotEnabled = toggleRow('Enabled', (v) => pick({ formslotEnabled: v }));
     this.slotAuto = toggleRow('Start automatically', (v) => pick({ formslotAutoStart: v }));
@@ -232,7 +234,7 @@ export class SettingsDialog {
       Editor: [grp('Text', this.editorFont.el, this.editorTab.el, this.editorWrap.el)],
       Terminal: [grp('Text', this.terminalFont.el)],
       Agents: [
-        grp('Claude Code', this.model.el),
+        grp('Claude Code', this.model.el, this.permission.el, nt('Headless sessions run without a person to approve tools. Accept edits lets them change files inside their own worktree only; Bash and other tools are denied. Interactive terminal sessions are not affected.')),
         grp('Anthropic API key', this.keyRow(), this.keyStatus, nt('The key goes to the engine and is kept in the system keychain. This page never reads it back.')),
       ],
       'Git and Identity': [
@@ -281,6 +283,7 @@ export class SettingsDialog {
     new ResizeObserver(() => this.queueWire()).observe(this.frame);
     window.addEventListener('resize', () => this.queueWire());
     document.addEventListener('nm:ui-settings-changed', () => { if (this.dlg.isOpen) this.sync(); });
+    document.addEventListener('subform:open-settings', (e) => { this.open(e instanceof CustomEvent && typeof e.detail?.section === 'string' ? e.detail.section : undefined); });
 
     const reset = this.dlg.button('Reset', 'danger', () => { void this.reset(); });
     reset.classList.add('cv-btn-apart');
@@ -481,6 +484,7 @@ export class SettingsDialog {
     this.editorWrap.set(p.editorWordWrap);
     this.terminalFont.set(p.terminalFontSize);
     this.model.set(p.agentDefaultModel);
+    this.permission.set(p.agentPermissionMode);
     this.slotEnabled.set(p.formslotEnabled);
     this.slotAuto.set(p.formslotAutoStart);
 
@@ -579,6 +583,7 @@ export class SettingsDialog {
       this.applyGit(id);
       this.gitNote = 'Saved.';
       this.gitBad = false;
+      document.dispatchEvent(new CustomEvent('subform:identity-changed'));
     } catch (e) {
       this.gitNote = e instanceof Error ? e.message : 'The identity was not saved.';
       this.gitBad = true;

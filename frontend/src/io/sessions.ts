@@ -21,11 +21,12 @@ export interface Session {
   updated: number | string;
   lastMessage: string | null;
   notes?: string[];
+  permissionMode?: string | null;
   tokensSaved?: number;
 }
 
 export interface SessionNotice { sessionId: string; kind: NoticeKind; text: string }
-export interface NewSessionBody { title: string; mode: SessionMode; prompt?: string; base?: string }
+export interface NewSessionBody { title: string; mode: SessionMode; prompt?: string; base?: string; permissionMode?: 'default' | 'acceptEdits' | 'plan' }
 export interface Skill { name: string; description: string; path: string; source: 'project' | 'user' }
 
 export interface TranscriptLine {

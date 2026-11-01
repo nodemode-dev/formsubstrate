@@ -41,7 +41,9 @@ ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\
 PROJECT_KEY_RE = re.compile(r"[^A-Za-z0-9]")
 INPUT_TOOLS = ("AskUserQuestion",)
 INPUT_SUBTYPES = ("permission_request", "input_request", "permission_denied")
-SESSION_FIELDS = ("id", "title", "repo", "branch", "worktree", "mode", "state", "terminalId", "claudeSessionId", "created", "updated", "lastMessage", "notes", "repoName", "base")
+SESSION_FIELDS = ("id", "title", "repo", "branch", "worktree", "mode", "state", "terminalId", "claudeSessionId", "created", "updated", "lastMessage", "notes", "repoName", "base", "permissionMode")
+PERMISSION_MODES = ("default", "acceptEdits", "plan")
+DEFAULT_PERMISSION_MODE = "acceptEdits"
 
 
 class Refused(Exception):
@@ -405,7 +407,10 @@ async def _start_claude_terminal(item: dict, args: list[str] | None = None) -> s
 
 
 async def _start_headless(item: dict, prompt: str, resume: str | None = None) -> str:
-    argv = [_claude(), "-p", "--output-format", "stream-json", "--verbose", *_mcp_arg(item), *(["--resume", resume] if resume else []), "--", prompt]
+    mode = item.get("permissionMode")
+    if mode not in PERMISSION_MODES:
+        mode = DEFAULT_PERMISSION_MODE
+    argv = [_claude(), "-p", "--output-format", "stream-json", "--verbose", "--permission-mode", mode, *_mcp_arg(item), *(["--resume", resume] if resume else []), "--", prompt]
     return await _launch(item, argv, True)
 
 
@@ -626,10 +631,13 @@ def _need_title(title: object) -> str:
     return text[:120] if text else "Untitled session"
 
 
-async def create(title: str, mode: str, prompt: str | None, base: str | None) -> dict:
+async def create(title: str, mode: str, prompt: str | None, base: str | None, permission_mode: str | None = None) -> dict:
     _load()
     if mode not in ("interactive", "headless"):
         raise Refused(400, "mode must be interactive or headless")
+    permission_mode = (permission_mode or "").strip() or DEFAULT_PERMISSION_MODE
+    if permission_mode not in PERMISSION_MODES:
+        raise Refused(400, "permissionMode must be one of " + ", ".join(PERMISSION_MODES))
     prompt = (prompt or "").strip()
     if mode == "headless" and not prompt:
         raise Refused(400, "a headless session needs a prompt")
@@ -668,6 +676,7 @@ async def create(title: str, mode: str, prompt: str | None, base: str | None) ->
         "repoName": name,
         "branch": branch,
         "base": base,
+        "permissionMode": permission_mode,
         "worktree": str(path),
         "mode": mode,
         "state": "working",

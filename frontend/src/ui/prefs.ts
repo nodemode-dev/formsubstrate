@@ -2,6 +2,13 @@ import { THEMES, readChoice, setTheme } from './themes';
 import { isLang, LANG_CODES, type Lang } from './i18n/langs';
 
 export type UiFontSize = 'small' | 'default' | 'large' | 'larger';
+export type AgentPermissionMode = 'default' | 'acceptEdits' | 'plan';
+export const PERMISSION_MODES: ReadonlyArray<readonly [AgentPermissionMode, string]> = [['acceptEdits', 'Accept edits'], ['default', 'Ask (default)'], ['plan', 'Plan only']];
+export const PERMISSION_MODE_NOTES: Record<AgentPermissionMode, string> = {
+  acceptEdits: 'File edits inside the worktree are accepted. Shell and other tools are denied, because a headless session cannot be asked.',
+  default: 'Every edit and tool needs approval, which a headless session cannot give, so they are denied.',
+  plan: 'The agent plans and reads only; nothing is changed.',
+};
 export type ToolOptionValue = string | number | boolean;
 export type DialogValue = string | boolean;
 
@@ -30,6 +37,7 @@ export interface Prefs {
   terminalFontSize: number;
   terminalDockHeight: number;
   agentDefaultModel: string;
+  agentPermissionMode: AgentPermissionMode;
   formslotEnabled: boolean;
   formslotAutoStart: boolean;
   gitSignOnCommit: boolean;
@@ -55,7 +63,7 @@ export const DEFAULT_PREFS: Prefs = {
   favouriteThemes: [], themeAuto: false, themeLight: 'light', themeDark: 'substrata',
   shortcuts: {}, shortcutSets: {}, menuHidden: [], menuColors: {}, dialogValues: {},
   editorFontSize: 13, editorTabSize: 2, editorWordWrap: true, terminalFontSize: 13, terminalDockHeight: 260,
-  agentDefaultModel: '', formslotEnabled: true, formslotAutoStart: true, gitSignOnCommit: true, recoveryMinutes: 1,
+  agentDefaultModel: '', agentPermissionMode: 'acceptEdits', formslotEnabled: true, formslotAutoStart: true, gitSignOnCommit: true, recoveryMinutes: 1,
   largeTabs: false, reopenLastWorkspace: true, hiddenFolders: [], allowTypedPaths: false, trustedWorkspaces: [], trustAsked: [], sidebarWidth: 280, prefsRevision: 3,
 };
 
@@ -148,6 +156,7 @@ export function loadPrefs(): Prefs {
       terminalFontSize: Math.round(num(r.terminalFontSize, 8, 32, d.terminalFontSize)),
       terminalDockHeight: Math.round(num(r.terminalDockHeight, 120, 800, d.terminalDockHeight)),
       agentDefaultModel: typeof r.agentDefaultModel === 'string' ? r.agentDefaultModel.slice(0, 120) : d.agentDefaultModel,
+      agentPermissionMode: PERMISSION_MODES.some(([k]) => k === r.agentPermissionMode) ? r.agentPermissionMode as AgentPermissionMode : d.agentPermissionMode,
       formslotEnabled: flag(r.formslotEnabled, d.formslotEnabled),
       formslotAutoStart: flag(r.formslotAutoStart, d.formslotAutoStart),
       gitSignOnCommit: flag(r.gitSignOnCommit, d.gitSignOnCommit),

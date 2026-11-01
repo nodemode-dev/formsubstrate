@@ -71,4 +71,6 @@
 .cv-ns-prompt { height: auto; min-height: 84px; padding: var(--space-1h) var(--space-2); resize: vertical; font-family: inherit; line-height: 1.4; }
 .cv-ns-prompt:disabled { opacity: 0.5; }
 .cv-ns-problem { min-height: 16px; margin: 0; color: var(--danger-soft); }
+.cv-ns-permnote { min-height: 48px; margin: 0; }
+.cv-ns-permnote.is-off { opacity: 0.45; }
 body.animations-disabled .cv-ss-row { transition: none; }
