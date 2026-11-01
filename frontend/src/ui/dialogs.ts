@@ -9,6 +9,7 @@ export interface RememberedExtra { read(): Record<string, DialogValue>; write(va
 const SPOTS_KEY = 'subform.dialogSpots';
 
 let openCount = 0;
+let titleSeq = 0;
 export const anyDialogOpen = (): boolean => openCount > 0;
 
 const openStack: DialogHistory[] = [];
@@ -45,6 +46,8 @@ export class Dialog {
     const frame = q<HTMLElement>(this.scrim, '.cv-dialog');
     frame.style.setProperty('--cv-dialog-w', `${width}px`);
     this.title = q<HTMLElement>(this.scrim, '.cv-dialog-title');
+    this.title.id = `cv-dlg-title-${++titleSeq}`;
+    frame.setAttribute('aria-labelledby', this.title.id);
     this.body = q<HTMLElement>(this.scrim, '.cv-dialog-body');
     this.foot = q<HTMLElement>(this.scrim, '.cv-dialog-foot');
     this.english = title;
