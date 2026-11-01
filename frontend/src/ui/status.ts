@@ -11,6 +11,7 @@ const ERROR_MS = 6000;
 export class StatusBar {
   private readonly branch: HTMLElement;
   private readonly branchName: HTMLElement;
+  private readonly branchSync: HTMLElement;
   private readonly wsName: HTMLElement;
   private readonly problems: HTMLElement;
   private readonly engineState: HTMLElement;
@@ -31,7 +32,7 @@ export class StatusBar {
 
   constructor(root: HTMLElement, private readonly store: WorkspaceStore) {
     mountOnce(root,
-      `<span class="cv-st-branch" hidden>${icon('branch', 12)}<span class="cv-st-branch-name"></span></span>` +
+      `<span class="cv-st-branch" hidden>${icon('branch', 12)}<span class="cv-st-branch-name"></span><span class="cv-st-sync"></span></span>` +
       '<span class="cv-st-ws" hidden></span>' +
       '<span class="cv-st-problems" hidden></span>' +
       '<span class="cv-st-engine"></span>' +
@@ -41,6 +42,7 @@ export class StatusBar {
       `<span class="cv-st-busy">${icon('loading', 12)}</span>`);
     this.branch = q(root, '.cv-st-branch');
     this.branchName = q(root, '.cv-st-branch-name');
+    this.branchSync = q(root, '.cv-st-sync');
     this.wsName = q(root, '.cv-st-ws');
     this.problems = q(root, '.cv-st-problems');
     this.engineState = q(root, '.cv-st-engine');
@@ -64,6 +66,7 @@ export class StatusBar {
     setTitle(this.busy, t('Show the running jobs, each with its own Stop'));
     this.busy.addEventListener('click', () => this.jobs.toggle());
     store.on('workspace', () => this.syncWorkspace());
+    window.addEventListener('subform:git-sync', (e) => this.syncGit((e as CustomEvent<{ ahead: number; behind: number; upstream: string }>).detail));
     store.on('sessions', () => this.syncSessions());
     store.on('jobs', () => this.syncJobs());
     store.on('active', () => this.syncActive());
@@ -120,6 +123,11 @@ export class StatusBar {
     const branch = ws?.branch ?? '';
     setHidden(this.branch, !branch);
     setText(this.branchName, branch);
+  }
+
+  private syncGit(d: { ahead: number; behind: number; upstream: string }): void {
+    setText(this.branchSync, d.upstream ? `↑${d.ahead} ↓${d.behind}` : '');
+    setTitle(this.branchSync, d.upstream ? `${d.upstream}: ${d.ahead} ${t('ahead')}, ${d.behind} ${t('behind')}` : '');
   }
 
   private syncSessions(): void {

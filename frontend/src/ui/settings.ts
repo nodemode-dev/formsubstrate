@@ -1,3 +1,4 @@
+import { git, type Identity } from '../io/git';
 import { hasSecret, removeSecret, saveSecret } from '../io/secrets';
 import { systemStatus } from '../io/api';
 import { formatKeys, type Commands } from './commands';
@@ -107,6 +108,18 @@ export class SettingsDialog {
   private keyPresent: boolean | null = null;
   private keyBusy = false;
   private readonly sign: Row<boolean>;
+  private readonly gitName = el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" autocomplete="off" maxlength="200" aria-label="Author name">');
+  private readonly gitEmail = el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" autocomplete="off" maxlength="200" aria-label="Author email">');
+  private readonly gitKey = el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" autocomplete="off" aria-label="Signing key path">');
+  private readonly gitStatus = el('<p class="cv-note cv-prefs-status" role="status"></p>');
+  private readonly gitSave: HTMLButtonElement;
+  private gitSaved = '';
+  private gitSign = false;
+  private gitSource: Identity['source'] | null = null;
+  private gitNote = '';
+  private gitBad = false;
+  private gitBusy = false;
+  private gitTouched = false;
   private readonly slotEnabled: Row<boolean>;
   private readonly slotAuto: Row<boolean>;
   private readonly keyList = el('<div class="cv-prefs-keys"></div>');
@@ -139,7 +152,7 @@ export class SettingsDialog {
     this.editorWrap = toggleRow('Word wrap', (v) => pick({ editorWordWrap: v }));
     this.terminalFont = numberRow('Font size', 8, 32, 1, (v) => pick({ terminalFontSize: v }));
     this.model = selectRow('Default model', [['', 'Choose when starting'], ...MODELS.map((m): [string, string] => [m, m])], (v) => pick({ agentDefaultModel: v }));
-    this.sign = toggleRow('Sign commits', (v) => pick({ gitSignOnCommit: v }));
+    this.sign = toggleRow('Sign commits', (v) => { this.gitSign = v; this.touchGit(); });
     this.slotEnabled = toggleRow('Enabled', (v) => pick({ formslotEnabled: v }));
     this.slotAuto = toggleRow('Start automatically', (v) => pick({ formslotAutoStart: v }));
     this.accent = colorRow('Accent colour', (hex) => { setAccent(hex); this.sync(); });
@@ -172,6 +185,13 @@ export class SettingsDialog {
     setText(this.keyRemove, t('Remove'));
     this.keySave.addEventListener('click', () => { void this.storeKey(); });
     this.keyRemove.addEventListener('click', () => { void this.dropKey(); });
+    this.gitSave = el<HTMLButtonElement>('<button class="cv-btn cv-btn-primary" type="button"></button>');
+    setText(this.gitSave, t('Save'));
+    this.gitSave.addEventListener('click', () => { void this.saveIdentity(); });
+    for (const input of [this.gitName, this.gitEmail, this.gitKey]) {
+      input.addEventListener('input', () => this.touchGit());
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); this.gitSave.click(); } });
+    }
     this.keyInput.addEventListener('input', () => this.paintKey());
     this.keyInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); this.keySave.click(); } });
     const versionRow = valueRow('Current version', '');
@@ -201,7 +221,7 @@ export class SettingsDialog {
         grp('Anthropic API key', this.keyRow(), this.keyStatus, nt('The key goes to the engine and is kept in the system keychain. This page never reads it back.')),
       ],
       'Git and Identity': [
-        grp('Commits', this.sign.el, this.identityRow('Author name'), this.identityRow('Author email'), nt('Commits use the identity set in the repository.')),
+        grp('Commits', this.fieldRow('Author name', this.gitName), this.fieldRow('Author email', this.gitEmail), this.sign.el, this.fieldRow('Signing key path', this.gitKey), this.gitActions(), this.gitStatus, nt('Every commit made from subform, by you or by an agent session, uses this name and email. Signing uses the SSH public key at the path; the private key is never read or stored here.')),
       ],
       formslot: [
         grp('Service', this.slotEnabled.el, this.slotAuto.el, valueRow('Service status', t('Not running')).el),
@@ -276,11 +296,18 @@ export class SettingsDialog {
     return row;
   }
 
-  private identityRow(label: string): HTMLElement {
-    const row = el('<label class="cv-field"><span></span><input class="cv-input" type="text" readonly tabindex="-1"></label>');
-    setText(q(row, 'span'), label);
-    q<HTMLInputElement>(row, 'input').placeholder = t('From the repository');
+  private fieldRow(label: string, input: HTMLInputElement): HTMLElement {
+    const row = el('<label class="cv-field"><span></span></label>');
+    setText(q(row, 'span'), t(label));
+    onLanguage(() => setText(q(row, 'span'), t(label)));
+    row.appendChild(input);
     return row;
+  }
+
+  private gitActions(): HTMLElement {
+    const actions = el('<div class="cv-prefs-actions"></div>');
+    actions.append(this.gitSave);
+    return actions;
   }
 
   private keyRow(): HTMLElement {
@@ -431,7 +458,6 @@ export class SettingsDialog {
     this.editorWrap.set(p.editorWordWrap);
     this.terminalFont.set(p.terminalFontSize);
     this.model.set(p.agentDefaultModel);
-    this.sign.set(p.gitSignOnCommit);
     this.slotEnabled.set(p.formslotEnabled);
     this.slotAuto.set(p.formslotAutoStart);
 
@@ -471,7 +497,77 @@ export class SettingsDialog {
     this.paintKey();
   }
 
+  private gitValues(): Omit<Identity, 'source'> {
+    return { name: this.gitName.value.trim(), email: this.gitEmail.value.trim(), sign: this.gitSign, signingKey: this.gitKey.value.trim() };
+  }
+
+  private touchGit(): void {
+    this.gitTouched = true;
+    this.gitNote = '';
+    this.gitBad = false;
+    this.paintGit();
+  }
+
+  private paintGit(): void {
+    const v = this.gitValues();
+    let problem = '';
+    if (!v.name) problem = 'Enter the name commits are made with.';
+    else if (!v.email.includes('@')) problem = 'The email needs an @.';
+    else if (v.sign && !v.signingKey) problem = 'Signing needs the path to a .pub key file.';
+    const clean = JSON.stringify(v) === this.gitSaved && this.gitSource === 'subform';
+    let note = this.gitNote;
+    if (!note && this.gitSource === 'git' && !this.gitTouched) note = 'Read from your global git config. Save keeps it in subform.';
+    if (!note && this.gitSource === 'none' && !this.gitTouched) note = 'No identity is set yet. Commits are refused until you save one.';
+    if (!note && this.gitTouched && problem) note = problem;
+    setText(this.gitStatus, note ? t(note) : '');
+    setClass(this.gitStatus, 'is-error', this.gitBad || (!this.gitNote && this.gitTouched && !!problem));
+    const off = this.gitBusy || clean || !!problem;
+    if (this.gitSave.disabled !== off) this.gitSave.disabled = off;
+  }
+
+  private applyGit(id: Identity): void {
+    setValue(this.gitName, id.name);
+    setValue(this.gitEmail, id.email);
+    setValue(this.gitKey, id.signingKey);
+    this.sign.set(id.sign);
+    this.gitSign = id.sign;
+    this.gitSource = id.source;
+    this.gitSaved = JSON.stringify({ name: id.name, email: id.email, sign: id.sign, signingKey: id.signingKey });
+    this.gitTouched = false;
+  }
+
+  private async loadGit(): Promise<void> {
+    try {
+      const id = await git.identity();
+      if (!this.gitTouched) { this.gitNote = ''; this.gitBad = false; this.applyGit(id); }
+    } catch (e) {
+      this.gitNote = e instanceof Error ? e.message : 'The engine is not answering.';
+      this.gitBad = true;
+    }
+    this.paintGit();
+  }
+
+  private async saveIdentity(): Promise<void> {
+    if (this.gitBusy) return;
+    this.gitBusy = true;
+    this.paintGit();
+    try {
+      const id = await git.setIdentity(this.gitValues());
+      this.applyGit(id);
+      this.gitNote = 'Saved.';
+      this.gitBad = false;
+    } catch (e) {
+      this.gitNote = e instanceof Error ? e.message : 'The identity was not saved.';
+      this.gitBad = true;
+    } finally {
+      this.gitBusy = false;
+      this.paintGit();
+    }
+  }
+
   private async refreshRemote(): Promise<void> {
+    this.gitTouched = false;
+    void this.loadGit();
     try {
       const s = await systemStatus();
       setText(this.version, s.version);
