@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core import config, runtime
 from app.core.local_guard import LocalGuard
-from app.routers import system
+from app.routers import secrets, system, workspace
 
 
 @asynccontextmanager
@@ -23,6 +23,8 @@ app.add_middleware(CORSMiddleware, allow_origins=config.cors_origins(), allow_me
 app.add_middleware(LocalGuard, origins=config.window_origins())
 
 app.include_router(system.router, prefix="/api")
+app.include_router(workspace.router, prefix="/api")
+app.include_router(secrets.router, prefix="/api")
 
 _dist = config.dist_dir()
 if _dist is not None:

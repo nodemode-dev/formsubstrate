@@ -1,7 +1,7 @@
 # HASHOUT_LOG · backend · subform
 
-Current build version: v0.1.0
-Last updated: 2026-10-30 · Phase F1
+Current build version: v0.4.0
+Last updated: 2026-10-30 · Phases F3 and F4 (workspace and secrets routes registered in main.py; their log is app/routers/HASHOUT_LOG.md)
 
 ## Org-navi-map
 
@@ -10,6 +10,10 @@ backend/
   subform_engine.py      engine entry: switches, data folder claim, uvicorn on 127.0.0.1, selfcheck, port file
   boot_backend, .bat           dev server: uvicorn with reload on 5655, inside backend/venv
   oc_install, .bat             creates backend/venv and installs requirements (Python 3.13+)
+  app/routers/workspace.py     workspace, files and search routes (own log: app/routers/HASHOUT_LOG.md)
+  app/routers/secrets.py       secret names and presence, values in the system keyring (same log)
+  app/core/workspace_root.py   current root, recent list, path confinement (same log)
+  app/core/binres.py           finds rg and other programs (same log)
   requirements.txt             pinned engine packages, each with its licence
   requirements_macos.txt       unpinned list used by oc_install on macOS
   HASHOUT_LOG.md               this log
