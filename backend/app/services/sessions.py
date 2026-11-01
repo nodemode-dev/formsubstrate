@@ -19,7 +19,7 @@ REGISTRY_NAME = "sessions.json"
 WORKTREES_NAME = "worktrees"
 MCP_DIR = ".subform"
 MCP_NAME = "mcp.json"
-SETTINGS_NAME = "settings.json"
+SETTINGS_FOLDER = "session-settings"
 SETTINGS_BODY = {"includeCoAuthoredBy": False, "attribution": {"commit": "", "pr": ""}}
 COMMENTS_MAX = 200
 PASTE_START = "\x1b[200~"
@@ -352,18 +352,18 @@ def _write_mcp(worktree: Path, config_obj: dict) -> Path:
     return target
 
 
+def _settings_path(worktree: Path) -> Path:
+    digest = hashlib.sha1(str(worktree).encode("utf-8")).hexdigest()[:16]
+    return config.data_dir() / SETTINGS_FOLDER / f"{digest}.json"
+
+
 def _write_settings(worktree: Path) -> Path:
-    folder = worktree / MCP_DIR
-    folder.mkdir(parents=True, exist_ok=True)
-    target = folder / SETTINGS_NAME
+    target = _settings_path(worktree)
+    target.parent.mkdir(parents=True, exist_ok=True)
     temp = target.with_name(target.name + ".tmp")
     from app.services import gates
 
-    try:
-        existing = json.loads(target.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        existing = {}
-    temp.write_text(json.dumps(gates.merged_settings(existing), indent=2), encoding="utf-8")
+    temp.write_text(json.dumps(gates.merged_settings({}), indent=2), encoding="utf-8")
     os.replace(temp, target)
     return target
 
@@ -412,7 +412,7 @@ async def _launch(item: dict, argv: list[str], headless: bool) -> str:
 
 def _mcp_arg(item: dict) -> list[str]:
     worktree = Path(item["worktree"])
-    settings = worktree / MCP_DIR / SETTINGS_NAME
+    settings = _settings_path(worktree)
     try:
         _write_settings(worktree)
     except OSError:
@@ -889,6 +889,9 @@ async def delete(session_id: str, remove_worktree: bool, force: bool) -> None:
 
 async def reconcile() -> None:
     _load()
+    from app.services.runs import worktree
+
+    worktree.start_sweeper()
     live = [item for item in _sessions.values() if item["state"] in LIVE_STATES]
     if not live:
         return

@@ -651,6 +651,7 @@ export class StudioCanvas {
       if (e.target instanceof HTMLElement && e.target.closest('input, textarea, select')) return;
       const mod = e.ctrlKey || e.metaKey;
       const focused = e.target instanceof HTMLElement ? e.target.closest<HTMLElement>('.cv-st-node') : null;
+      if (e.target instanceof HTMLElement && e.target.closest('.cv-st-ui')) return;
       const arrow = ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].indexOf(e.key);
       if (arrow >= 0 && !mod && !e.altKey) {
         const order = this.layoutOrder();

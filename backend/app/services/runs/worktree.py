@@ -16,6 +16,9 @@ STRIPPED_ENV = ("SUBFORM_WINDOW_TOKEN",)
 SESSION_SUFFIX = "000"
 RUN_ID_LEN = 10
 
+RUN_MCP_SERVERS = ("subform", "formslot")
+
+KEPT: set[str] = set()
 _live: dict[str, dict] = {}
 _locks: dict[str, asyncio.Lock] = {}
 _sweeper: Optional[asyncio.Task] = None
@@ -105,6 +108,20 @@ def restore(target: str) -> None:
     _start_sweeper()
 
 
+def _run_args(item: dict) -> list[str]:
+    args = sv.mcp_args(item)
+    try:
+        full = json.loads((Path(item["worktree"]) / sv.MCP_DIR / sv.MCP_NAME).read_text(encoding="utf-8"))
+        servers = full.get("mcpServers") if isinstance(full, dict) else {}
+        kept = {k: v for k, v in (servers or {}).items() if k in RUN_MCP_SERVERS}
+        target = Path(args[3]).with_name(f"run-{item['runId']}-mcp.json")
+        target.write_text(json.dumps({"mcpServers": kept}, indent=2), encoding="utf-8")
+        args[1] = str(target)
+    except (OSError, ValueError, IndexError, AttributeError):
+        return args[2:]
+    return args
+
+
 async def ensure(run: Any) -> dict:
     lock = _locks.setdefault(run.id, asyncio.Lock())
     async with lock:
@@ -120,7 +137,7 @@ async def ensure(run: Any) -> dict:
         item = _item(run.id, entry, "working", notes)
         sv.register_target(item)
         env = gates.session_env(item)
-        current = {"item": item, "env": env, "args": sv.mcp_args(item)}
+        current = {"item": item, "env": env, "args": _run_args(item)}
         _live[run.id] = current
         data = _read()
         data[run.id] = entry
@@ -151,18 +168,24 @@ def _finish(run_id: str, state: str) -> None:
 async def discard(run_id: str) -> None:
     sid = session_id(run_id)
     entry = _read().get(run_id)
+    path = entry.get("worktree") if isinstance(entry, dict) else None
+    if isinstance(path, str) and os.path.isdir(path):
+        code, out, _ = await sv._run([sv._git(), "status", "--porcelain"], cwd=path)
+        if code != 0 or out.strip():
+            KEPT.add(run_id)
+            return
     gates.close_session(sid)
     _live.pop(run_id, None)
     _locks.pop(run_id, None)
     sv.drop_target(sid)
     if isinstance(entry, dict):
-        path = entry.get("worktree")
         repo = entry.get("repo")
         cwd = repo if isinstance(repo, str) and os.path.isdir(repo) else None
-        if isinstance(path, str) and os.path.isdir(path):
-            await sv._run([sv._git(), "worktree", "remove", "--force", path], cwd=cwd)
-        await sv._run([sv._git(), "worktree", "prune"], cwd=cwd)
-        await sv._run([sv._git(), "branch", "-d", str(entry.get("branch"))], cwd=cwd)
+        if cwd is not None:
+            if isinstance(path, str) and os.path.isdir(path):
+                await sv._run([sv._git(), "worktree", "remove", path], cwd=cwd)
+            await sv._run([sv._git(), "worktree", "prune"], cwd=cwd)
+            await sv._run([sv._git(), "branch", "-d", str(entry.get("branch"))], cwd=cwd)
     data = _read()
     if data.pop(run_id, None) is not None:
         _write(data)
@@ -183,7 +206,7 @@ async def sweep() -> None:
             elif run.status in ("cancelled", "interrupted"):
                 _finish(run_id, "stopped")
             continue
-        if not _history_exists(entry["root"], run_id):
+        if run_id not in KEPT and not _history_exists(entry["root"], run_id):
             await discard(run_id)
 
 
@@ -194,6 +217,10 @@ async def _loop() -> None:
         except Exception:
             pass
         await asyncio.sleep(SWEEP_SECONDS)
+
+
+def start_sweeper() -> None:
+    _start_sweeper()
 
 
 def _start_sweeper() -> None:

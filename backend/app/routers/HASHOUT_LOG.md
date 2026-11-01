@@ -313,3 +313,11 @@ Security review changes to `/api/runs`: the start and rerun bodies carry `truste
 - logged: v0.15.0 · 2026-10-30
 
 `POST /api/terminals/owned` starts a terminal for the owner's own commands (the Home formslot card) with no workspace open. It needs the window token (`require_window`), which a page without the token, and so an agent session, does not have. The folder is always the user's home folder (`~`), never a body field, so `confine()` and its workspace rule are untouched for every other route. The body is an argv list, not a typed line: the first element must be an absolute path of an existing executable file (a `.bat` or `.cmd` on Windows is wrapped in `%COMSPEC% /c`), no element may hold a control character or exceed 2048 characters, and at most 16 elements. The program is spawned directly with that argv, so nothing is parsed by a shell and the old timing hack (wait for the socket, then type) is gone. The terminal is an ordinary shell-kind terminal for listing, attaching, resizing and killing, and it ends when the program ends. This is as powerful as the owner already is (the shell terminal runs anything), so the window token is the whole gate.
+
+### backend/app/routers/terminal.py · window token on terminal routes
+
+- refers-to: backend/app/routers/terminal.py :: create_terminal, delete_terminal, terminals_ws; frontend/src/io/terminals.ts :: createTerminal, deleteTerminal, TerminalSocket.connect
+- kind: warning-context
+- logged: v0.15.0 · 2026-10-30
+
+Review finding: LocalGuard lets a request with no Origin through, so an agent session holding only its gate token could open a shell in the workspace (skipping the Bash gate), attach to and type into the owner's terminals, or delete them. `POST /terminals` and `DELETE /terminals/{id}` now carry `require_window`. The WebSocket honours nothing until its first message is `{t: "auth", token}` with the window token (constant-time compare); a wrong token, or any other message first, closes it with code 4403. The window client sends the auth message on open before it attaches or sets the socket up, and forgets its cached token when a socket closes without ever coming up so a rotated token is refetched. Listing (GET) stays open. The engine's own session launches call `launch()` directly and never use these routes, so interactive and headless agent sessions are unchanged.

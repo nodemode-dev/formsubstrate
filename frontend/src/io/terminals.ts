@@ -1,5 +1,5 @@
 import { request } from './api';
-import { owner } from './window-token';
+import { forgetWindowToken, owner, windowToken } from './window-token';
 
 export type TerminalKind = 'shell' | 'claude';
 
@@ -45,7 +45,7 @@ export async function listTerminals(): Promise<TerminalInfo[]> {
 }
 
 export function createTerminal(body: CreateTerminal): Promise<TerminalInfo> {
-  return request<TerminalInfo>('/api/terminals', { method: 'POST', body: JSON.stringify(body) });
+  return owner<TerminalInfo>('/api/terminals', { method: 'POST', body: JSON.stringify(body) });
 }
 
 export interface OwnedCommand {
@@ -71,7 +71,7 @@ export function createOwnedTerminal(body: { argv: string[]; title?: string; cols
 }
 
 export function deleteTerminal(id: string): Promise<void> {
-  return request<void>(`/api/terminals/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  return owner<void>(`/api/terminals/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
 interface Channel {
@@ -153,14 +153,19 @@ export class TerminalSocket {
     this.ws = ws;
     ws.addEventListener('open', () => {
       if (this.ws !== ws) return;
-      this.attempt = 0;
-      this.setUp(true);
-      for (const c of this.channels.values()) if (!c.exited) this.sendAttach(c);
+      windowToken().then((token) => {
+        if (this.ws !== ws || ws.readyState !== WebSocket.OPEN) return;
+        ws.send(JSON.stringify({ t: 'auth', token }));
+        this.attempt = 0;
+        this.setUp(true);
+        for (const c of this.channels.values()) if (!c.exited) this.sendAttach(c);
+      }, () => { ws.close(); });
     });
     ws.addEventListener('message', (e) => { if (this.ws === ws) this.onMessage(e.data); });
     ws.addEventListener('close', () => {
       if (this.ws !== ws) return;
       this.ws = null;
+      if (!this.up) forgetWindowToken();
       this.setUp(false);
       if (this.channels.size > 0) this.schedule();
     });

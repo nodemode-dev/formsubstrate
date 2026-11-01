@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from pydantic import BaseModel, Field
 
 from app.core import binres, config, workspace_root
-from app.core.local_guard import require_window
+from app.core.local_guard import WINDOW_TOKEN, require_window
 from app.services import ptyhost_client
 from app.services.ptyhost_client import PtyHostError, PtyHostMissing
 
@@ -397,7 +397,7 @@ async def list_terminals() -> dict:
     return {"terminals": [shape(item) for item in items]}
 
 
-@router.post("/terminals")
+@router.post("/terminals", dependencies=[Depends(require_window)])
 async def create_terminal(body: TerminalCreate) -> dict:
     cwd = confine(body.cwd)
     if not os.path.isdir(cwd):
@@ -415,7 +415,7 @@ async def create_owned_terminal(body: TerminalOwned) -> dict:
     return await launch("shell", home, body.title, None, body.cols, body.rows, argv=owned_argv(body.argv))
 
 
-@router.delete("/terminals/{terminal_id}", status_code=204)
+@router.delete("/terminals/{terminal_id}", status_code=204, dependencies=[Depends(require_window)])
 async def delete_terminal(terminal_id: str) -> None:
     if not ID_RE.match(terminal_id):
         raise HTTPException(404, "no such terminal")
@@ -441,6 +441,7 @@ async def terminals_ws(websocket: WebSocket) -> None:
     except PtyHostError:
         pass
     hub.start()
+    authed = False
     try:
         while True:
             raw = await websocket.receive_text()
@@ -451,6 +452,16 @@ async def terminals_ws(websocket: WebSocket) -> None:
             if not isinstance(msg, dict):
                 continue
             kind = msg.get("t")
+            if kind == "auth":
+                given = msg.get("token")
+                if isinstance(given, str) and secrets.compare_digest(given.encode("utf-8"), WINDOW_TOKEN.encode("utf-8")):
+                    authed = True
+                    continue
+                await websocket.close(code=4403)
+                return
+            if not authed:
+                await websocket.close(code=4403)
+                return
             tid = msg.get("id")
             if not isinstance(tid, str) or not ID_RE.match(tid):
                 sub.text({"t": "error", "id": tid if isinstance(tid, str) else "", "message": "bad terminal id"})

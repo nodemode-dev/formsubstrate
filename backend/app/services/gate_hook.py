@@ -222,6 +222,8 @@ def denial(reason):
 
 def reason_for(choice, slot):
     where = "%s:%s" % (slot["path"], slot["line"])
+    sid = slot["id"] if re.fullmatch(r"[A-Za-z0-9._-]{1,200}", str(slot["id"])) else "unknown-id"
+    slot = dict(slot, id="'" + sid + "'")
     find = "Call the formslot MCP tool `slot_source` with the slot id %s (or run `formslot slot source %s`): it returns the slot's code at its pinned commit, including when the slot lives in another family repository. Only if that is not available, fall back to reading %s in this worktree, or run `formslot slot get %s` (the origin line names the repository and its copies list other paths) and read that file from a checkout of the repository on this computer." % (slot["id"], slot["id"], slot["path"], slot["id"])
     if choice == "use":
         return "The owner chose USE: reuse the existing slot %s (code at %s). Do not write this file; nothing was written. %s Then import or extend that code where the work belongs. If you truly cannot read it, say so in one line and continue with the rest of the task." % (slot["id"], where, find)
