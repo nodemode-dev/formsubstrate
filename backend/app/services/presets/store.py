@@ -1,8 +1,10 @@
 import ast
+import contextlib
 import json
 import os
 import re
 import sys
+import tempfile
 from pathlib import Path
 
 from app.core import workspace_root as ws
@@ -203,10 +205,16 @@ def _write(real: str, text: str, replace: bool) -> None:
     if os.path.lexists(real) and not replace:
         raise PresetError(409, "already installed")
     os.makedirs(os.path.dirname(real), exist_ok=True)
-    temp = real + ".tmp"
-    with open(temp, "w", encoding="utf-8") as fh:
-        fh.write(text)
-    os.replace(temp, real)
+    fd, temp = tempfile.mkstemp(dir=os.path.dirname(real), prefix=".preset-", suffix=".tmp")
+    try:
+        os.chmod(temp, 0o644)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        os.replace(temp, real)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(temp)
+        raise
 
 
 def install(group: str, name: str, replace: bool = False, trust: bool = False) -> dict:
@@ -225,7 +233,10 @@ def install(group: str, name: str, replace: bool = False, trust: bool = False) -
     data = read(group, name)
     if group == "graphs":
         rel = f".subform/graphs/{name}.json"
-        _write(_target(rel), json.dumps(data["doc"], indent=1), replace)
+        doc = data.get("doc") if isinstance(data, dict) else None
+        if not isinstance(doc, dict):
+            raise PresetError(404, "preset graph has no doc")
+        _write(_target(rel), json.dumps(doc, indent=1), replace)
         return {"installed": rel}
     if group == "plugins":
         if not trust:

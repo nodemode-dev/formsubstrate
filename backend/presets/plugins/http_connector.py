@@ -20,6 +20,11 @@ PLUGIN = {
 }
 
 
+def _origin(url):
+    parts = urllib.parse.urlsplit(url)
+    return (parts.scheme.lower(), (parts.hostname or "").lower(), parts.port)
+
+
 def register(host, settings):
     base = str(settings.get("base_url", "")).rstrip("/")
     token = str(settings.get("bearer_token", ""))
@@ -48,13 +53,18 @@ def register(host, settings):
             return {"error": str(err)}
         if params:
             full += ("&" if "?" in full else "?") + urllib.parse.urlencode(params)
-        head = {"User-Agent": "subform-http-connector/1.0", **extra, **(headers or {})}
-        if token and "Authorization" not in head:
-            head["Authorization"] = f"Bearer {token}"
+        own = bool(base) and _origin(full) == _origin(base)
+        head = {"User-Agent": "subform-http-connector/1.0", **(headers or {})}
+        private = dict(extra) if own else {}
+        if token and own and "Authorization" not in head and "Authorization" not in private:
+            private["Authorization"] = f"Bearer {token}"
         data = body.encode() if body else None
         if data and "Content-Type" not in head:
             head["Content-Type"] = "application/json"
         req = urllib.request.Request(full, data=data, headers=head, method=method.upper())
+        for key, value in private.items():
+            if key not in head:
+                req.add_unredirected_header(str(key), str(value))
         try:
             with urllib.request.urlopen(req, timeout=timeout) as res:
                 text = res.read().decode("utf-8", "replace")
@@ -78,7 +88,7 @@ def register(host, settings):
 
     host.tools.register(Tool(
         name="http_request",
-        description="Call any HTTP endpoint. Relative urls resolve against the configured base_url; bearer auth applies when configured.",
+        description="Call any HTTP endpoint. Relative urls resolve against the configured base_url; bearer auth and extra headers are sent only to the base_url's origin.",
         parameters={"type": "object", "properties": {
             "url": {"type": "string"},
             "method": {"type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]},
