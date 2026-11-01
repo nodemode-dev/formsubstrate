@@ -6,4 +6,4 @@ sf_venv
 cd "$SUBFORM_ROOT/backend"
 export SUBFORM_DIST="$SUBFORM_ROOT/frontend/dist"
 sf_say "serving http://127.0.0.1:${SUBFORM_PORT:-5655}"
-exec uvicorn app.main:app --host "${SUBFORM_HOST:-127.0.0.1}" --port "${SUBFORM_PORT:-5655}"
+exec uvicorn app.main:app --host 127.0.0.1 --port "${SUBFORM_PORT:-5655}"
