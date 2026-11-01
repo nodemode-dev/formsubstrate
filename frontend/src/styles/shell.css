@@ -180,8 +180,10 @@ body.large-tabs .cv-tab-name { font-size: var(--fs-14); }
 @container st (max-width: 1199px) {
   .cv-app > .cv-status .cv-st-ws { display: none; }
 }
-@container st (max-width: 1039px) {
+@media (max-width: 1039px) {
   .cv-app > .cv-status { gap: var(--space-3); }
+}
+@container st (max-width: 1039px) {
   .cv-app > .cv-status .cv-st-engine { display: none; }
   .cv-app > .cv-status .cv-st-lsp { width: var(--size-st-lsp-sm); }
   .cv-app > .cv-status .cv-st-formslot { flex-basis: var(--size-st-formslot-sm); }

@@ -99,8 +99,17 @@ class OutlinePanel {
     lsp.on('changed', (path) => { if (path === this.path) this.schedule(OUTLINE_DEBOUNCE_MS); });
     onLanguage(() => this.schedule(0));
     host.addEventListener(FOCUS_EVENT, () => this.list.querySelector<HTMLElement>('.cv-lsp-row')?.focus());
+    this.host = host;
+    new IntersectionObserver((entries) => {
+      const shown = entries.some((e) => e.isIntersecting);
+      if (shown && !this.shown) this.schedule(0);
+      this.shown = shown;
+    }).observe(host);
     this.schedule(0);
   }
+
+  private host: HTMLElement;
+  private shown = false;
 
   private schedule(delay: number): void {
     window.clearTimeout(this.timer);
@@ -108,6 +117,7 @@ class OutlinePanel {
   }
 
   private async refresh(): Promise<void> {
+    if (!this.host.getClientRects().length) return;
     const path = this.ctx.store.active?.path ?? null;
     const mine = ++this.serial;
     this.path = path && lsp.supports(path) ? path : null;

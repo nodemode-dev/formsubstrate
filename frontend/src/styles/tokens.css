@@ -18,6 +18,8 @@
 
   --transition-fast: 0.15s ease;
   --transition-normal: 0.25s ease;
+  --transition-progress: 0.2s linear;
+  --size-na-btn-w: 92px;
   --ease-glass: cubic-bezier(0.22, 0.61, 0.36, 1);
 
   --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);

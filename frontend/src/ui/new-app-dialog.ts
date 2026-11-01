@@ -1,6 +1,7 @@
+import { ApiError } from '../io/api';
 import { create, type AppKind, type CloneJob, type CreateOptions } from '../io/create';
 import { detailOf } from '../io/workspace';
-import { Dialog } from './dialogs';
+import { confirmAction, Dialog } from './dialogs';
 import { el, q, setClass, setDisabled, setText } from './dom';
 import { enhanceSelect } from './dropdown';
 import { t } from './i18n';
@@ -15,6 +16,17 @@ const FOLDER_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 const URL_RE = /^(https:\/\/[^\s/@]+(@[^\s/]+)?\/\S+|ssh:\/\/\S+\/\S+|[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:\S+)$/;
 const POLL_MS = 400;
 const CHECK_MS = 300;
+const POLL_RETRIES = 4;
+const PORT_FULL = /^\d{4}$/;
+
+const escapeWhenAdrift = (dialog: Dialog): void => {
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || e.defaultPrevented || !dialog.isOpen) return;
+    if (e.target instanceof Element && e.target.closest('.cv-scrim')) return;
+    e.preventDefault();
+    dialog.close();
+  });
+};
 
 let lastDest = '';
 
@@ -31,8 +43,8 @@ class PathField {
 
   constructor(onChange: (path: string) => void) {
     this.input.placeholder = t('Choose a folder');
-    this.button.innerHTML = `${icon('folderOpen', 14)}<span></span>`;
-    setText(q(this.button, 'span'), t('Browse...'));
+    this.button.innerHTML = `${icon('folderOpen', 14)}<span class="cv-na-browse"></span>`;
+    setText(q(this.button, '.cv-na-browse'), t('Browse...'));
     this.button.addEventListener('click', () => {
       void pickPath('folder').then((path) => {
         if (!path) return;
@@ -51,15 +63,32 @@ export async function followCloneJob(job: CloneJob, onUpdate: (j: CloneJob) => v
   const label = `${t('Clone')} ${job.name}`;
   store.upsertJob({ id: job.id, label, progress: job.progress, done: false, cancel: () => { void create.cancel(job.id).catch(() => undefined); } });
   let current = job;
+  let failed = 0;
+  let lost = false;
   try {
     while (current.state === 'running') {
-      await new Promise<void>((resolve) => { window.setTimeout(resolve, POLL_MS); });
-      current = await create.job(job.id);
+      await new Promise<void>((resolve) => { window.setTimeout(resolve, POLL_MS * 2 ** failed); });
+      try {
+        current = await create.job(job.id);
+        failed = 0;
+      } catch (e) {
+        failed++;
+        if (failed <= POLL_RETRIES && !(e instanceof ApiError && e.status === 404)) continue;
+        lost = true;
+        store.upsertJob({
+          id: job.id,
+          label: `${label} · ${t('connection lost')}`,
+          progress: current.progress,
+          done: false,
+          cancel: () => { void create.cancel(job.id).catch(() => undefined); store.finishJob(job.id); },
+        });
+        throw e;
+      }
       onUpdate(current);
       store.upsertJob({ id: job.id, label, progress: current.progress, done: false, cancel: () => { void create.cancel(job.id).catch(() => undefined); } });
     }
   } finally {
-    store.finishJob(job.id);
+    if (!lost) store.finishJob(job.id);
   }
   return current;
 }
@@ -74,11 +103,16 @@ export class CloneDialog extends Dialog {
   private readonly go: HTMLButtonElement;
   private readonly stop: HTMLButtonElement;
   private busy = false;
+  private wasBusy = false;
+  private dismissed = false;
+  private stopAsked = false;
+  private asking = false;
   private job: CloneJob | null = null;
   private folderEdited = false;
 
   constructor() {
     super('Clone Repository', 500);
+    escapeWhenAdrift(this);
     q<HTMLElement>(this.scrim, '.cv-dialog').classList.add('cv-newapp');
     this.url.placeholder = 'https://github.com/owner/repo.git';
     this.folder.placeholder = t('Same as the repository');
@@ -96,6 +130,7 @@ export class CloneDialog extends Dialog {
 
   show(): void {
     if (this.isOpen) return;
+    this.dismissed = false;
     if (!this.busy) {
       this.url.value = '';
       this.folder.value = '';
@@ -105,7 +140,28 @@ export class CloneDialog extends Dialog {
       this.say('');
     }
     this.sync();
-    this.open(this.url);
+    this.open(this.busy ? this.stop : this.url);
+  }
+
+  close(): void {
+    if (!this.isOpen) return;
+    if (!this.busy) { super.close(); return; }
+    if (this.asking) return;
+    this.asking = true;
+    void confirmAction(t('Stop cloning?'), t('The clone is still running. Closing this window stops it.'), t('Stop and close'), true, t('Keep going')).then((ok) => {
+      this.asking = false;
+      if (!ok) return;
+      if (this.busy) {
+        this.dismissed = true;
+        this.stopJob();
+      }
+      super.close();
+    });
+  }
+
+  private stopJob(): void {
+    this.stopAsked = true;
+    if (this.job) void create.cancel(this.job.id).catch(() => undefined);
   }
 
   private say(text: string, error = false): void {
@@ -126,6 +182,10 @@ export class CloneDialog extends Dialog {
   }
 
   private sync(): void {
+    const entering = this.busy && !this.wasBusy;
+    const leaving = !this.busy && this.wasBusy;
+    this.wasBusy = this.busy;
+    if (entering && this.isOpen && this.scrim.contains(document.activeElement)) this.stop.focus();
     setDisabled(this.go, this.busy || !this.valid());
     setDisabled(this.url, this.busy);
     setDisabled(this.folder, this.busy);
@@ -133,12 +193,16 @@ export class CloneDialog extends Dialog {
     setText(this.stop, this.busy ? t('Stop') : t('Cancel'));
     this.stop.dataset.shown = this.stop.textContent ?? '';
     this.stop.dataset.en = this.busy ? 'Stop' : 'Cancel';
+    if (leaving && this.isOpen) {
+      const at = document.activeElement;
+      if (!at || at === document.body || at === this.stop || !this.scrim.contains(at)) this.url.focus();
+    }
   }
 
   private cancel(): void {
-    if (this.busy && this.job) {
+    if (this.busy) {
       this.say(t('Stopping...'));
-      void create.cancel(this.job.id).catch(() => undefined);
+      this.stopJob();
       return;
     }
     this.close();
@@ -147,13 +211,18 @@ export class CloneDialog extends Dialog {
   private async run(): Promise<void> {
     if (this.busy || !this.valid()) return;
     this.busy = true;
+    this.dismissed = false;
+    this.stopAsked = false;
     this.sync();
     this.say(t('Starting...'));
     this.progress(0);
+    let name = folderOf(this.url.value);
     try {
       const started = await create.clone(this.url.value.trim(), this.dest.value, this.folder.value.trim());
       this.job = started;
+      name = started.name || name;
       lastDest = this.dest.value;
+      if (this.stopAsked) void create.cancel(started.id).catch(() => undefined);
       const done = await followCloneJob(started, (j) => {
         this.progress(j.progress);
         this.say(j.message);
@@ -162,14 +231,20 @@ export class CloneDialog extends Dialog {
         this.progress(1);
         this.busy = false;
         this.job = null;
-        this.close();
         toast(`${t('Cloned')} ${done.name}`, 'info');
+        if (this.dismissed) return;
+        this.close();
         await openFolderAt(done.path);
+        return;
+      }
+      if (this.dismissed) {
+        toast(done.state === 'cancelled' ? `${t('Clone stopped.')} ${name}` : `${t('Clone failed')}: ${done.error}`, done.state === 'cancelled' ? 'info' : 'error');
         return;
       }
       this.say(done.state === 'cancelled' ? t('Clone stopped.') : done.error, done.state !== 'cancelled');
       this.progress(0);
     } catch (e) {
+      if (this.dismissed) toast(`${t('Clone failed')}: ${detailOf(e)}`, 'error');
       this.say(detailOf(e), true);
       this.progress(0);
     } finally {
@@ -193,7 +268,10 @@ export class NewAppDialog extends Dialog {
   private readonly port = el<HTMLInputElement>('<input class="cv-input" type="text" inputmode="numeric" spellcheck="false" autocomplete="off" maxlength="4" data-f="port">');
   private readonly hint = el('<p class="cv-note cv-na-status"></p>');
   private readonly create: HTMLButtonElement;
+  private readonly leave: HTMLButtonElement;
   private busy = false;
+  private wasBusy = false;
+  private dismissed = false;
   private portEdited = false;
   private portOk = false;
   private nameProblem = '';
@@ -204,6 +282,7 @@ export class NewAppDialog extends Dialog {
 
   constructor() {
     super('New Form App', 500);
+    escapeWhenAdrift(this);
     q<HTMLElement>(this.scrim, '.cv-dialog').classList.add('cv-newapp');
     this.name.placeholder = 'formexample';
     for (const [value, label] of [['rust', 'Rust core, cli and Tauri (like formMCP)'], ['python', 'Python engine and Tauri (like formvis)']] as const) {
@@ -218,10 +297,10 @@ export class NewAppDialog extends Dialog {
     this.field('Create in', this.dest.root);
     this.field('First port', this.port);
     this.body.append(this.hint);
-    this.button('Cancel', 'ghost', () => this.close());
+    this.leave = this.button('Cancel', 'ghost', () => this.close());
     this.create = this.button('Create app', 'primary', () => { void this.send(); });
     this.name.addEventListener('input', () => { this.checkName(); this.sync(); });
-    this.port.addEventListener('input', () => { this.portEdited = true; this.queueCheck(); this.sync(); });
+    this.port.addEventListener('input', () => { this.portEdited = true; this.portProblem = ''; this.queueCheck(); this.sync(); });
     this.kind.addEventListener('change', () => this.sync());
     this.name.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !this.create.disabled) { e.preventDefault(); void this.send(); } });
     this.sync();
@@ -229,6 +308,12 @@ export class NewAppDialog extends Dialog {
 
   show(): void {
     if (this.isOpen) return;
+    this.dismissed = false;
+    if (this.busy) {
+      this.sync();
+      this.open(this.leave);
+      return;
+    }
     this.name.value = '';
     this.kind.value = 'rust';
     this.port.value = '';
@@ -259,9 +344,10 @@ export class NewAppDialog extends Dialog {
       const opts = await create.options(this.dest.value || undefined);
       if (seq !== this.seq) return;
       this.opts = opts;
-      if (!this.portEdited && opts.block !== null) {
+      if (!(this.portEdited && this.portOk) && opts.block !== null) {
         const text = String(opts.block);
         if (this.port.value !== text) this.port.value = text;
+        this.portEdited = false;
       }
       await this.check(seq);
     } catch (e) {
@@ -277,9 +363,9 @@ export class NewAppDialog extends Dialog {
 
   private async check(seq: number): Promise<void> {
     const base = Number(this.port.value);
-    if (!/^\d{4}$/.test(this.port.value) || !Number.isInteger(base)) {
+    if (!PORT_FULL.test(this.port.value) || !Number.isInteger(base)) {
       this.portOk = false;
-      this.portProblem = this.port.value ? t('Four digits, a multiple of 10, from 5600 to 5990.') : '';
+      this.portProblem = this.port.value && !/^\d{1,3}$/.test(this.port.value) ? t('Four digits, a multiple of 10, from 5600 to 5990.') : '';
       this.sync();
       return;
     }
@@ -300,14 +386,28 @@ export class NewAppDialog extends Dialog {
     return NAME_RE.test(this.name.value) && this.dest.value !== '' && this.portOk && !this.busy;
   }
 
+  close(): void {
+    if (this.busy) this.dismissed = true;
+    super.close();
+  }
+
   private sync(): void {
+    const entering = this.busy && !this.wasBusy;
+    const leaving = !this.busy && this.wasBusy;
+    this.wasBusy = this.busy;
+    if (entering && this.isOpen && this.scrim.contains(document.activeElement)) this.leave.focus();
     setDisabled(this.create, !this.ready());
     for (const f of [this.name, this.port, this.kind]) setDisabled(f, this.busy);
     this.dest.setBusy(this.busy);
+    if (leaving && this.isOpen) {
+      const at = document.activeElement;
+      if (!at || at === document.body || at === this.leave || !this.scrim.contains(at)) this.name.focus();
+    }
     if (this.busy) return;
     const base = Number(this.port.value);
+    const full = PORT_FULL.test(this.port.value);
     const notes = this.opts
-      ? `${t('Ports')} ${this.port.value || '-'} ${t('to')} ${Number.isFinite(base) && this.port.value ? base + 9 : '-'} · ${t('first commit by')} ${this.opts.identity.name}${this.opts.formslot ? ` · ${t('formslot plugin installed')}` : ` · ${t('formslot not found, plugin skipped')}`}`
+      ? `${t('Ports')} ${this.port.value || '-'} ${t('to')} ${full ? base + 9 : '-'} · ${t('first commit by')} ${this.opts.identity.name}${this.opts.formslot ? ` · ${t('formslot plugin installed')}` : ` · ${t('formslot not found, plugin skipped')}`}`
       : '';
     const problem = this.nameProblem || this.portProblem;
     this.say(problem || notes, !!problem);
@@ -322,13 +422,16 @@ export class NewAppDialog extends Dialog {
       const result = await create.app({ name: this.name.value, kind: this.kind.value === 'python' ? 'python' as AppKind : 'rust', dest: this.dest.value, port: Number(this.port.value) });
       lastDest = this.dest.value;
       this.busy = false;
+      const away = this.dismissed;
       this.close();
       toast(`${t('Created')} ${result.name}`, 'info');
+      if (away) return;
       await openFolderAt(result.path);
     } catch (e) {
       this.busy = false;
       this.sync();
       this.say(detailOf(e), true);
+      if (this.dismissed) toast(`${t('Could not create the app')}: ${detailOf(e)}`, 'error');
     }
   }
 }

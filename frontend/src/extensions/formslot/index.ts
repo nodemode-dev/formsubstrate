@@ -517,6 +517,7 @@ class SlotCard {
   private rows: CardRow[] = [];
   private rel = '';
   private fetched = '';
+  private loaded = '';
   private seq = 0;
   private frame = 0;
   private problem = false;
@@ -559,12 +560,13 @@ class SlotCard {
     const rel = this.relative();
     const live = formslotState.isEnabled && formslotState.phase === 'running' && !!rel;
     const key = live ? rel : '';
-    if (rel !== this.rel) { this.rel = rel; this.rows = []; this.problem = false; this.fetched = ''; }
+    if (rel !== this.rel) { this.rel = rel; this.seq++; this.rows = []; this.problem = false; this.fetched = ''; this.loaded = ''; }
     if (key && key !== this.fetched) {
       this.fetched = key;
       void this.load(rel);
-    } else if (!key && this.fetched) {
+    } else if (!key && (this.fetched || this.rows.length || this.loaded)) {
       this.fetched = '';
+      this.loaded = '';
       this.seq++;
       this.rows = [];
     }
@@ -586,6 +588,7 @@ class SlotCard {
       units.forEach((h, i) => rows.push({ key: `unit:${h.id}:${i}`, kind: 'unit', title: h.title || h.qualified || h.id, chip: h.unit_kind ?? '', where: startLine(h.lines) > 0 ? `:${startLine(h.lines)}` : '', line: startLine(h.lines) }));
       this.rows = rows;
       this.problem = false;
+      this.loaded = rel;
     } catch {
       if (mine !== this.seq) return;
       this.rows = [];
@@ -613,7 +616,7 @@ class SlotCard {
       if (!this.rel) note = t('Open a file to see the slots that cover it');
       else if (!formslotState.isEnabled) note = t('formslot is turned off in Preferences.');
       else if (this.problem) note = t('Could not read the slots for this file');
-      else if (phase === 'running') note = this.fetched ? t('No slot or unit covers this file') : '';
+      else if (phase === 'running') note = this.loaded === this.rel ? t('No slot or unit covers this file') : '';
       else note = t(phase === 'off' ? 'formslot is not running' : phase === 'unreachable' ? 'formslot offline' : 'formslot');
     }
     setText(this.empty, note);
@@ -727,7 +730,7 @@ register({
     const markEnabled = (): void => {
       const v = formslotState.isEnabled ? 'on' : 'off';
       if (document.documentElement.dataset.formslot !== v) document.documentElement.dataset.formslot = v;
-      slotRight?.setAvailable?.(formslotState.isEnabled && formslotState.phase !== 'missing');
+      slotRight?.setAvailable?.(formslotState.isEnabled && formslotState.phase !== 'missing' && formslotState.phase !== 'unknown');
     };
     markEnabled();
     formslotState.on('status', () => {

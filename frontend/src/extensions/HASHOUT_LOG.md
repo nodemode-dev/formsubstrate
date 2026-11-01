@@ -180,3 +180,19 @@ Substrata kept the outline in the right panel; here a second OutlinePanel is mou
 - logged: v0.10.0 · 2026-10-30
 
 Right-panel card for the active file. It asks slot_find for the workspace-relative path, keeps unit hits whose path equals the file, and checks up to five slot hits with slot_get for the file in their files list. Drift for the file comes from formslotState.driftFor. Fetches run once per file while formslot is running; rows are patched by key and the empty note is absolutely placed, so arriving content shifts nothing. The section is unavailable when formslot is not installed or turned off. The hidden rule for right tabs sits in formslot.css because workbench.css is not in this change.
+
+### frontend/src/extensions/formslot/index.ts · SlotCard, markEnabled
+
+- refers-to: frontend/src/extensions/formslot/index.ts :: SlotCard.sync, SlotCard.paint, setup
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+The card tracks `loaded`, the file whose find finished, apart from `fetched`, the file a find was started for. "No slot or unit covers this file" shows only when loaded equals the current file, so nothing claims emptiness while the request runs. Every change of file, including to none, bumps the sequence and clears rows and loaded, so a late answer for a closed file is dropped. The Slots tab is also unavailable while the formslot phase is unknown, so the right panel does not open on Slots and flip to Outline when the first status says it is missing.
+
+### frontend/src/extensions/lsp/index.ts · OutlinePanel
+
+- refers-to: frontend/src/extensions/lsp/index.ts :: OutlinePanel.refresh
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+Refresh returns early while the panel has no layout box, and an IntersectionObserver on the host schedules a refresh when the panel becomes visible. Both Outline panels used to send documentSymbol while hidden.

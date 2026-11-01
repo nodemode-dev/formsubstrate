@@ -1,4 +1,4 @@
-import { request } from './api';
+import { ApiError, request } from './api';
 
 export interface GitFile { path: string; oldPath: string | null; index: string; worktree: string; staged: boolean; unstaged: boolean; kind: 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked' | 'conflicted' }
 export interface GitStatus { root: string; session: string | null; branch: string | null; head: string | null; upstream: string | null; ahead: number; behind: number; files: GitFile[]; conflicted: boolean }
@@ -48,8 +48,6 @@ const query = (params: Record<string, string | number | boolean | null | undefin
   return s ? `?${s}` : '';
 };
 
-const REFUSAL = /^not (pushed|signed)/;
-
 const post = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) });
 const put = (body: unknown): RequestInit => ({ method: 'PUT', body: JSON.stringify(body) });
 const withSession = <T extends object>(body: T, session?: string | null): T & { session?: string } => (session ? { ...body, session } : body);
@@ -59,9 +57,11 @@ async function refusable(path: string, payload: object): Promise<{ ok: boolean; 
     const data = await request<Record<string, unknown>>(path, post(payload));
     return { ok: data.ok !== false, check: typeof data.check === 'string' ? data.check : '', output: typeof data.output === 'string' ? data.output : '' };
   } catch (err) {
-    const e = asGitError(err);
-    if (e.status === 409 && REFUSAL.test(e.message)) return { ok: false, check: e.message, output: '' };
-    throw e;
+    if (err instanceof ApiError && err.status === 409 && err.body && typeof err.body === 'object') {
+      const body = err.body as { check?: unknown; output?: unknown };
+      if (typeof body.check === 'string') return { ok: false, check: body.check, output: typeof body.output === 'string' ? body.output : '' };
+    }
+    throw asGitError(err);
   }
 }
 

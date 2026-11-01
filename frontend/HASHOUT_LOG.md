@@ -1895,3 +1895,19 @@ A stopped session is kept for five seconds after it stopped, so opening files wh
 - logged: v0.10.0 · 2026-10-30
 
 Push and sign-and-push now go through request. request keeps only the detail text of a failed reply, so a 409 whose detail begins "not pushed" or "not signed" is returned as a refusal with that text as the check and no output (the engine sends an empty output for every refusal). Other failures throw GitError as before. Review item 16.
+
+### frontend/src/io/git.ts · refusable
+
+- refers-to: frontend/src/io/git.ts :: refusable; frontend/src/io/api.ts :: ApiError, request
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+Supersedes the entry above. request now throws ApiError, which keeps the status and the parsed JSON body of a failed reply (the message text is unchanged, so every existing prefix parser still works). refusable reads body.check and body.output from a 409 instead of matching the prose of the detail: the engine sends them next to detail for every push or sign refusal. REFUSAL is removed. Review item L4.
+
+### frontend/src/styles/shell.css · status bar gap
+
+- refers-to: frontend/src/styles/shell.css :: .cv-status; frontend/src/styles/tokens.css :: --size-na-btn-w, --transition-progress
+- kind: warning-context
+- logged: v0.10.0 · 2026-10-30
+
+A container query cannot style the container it names, so the narrow gap of the status bar was never applied. It now sits in a plain media query at the same 1039px, which equals the status bar width because the bar spans the window. The other narrow rules style children and stay in the container query. Two tokens were added for the New app dialogs: a footer button width that holds Stop and Cancel at the same size, and the progress bar transition.

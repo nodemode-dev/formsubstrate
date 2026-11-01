@@ -6,6 +6,6 @@
 .cv-na-pick .cv-btn:hover:not(:disabled) { background: var(--bg-hover); }
 .cv-na-pick .cv-btn:disabled { opacity: 0.45; cursor: default; }
 .cv-na-bar { height: var(--space-1); overflow: hidden; border-radius: var(--radius-hair); background: var(--bg-tertiary); }
-.cv-na-bar > i { display: block; width: 100%; height: 100%; background: var(--accent-color); transform: scaleX(0); transform-origin: left center; transition: transform 0.2s linear; }
-.cv-na-status { min-height: calc(var(--fs-11) * 2.6); overflow-wrap: anywhere; }
+.cv-na-bar > i { display: block; width: 100%; height: 100%; background: var(--accent-color); transform: scaleX(0); transform-origin: left center; transition: transform var(--transition-progress); }
+.cv-newapp .cv-dialog-foot .cv-btn { min-width: var(--size-na-btn-w); }.cv-na-status { min-height: calc(var(--fs-11) * 2.6); overflow-wrap: anywhere; }
 .cv-na-status.is-error { color: var(--danger-text); }
