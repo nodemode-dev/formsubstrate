@@ -306,7 +306,19 @@ async def _mcp_config() -> tuple[dict, list[str]]:
         notes.append("formslot is installed but its mcp command is not available yet; the session runs without it")
     else:
         notes.append("formslot was not found; the session runs without it")
-    notes.append("the subform MCP server arrives with a later release; the session runs without it")
+    launcher = config.REPO_DIR / ("subform.bat" if os.name == "nt" else "subform")
+    if launcher.is_file():
+        servers["subform"] = {
+            "command": str(launcher),
+            "args": ["mcp"],
+            "env": {
+                "SUBFORM_GATE_TOKEN": "${SUBFORM_GATE_TOKEN}",
+                "SUBFORM_ENGINE": "${SUBFORM_ENGINE}",
+                "SUBFORM_DATA_DIR": str(config.data_dir()),
+            },
+        }
+    else:
+        notes.append("the subform launcher was not found next to the engine; the session runs without the subform MCP server")
     return {"mcpServers": servers}, notes
 
 

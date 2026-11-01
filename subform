@@ -28,6 +28,10 @@ case "$cmd" in
   frontend) exec setup/boot_frontend "$@" ;;
   serve) exec setup/serve "$@" ;;
   doctor) exec setup/doctor "$@" ;;
+  mcp)
+    py=backend/venv/bin/python
+    [ -x "$py" ] || py="$(command -v python3 || command -v python)"
+    exec "$py" backend/subform_mcp.py "$@" ;;
   clean) exec setup/clean "$@" ;;
   version|--version|-V)
     printf 'subform %s' "$(version)"
