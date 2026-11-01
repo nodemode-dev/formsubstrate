@@ -110,7 +110,7 @@ src-tauri/
 - refers-to: tauri.conf.json :: build
 - kind: explainer
 - logged: v0.1.0 · 2026-10-30
-- `frontendDist` is `../frontend/dist` and `devUrl` is `http://localhost:5650`. formvis has no beforeDevCommand or beforeBuildCommand, so none is set; the root scripts start Vite.
+- `frontendDist` is `../frontend/dist` and `devUrl` is `http://localhost:5650`. `beforeDevCommand` runs `npm run dev` in `../frontend` without waiting, so `tauri dev` starts Vite itself and the splash (which loads `splash.html` from `devUrl` in dev) has a page to show; formvis has none and relies on the root scripts (changed in review). No beforeBuildCommand: release builds use `frontendDist`, which the build scripts produce.
 
 ### tauri.conf.json · removed bundle settings
 - refers-to: tauri.conf.json :: bundle
@@ -178,7 +178,7 @@ src-tauri/
 - refers-to: src/main.rs :: engine_command
 - kind: explainer
 - logged: v0.1.0 · 2026-10-30
-- A packaged one-folder engine (`packaged::engine_folder`, any OS) is started by path. Otherwise, in debug builds only, `python3 ../backend/subform_engine.py` is run from the src-tauri folder, the route `tauri dev` uses. A release build with no engine folder, or a spawn that fails, takes the same path as an engine that never reports a port: the splash closes and a dialog says the engine failed to start. formvis called `expect` on the spawn and used a sidecar when no folder was found.
+- A packaged one-folder engine (`packaged::engine_folder`, any OS) is started by path. Otherwise, in debug builds only, `../backend/subform_engine.py` is run from the src-tauri folder with the project venv's Python (`../backend/venv/bin/python`, or `Scripts/python.exe` on Windows) when it exists, else `python3`; this is the route `tauri dev` uses. The venv comes first because `./subform install` puts fastapi and uvicorn only there (found in review: with bare `python3` the debug engine failed on a clean machine). A release build with no engine folder, or a spawn that fails, takes the same path as an engine that never reports a port: the splash closes and a dialog says the engine failed to start. formvis called `expect` on the spawn and used a sidecar when no folder was found.
 
 ### src/main.rs · kill_backend
 - refers-to: src/main.rs :: kill_backend

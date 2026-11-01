@@ -108,7 +108,7 @@ Removed the favicon.ico, favicon.svg and apple-touch-icon links (no icon files e
 - kind: warning-context
 - logged: v0.1.0 · 2026-10-30
 
-The preload hrefs point at /node_modules/@fontsource/... which resolves in the dev server only; in a production build the bundler does not rewrite them and they miss. Kept as formvis has them because the built app hashes the font files and the cost is one failed preload. Revisit if the console noise matters.
+The preload hrefs point at /node_modules/@fontsource/..., which the dev server serves directly; `vite build` rewrites them to the hashed files in `dist/assets` (checked in review: `dist/index.html` preloads `/assets/inter-latin-*-normal-<hash>.woff2`), so the preloads work in both. Kept as formvis has them.
 
 ## public/splash.html
 
@@ -328,7 +328,7 @@ Removed server.fs.allow ['..'] (formvis let the dev server read its repository d
 - kind: rationale
 - logged: v0.1.0 · 2026-10-30
 
-Runtime: @fontsource/inter 5.3.0, @fontsource/jetbrains-mono 5.3.0, @tauri-apps/api 2.11.1 (formvis's pin). Dev: @tauri-apps/cli 2.12.4 (verified on npm), typescript 7.0.2, vite 8.3.5. No test runner and no test script by rule.
+Runtime: @fontsource/inter 5.3.0, @fontsource/jetbrains-mono 5.3.0, @tauri-apps/api 2.12.4 (moved from formvis's 2.11.1 because `tauri dev` refuses a different minor from the tauri crate, 2.12.5). Dev: @tauri-apps/cli 2.12.4 (verified on npm), typescript 7.0.2, vite 8.3.5. No test runner and no test script by rule.
 
 ### package.json · removed dependencies
 

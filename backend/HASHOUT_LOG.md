@@ -66,7 +66,7 @@ backend/
 - refers-to: backend/subform_engine.py :: announce_port
 - kind: explainer
 - logged: v0.1.0 · 2026-10-30
-- Writes `{"pid", "port"}` to `engine.port` in the data folder once the server really listens (the desktop shell asks for port 0), and `main` removes it on exit only when the pid in the file is its own. The desktop shell reads the printed uvicorn line "Uvicorn running on http://127.0.0.1:PORT"; the file is for tools that start later. Port comes from SUBFORM_PORT, 0 when unset; the dev scripts set 5655.
+- Writes `{"pid", "port"}` to `engine.port` in the data folder once the server really listens (the desktop shell asks for port 0). It is removed by `runtime.release` in the app's lifespan shutdown, only when the pid in the file is its own; the `finally` in `main` is a second try. The lifespan is the one that matters: on SIGTERM uvicorn 0.53 finishes shutdown and then re-raises the signal, so the process ends before `main`'s `finally` runs (found in review; the desktop shell stops the engine with SIGTERM). The desktop shell reads the printed uvicorn line "Uvicorn running on http://127.0.0.1:PORT"; the file is for tools that start later. Port comes from SUBFORM_PORT, 0 when unset; the dev scripts set 5655.
 
 ### backend/subform_engine.py · main
 - refers-to: backend/subform_engine.py :: main
@@ -94,7 +94,7 @@ backend/
 - refers-to: backend/boot_backend :: exec uvicorn
 - kind: explainer
 - logged: v0.1.0 · 2026-10-30
-- Dev only: `--reload`, host SUBFORM_HOST (default 127.0.0.1), port SUBFORM_PORT (default 5655). This path does not take the engine lock, as in formvis; the desktop uses `subform_engine.py`. The formvis `# shellcheck disable=SC1091` line is dropped with all shell comments.
+- Dev only: `--reload`, host 127.0.0.1 always (formvis's SUBFORM_HOST style override was removed in review: binding any other address would put the unauthenticated engine on the network, and LocalGuard only checks the Host header a LAN client can forge), port SUBFORM_PORT (default 5655). `setup/serve` and its `.bat` twin bind the same way. This path does not take the engine lock, as in formvis; the desktop uses `subform_engine.py`. The formvis `# shellcheck disable=SC1091` line is dropped with all shell comments.
 - refers-to: backend/boot_backend.bat :: line endings
 - kind: warning-context
 - logged: v0.1.0 · 2026-10-30
@@ -114,7 +114,7 @@ backend/
 - refers-to: backend/requirements.txt :: fastapi, uvicorn, python-multipart, httpx, keyring, ptyprocess, pywinpty
 - kind: explainer
 - logged: v0.1.0 · 2026-10-30
-- Seven packages, each pinned, each with its licence in a trailing comment (this file is the one place a comment is required): fastapi MIT, uvicorn BSD-3-Clause, python-multipart Apache-2.0, httpx BSD-3-Clause, keyring MIT, ptyprocess ISC (non-win32), pywinpty MIT (win32). Rows for NOTICE.md are in the build notice file. ptyprocess and pywinpty serve the terminal dock, which lands later; they are pinned now so the lock is stable.
+- Seven packages, each pinned, with no comments (the formvis-style trailing licence comments were removed in review under the no-comments rule; the licences live here and in NOTICE.md): fastapi MIT, uvicorn BSD-3-Clause, python-multipart Apache-2.0, httpx BSD-3-Clause, keyring MIT, ptyprocess ISC (non-win32), pywinpty MIT (win32). Rows for NOTICE.md are in the build notice file. ptyprocess and pywinpty serve the terminal dock, which lands later; they are pinned now so the lock is stable.
 
 ### backend/requirements.txt · removed-code
 - refers-to: backend/requirements.txt :: pillow, pillow-heif, rawpy, numpy, opencv-python-headless, onnxruntime, onnx, psd-tools, tifffile, OpenEXR, pyspellchecker
