@@ -1,6 +1,7 @@
 import type { SessionsClient, TranscriptLine } from '../io/sessions';
 import { el, q, setClass, setHidden, setText } from './dom';
 import { onLanguage, t } from './i18n';
+import { icon } from './icons';
 
 const NEAR_BOTTOM_PX = 48;
 const KEEP_LINES = 300;
@@ -12,13 +13,14 @@ const clock = (at: number): string => {
 
 export class ChatPane {
   readonly root = el(`<div class="cv-chat">
-<div class="cv-chat-head"><span class="cv-chat-title"></span><span class="cv-chat-kind cv-note"></span></div>
+<div class="cv-chat-head"><span class="cv-chat-title"></span><span class="cv-chat-kind cv-note"></span><button class="cv-chat-review" type="button" hidden>${icon('diff', 14)}<span class="cv-chat-review-t"></span></button></div>
 <div class="cv-chat-log" role="log" aria-live="polite"><p class="cv-chat-empty cv-note"></p></div>
 </div>`);
   private readonly title = q(this.root, '.cv-chat-title');
   private readonly kind = q(this.root, '.cv-chat-kind');
   private readonly log = q(this.root, '.cv-chat-log');
   private readonly empty = q(this.root, '.cv-chat-empty');
+  private readonly reviewBtn = q<HTMLButtonElement>(this.root, '.cv-chat-review');
   private readonly streams = new Map<string, HTMLElement>();
   private current: { id: string; title: string; interactive: boolean } | null = null;
 
@@ -32,6 +34,9 @@ export class ChatPane {
       const s = list.find((x) => x.id === c.id);
       if (!s) { this.select(null); return; }
       if (s.title !== c.title) { c.title = s.title; setText(this.title, s.title); }
+    });
+    this.reviewBtn.addEventListener('click', () => {
+      if (this.current) window.dispatchEvent(new CustomEvent('subform:open-review', { detail: { session: this.current.id } }));
     });
     onLanguage(() => this.paint());
     this.paint();
@@ -89,5 +94,7 @@ export class ChatPane {
     setHidden(this.empty, !none);
     setText(this.empty, !c ? t('Select a session to follow its messages.') : c.interactive ? t('Interactive session: the conversation is in its terminal.') : t('No messages yet.'));
     setClass(this.root, 'has-session', !!c);
+    setHidden(this.reviewBtn, !c);
+    setText(q(this.reviewBtn, '.cv-chat-review-t'), t('Review changes'));
   }
 }

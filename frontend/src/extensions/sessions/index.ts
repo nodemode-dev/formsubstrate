@@ -39,6 +39,7 @@ type Entry =
 
 const ACTIONS: ReadonlyArray<readonly [string, string, string]> = [
   ['open', 'terminal', 'Open terminal'],
+  ['review', 'diff', 'Review changes'],
   ['resume', 'play', 'Resume'],
   ['stop', 'stop', 'Stop'],
   ['remove', 'delete', 'Remove worktree'],
@@ -172,6 +173,7 @@ class SessionsPanel {
     const live = LIVE.has(s.state);
     const shown: Record<string, boolean> = {
       open: s.terminalId !== null && live && terminalHook !== null,
+      review: true,
       resume: !live && s.claudeSessionId !== null,
       stop: live,
       remove: !live,
@@ -215,6 +217,10 @@ class SessionsPanel {
     if (!s || this.busy.has(id)) return;
     if (act === 'open') {
       if (s.terminalId) terminalHook?.openTerminal(s.terminalId);
+      return;
+    }
+    if (act === 'review') {
+      window.dispatchEvent(new CustomEvent('subform:open-review', { detail: { session: id } }));
       return;
     }
     if (act === 'remove' && !(await confirmAction('Remove worktree', `${s.title}: ${t('the worktree and its branch are deleted from disk.')} ${s.worktree}`, 'Remove', true))) return;
