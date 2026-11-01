@@ -3,12 +3,14 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import tempfile
 import threading
 import tomllib
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
 from app.core import workspace_root as ws
@@ -17,6 +19,8 @@ from app.core.binres import find_bin
 router = APIRouter()
 
 READ_MAX = 4 * 1024 * 1024
+WRITE_MAX = 8 * 1024 * 1024
+GUIDE_MAX = 1024 * 1024
 SNIFF_BYTES = 8192
 TEXT_MAX = 240
 SEARCH_LIMIT_MAX = 1000
@@ -46,12 +50,22 @@ def _base() -> str:
         raise _fail(err)
 
 
+def _regular(path: str) -> bool:
+    try:
+        info = os.stat(path)
+    except OSError:
+        return False
+    return stat.S_ISREG(info.st_mode) and info.st_size <= GUIDE_MAX
+
+
 def _form_name(name: object) -> bool:
     return isinstance(name, str) and (name.lower().startswith("form") or name.lower() == "subform")
 
 
 def _is_form_repo(root: str) -> bool:
     for guide in GUIDE_FILES:
+        if not _regular(os.path.join(root, guide)):
+            continue
         try:
             with open(os.path.join(root, guide), "r", encoding="utf-8", errors="replace") as handle:
                 if FORM_DOC_RE.search(handle.read(65536)):
@@ -59,12 +73,15 @@ def _is_form_repo(root: str) -> bool:
         except OSError:
             continue
     try:
-        with open(os.path.join(root, "package.json"), "r", encoding="utf-8") as handle:
-            if _form_name(json.load(handle).get("name")):
-                return True
+        if _regular(os.path.join(root, "package.json")):
+            with open(os.path.join(root, "package.json"), "r", encoding="utf-8") as handle:
+                if _form_name(json.load(handle).get("name")):
+                    return True
     except (OSError, ValueError, AttributeError):
         pass
     try:
+        if not _regular(os.path.join(root, "Cargo.toml")):
+            return False
         with open(os.path.join(root, "Cargo.toml"), "rb") as handle:
             package = tomllib.load(handle).get("package")
             if isinstance(package, dict) and _form_name(package.get("name")):
@@ -100,15 +117,15 @@ def get_workspace() -> dict:
 
 @router.post("/workspace/open")
 async def open_workspace(request: Request) -> dict:
-    body = await request.json()
-    path = body.get("path") if isinstance(body, dict) else None
+    body = await _json(request)
+    path = body.get("path")
     if not isinstance(path, str) or not os.path.isabs(path):
         raise HTTPException(status_code=400, detail="path must be absolute")
     if not os.path.isdir(path):
         raise HTTPException(status_code=404, detail="not a directory")
     root = ws.set_current(path)
     ws.push_recent(root)
-    return _state()
+    return await run_in_threadpool(_state)
 
 
 @router.get("/workspace/recent")
@@ -118,8 +135,8 @@ def get_recent() -> dict:
 
 @router.delete("/workspace/recent")
 async def delete_recent(request: Request) -> dict:
-    body = await request.json()
-    path = body.get("path") if isinstance(body, dict) else None
+    body = await _json(request)
+    path = body.get("path")
     if not isinstance(path, str):
         raise HTTPException(status_code=400, detail="path required")
     ws.drop_recent(path)
@@ -219,9 +236,15 @@ def _atomic_write(target: str, data: bytes) -> None:
 
 @router.put("/workspace/file")
 async def write_file(request: Request) -> dict:
-    body = await request.json()
-    if not isinstance(body, dict) or not isinstance(body.get("path"), str) or not isinstance(body.get("text"), str):
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > WRITE_MAX:
+        raise HTTPException(status_code=413, detail="file is larger than 8 MiB")
+    body = await _json(request)
+    if not isinstance(body.get("path"), str) or not isinstance(body.get("text"), str):
         raise HTTPException(status_code=400, detail="path and text required")
+    if len(body["text"]) > WRITE_MAX:
+        raise HTTPException(status_code=413, detail="file is larger than 8 MiB")
+    create = body.get("create") is True
     expected = body.get("expectedMtime")
     if expected is not None and (isinstance(expected, bool) or not isinstance(expected, (int, float))):
         raise HTTPException(status_code=400, detail="expectedMtime must be a number or null")
@@ -232,6 +255,10 @@ async def write_file(request: Request) -> dict:
         raise HTTPException(status_code=400, detail="path is a directory")
     if not os.path.isdir(os.path.dirname(real)):
         raise HTTPException(status_code=404, detail="parent folder does not exist")
+    if create and os.path.lexists(real):
+        raise HTTPException(status_code=409, detail="already exists")
+    if os.path.exists(real) and not os.access(real, os.W_OK):
+        raise HTTPException(status_code=403, detail="file is read only")
     if expected is not None:
         try:
             current = os.stat(real).st_mtime
@@ -296,10 +323,14 @@ async def rename(request: Request) -> dict:
         raise HTTPException(status_code=409, detail="already exists")
     if not os.path.isdir(os.path.dirname(dst)):
         raise HTTPException(status_code=404, detail="parent folder does not exist")
+    if dst_rel == src_rel or dst_rel.startswith(src_rel + "/"):
+        raise HTTPException(status_code=409, detail="cannot move a folder into itself")
     try:
         os.rename(src, dst)
     except PermissionError:
         raise HTTPException(status_code=403, detail="permission denied")
+    except OSError as err:
+        raise HTTPException(status_code=409, detail=err.strerror or "rename failed")
     return {"from": src_rel, "to": dst_rel}
 
 
@@ -328,7 +359,7 @@ def _trim(text: str) -> str:
 
 
 def _rg_search(rg: str, base: str, q: str, regex: bool, case: bool, glob: str, cap: int) -> list[dict]:
-    args = [rg, "--json", "--hidden", "--no-ignore", "--no-messages", "--max-columns", "2000", "--case-sensitive" if case else "--ignore-case"]
+    args = [rg, "--json", "--hidden", "--no-ignore", "--no-messages", "--max-columns", "2000", "--max-filesize", "4M", "--case-sensitive" if case else "--ignore-case"]
     for name in ws.HIDDEN_NAMES:
         args += ["--glob", f"!{name}"]
     if glob:
@@ -412,6 +443,8 @@ def _py_search(base: str, q: str, regex: bool, case: bool, glob: str, cap: int) 
 def search(q: str = "", regex: bool = False, case: bool = False, glob: str = "", limit: int = 200) -> dict:
     if not q:
         raise HTTPException(status_code=400, detail="q required")
+    if "\0" in q or "\0" in glob:
+        raise HTTPException(status_code=400, detail="bad query")
     base = _base()
     cap = min(SEARCH_LIMIT_MAX, max(1, limit))
     rg = find_bin("rg")
@@ -419,6 +452,8 @@ def search(q: str = "", regex: bool = False, case: bool = False, glob: str = "",
         engine = "rg"
         hits = _rg_search(rg, base, q, bool(regex), bool(case), glob.strip(), cap)
     else:
+        if regex:
+            raise HTTPException(status_code=400, detail="regular expression search needs ripgrep (rg) on this system")
         engine = "python"
         hits = _py_search(base, q, bool(regex), bool(case), glob.strip(), cap)
     return {"hits": hits[:cap], "truncated": len(hits) > cap, "engine": engine}

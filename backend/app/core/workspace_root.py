@@ -107,6 +107,6 @@ def resolve(rel: str, *, write: bool = False, follow: bool = True) -> tuple[str,
         raise Refused(403, "path leaves the workspace")
     if write:
         inner = _parts(os.path.relpath(real, base)) if real != base else []
-        if any(part in PROTECTED_NAMES for part in parts) or any(part in PROTECTED_NAMES for part in inner):
+        if any(part.lower() in PROTECTED_NAMES for part in parts) or any(part.lower() in PROTECTED_NAMES for part in inner):
             raise Refused(403, "the git folder is read only")
     return real, "/".join(parts)

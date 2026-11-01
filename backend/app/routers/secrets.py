@@ -32,7 +32,7 @@ def _names() -> list[str]:
     items = data.get("names") if isinstance(data, dict) else None
     if not isinstance(items, list):
         return []
-    return sorted({item for item in items if isinstance(item, str) and NAME_RE.match(item)})
+    return sorted({item for item in items if isinstance(item, str) and NAME_RE.fullmatch(item)})
 
 
 def _save(names: list[str]) -> None:
@@ -43,7 +43,7 @@ def _save(names: list[str]) -> None:
 
 
 def _check(name: str) -> None:
-    if not NAME_RE.match(name):
+    if not NAME_RE.fullmatch(name):
         raise HTTPException(status_code=400, detail="bad secret name")
 
 
