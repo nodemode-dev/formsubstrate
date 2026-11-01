@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -e
+source "$(dirname "$0")/lib.sh"
+cd "$SUBFORM_ROOT"
+pids=()
+( cd backend && ./boot_backend ) &
+pids+=($!)
+( cd frontend && bash ./boot_frontend ) &
+pids+=($!)
+trap 'kill "${pids[@]}" 2>/dev/null' EXIT INT TERM
+sf_say "frontend http://localhost:5650 · backend http://127.0.0.1:${SUBFORM_PORT:-5655}"
+wait

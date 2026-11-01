@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -e
+source "$(dirname "$0")/lib.sh"
+sf_say "installing backend"
+( cd "$SUBFORM_ROOT/backend" && ./oc_install )
+sf_say "installing frontend"
+( cd "$SUBFORM_ROOT/frontend" && bash ./oc_install )
+sf_say "done. Boot with ./subform"

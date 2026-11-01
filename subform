@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -e
+cd "$(dirname "$0")"
+version() { sed -n 's/^__version__ = "\(.*\)"$/\1/p' backend/app/__init__.py 2>/dev/null; }
+usage() {
+  printf 'subform %s - the Form family developer workbench\n' "$(version)"
+  cat << 'EOF'
+
+usage: ./subform [command] [options]
+
+  (none) | boot       boot backend (5655) and frontend (5650) together
+  install             install the backend and the frontend
+  backend             boot the backend only
+  frontend            boot the frontend only
+  serve               serve the built frontend from the backend on 127.0.0.1:5655
+  doctor              check the toolchain, installs and ports
+  clean [--all]       remove build output (--all also venv and node_modules)
+  version             the version and build (also --version)
+  help                this text
+EOF
+}
+cmd="${1:-boot}"
+[ $# -gt 0 ] && shift
+case "$cmd" in
+  boot|dev) exec setup/boot_all "$@" ;;
+  install) exec setup/install_all "$@" ;;
+  backend) exec setup/boot_backend "$@" ;;
+  frontend) exec setup/boot_frontend "$@" ;;
+  serve) exec setup/serve "$@" ;;
+  doctor) exec setup/doctor "$@" ;;
+  clean) exec setup/clean "$@" ;;
+  version|--version|-V)
+    printf 'subform %s' "$(version)"
+    commit="$(git rev-parse --short HEAD 2>/dev/null || true)"
+    [ -n "$commit" ] && printf ' (%s)' "$commit"
+    printf '\n' ;;
+  help|-h|--help) usage ;;
+  *) printf '[subform] unknown command: %s\n\n' "$cmd"; usage; exit 2 ;;
+esac
