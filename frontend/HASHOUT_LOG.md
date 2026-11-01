@@ -1863,3 +1863,35 @@ The ten core variables follow the existing profile shape so the boot arrays stay
 - logged: v0.8.0 · 2026-10-30
 
 The old app had a right rail and a stage split between canvas and code, each with a drag sash and persisted size. StagePanels holds both as hosts (a tabbed right panel, and a split pane beside the editor whose width is a percentage of the editor area) so other features mount into rightSection and splitHost. State lives in its own localStorage key and is applied to CSS variables when the workbench is built, before the window is shown, so there is no layout shift on start. The right column is 0px when closed or empty. bindSash is shared: pointer capture with one rAF write per frame, arrow keys (Shift for larger steps), Home or double-click to reset, Enter to collapse. The sidebar and terminal dock keep their own sash code, which already persists to prefs.
+
+### frontend/src/ui/panels/stage-panels.ts · rightSection availability
+
+- refers-to: frontend/src/ui/panels/stage-panels.ts :: StagePanels.rightSection, shownId; frontend/src/extensions/registry.ts :: SidebarSection.setAvailable
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+A right section can be switched off (setAvailable) so the formslot slot card disappears when formslot is not installed or is turned off. The saved tab id is kept as the wanted tab; shownId falls back to the first available section, so the persisted choice returns when the section comes back and the first registration cannot overwrite it. The tab strip hides below two available sections. Left and right arrows move between tabs.
+
+### frontend/src/ui/status.ts · status bar tiers
+
+- refers-to: frontend/src/styles/shell.css :: .cv-status container st; frontend/src/styles/tokens.css :: --size-st-*
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+The bar is a size container and drops items by width only, never by content, so nothing moves when a value changes. Priority, lowest first: formslot saved tokens and the job bar (below 1360 px), workspace name (below 1200), engine name, narrower language server and formslot items and a smaller hint minimum with a tighter gap (below 1040). Checked with every optional item forced visible at 900, 1100 and 1440 px: no item right edge passes the bar. Fixed item sizes are size tokens.
+
+### frontend/src/ui/editor/lsp.ts · LspManager.ensure
+
+- refers-to: frontend/src/ui/editor/lsp.ts :: LspManager.ensure, Session.lostAt, RETRY_MS
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+A stopped session is kept for five seconds after it stopped, so opening files while the engine or server is down does not create a socket each time. After that one new session is tried; Restart Language Servers still resets at once. This covers review item 21.
+
+### frontend/src/io/git.ts · refusable
+
+- refers-to: frontend/src/io/git.ts :: refusable, REFUSAL
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+Push and sign-and-push now go through request. request keeps only the detail text of a failed reply, so a 409 whose detail begins "not pushed" or "not signed" is returned as a refusal with that text as the check and no output (the engine sends an empty output for every refusal). Other failures throw GitError as before. Review item 16.

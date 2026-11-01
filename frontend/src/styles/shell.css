@@ -136,7 +136,7 @@ body.large-tabs .cv-tab-name { font-size: var(--fs-14); }
 
 .cv-stage { position: relative; overflow: hidden; min-width: 0; min-height: 0; background: var(--bg-primary); }
 
-.cv-status { display: flex; align-items: center; gap: var(--space-4); padding: 0 var(--space-4); background: var(--bg-secondary); border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: var(--fs-11); white-space: nowrap; overflow: hidden; }
+.cv-status { container: st / inline-size; display: flex; align-items: center; gap: var(--space-4); padding: 0 var(--space-4); background: var(--bg-secondary); border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: var(--fs-11); white-space: nowrap; overflow: hidden; }
 .cv-st-tools { display: flex; align-items: center; gap: var(--space-0); flex: none; }
 .cv-st-tools .cv-st-btn { width: var(--ctl-sm); height: var(--ctl-sm); }
 .cv-st-btn svg { width: 14px; height: 14px; }
@@ -148,7 +148,7 @@ body.large-tabs .cv-tab-name { font-size: var(--fs-14); }
 .cv-st-dims { min-width: 120px; font-variant-numeric: tabular-nums; }
 .cv-st-info { flex: none; width: 196px; height: 20px; padding: 0 var(--space-1); border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: inherit; font: inherit; font-variant-numeric: tabular-nums; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .cv-st-info:hover { border-color: var(--border-color); }
-.cv-st-busy { display: inline-flex; visibility: hidden; align-items: center; gap: var(--space-1); width: 296px; flex: none; overflow: hidden; white-space: nowrap; color: var(--text-secondary); }
+.cv-st-busy { display: inline-flex; visibility: hidden; align-items: center; gap: var(--space-1); width: var(--size-st-busy); flex: none; overflow: hidden; white-space: nowrap; color: var(--text-secondary); }
 .cv-st-busy.is-shown { visibility: visible; cursor: pointer; }
 .cv-st-bar { position: relative; flex: none; width: 56px; height: 4px; border-radius: var(--radius-hair); background: var(--border-color); overflow: hidden; }
 .cv-st-bar > i { position: absolute; inset: 0 auto 0 0; width: var(--p, 0%); background: var(--accent-color); transition: width 120ms linear; }
@@ -172,6 +172,21 @@ body.large-tabs .cv-tab-name { font-size: var(--fs-14); }
 .cv-st-proof { flex: 0 8 auto; max-width: 170px; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--accent-color); }
 .cv-st-hint { flex: 1 1 260px; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; }
 .cv-st-hint.is-error { color: var(--danger); }
+@container st (max-width: 1359px) {
+  .cv-app > .cv-status .cv-st-saved { display: none; }
+  .cv-app > .cv-status .cv-st-busy { width: var(--size-st-busy-sm); }
+  .cv-app > .cv-status .cv-st-bar, .cv-app > .cv-status .cv-st-steps { display: none; }
+}
+@container st (max-width: 1199px) {
+  .cv-app > .cv-status .cv-st-ws { display: none; }
+}
+@container st (max-width: 1039px) {
+  .cv-app > .cv-status { gap: var(--space-3); }
+  .cv-app > .cv-status .cv-st-engine { display: none; }
+  .cv-app > .cv-status .cv-st-lsp { width: var(--size-st-lsp-sm); }
+  .cv-app > .cv-status .cv-st-formslot { flex-basis: var(--size-st-formslot-sm); }
+  .cv-app > .cv-status .cv-st-hint { min-width: var(--size-st-hint-min-sm); }
+}
 
 .cv-jobs { position: fixed; z-index: var(--z-menu); pointer-events: auto; display: flex; flex-direction: column; width: 440px; max-width: calc(100vw - 16px); max-height: 50vh; border: 1px solid var(--line-1); border-radius: var(--radius-md); background: var(--bg-secondary); box-shadow: var(--shadow-lg); color: var(--text-primary); font-size: var(--fs-12); }
 .cv-jobs[hidden] { display: none; }

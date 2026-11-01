@@ -164,3 +164,19 @@ Accept all and commit could commit a draft written for another target, or nothin
 - logged: v0.7.1 · 2026-10-30
 
 Copy lines and scores come from MCP JSON, so a one-element lines array printed "5-undefined" and a null score threw inside paint. The range needs two entries, a single entry prints alone, and the score must be a finite number. Layout: the provenance badge in review rows and the diff bar and the saved-tokens span in session rows used to appear and push their neighbours. The root element now carries data-formslot on or off; with it on, the badge keeps a fixed width and uses visibility hidden, and the saved span has a minimum width. Slot paths in gate cards are right-to-left so the tail shows; a left-to-right mark before and after the text stops a leading or trailing slash from jumping to the other end.
+
+### frontend/src/extensions/lsp/index.ts · outline-right
+
+- refers-to: frontend/src/extensions/lsp/index.ts :: setup; /home/claude/ref2/frontend/src/extensions/lsp/index.ts :: outline right-section
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+Substrata kept the outline in the right panel; here a second OutlinePanel is mounted in a right section (id outline-right) and the sidebar one stays. Show Outline reveals the right one, Show Outline in the Sidebar the left one. Two instances are independent and cheap.
+
+### frontend/src/extensions/formslot/index.ts · SlotCard
+
+- refers-to: frontend/src/extensions/formslot/index.ts :: SlotCard; frontend/src/styles/formslot.css :: .cv-fsc
+- kind: explainer
+- logged: v0.10.0 · 2026-10-30
+
+Right-panel card for the active file. It asks slot_find for the workspace-relative path, keeps unit hits whose path equals the file, and checks up to five slot hits with slot_get for the file in their files list. Drift for the file comes from formslotState.driftFor. Fetches run once per file while formslot is running; rows are patched by key and the empty note is absolutely placed, so arriving content shifts nothing. The section is unavailable when formslot is not installed or turned off. The hidden rule for right tabs sits in formslot.css because workbench.css is not in this change.

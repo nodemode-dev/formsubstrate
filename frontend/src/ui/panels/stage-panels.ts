@@ -20,6 +20,7 @@ interface RightPanel {
   title: string;
   tab: HTMLButtonElement;
   host: HTMLElement;
+  available: boolean;
 }
 
 const clampN = (n: unknown, lo: number, hi: number, d: number): number => (typeof n === 'number' && Number.isFinite(n) ? Math.round(Math.min(hi, Math.max(lo, n))) : d);
@@ -87,26 +88,52 @@ export class StagePanels {
       const b = e.target instanceof Element ? e.target.closest<HTMLButtonElement>('.cv-wb-rtab') : null;
       if (b?.dataset.panel) this.showRight(b.dataset.panel);
     });
+    this.tabs.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const ids = [...this.panels.values()].filter((p) => p.available).map((p) => p.id);
+      const at = ids.indexOf(this.shownId());
+      if (at < 0 || ids.length < 2) return;
+      e.preventDefault();
+      const next = ids[(at + (e.key === 'ArrowRight' ? 1 : ids.length - 1)) % ids.length];
+      this.showRight(next);
+      this.panels.get(next)?.tab.focus();
+    });
     onLanguage(() => this.relabel());
   }
 
-  get rightVisible(): boolean { return this.state.rightOpen && this.panels.size > 0; }
+  get rightVisible(): boolean { return this.state.rightOpen && this.shownId() !== ''; }
+
+  private shownId(): string {
+    const want = this.panels.get(this.activeId);
+    if (want?.available) return want.id;
+    for (const p of this.panels.values()) if (p.available) return p.id;
+    return '';
+  }
   get splitVisible(): boolean { return this.state.splitOpen; }
 
   rightSection(opts: SidebarSectionOptions): SidebarSection {
     const tab = el<HTMLButtonElement>(`<button class="cv-wb-act cv-wb-rtab" type="button" role="tab" data-panel="${opts.id}">${icon(opts.icon, 16)}</button>`);
     const host = el(`<div class="cv-wb-panel" data-panel="${opts.id}" hidden></div>`);
-    this.panels.set(opts.id, { id: opts.id, title: opts.title, tab, host });
+    const panel: RightPanel = { id: opts.id, title: opts.title, tab, host, available: true };
+    this.panels.set(opts.id, panel);
     this.tabs.append(tab);
     this.bodies.append(host);
     opts.render(host);
-    if (!this.panels.has(this.activeId) || !this.activeId) this.activeId = opts.id;
+    if (!this.activeId) this.activeId = opts.id;
     this.apply();
-    return { host, reveal: () => this.showRight(opts.id) };
+    return {
+      host,
+      reveal: () => this.showRight(opts.id),
+      setAvailable: (on) => {
+        if (panel.available === on) return;
+        panel.available = on;
+        this.apply();
+      },
+    };
   }
 
   showRight(id: string): void {
-    if (!this.panels.has(id)) return;
+    if (!this.panels.get(id)?.available) return;
     this.activeId = id;
     this.state.rightOpen = true;
     this.apply();
@@ -133,14 +160,18 @@ export class StagePanels {
     const open = this.rightVisible;
     setHidden(this.right, !open);
     setStyleVar(this.root, '--wb-right-w', open ? `${this.state.rightW}px` : '0px');
+    const shown = this.shownId();
+    let count = 0;
     for (const p of this.panels.values()) {
-      const on = p.id === this.activeId;
+      const on = p.id === shown;
+      if (p.available) count++;
       setHidden(p.host, !on);
+      setHidden(p.tab, !p.available);
       setClass(p.tab, 'is-active', on);
       const selected = String(on);
       if (p.tab.getAttribute('aria-selected') !== selected) p.tab.setAttribute('aria-selected', selected);
     }
-    setHidden(this.tabs, this.panels.size < 2);
+    setHidden(this.tabs, count < 2);
     const now = String(this.state.rightW);
     if (this.rightGrip.getAttribute('aria-valuenow') !== now) {
       this.rightGrip.setAttribute('aria-valuenow', now);
@@ -159,7 +190,7 @@ export class StagePanels {
   }
 
   private relabel(): void {
-    const active = this.panels.get(this.activeId);
+    const active = this.panels.get(this.shownId());
     setText(this.title, active ? t(active.title) : '');
     for (const p of this.panels.values()) {
       setTitle(p.tab, t(p.title));

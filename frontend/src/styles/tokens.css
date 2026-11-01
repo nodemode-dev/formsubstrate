@@ -72,6 +72,23 @@
   --ctl: 32px;
   --ctl-lg: 36px;
   --ctl-xl: 40px;
+  --size-dot: 8px;
+  --size-icon-sm: 14px;
+  --size-chip-h: 20px;
+  --size-st-lsp: 232px;
+  --size-st-lsp-sm: 168px;
+  --size-st-formslot: 140px;
+  --size-st-formslot-sm: 104px;
+  --size-st-saved: 100px;
+  --size-st-busy: 296px;
+  --size-st-busy-sm: 96px;
+  --size-st-hint-min: 120px;
+  --size-st-hint-min-sm: 48px;
+  --size-gate-w: 360px;
+  --size-dbg-meta-h: 34px;
+  --size-dbg-stack-h: 112px;
+  --size-dbg-console-h: 196px;
+  --size-sc-card-h: 76px;
 
   --bg-input: var(--bg-tertiary);
   --bg-hover: rgba(255, 255, 255, 0.06);

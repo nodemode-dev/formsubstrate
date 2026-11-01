@@ -48,19 +48,21 @@ const query = (params: Record<string, string | number | boolean | null | undefin
   return s ? `?${s}` : '';
 };
 
+const REFUSAL = /^not (pushed|signed)/;
+
 const post = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) });
 const put = (body: unknown): RequestInit => ({ method: 'PUT', body: JSON.stringify(body) });
 const withSession = <T extends object>(body: T, session?: string | null): T & { session?: string } => (session ? { ...body, session } : body);
 
 async function refusable(path: string, payload: object): Promise<{ ok: boolean; check: string; output: string }> {
-  const res = await fetch(path, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json', Accept: 'application/json' } });
-  let data: Record<string, unknown> = {};
-  try { data = (await res.json()) as Record<string, unknown>; } catch { data = {}; }
-  const check = typeof data.check === 'string' ? data.check : '';
-  const output = typeof data.output === 'string' ? data.output : '';
-  if (res.ok) return { ok: data.ok !== false, check, output };
-  if (check) return { ok: false, check, output: output || (typeof data.detail === 'string' ? data.detail : '') };
-  throw new GitError(typeof data.detail === 'string' ? data.detail : res.statusText, res.status);
+  try {
+    const data = await request<Record<string, unknown>>(path, post(payload));
+    return { ok: data.ok !== false, check: typeof data.check === 'string' ? data.check : '', output: typeof data.output === 'string' ? data.output : '' };
+  } catch (err) {
+    const e = asGitError(err);
+    if (e.status === 409 && REFUSAL.test(e.message)) return { ok: false, check: e.message, output: '' };
+    throw e;
+  }
 }
 
 export const git = {

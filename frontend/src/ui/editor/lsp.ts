@@ -80,6 +80,7 @@ const REQUEST_MS = 20000;
 const SYNC_MS = 300;
 const PULL_RETRY_MS = 1600;
 const IDLE_MS = 4000;
+const RETRY_MS = 5000;
 const TAG = /"method":\s*"subform\//;
 
 const extOf = (path: string): string => {
@@ -178,6 +179,7 @@ class Session {
   version: string | null = null;
   error = '';
   install: string[] = [];
+  lostAt = 0;
   readonly client: LSPClient;
   readonly workspace: SfWorkspace;
   readonly raw = new Map<string, RawDiagnostic[]>();
@@ -280,6 +282,7 @@ class Session {
   private set(state: LspState): void {
     if (this.state === state) return;
     this.state = state;
+    if (state === 'stopped') this.lostAt = Date.now();
     if (state === 'unavailable' || state === 'stopped') this.clearPulls();
     this.mgr.emit('state');
     if (state === 'unavailable' || state === 'stopped') this.mgr.onLost(this);
@@ -500,7 +503,7 @@ export class LspManager {
   private ensure(lang: LspLang, root: string): Session {
     const have = this.sessions.get(lang);
     const uri = fileUri(root);
-    if (have && have.rootUri === uri && (have.state !== 'stopped' || this.refreshing)) return have;
+    if (have && have.rootUri === uri && (have.state !== 'stopped' || this.refreshing || Date.now() - have.lostAt < RETRY_MS)) return have;
     have?.dispose();
     const made = new Session(lang, uri, this);
     this.sessions.set(lang, made);

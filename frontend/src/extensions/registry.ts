@@ -16,6 +16,7 @@ export interface SidebarSectionOptions {
 export interface SidebarSection {
   host: HTMLElement;
   reveal(): void;
+  setAvailable?(on: boolean): void;
 }
 
 export interface SearchItem {

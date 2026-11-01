@@ -244,6 +244,12 @@ register({
       icon: 'code',
       render: (host) => { new OutlinePanel(host, ctx, shell); },
     });
+    const outlineRight = shell.rightSection?.({
+      id: 'outline-right',
+      title: 'Outline',
+      icon: 'code',
+      render: (host) => { new OutlinePanel(host, ctx, shell); },
+    });
     const problemsSection = shell.sidebarSection({
       id: 'problems',
       title: 'Problems',
@@ -260,7 +266,8 @@ register({
       { id: 'lsp-references', label: 'Find All References', keys: ['Shift+F12'], enabled: onCode, run: () => { lsp.run(findReferences); } },
       { id: 'lsp-rename', label: 'Rename Symbol', keys: ['F2'], enabled: onCode, run: () => { lsp.run(renameSymbol); } },
       { id: 'lsp-format', label: 'Format Document', keys: ['Shift+Alt+F'], enabled: onCode, run: () => { lsp.run(formatDocument); } },
-      { id: 'lsp-outline', label: 'Show Outline', run: () => outlineSection.reveal() },
+      { id: 'lsp-outline', label: 'Show Outline', run: () => (outlineRight ?? outlineSection).reveal() },
+      { id: 'lsp-outline-left', label: 'Show Outline in the Sidebar', run: () => outlineSection.reveal() },
       { id: 'lsp-problems', label: 'Show Problems', run: () => problemsSection.reveal() },
       { id: 'lsp-servers', label: 'Language Servers...', run: () => { servers ??= new ServersDialog(); void servers.show(); } },
       { id: 'lsp-restart', label: 'Restart Language Servers', enabled: () => ctx.store.docs.length > 0, run: () => lsp.restart(ctx.store.docs.map((d) => d.path)) },

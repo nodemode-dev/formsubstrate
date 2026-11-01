@@ -11,7 +11,7 @@
 .cv-lsp-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary); }
 .cv-lsp-detail { min-width: 0; flex: 1 1 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-muted); font-size: var(--fs-11); }
 .cv-lsp-prob { height: calc(var(--wb-row-h) * 2); align-items: flex-start; padding-top: var(--space-1); }
-.cv-lsp-sev { display: inline-flex; flex: none; width: 14px; height: 14px; margin-top: var(--space-0); color: var(--text-muted); }
+.cv-lsp-sev { display: inline-flex; flex: none; width: var(--size-icon-sm); height: var(--size-icon-sm); margin-top: var(--space-0); color: var(--text-muted); }
 .cv-lsp-prob[data-sev="1"] .cv-lsp-sev { color: var(--danger); }
 .cv-lsp-prob[data-sev="2"] .cv-lsp-sev { color: var(--warn); }
 .cv-lsp-text { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; overflow: hidden; }
@@ -29,7 +29,7 @@
 .cv-lsp-srv-install { display: flex; flex-direction: column; gap: var(--space-0); }
 .cv-lsp-srv-install code { display: block; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--surface-field); color: var(--text-primary); font-family: var(--font-mono); font-size: var(--fs-11); overflow-wrap: anywhere; user-select: text; }
 
-.cv-st-lsp { display: inline-flex; align-items: center; flex: none; gap: var(--space-2); width: 232px; height: 20px; padding: 0 var(--space-1); border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: inherit; font: inherit; text-align: left; white-space: nowrap; overflow: hidden; cursor: pointer; }
+.cv-st-lsp { display: inline-flex; align-items: center; flex: none; gap: var(--space-2); width: var(--size-st-lsp); height: var(--size-chip-h); padding: 0 var(--space-1); border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: inherit; font: inherit; text-align: left; white-space: nowrap; overflow: hidden; cursor: pointer; }
 .cv-st-lsp:hover { border-color: var(--border-color); }
 .cv-st-lsp.is-idle { visibility: hidden; }
 .cv-st-lsp.is-unavailable, .cv-st-lsp.is-stopped { color: var(--warn); }

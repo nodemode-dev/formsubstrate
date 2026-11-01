@@ -504,6 +504,135 @@ class FormslotPanel {
   }
 }
 
+interface CardRow { key: string; kind: 'slot' | 'unit'; title: string; chip: string; where: string; line: number }
+
+const CARD_ROW = '<button class="cv-fsc-row" type="button"><span class="cv-fs-chip cv-fsc-kind"></span><span class="cv-fsc-name"></span><span class="cv-fsc-where"></span></button>';
+const CARD_SLOT_CHECKS = 5;
+
+class SlotCard {
+  private readonly file: HTMLElement;
+  private readonly drift: HTMLElement;
+  private readonly list: HTMLElement;
+  private readonly empty: HTMLElement;
+  private rows: CardRow[] = [];
+  private rel = '';
+  private fetched = '';
+  private seq = 0;
+  private frame = 0;
+  private problem = false;
+
+  constructor(host: HTMLElement, private readonly ctx: ExtensionContext, private readonly shell: Shell) {
+    mountOnce(host, '<div class="cv-fsc"><div class="cv-fsc-head"><span class="cv-fsc-file"></span><span class="cv-fs-chip cv-fsc-drift"></span></div>' +
+      '<div class="cv-fsc-body"><div class="cv-fsc-list" role="list"></div><p class="cv-fsc-empty cv-note"></p></div></div>');
+    this.file = q(host, '.cv-fsc-file');
+    this.drift = q(host, '.cv-fsc-drift');
+    this.list = q(host, '.cv-fsc-list');
+    this.empty = q(host, '.cv-fsc-empty');
+    this.list.addEventListener('click', (e) => {
+      const row = e.target instanceof Element ? e.target.closest<HTMLElement>('.cv-fsc-row') : null;
+      const path = this.ctx.store.active?.path;
+      if (!row || !path) return;
+      if (row.dataset.kind === 'unit') this.shell.revealLine(path, Number(row.dataset.line) || 1);
+      else window.dispatchEvent(new CustomEvent(FORMSLOT_OPEN));
+    });
+    ctx.store.on('active', () => this.schedule());
+    ctx.store.on('docs', () => this.schedule());
+    ctx.store.on('workspace', () => { this.fetched = ''; this.schedule(); });
+    formslotState.on('status', () => this.schedule());
+    formslotState.on('drift', () => this.schedule());
+    onLanguage(() => this.paint());
+    this.schedule();
+  }
+
+  private schedule(): void {
+    if (this.frame) return;
+    this.frame = requestAnimationFrame(() => { this.frame = 0; this.sync(); });
+  }
+
+  private relative(): string {
+    const path = this.ctx.store.active?.path ?? '';
+    const root = this.ctx.store.workspace?.path ?? '';
+    return root && path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path;
+  }
+
+  private sync(): void {
+    const rel = this.relative();
+    const live = formslotState.isEnabled && formslotState.phase === 'running' && !!rel;
+    const key = live ? rel : '';
+    if (rel !== this.rel) { this.rel = rel; this.rows = []; this.problem = false; this.fetched = ''; }
+    if (key && key !== this.fetched) {
+      this.fetched = key;
+      void this.load(rel);
+    } else if (!key && this.fetched) {
+      this.fetched = '';
+      this.seq++;
+      this.rows = [];
+    }
+    this.paint();
+  }
+
+  private async load(rel: string): Promise<void> {
+    const mine = ++this.seq;
+    try {
+      const found = (await formslot.find(rel, 25)).hits;
+      const units = found.filter((h) => h.kind !== 'slot' && h.kind !== 'memory' && h.path === rel);
+      const slots = found.filter((h) => h.kind === 'slot').slice(0, CARD_SLOT_CHECKS);
+      const details = await Promise.all(slots.map((h) => formslot.get(h.id).catch(() => null)));
+      if (mine !== this.seq) return;
+      const rows: CardRow[] = [];
+      slots.forEach((h, i) => {
+        if (details[i]?.files?.some((f) => f.path === rel)) rows.push({ key: `slot:${h.id}`, kind: 'slot', title: h.title || h.id, chip: h.status ?? '', where: h.id, line: 0 });
+      });
+      units.forEach((h, i) => rows.push({ key: `unit:${h.id}:${i}`, kind: 'unit', title: h.title || h.qualified || h.id, chip: h.unit_kind ?? '', where: startLine(h.lines) > 0 ? `:${startLine(h.lines)}` : '', line: startLine(h.lines) }));
+      this.rows = rows;
+      this.problem = false;
+    } catch {
+      if (mine !== this.seq) return;
+      this.rows = [];
+      this.problem = true;
+      this.fetched = '';
+    }
+    this.paint();
+  }
+
+  private paint(): void {
+    setText(this.file, this.rel ? baseName(this.rel) : '');
+    setTitle(this.file, this.rel);
+    const d = this.rel && formslotState.isEnabled ? formslotState.driftFor(this.rel) : undefined;
+    setClass(this.drift, 'is-idle', !d);
+    setText(this.drift, d ? `${d.slot} · ${t(DRIFT_LABEL[d.state] ?? d.state)}` : '');
+    if (d && this.drift.dataset.state !== d.state) this.drift.dataset.state = d.state;
+    patchList(this.list, this.rows, {
+      key: (r) => r.key,
+      create: (r) => fillCard(el<HTMLElement>(CARD_ROW), r),
+      update: (node, r) => { fillCard(node, r); },
+    });
+    const phase = formslotState.phase;
+    let note = '';
+    if (!this.rows.length) {
+      if (!this.rel) note = t('Open a file to see the slots that cover it');
+      else if (!formslotState.isEnabled) note = t('formslot is turned off in Preferences.');
+      else if (this.problem) note = t('Could not read the slots for this file');
+      else if (phase === 'running') note = this.fetched ? t('No slot or unit covers this file') : '';
+      else note = t(phase === 'off' ? 'formslot is not running' : phase === 'unreachable' ? 'formslot offline' : 'formslot');
+    }
+    setText(this.empty, note);
+    setHidden(this.empty, !note);
+  }
+}
+
+const baseName = (path: string): string => path.slice(path.lastIndexOf('/') + 1);
+
+function fillCard(node: HTMLElement, r: CardRow): HTMLElement {
+  node.dataset.kind = r.kind;
+  node.dataset.line = String(r.line);
+  setText(q(node, '.cv-fsc-kind'), r.chip || t(r.kind));
+  setText(q(node, '.cv-fsc-name'), r.title);
+  setText(q(node, '.cv-fsc-where'), r.where);
+  setTitle(node, r.where ? `${r.title} ${r.where}` : r.title);
+  return node;
+}
+
 const readOffered = (): Set<string> => {
   try {
     const raw: unknown = JSON.parse(localStorage.getItem(OFFERED_KEY) ?? '[]');
@@ -536,8 +665,15 @@ register({
       icon: 'slot',
       render: (host) => { panel = new FormslotPanel(host, ctx, shell); },
     });
+    const slotRight = shell.rightSection?.({
+      id: 'formslot-slots',
+      title: 'Slots',
+      icon: 'slot',
+      render: (host) => { new SlotCard(host, ctx, shell); },
+    });
     const hasWs = (): boolean => !!ctx.store.workspace;
     ctx.commands.add(
+      { id: 'formslot-slots', label: 'Show Slots for This File', enabled: () => !!slotRight && formslotState.isEnabled && formslotState.phase !== 'missing', run: () => { slotRight?.reveal(); } },
       { id: 'formslot-panel', label: 'formslot', run: () => { section?.reveal(); panel?.focusSearch(); } },
       { id: 'formslot-start', label: 'Start formslot', enabled: () => formslotState.phase === 'off', run: () => { section?.reveal(); void formslotState.start().catch((err: unknown) => toast(detailOf(err), 'error')); } },
       { id: 'formslot-index', label: 'Index Workspace for formslot', enabled: () => hasWs() && formslotState.phase === 'running', run: () => { section?.reveal(); void panel?.index(); } },
@@ -591,6 +727,7 @@ register({
     const markEnabled = (): void => {
       const v = formslotState.isEnabled ? 'on' : 'off';
       if (document.documentElement.dataset.formslot !== v) document.documentElement.dataset.formslot = v;
+      slotRight?.setAvailable?.(formslotState.isEnabled && formslotState.phase !== 'missing');
     };
     markEnabled();
     formslotState.on('status', () => {
