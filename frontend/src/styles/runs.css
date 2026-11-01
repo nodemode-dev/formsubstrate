@@ -37,6 +37,9 @@
 .rn-detail { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 .rn-dhead { display: flex; align-items: center; gap: var(--space-2); flex: none; height: var(--ctl-md); padding: 0 var(--space-3); }
 .rn-dname { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-weight: 600; font-size: var(--fs-12); }
+.rn-review { display: inline-flex; align-items: center; gap: var(--space-1); flex: none; height: var(--ctl-sm); padding: 0 var(--space-2); border: 1px solid var(--line-3); border-radius: var(--radius); background: var(--surface-2); color: var(--text-primary); font-family: inherit; font-size: var(--fs-11); cursor: pointer; }
+.rn-review:hover { background: var(--bg-hover); }
+.rn-review.is-off { visibility: hidden; pointer-events: none; }
 .rn-chip { flex: none; min-width: 64px; box-sizing: border-box; text-align: center; padding: 0 var(--space-1h); border-radius: var(--radius-pill); border: 1px solid var(--line-2); color: var(--text-secondary); font-size: var(--fs-10); line-height: 16px; text-transform: uppercase; letter-spacing: 0.04em; }
 .rn-chip[data-state="running"] { color: var(--accent-ink); border-color: var(--accent-line); }
 .rn-chip[data-state="parked"] { color: var(--warn); }
@@ -44,6 +47,7 @@
 .rn-chip[data-state="failed"], .rn-chip[data-state="interrupted"] { color: var(--danger-text); }
 .rn-dmeta { flex: none; height: 16px; padding: 0 var(--space-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: var(--fs-11); }
 .rn-park { flex: none; margin: var(--space-1h) var(--space-3); padding: var(--space-2); border: 1px solid var(--line-2); border-radius: var(--radius); background: var(--surface-1); font-size: var(--fs-11); color: var(--text-secondary); }
+.rn-parks { flex: none; max-height: 45%; overflow-y: auto; }
 .rn-park-text { overflow-wrap: anywhere; }
 .rn-park-diff { max-height: 120px; margin: var(--space-1h) 0 0; overflow: auto; font-family: var(--font-mono); font-size: var(--fs-10); white-space: pre; color: var(--text-secondary); }
 .rn-park-btns { display: flex; gap: var(--space-2); margin-top: var(--space-2); }

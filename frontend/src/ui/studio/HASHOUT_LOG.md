@@ -91,3 +91,19 @@ Ported from substrata frontend/src/extensions/graphs/index.ts (the saved graphs 
 - logged: v0.14.0 · 2026-10-31
 
 Everything that changes at run time sits in a fixed box: the toolbar and footer have fixed heights, the palette, inspector and JSON columns have fixed widths, the canvas fills the centre absolutely, the zoom row, minimap and its toggle are absolutely placed, and nodes have a fixed size (168 by 52) with the label ellipsised. Layers use `--z-raised` and `--z-selected` only; node colours are mapped from existing syntax and status tokens through a `--k` custom property per kind.
+
+### frontend/src/extensions/runs/index.ts · RunsPanel (integration round)
+
+- refers-to: frontend/src/extensions/runs/index.ts :: RunsPanel.paintParks, loadDetail, start, probeReview; frontend/src/ui/inspector/index.ts :: NodeInspector.show
+- kind: rationale
+- logged: v0.15.0 · 2026-10-31
+
+Studio and runs were exercised together for the first time. The Studio toolbar already rendered `studio.registerAction` actions (the Run button) and the run streamed node status onto the canvas; what failed was around it. Parallel approvals: the panel showed only `parks[0]`, so two tool nodes in parallel were answered one at a time; each park is now a keyed card (`.rn-park[data-park]`) answered with its own id, and a pressed button is disabled until the call returns. Blank inspector: `loadDetail` could be overtaken by an older response (the tail finishing, the list refresh and the debounced reload all fetch the detail), leaving the inspector with a stale running snapshot; responses now carry a ticket and a stale one is dropped, and `NodeInspector.show` no longer resets the chosen visit when the same node is shown again after an engine change. Untrusted workspaces: the window checks before calling, and refuses Claude mode and any graph with a tool node with a sentence in the toast, instead of showing the engine's 403. Review: a Claude run whose worktree exists (GET /api/git/status answers 200 for session `run<id>000`) gets a "Review run changes" button in the run header; the slot is reserved with `visibility`, so it never shifts layout. The engine adds `review` to the run summary when the graph has an agent or evaluator node with edit or plan permission.
+
+### frontend/src/ui/studio/canvas.ts · keyboard model
+
+- refers-to: frontend/src/ui/studio/canvas.ts :: StudioCanvas.layoutOrder, reveal, createNode, updateEdge, paintSelection
+- kind: rationale
+- logged: v0.15.0 · 2026-11-01
+
+The node layer is a `listbox` and each node card an `option` with `tabindex="-1"`, `aria-selected` kept in step with the selection in `paintSelection`, and `aria-label` of kind plus name. The stage stays the single Tab stop; ArrowRight and ArrowDown move focus to the next node in layout order (x, then y, then id), ArrowLeft and ArrowUp to the previous, Home and End to the ends, panning the view just enough to keep the focused node on screen. Focus does not select: Enter selects the focused node (the Studio inspector column and the run Node inspector follow the selection), Delete or Backspace removes the selection, Shift+F10 or the ContextMenu key opens the node menu at the focused node's rect, Escape clears the selection (and cancels a wire first). Edges carry `role="img"` and a label "from to to: label"; they are not focusable, an edge is still selected with the pointer and edited from its menu. The minimap toggle exposes `aria-pressed`; the canvas mode buttons already did, and the runs panel has no toggle buttons (its mode is a select).

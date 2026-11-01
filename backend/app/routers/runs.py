@@ -191,7 +191,7 @@ def cancel_run(run_id: str) -> dict:
 
 
 @router.delete("/runs/{run_id}", dependencies=[Depends(require_window)])
-def delete_run(run_id: str) -> dict:
+async def delete_run(run_id: str) -> dict:
     if not manager.delete(_root(), run_id):
         raise HTTPException(status_code=409, detail="run is active or missing")
     return {"deleted": run_id}

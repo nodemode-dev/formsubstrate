@@ -69,3 +69,29 @@ Every tool except list_files and read_file waits for approval whatever the node 
 - logged: v0.14.0 · 2026-10-30
 
 `format` is removed from the allowed string methods: `'{0.__globals__}'.format(json.loads)` walked attributes outside the evaluator's rules and could read the environment, including the window token. Result sizes are capped at 1 MB each and 8 MB per evaluation (replace, join, `%` with huge or starred widths, repeats), and an evaluation has a 2 second deadline and a step limit.
+
+### backend/app/services/runs/worktree.py · ensure, prepare, restore, sweep
+
+- refers-to: backend/app/services/runs/worktree.py :: ensure, prepare, restore, discard, sweep; backend/app/services/sessions.py :: prepare_worktree, register_target, drop_target, RUN_KIND; backend/app/services/runs/agent.py :: run_claude
+- kind: rationale
+- logged: v0.15.0 · 2026-10-30
+
+Supersedes "gates not attached" above. A graph run with any agent or evaluator node whose `permission` is `edit` or `plan` runs all its agent nodes in its own git worktree on branch `sf/run-<id>`, created the first time an agent node starts (the run record is already on disk by then). The worktree comes from `sessions.prepare_worktree`, the function `sessions.create` now uses too, so it carries the same extras: the `.subform/` exclude, the session `mcp.json`, the generated `settings.json` (attribution off, the PreToolUse and PostToolUse gate hooks), the commit-msg trailer strip and the stored commit identity. A read-only run, and the simulator, keep using the workspace root. The worktree starts from `HEAD`, so uncommitted changes in the workspace are not in it. A workspace that is not a git repository, or has no commit, makes such a node fail with the git message instead of falling back to the workspace root, because the root has no gate.
+The run is registered as a reviewable target: an item with `kind: run` in `sessions._sessions` and the deterministic session id `run<runId>000` (16 characters, so it passes `SESSION_RE`). Because it is a normal item, `gitops.resolve_target`, the review, diff, log, audit, snapshot and comment routes, `gates.create` (a gate from the run opens a card in the window) and the formslot index root check work on it unchanged. `list_sessions`, `_save` and the session events skip `kind: run` items, so a run never appears in the session list and never lands in `sessions.json`, and `_changed` and `_notice` do not publish for it. The registry `run-worktrees.json` in the data folder remembers run id, repo, worktree path and branch; `sessions._entry` calls `worktree.restore` for an unknown id that starts with `run`, so a run from before an engine restart is reviewable again while its folder exists.
+One gate token per run: `gates.session_env` is called once and the same env goes to every agent node of the run (a second call would mint a new token and the first node's hook would get a 403). The child env drops `SUBFORM_WINDOW_TOKEN` (graph agents inherited it before; sessions never did) and adds `SUBFORM_SESSION`, `SUBFORM_GATE_TOKEN`, `SUBFORM_ENGINE`, `FORMSLOT_BIN`. The argv gains `--mcp-config` and `--settings` from the worktree. A gate answered `write` is waived for that path and content digest, as for sessions.
+
+### backend/app/services/runs/worktree.py · sweep, discard
+
+- refers-to: backend/app/services/runs/worktree.py :: sweep, discard, _loop; backend/app/services/runs/manager.py :: RunManager.delete
+- kind: rationale
+- logged: v0.15.0 · 2026-10-30
+
+The worktree is kept while the run is in history and removed when the run is deleted. `manager.delete` and the delete route belong to another change, so the module does not wait to be called: a sweep every 3 seconds (started when the first run worktree is made or restored) looks at each registered run, and when the run is not in memory and its history file is gone it runs `git worktree remove --force`, `worktree prune` and `branch -d` (the branch is kept when it holds commits that are not merged, so no work is lost), closes the gate token, drops the target and the registry entry. A call to `worktree.discard(run_id)` from `manager.delete` would make it immediate; the sweep stays as the fallback. The sweep also moves the target item from working to done, failed or stopped when the run ends, and closes its gates and token. The sweep only starts once a run has used a worktree in this engine process; a registry entry left by an earlier process is swept the next time a run worktree is made or a run target is restored.
+
+### backend/app/services/runs/manager.py · delete
+
+- refers-to: backend/app/services/runs/manager.py :: RunManager.delete, RunManager._discard_worktree; backend/app/routers/runs.py :: delete_run
+- kind: rationale
+- logged: v0.15.0 · 2026-10-31
+
+After the history file is unlinked, `worktree.discard(run_id)` is scheduled on the running loop, so the worktree, its branch and the registry entry go at once instead of at the next sweep. The delete route became `async def` because a threadpool route has no running loop to schedule on. Verified: a real Claude run left a linked worktree and branch, DELETE removed both within three seconds. Run summaries carry `review`, true when `worktree.needs(doc)`; runs read back from disk do not, so the window probes the git status route instead.

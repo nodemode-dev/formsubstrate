@@ -172,6 +172,7 @@ export class NodeInspector {
   }
 
   show(id: string | null): void {
+    const same = id !== null && id === this.current;
     this.current = id;
     const node = id ? this.deps.engine.getDoc().nodes.find((n) => n.id === id) : undefined;
     setHidden(this.empty, !!node);
@@ -194,7 +195,7 @@ export class NodeInspector {
     }
     setHidden(this.noFields, any);
     setHidden(this.apply, !any);
-    this.selectedVisit = 0;
+    if (!same) this.selectedVisit = 0;
     this.paintRun();
   }
 

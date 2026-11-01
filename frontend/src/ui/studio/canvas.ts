@@ -84,7 +84,7 @@ export class StudioCanvas {
       '<marker id="st-arr-hot" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 1L9 5L0 9z" class="cv-st-arr is-hot"/></marker>' +
       '<marker id="st-arr-sel" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 1L9 5L0 9z" class="cv-st-arr is-sel"/></marker>' +
       '</defs><g class="cv-st-edge-layer"></g><path class="cv-st-wire is-off" d=""></path></svg>' +
-      '<div class="cv-st-pills"></div><div class="cv-st-nodes"></div></div>' +
+      '<div class="cv-st-pills"></div><div class="cv-st-nodes" role="listbox" aria-orientation="horizontal"></div></div>' +
       '<p class="cv-st-note cv-note"></p>' +
       '<div class="cv-st-ui cv-st-zoom">' +
       `<button class="cv-st-zbtn" type="button" data-z="in">${icon('zoomIn', 16)}</button>` +
@@ -133,6 +133,7 @@ export class StudioCanvas {
 
   private syncMiniBtn(): void {
     setClass(this.miniBtn, 'is-open', this.miniOpen);
+    this.miniBtn.setAttribute('aria-pressed', String(this.miniOpen));
     const text = this.miniOpen ? t('Hide minimap') : t('Show minimap');
     setTitle(this.miniBtn, text);
     this.miniBtn.setAttribute('aria-label', text);
@@ -234,7 +235,7 @@ export class StudioCanvas {
 
   private createNode(n: GraphNode): HTMLElement {
     const node = el(
-      '<div class="cv-st-node"><span class="cv-st-n-ico"></span><span class="cv-st-n-txt"><span class="cv-st-n-kind"></span><span class="cv-st-n-name"></span></span>' +
+      '<div class="cv-st-node" role="option" tabindex="-1" aria-selected="false"><span class="cv-st-n-ico"></span><span class="cv-st-n-txt"><span class="cv-st-n-kind"></span><span class="cv-st-n-name"></span></span>' +
       '<i class="cv-st-n-dot"></i><i class="cv-st-port is-in"></i><i class="cv-st-port is-out"></i></div>');
     this.nodes.set(n.id, { el: node, kind: '', label: '\u0000', x: NaN, y: NaN, status: '' });
     this.updateNode(node, n);
@@ -257,6 +258,8 @@ export class StudioCanvas {
       setText(q(node, '.cv-st-n-name'), n.label);
       setTitle(node, `${n.label} (${t(kindMeta(n.kind).label)})`);
     }
+    const name = `${t(kindMeta(n.kind).label)} ${n.label}`;
+    if (node.getAttribute('aria-label') !== name) node.setAttribute('aria-label', name);
     const p = this.pos.get(n.id) ?? n;
     if (nv.x !== p.x || nv.y !== p.y) {
       nv.x = p.x; nv.y = p.y;
@@ -286,6 +289,12 @@ export class StudioCanvas {
     ev.from = e.from;
     ev.to = e.to;
     const label = e.label ?? '';
+    const nameOf = (id: string): string => this.nodes.get(id)?.label ?? id;
+    const spoken = `${nameOf(e.from)} ${t('to')} ${nameOf(e.to)}${label ? `: ${label}` : ''}`;
+    if (_node.getAttribute('aria-label') !== spoken) {
+      _node.setAttribute('aria-label', spoken);
+      _node.setAttribute('role', 'img');
+    }
     if (ev.label !== label) {
       ev.label = label;
       setText(ev.pill, label);
@@ -324,7 +333,12 @@ export class StudioCanvas {
 
   private paintSelection(): void {
     const sel = studio.selection;
-    for (const [id, nv] of this.nodes) setClass(nv.el, 'is-selected', sel?.kind === 'node' && sel.id === id);
+    for (const [id, nv] of this.nodes) {
+      const on = sel?.kind === 'node' && sel.id === id;
+      setClass(nv.el, 'is-selected', on);
+      const v = String(on);
+      if (nv.el.getAttribute('aria-selected') !== v) nv.el.setAttribute('aria-selected', v);
+    }
     this.paintEdges();
     this.drawMini();
   }
@@ -477,6 +491,28 @@ export class StudioCanvas {
     if (next !== null) studio.engine.dispatch({ type: 'update_edge', id, label: next.trim() }, 'canvas');
   }
 
+  private layoutOrder(): string[] {
+    return [...this.nodes.keys()].sort((a, b) => {
+      const p = this.pos.get(a), r = this.pos.get(b);
+      return ((p?.x ?? 0) - (r?.x ?? 0)) || ((p?.y ?? 0) - (r?.y ?? 0)) || (a < b ? -1 : 1);
+    });
+  }
+
+  private reveal(id: string): void {
+    const p = this.pos.get(id);
+    if (!p) return;
+    const w = this.stage.clientWidth, h = this.stage.clientHeight;
+    const sx = p.x * this.view.k + this.view.x, sy = p.y * this.view.k + this.view.y;
+    const mx = NODE_W * this.view.k, my = NODE_H * this.view.k;
+    let dx = 0, dy = 0;
+    if (sx < 0) dx = -sx + 24; else if (sx + mx > w) dx = w - sx - mx - 24;
+    if (sy < 0) dy = -sy + 24; else if (sy + my > h) dy = h - sy - my - 24;
+    if (dx || dy) {
+      this.view = { ...this.view, x: this.view.x + dx, y: this.view.y + dy };
+      this.applyView();
+    }
+  }
+
   private nodeMenu(x: number, y: number, id: string): void {
     studio.select({ kind: 'node', id });
     this.menu.show(x, y, [
@@ -614,7 +650,28 @@ export class StudioCanvas {
     stage.addEventListener('keydown', (e) => {
       if (e.target instanceof HTMLElement && e.target.closest('input, textarea, select')) return;
       const mod = e.ctrlKey || e.metaKey;
-      if ((e.key === 'Delete' || e.key === 'Backspace') && studio.selection) {
+      const focused = e.target instanceof HTMLElement ? e.target.closest<HTMLElement>('.cv-st-node') : null;
+      const arrow = ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].indexOf(e.key);
+      if (arrow >= 0 && !mod && !e.altKey) {
+        const order = this.layoutOrder();
+        if (order.length === 0) return;
+        e.preventDefault();
+        const at = focused?.dataset.key ? order.indexOf(focused.dataset.key) : -1;
+        const to = e.key === 'Home' ? 0 : e.key === 'End' ? order.length - 1 : at < 0 ? 0 : (at + (arrow < 2 ? 1 : order.length - 1)) % order.length;
+        const nv = this.nodes.get(order[to]);
+        if (nv) {
+          nv.el.focus({ preventScroll: true });
+          this.reveal(order[to]);
+        }
+      } else if (e.key === 'Enter' && focused?.dataset.key) {
+        e.preventDefault();
+        studio.select({ kind: 'node', id: focused.dataset.key });
+      } else if ((e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) && (focused?.dataset.key || studio.selection?.kind === 'node')) {
+        e.preventDefault();
+        const id = focused?.dataset.key ?? (studio.selection?.id as string);
+        const box = (this.nodes.get(id)?.el ?? focused)?.getBoundingClientRect();
+        if (box) this.nodeMenu(box.left, box.bottom, id);
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && studio.selection) {
         e.preventDefault();
         this.removeSelection();
       } else if (mod && !e.altKey && e.code === 'KeyZ') {

@@ -64,7 +64,13 @@ class Run:
         return {"id": self.id, "status": self.status, "task": self.task[:160],
                 "name": getattr(self.doc, "name", ""), "mode": self.mode,
                 "created": self.created, "events": self.seq,
-                "parked_on": self.parked_on, "parks": self.park_list(), "usage": self.usage}
+                "parked_on": self.parked_on, "parks": self.park_list(), "usage": self.usage,
+                "review": self._review()}
+
+    def _review(self) -> bool:
+        from app.services.runs import worktree
+
+        return worktree.needs(self.doc)
 
     def detail(self) -> dict:
         return {**self.summary(), "events_list": self.events, "nodes": self.visits,
@@ -264,9 +270,18 @@ class RunManager(Engine):
             return False
         try:
             os.unlink(os.path.join(runs_dir(root), f"{run_id}.json"))
-            return True
         except OSError:
             return False
+        self._discard_worktree(run_id)
+        return True
+
+    def _discard_worktree(self, run_id: str) -> None:
+        from app.services.runs import worktree
+
+        try:
+            asyncio.get_running_loop().create_task(worktree.discard(run_id))
+        except RuntimeError:
+            return
 
     def snapshot_glob(self, run: Run, pattern: str) -> dict:
         rx = rt.glob_regex(pattern)

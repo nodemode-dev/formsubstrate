@@ -128,7 +128,7 @@ export class GateCards {
     setText(q(n, '.cv-gate-title'), title);
     if (n.getAttribute('aria-label') !== title) n.setAttribute('aria-label', title);
     const s = sessionsClient.get(g.session);
-    const name = s?.title ?? g.session;
+    const name = s?.title ?? (/^run[a-f0-9]{10}/.test(g.session) ? `${t('Run')} ${g.session.slice(3, 13)}` : g.session);
     setText(q(n, '.cv-gate-session'), name);
     setTitle(q(n, '.cv-gate-session'), name);
     setText(q(n, '.cv-gate-msg'), g.message || `${g.tool} ${g.path}`);

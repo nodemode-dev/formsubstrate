@@ -70,6 +70,7 @@
 }
 .cv-st-stage.is-panning { cursor: grabbing; }
 .cv-st-stage:focus-visible { box-shadow: inset 0 0 0 1px var(--accent-line); }
+.cv-st-node:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 1px; }
 .cv-st-world { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; will-change: transform; }
 .cv-st-edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 .cv-st-pills, .cv-st-nodes { position: absolute; left: 0; top: 0; width: 0; height: 0; }

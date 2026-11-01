@@ -1,5 +1,7 @@
+import { git } from '../../io/git';
 import { detailOf } from '../../io/workspace';
-import { fmtUsage, RUN_SELECTED, RUN_STARTED, runsApi, tailRun, type ParkedOn, type RunDetail, type RunEvent, type RunMode, type RunSummary } from '../../io/runs';
+import { OPEN_REVIEW } from '../../ui/review/review-pane';
+import { fmtUsage, RUN_SELECTED, RUN_STARTED, runsApi, tailRun, type Park, type ParkedOn, type RunDetail, type RunEvent, type RunMode, type RunSummary } from '../../io/runs';
 import { workspaceTrusted } from '../../io/trust';
 import { confirmAction } from '../../ui/dialogs';
 import { mountOnce, patchList, q, setClass, setDisabled, setHidden, setText, setTitle } from '../../ui/dom';
@@ -55,13 +57,11 @@ class RunsPanel {
   private readonly detail: HTMLElement;
   private readonly dName: HTMLElement;
   private readonly dChip: HTMLElement;
+  private readonly reviewBtn: HTMLButtonElement;
+  private reviewFor = '';
+  private detailSeq = 0;
   private readonly dMeta: HTMLElement;
-  private readonly park: HTMLElement;
-  private readonly parkText: HTMLElement;
-  private readonly parkDiff: HTMLElement;
-  private readonly bResume: HTMLButtonElement;
-  private readonly bApprove: HTMLButtonElement;
-  private readonly bDeny: HTMLButtonElement;
+  private readonly parks: HTMLElement;
   private readonly stream: HTMLElement;
   private readonly events: HTMLElement;
   private runs: RunSummary[] = [];
@@ -84,14 +84,10 @@ class RunsPanel {
 </div>
 <div class="rn-listwrap"><div class="rn-list" role="list"></div><p class="rn-empty cv-note"></p></div>
 <div class="rn-detail" hidden>
-<div class="rn-dhead"><span class="rn-dname"></span><span class="rn-chip"></span></div>
+<div class="rn-dhead"><span class="rn-dname"></span><button class="rn-review is-off" type="button" tabindex="-1">${icon('diff', 14)}<span></span></button><span class="rn-chip"></span></div>
 <div class="rn-dmeta"></div>
 <div class="rn-events"></div>
-<div class="rn-park" hidden>
-<div class="rn-park-text"></div>
-<pre class="rn-park-diff" hidden></pre>
-<div class="rn-park-btns"><button class="rn-btn is-primary" type="button" data-act="resume"></button><button class="rn-btn is-primary" type="button" data-act="approve"></button><button class="rn-btn" type="button" data-act="deny"></button></div>
-</div>
+<div class="rn-parks"></div>
 <pre class="rn-stream" hidden></pre>
 </div>
 <p class="rn-note cv-note" hidden></p>
@@ -105,13 +101,12 @@ class RunsPanel {
     this.detail = q(host, '.rn-detail');
     this.dName = q(host, '.rn-dname');
     this.dChip = q(host, '.rn-chip');
+    this.reviewBtn = q<HTMLButtonElement>(host, '.rn-review');
+    this.reviewBtn.addEventListener('click', () => {
+      if (this.current) window.dispatchEvent(new CustomEvent(OPEN_REVIEW, { detail: { session: `run${this.current.id}000` } }));
+    });
     this.dMeta = q(host, '.rn-dmeta');
-    this.park = q(host, '.rn-park');
-    this.parkText = q(host, '.rn-park-text');
-    this.parkDiff = q(host, '.rn-park-diff');
-    this.bResume = q<HTMLButtonElement>(host, '[data-act="resume"]');
-    this.bApprove = q<HTMLButtonElement>(host, '[data-act="approve"]');
-    this.bDeny = q<HTMLButtonElement>(host, '[data-act="deny"]');
+    this.parks = q(host, '.rn-parks');
     this.stream = q(host, '.rn-stream');
     this.events = q(host, '.rn-events');
     this.mode.value = storedMode();
@@ -119,7 +114,7 @@ class RunsPanel {
     this.runBtn.addEventListener('click', () => void this.start());
     this.task.addEventListener('keydown', (e) => { if (e.key === 'Enter') void this.start(); });
     this.list.addEventListener('click', (e) => this.onList(e));
-    this.park.addEventListener('click', (e) => this.onPark(e));
+    this.parks.addEventListener('click', (e) => this.onPark(e));
     this.paintStatic();
     onLanguage(() => this.paintStatic());
     void runsApi.env().then((env) => { this.claude = env.claude; this.paintStatic(); }).catch(() => undefined);
@@ -139,19 +134,21 @@ class RunsPanel {
     setText(this.note, t('The claude command was not found on this computer. Use the simulator or install Claude Code.'));
     setDisabled(this.runBtn, needsClaude);
     setTitle(this.mode, t('Simulator runs the graph with no model. Claude runs each agent through your claude command.'));
-    setText(this.bResume, t('Resume'));
-    setText(this.bApprove, t('Approve'));
-    setText(this.bDeny, t('Deny'));
+    this.paintParks();
   }
 
   async start(): Promise<void> {
     if (this.runBtn.disabled) return;
     const doc = studio.getDoc();
     if (!doc.nodes.some((n) => n.kind === 'start')) { toast(t('The graph has no start node.'), 'error'); return; }
+    const mode: RunMode = this.mode.value === 'claude' ? 'claude' : 'simulate';
+    if (!workspaceTrusted() && (mode === 'claude' || doc.nodes.some((n) => n.kind === 'tool'))) {
+      toast(t('This workspace is not trusted. Trust it in Preferences to run Claude or graphs with tool nodes. The simulator runs graphs without tool nodes.'), 'error');
+      return;
+    }
     setDisabled(this.runBtn, true);
     try {
       studio.clearStatus();
-      const mode: RunMode = this.mode.value === 'claude' ? 'claude' : 'simulate';
       const res = await runsApi.start(doc, this.task.value, mode, workspaceTrusted());
       window.dispatchEvent(new CustomEvent(RUN_STARTED, { detail: { id: res.run_id } }));
       this.live.clear();
@@ -231,16 +228,33 @@ class RunsPanel {
   private async loadDetail(): Promise<void> {
     const id = this.selected;
     if (!id) return;
+    const ticket = ++this.detailSeq;
     try {
       const d = await runsApi.detail(id);
-      if (id !== this.selected) return;
+      if (id !== this.selected || ticket !== this.detailSeq) return;
       this.current = d;
       this.paintDetail();
+      void this.probeReview(d);
       this.inspector.setRun(d);
       this.mirrorStatuses(d);
     } catch (err) {
       if (id === this.selected && /404/.test(String(err))) this.select(null);
     }
+  }
+
+  private async probeReview(d: RunDetail): Promise<void> {
+    const key = `${d.id}:${d.status}`;
+    if (this.reviewFor === key) return;
+    this.reviewFor = key;
+    let ok = false;
+    if (d.mode === 'claude') {
+      try { await git.status(`run${d.id}000`); ok = true; } catch { ok = false; }
+    }
+    if (this.current?.id !== d.id) return;
+    setClass(this.reviewBtn, 'is-off', !ok);
+    this.reviewBtn.tabIndex = ok ? 0 : -1;
+    setText(this.reviewBtn.querySelector('span'), t('Review run changes'));
+    setTitle(this.reviewBtn, t('Review run changes'));
   }
 
   private mirrorStatuses(d: RunDetail): void {
@@ -343,12 +357,46 @@ class RunsPanel {
   private onPark(e: Event): void {
     const btn = e.target instanceof Element ? e.target.closest<HTMLButtonElement>('[data-act]') : null;
     const id = this.selected;
-    if (!btn || !id) return;
+    const park = btn?.closest<HTMLElement>('.rn-park')?.dataset.park;
+    if (!btn || !id || !park || btn.disabled) return;
     const act = btn.dataset.act;
-    const park = this.current?.parks?.[0]?.id;
-    if (!park) return;
+    setDisabled(btn, true);
     const call = act === 'resume' ? runsApi.resume(id, park) : runsApi.decide(id, park, act === 'approve');
-    void call.then(() => this.scheduleDetail()).catch((err: unknown) => toast(detailOf(err), 'error'));
+    void call.then(() => this.scheduleDetail()).catch((err: unknown) => { setDisabled(btn, false); toast(detailOf(err), 'error'); });
+  }
+
+  private paintParks(): void {
+    const list = this.current && this.current.status === 'parked' ? this.current.parks ?? [] : [];
+    const fill = (card: HTMLElement, p: Park): void => {
+      const on = p.on;
+      const approval = on.type === 'approval';
+      setText(card.querySelector('.rn-park-text'), `${p.label}: ${parkedText(on)}`);
+      const full = approval ? (on.diff ?? JSON.stringify(on.args ?? {}, null, 1)) : '';
+      const diff = q(card, '.rn-park-diff');
+      setHidden(diff, !full);
+      setText(diff, full);
+      const resume = q(card, '[data-act="resume"]');
+      const approve = q(card, '[data-act="approve"]');
+      const deny = q(card, '[data-act="deny"]');
+      setHidden(resume, approval);
+      setHidden(approve, !approval);
+      setHidden(deny, !approval);
+      setText(resume, t('Resume'));
+      setText(approve, t('Approve'));
+      setText(deny, t('Deny'));
+    };
+    patchList(this.parks, list, {
+      key: (p) => p.id,
+      create: (p) => {
+        const card = document.createElement('div');
+        card.className = 'rn-park';
+        card.dataset.park = p.id;
+        card.innerHTML = '<div class="rn-park-text"></div><pre class="rn-park-diff" hidden></pre><div class="rn-park-btns"><button class="rn-btn is-primary" type="button" data-act="resume"></button><button class="rn-btn is-primary" type="button" data-act="approve"></button><button class="rn-btn" type="button" data-act="deny"></button></div>';
+        fill(card, p);
+        return card;
+      },
+      update: fill,
+    });
   }
 
   private paintDetail(): void {
@@ -360,21 +408,7 @@ class RunsPanel {
     this.dChip.dataset.state = d.status;
     const usage = fmtUsage(d.usage);
     setText(this.dMeta, [d.mode === 'claude' ? 'claude' : t('simulator'), d.task ? d.task.slice(0, 80) : '', usage].filter(Boolean).join(' · '));
-    const first = d.parks?.[0];
-    const parked = d.status === 'parked' && !!first;
-    setHidden(this.park, !parked);
-    if (parked && first) {
-      const on = first.on;
-      const approval = on.type === 'approval';
-      const more = (d.parks?.length ?? 0) > 1 ? ` (1/${d.parks?.length})` : '';
-      setText(this.parkText, `${first.label}${more}: ${parkedText(on)}`);
-      const full = approval ? (on.diff ?? JSON.stringify(on.args ?? {}, null, 1)) : '';
-      setHidden(this.parkDiff, !full);
-      setText(this.parkDiff, full);
-      setHidden(this.bResume, approval);
-      setHidden(this.bApprove, !approval);
-      setHidden(this.bDeny, !approval);
-    }
+    this.paintParks();
     this.paintStream();
     const shown = d.events.filter((e) => !HIDDEN_PHASES.has(e.phase)).slice(-EVENT_CAP);
     const fill = (node: HTMLElement, e: RunEvent): void => {
