@@ -195,3 +195,19 @@ Read-only bytes for the preview tabs. The path goes through `workspace_root.reso
 - logged: v0.8.0 · 2026-10-30
 
 `GET /api/workspace/browse` lists any absolute directory for the window's own folder and file picker (the browser build has no native dialog). It only scandirs: nothing is opened, read or run, symlinks are followed only to decide folder or file, dot names are left out unless `hidden=true`, files are left out unless `files=true`, and the answer is capped at 5000 entries. It sits beside the workspace routes but does not use the workspace guard on purpose, because choosing a workspace has to reach outside the current one. `get_recent` now adds `branch`, `changed` (tracked files with changes, from one `git status --porcelain -b -uno` with a 2 s limit, four at a time), `formRepo` and `missing` per row, so Home can show branch and status without opening each folder. `_state` carries `localTools`: names of workspace-local language servers and the workspace venv python that exist on disk. It only looks at files; the window asks the person before the engine is told `trust=1`.
+
+### backend/app/routers/mcp.py · mcp_post
+
+- refers-to: backend/app/routers/mcp.py :: mcp_post, mcp_other, _token
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+`POST /mcp` (no `/api` prefix, so MCP clients use the plain path; GET and DELETE are 405) is Streamable HTTP with JSON replies, the shape formslot uses. LocalGuard already runs for it. Auth is a second layer: no token is 401, an unknown token 403. A token is the window token or a live session gate token (`mcp_tools.principal`); the token is read from `Authorization: Bearer`, `X-Subform-Session` (what the gate hook sends) or `X-Subform-Window`. It is deliberately not the CORS-origin route that hands out the window token: the stdio launcher has no window origin and must not be able to get one, so an agent only ever holds its own session token. Body is capped at 1 MiB, batches at 20. The `initialize` answer issues an `Mcp-Session-Id` that is never required back.
+
+### backend/app/routers/create.py · router
+
+- refers-to: backend/app/routers/create.py :: router, clone, job, cancel, options, port, app
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+Every route of the Create actions sits behind `require_window`, so a local agent or script without the window token cannot clone, scaffold or probe ports; the window gets the token from `POST /api/window-token` like the formslot actions. `POST /api/create/clone` starts a job and returns it, `GET /api/create/jobs/{id}` is the poll, `POST /api/create/jobs/{id}/cancel` stops it. `GET /api/create/options?dest=` gives the kinds, a suggested free port block, whether formslot was found and the identity the first commit will use; `GET /api/create/port?base=&dest=` checks one block; `POST /api/create/app` scaffolds. Failures are `Refused` from the service mapped to HTTP status codes.

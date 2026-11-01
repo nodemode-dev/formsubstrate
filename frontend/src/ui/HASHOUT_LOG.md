@@ -42,3 +42,11 @@ The formvis Home skeleton, class names and tokens are unchanged. The content is 
 - logged: v0.8.0 · 2026-10-30
 
 The Home button's section and the activity rail both take their width from `--cv-rail-w`. The rail has a 1px right border, so the button section carries the same border (transparent) and its icon centres on the same x as the rail icons.
+
+### frontend/src/ui/new-app-dialog.ts · CloneDialog, NewAppDialog
+
+- refers-to: frontend/src/ui/new-app-dialog.ts :: CloneDialog, NewAppDialog, followCloneJob, PathField; frontend/src/io/create.ts :: create; frontend/src/styles/new-app.css; frontend/src/app.ts :: clone-repo, new-form-app
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+Both dialogs are built once, on first use, and only patched afterwards: the folder pick is a read-only field plus a Browse button over `pickPath('folder')` (the Tauri dialog in the desktop app, the path picker in the browser build). The progress bar, the status line and the hint line always occupy their space (the line has a minimum height for two lines), the buttons only toggle `disabled` and their label, so opening, typing, picking and running move nothing. The dialog frame takes the glass tokens (`--glass-*`) as the menus do. Clone: the folder name follows the address until the person types one; Stop cancels the engine job, the dialog stays until the job reports; the job also shows in the status bar jobs list while it runs, and finishing opens the folder through `openFolderAt`, which asks about unsaved files first. New app: the port field starts at the engine's suggested free block and follows the destination until the person types a port; every edit is checked by the engine after 300 ms. Home needed no change: its Create buttons and tiles read the command's `enabled` state, so registering the two commands (instead of `soon`) enabled them in place, and the File menu and palette entries follow. `io/create.ts` has its own copy of the window-token plumbing of `io/formslot.ts` (`owner` is not exported from there); fold the two when formslot.ts is next open for editing.

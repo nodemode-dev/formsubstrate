@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{name}}</title>
+  <style>
+    :root { color-scheme: dark; --bg: #0f0d12; --text: #ece8f2; --muted: #9a93a8; --accent: #8b5cf6; }
+    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, sans-serif; }
+    main { height: 100%; display: grid; place-content: center; gap: 8px; text-align: center; }
+    h1 { margin: 0; font-size: 22px; font-weight: 600; }
+    p { margin: 0; color: var(--muted); }
+    code { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>{{name}}</h1>
+    <p>v0.1.0 · ports <code>{{port_base}}</code> to <code>{{port_end}}</code></p>
+  </main>
+</body>
+</html>

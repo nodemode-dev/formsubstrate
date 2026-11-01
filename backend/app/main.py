@@ -14,6 +14,8 @@ from app.routers import debug, formslot, git, secrets, sessions, skills, system,
 from app.routers import lsp as lsp_router
 from app.routers import graph as graph_router
 from app.routers import media as media_router
+from app.routers import create as create_router
+from app.routers import mcp as mcp_router
 from app.services import sessions as session_service
 
 
@@ -76,6 +78,8 @@ app.include_router(debug.router, prefix="/api")
 app.include_router(lsp_router.router, prefix="/api")
 app.include_router(media_router.router, prefix="/api")
 app.include_router(graph_router.router, prefix="/api")
+app.include_router(create_router.router, prefix="/api")
+app.include_router(mcp_router.router)
 
 _dist = config.dist_dir()
 if _dist is not None:

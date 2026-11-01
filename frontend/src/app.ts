@@ -26,6 +26,7 @@ import { MenuBar, setMenuStyle, type MenuDef } from './ui/menu';
 import { menusInWindow, MENUS_IN_WINDOW_KEY, NativeMenus, textFieldFocused, wantsNativeMenus } from './ui/native-menu';
 import { installNumberFields } from './ui/number-fields';
 import { openFilePrompt, openFolderAt, openFolderPrompt, setFileOpener } from './ui/open-folder';
+import { CloneDialog, NewAppDialog } from './ui/new-app-dialog';
 import { isTrusted, setTrusted, TRUST_EVENT } from './io/trust';
 import { TrustBanner } from './ui/trust-banner';
 import { REOPENED_EVENT, reopenLastWorkspace } from './ui/reopen';
@@ -212,6 +213,8 @@ export async function startApp(): Promise<void> {
   const about = new AboutDialog();
   const settings = new SettingsDialog({ commands, onPrefs: (p) => { applyUiPrefs(p); followSystemTheme(p); editor?.setOptions({ fontSize: p.editorFontSize, tabSize: p.editorTabSize, wordWrap: p.editorWordWrap }); views.setOptions({ fontSize: p.editorFontSize, tabSize: p.editorTabSize, wordWrap: p.editorWordWrap }); dock.refreshFont(); home.syncPrefs(); } });
   const palette = new CommandPalette(commands, () => menus);
+  let cloneDialog: CloneDialog | null = null;
+  let newAppDialog: NewAppDialog | null = null;
   let captionButtons: CaptionButtons;
 
   commands.add(
@@ -224,8 +227,8 @@ export async function startApp(): Promise<void> {
     { id: 'open-recent', label: 'Open Recent', run: () => home.show('recent') },
     { id: 'home-toggle', label: 'Home', run: () => home.toggle() },
     { id: 'home-back', label: 'Back', keys: ['Escape'], enabled: () => home.isOpen && !!store.workspace && !textFieldFocused(), run: () => home.hide() },
-    soon({ id: 'clone-repo', label: 'Clone Repo...', run: () => undefined }),
-    soon({ id: 'new-form-app', label: 'New Form App', run: () => undefined }),
+    { id: 'clone-repo', label: 'Clone Repo...', mutates: true, run: () => { (cloneDialog ??= new CloneDialog()).show(); } },
+    { id: 'new-form-app', label: 'New Form App', mutates: true, run: () => { (newAppDialog ??= new NewAppDialog()).show(); } },
     { id: 'save', label: 'Save', keys: ['Mod+S'], enabled: () => !!store.active, run: () => { if (!views.save()) void editor?.save(); } },
     { id: 'save-all', label: 'Save All', keys: ['Alt+Mod+S'], enabled: () => store.docs.some((d) => d.modified), run: () => { void editor?.saveAll(); views.saveAll(); } },
     { id: 'close-tab', label: 'Close Tab', keys: ['Mod+W'], enabled: () => !!store.active, run: () => { if (store.active) void requestClose(store.active.id); } },

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -e
+cd "$(dirname "$0")/backend"
+
+if [ ! -x venv/bin/python ]; then
+  command -v python3 >/dev/null || { echo "Python 3.13 is required" >&2; exit 1; }
+  python3 -m venv venv
+  venv/bin/python -m pip install -q -r requirements.txt
+fi
+
+case "${1:-serve}" in
+  serve) exec venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port {{port_engine}} ;;
+  version|--version|-V) exec venv/bin/python -c "from app import __version__; print('{{name}} v' + __version__)" ;;
+  *) echo "{{name}}: unknown command: $1" >&2; exit 2 ;;
+esac

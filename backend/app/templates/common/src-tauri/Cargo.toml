@@ -1,0 +1,16 @@
+[package]
+name = "{{name}}-app"
+version = "0.1.0"
+description = "{{name}} desktop shell"
+authors = ["nodemode-ai"]
+license = "GPL-3.0-only"
+edition = "2021"
+rust-version = "1.90"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+
+[workspace]

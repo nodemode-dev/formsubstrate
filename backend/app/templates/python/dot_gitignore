@@ -1,0 +1,15 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+node_modules/
+dist/
+.DS_Store
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+src-tauri/target/
+src-tauri/gen/
+.claude/settings.local.json
+*.log
+.env
