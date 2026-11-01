@@ -227,6 +227,7 @@ class ServersDialog extends Dialog {
     setText(q(b.install, '.cv-lsp-srv-how'), t('Install one of these:'));
     b.lines.forEach((line, i) => {
       setText(line, info.install[i] ?? '');
+      setTitle(line, info.install[i] ?? '');
       setHidden(line, !info.install[i]);
     });
   }

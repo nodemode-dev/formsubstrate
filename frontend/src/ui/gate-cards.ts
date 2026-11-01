@@ -32,7 +32,7 @@ export async function answerOpenGate(id: string, choice: GateChoice): Promise<st
 }
 
 export class GateCards {
-  readonly root = el<HTMLElement>(`<div class="cv-gates" id="gate-root" role="region" aria-live="polite"><div class="cv-gates-more" hidden></div><div class="cv-gates-list"></div></div>`);
+  readonly root = el<HTMLElement>(`<div class="cv-gates" id="gate-root" role="region" aria-label="${t('Waiting for your answer')}" aria-live="polite"><div class="cv-gates-more" hidden></div><div class="cv-gates-list"></div></div>`);
   private readonly list = q(this.root, '.cv-gates-list');
   private readonly more = q(this.root, '.cv-gates-more');
   private readonly busy = new Set<string>();
@@ -109,6 +109,8 @@ export class GateCards {
     setHidden(this.more, hiddenCount === 0);
     setText(this.more, hiddenCount > 0 ? `+${hiddenCount} ${t('more waiting')}` : '');
     setHidden(this.root, all.length === 0);
+    const name = t('Waiting for your answer');
+    if (this.root.getAttribute('aria-label') !== name) this.root.setAttribute('aria-label', name);
   }
 
   private create(g: Gate): HTMLElement {

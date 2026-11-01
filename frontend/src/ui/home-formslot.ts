@@ -32,14 +32,14 @@ export function stateOf(s: FormslotOnboard | null): OnboardState {
 }
 
 export class HomeFormslot {
-  readonly root = el(`<section class="cv-home-section cv-hfs" data-state="loading">
-    <div class="cv-home-section-head"><h2 class="cv-home-section-title">formslot</h2></div>
-    <div class="cv-hfs-card">
+  readonly root = el(`<section class="cv-home-section cv-hfs" data-state="loading" aria-labelledby="cv-hfs-h">
+    <div class="cv-home-section-head"><h2 class="cv-home-section-title" id="cv-hfs-h">formslot</h2></div>
+    <div class="cv-hfs-card" role="group" aria-labelledby="cv-hfs-t" aria-describedby="cv-hfs-s">
       <span class="cv-hfs-icon">${icon('slot', 20)}</span>
       <div class="cv-hfs-text">
-        <div class="cv-hfs-title"></div>
-        <div class="cv-hfs-sub"></div>
-        <form class="cv-hfs-field" hidden><input class="cv-hfs-input" type="text" readonly spellcheck="false" autocomplete="off" placeholder="${t('Path to a formslot checkout or binary')}" aria-label="${t('Path to a formslot checkout or binary')}"><button class="cv-btn" type="submit">${t('Preferences')}</button></form>
+        <div class="cv-hfs-title" id="cv-hfs-t"></div>
+        <div class="cv-hfs-sub" id="cv-hfs-s"></div>
+        <form class="cv-hfs-field" hidden aria-label="${t('formslot folder')}"><input class="cv-hfs-input" type="text" readonly spellcheck="false" autocomplete="off" placeholder="${t('Path to a formslot checkout or binary')}" aria-label="${t('Path to a formslot checkout or binary')}"><button class="cv-btn" type="submit" aria-label="${t('Open Preferences to choose the formslot folder')}">${t('Preferences')}</button></form>
         <div class="cv-hfs-note"></div>
       </div>
       <div class="cv-hfs-actions"><button class="cv-home-action is-primary cv-hfs-go" type="button" hidden>${icon('terminal', 16)}<span class="cv-home-label"></span></button></div>
@@ -178,7 +178,17 @@ export class HomeFormslot {
     setHidden(this.go, !show);
     setHidden(this.field, st !== 'missing');
     setValue(this.input, loadPrefs().formslotPath);
-    setDisabled(this.go, !show || !cmd || this.busy);
+    setDisabled(this.go, !show || !cmd);
+    const busy = String(this.busy);
+    if (this.go.getAttribute('aria-disabled') !== busy) this.go.setAttribute('aria-disabled', busy);
+    const folder = t('Path to a formslot checkout or binary');
+    if (this.input.getAttribute('aria-label') !== folder) { this.input.setAttribute('aria-label', folder); this.input.placeholder = folder; }
+    const prefs = q<HTMLButtonElement>(this.field, 'button');
+    const prefsName = t('Open Preferences to choose the formslot folder');
+    if (prefs.getAttribute('aria-label') !== prefsName) prefs.setAttribute('aria-label', prefsName);
+    setText(prefs, t('Preferences'));
+    const fieldName = t('formslot folder');
+    if (this.field.getAttribute('aria-label') !== fieldName) this.field.setAttribute('aria-label', fieldName);
     setText(this.note, note);
     setTitle(this.go, cmd ? cmd.text : '');
     setClass(this.root, 'is-busy', this.busy);

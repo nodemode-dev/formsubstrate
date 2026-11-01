@@ -137,6 +137,8 @@ export class NodeInspector {
     }
     input.className = `ri-in${field.mono ? ' is-mono' : ''}`;
     input.spellcheck = false;
+    label.id = `ri-l-${field.id}`;
+    input.setAttribute('aria-labelledby', label.id);
     const hint = field.hint ? document.createElement('span') : null;
     if (hint) hint.className = 'ri-hint';
     if (field.type === 'check') wrap.append(input, label); else wrap.append(label, input);
@@ -156,6 +158,7 @@ export class NodeInspector {
     setText(q(this.paneRun, '.ri-out-t'), t('Output'));
     setText(q(this.paneRun, '.ri-err-t'), t('Error'));
     setText(q(this.paneRun, '.ri-log-t'), t('Log'));
+    this.visitSel.setAttribute('aria-label', t('Run visit'));
     for (const c of this.controls) {
       setText(c.label, t(c.field.label));
       if (c.hint && c.field.hint) setText(c.hint, t(c.field.hint));

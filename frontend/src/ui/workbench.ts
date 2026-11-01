@@ -104,8 +104,8 @@ export class Workbench implements Shell {
   toggleSplit(show?: boolean): void { this.stagePanels.toggleSplit(show); }
 
   sidebarSection(opts: SidebarSectionOptions): SidebarSection {
-    const button = el<HTMLButtonElement>(`<button class="cv-wb-act" type="button" role="tab" data-panel="${opts.id}">${icon(opts.icon, 22)}</button>`);
-    const host = el(`<div class="cv-wb-panel" data-panel="${opts.id}" hidden></div>`);
+    const button = el<HTMLButtonElement>(`<button class="cv-wb-act" type="button" role="tab" id="cv-wb-act-${opts.id}" tabindex="-1" aria-controls="cv-wb-panel-${opts.id}" data-panel="${opts.id}">${icon(opts.icon, 22)}</button>`);
+    const host = el(`<div class="cv-wb-panel" id="cv-wb-panel-${opts.id}" role="tabpanel" aria-labelledby="cv-wb-act-${opts.id}" data-panel="${opts.id}" hidden></div>`);
     const panel: Panel = { id: opts.id, title: opts.title, button, host };
     this.panels.set(opts.id, panel);
     this.rail.append(button);
@@ -179,6 +179,7 @@ export class Workbench implements Shell {
       const selected = String(on);
       if (p.button.getAttribute('aria-selected') !== selected) p.button.setAttribute('aria-selected', selected);
     }
+    if (!this.rail.contains(document.activeElement)) this.rove(this.activeId);
     setClass(this.root, 'is-collapsed', this.collapsed);
     this.applyWidth();
     this.relabel();
@@ -198,7 +199,30 @@ export class Workbench implements Shell {
     try { localStorage.setItem(STATE_KEY, JSON.stringify({ panel: this.activeId, collapsed: this.collapsed })); } catch { return; }
   }
 
+  private rove(id: string): void {
+    for (const p of this.panels.values()) {
+      const want = p.id === id ? '0' : '-1';
+      if (p.button.getAttribute('tabindex') !== want) p.button.setAttribute('tabindex', want);
+    }
+  }
+
   private bindRail(): void {
+    this.rail.addEventListener('focusin', (e) => {
+      const id = e.target instanceof Element ? e.target.closest<HTMLButtonElement>('.cv-wb-act')?.dataset.panel : undefined;
+      if (id) this.rove(id);
+    });
+    this.rail.addEventListener('keydown', (e) => {
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      const ids = Array.from(this.panels.keys());
+      const at = e.target instanceof Element ? ids.indexOf(e.target.closest<HTMLButtonElement>('.cv-wb-act')?.dataset.panel ?? '') : -1;
+      if (at < 0 || !ids.length) return;
+      const to = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? (at + 1) % ids.length
+        : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? (at + ids.length - 1) % ids.length
+        : e.key === 'Home' ? 0 : e.key === 'End' ? ids.length - 1 : -1;
+      if (to < 0) return;
+      e.preventDefault();
+      this.panels.get(ids[to])?.button.focus();
+    });
     this.rail.addEventListener('click', (e) => {
       const b = e.target instanceof Element ? e.target.closest<HTMLButtonElement>('.cv-wb-act') : null;
       const id = b?.dataset.panel;

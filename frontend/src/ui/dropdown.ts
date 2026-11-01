@@ -8,7 +8,15 @@ export function enhanceSelect(select: HTMLSelectElement, opts: { search?: string
   const pop = el(`<div class="cv-dd-pop" role="listbox" hidden>${opts.search ? '<input class="cv-dd-search" type="search">' : ''}<div class="cv-dd-list"></div></div>`);
   const list = pop.querySelector('.cv-dd-list') as HTMLElement, search = pop.querySelector('.cv-dd-search') as HTMLInputElement | null;
   if (search) { search.placeholder = opts.search as string; search.setAttribute('aria-label', opts.search as string); }
-  btn.setAttribute('aria-label', select.getAttribute('aria-label') ?? '');
+  const nameOf = (): string => {
+    const own = select.getAttribute('aria-label')?.trim() || select.title.trim();
+    if (own) return own;
+    const lab = select.labels?.[0];
+    if (!lab) return '';
+    const copy = lab.cloneNode(true) as HTMLElement;
+    for (const s of Array.from(copy.querySelectorAll('select, .cv-dd-btn, .cv-dd-pop'))) s.remove();
+    return (copy.textContent ?? '').replace(/\s+/g, ' ').trim();
+  };
   for (const c of Array.from(select.classList)) if (c !== 'cv-dd-native') btn.classList.add(c);
   new MutationObserver(() => label()).observe(select, { childList: true, subtree: true });
   btn.title = select.title;
@@ -18,7 +26,13 @@ export function enhanceSelect(select: HTMLSelectElement, opts: { search?: string
   if (host) host.appendChild(pop); else document.body.appendChild(pop);
   let picked = 0;
   const labelNode = btn.querySelector('.cv-dd-label') as HTMLElement;
-  const label = (): void => { setText(labelNode, select.selectedOptions[0]?.textContent ?? ''); btn.disabled = select.disabled; };
+  const label = (): void => {
+    setText(labelNode, select.selectedOptions[0]?.textContent ?? '');
+    btn.disabled = select.disabled;
+    const name = nameOf();
+    if (name && btn.getAttribute('aria-label') !== name) btn.setAttribute('aria-label', name);
+    if (btn.title !== select.title) btn.title = select.title;
+  };
   const proto = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value') as PropertyDescriptor;
   Object.defineProperty(select, 'value', { configurable: true, get() { return proto.get?.call(select); }, set(v) { proto.set?.call(select, v); label(); } });
   const disabled = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'disabled') as PropertyDescriptor;

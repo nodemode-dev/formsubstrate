@@ -24,10 +24,16 @@
 .cv-lsp-srv-name { color: var(--text-primary); font-weight: 600; }
 .cv-lsp-srv-state { color: var(--ok); font-size: var(--fs-11); }
 .cv-lsp-srv-state.is-bad { color: var(--warn); }
+.cv-lsp-srv-head { min-height: 1lh; }
 .cv-lsp-srv-detail, .cv-lsp-srv-notes { margin: 0; overflow-wrap: anywhere; user-select: text; }
-.cv-lsp-srv-notes[hidden], .cv-lsp-srv-install[hidden], .cv-lsp-srv-install code[hidden] { display: none; }
+.cv-lsp-srv-detail { min-height: 2lh; }
+.cv-lsp-srv-notes { min-height: 2lh; }
+.cv-lsp-srv-notes[hidden], .cv-lsp-srv-install[hidden], .cv-lsp-srv-install code[hidden] { display: block; visibility: hidden; }
 .cv-lsp-srv-install { display: flex; flex-direction: column; gap: var(--space-0); }
-.cv-lsp-srv-install code { display: block; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--surface-field); color: var(--text-primary); font-family: var(--font-mono); font-size: var(--fs-11); overflow-wrap: anywhere; user-select: text; }
+.cv-lsp-srv-install[hidden] { display: flex; }
+.cv-lsp-srv-how { min-height: 1lh; }
+.cv-lsp-srv-install code:empty { visibility: hidden; }
+.cv-lsp-srv-install code { box-sizing: border-box; height: calc(1lh + var(--space-1) * 2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--surface-field); color: var(--text-primary); font-family: var(--font-mono); font-size: var(--fs-11); overflow-wrap: anywhere; user-select: text; }
 
 .cv-st-lsp { display: inline-flex; align-items: center; flex: none; gap: var(--space-2); width: var(--size-st-lsp); height: var(--size-chip-h); padding: 0 var(--space-1); border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: inherit; font: inherit; text-align: left; white-space: nowrap; overflow: hidden; cursor: pointer; }
 .cv-st-lsp:hover { border-color: var(--border-color); }

@@ -29,6 +29,7 @@
 .ft-dock-stage { position: relative; isolation: isolate; flex: 1; min-height: 0; padding: var(--space-1) var(--space-2) 0; overflow: hidden; background: var(--bg-primary); }
 .ft-dock-gate { position: absolute; top: var(--space-1); left: var(--space-2); right: var(--space-2); z-index: var(--z-raised); display: flex; align-items: center; gap: var(--space-2); min-width: 0; min-height: var(--ctl-lg); box-sizing: border-box; padding: 0 var(--space-2); border: 1px solid var(--accent-line); border-radius: var(--radius-md); background: var(--bg-secondary); box-shadow: var(--shadow-lg); color: var(--text-primary); font-size: var(--fs-12); user-select: none; -webkit-user-select: none; }
 .ft-dock-gate[hidden], .ft-dock-gate-more[hidden], .ft-dock-tab-gate[hidden] { display: none; }
+.cv-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .ft-dock-gate-mark { display: inline-flex; flex: none; color: var(--accent-ink); }
 .ft-dock-gate-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ft-dock-gate-more { flex: none; padding: 0 var(--space-2h); border: 1px solid var(--line-2); border-radius: var(--radius-pill); color: var(--text-secondary); font-size: var(--fs-11); line-height: 20px; }

@@ -45,7 +45,7 @@ export class ReviewPane implements ViewDoc {
 <div class="cv-rv-bar">
 <div class="cv-rv-heading"><span class="cv-rv-title"></span><span class="cv-rv-target cv-note"></span></div>
 <span class="cv-rv-summary cv-note"></span>
-<span class="cv-rv-skips" data-on="0"></span>
+<span class="cv-rv-skips" data-on="0" aria-hidden="true"></span><span class="cv-sr-only cv-rv-skips-live" role="status" aria-live="polite" aria-atomic="true"></span>
 <div class="cv-rv-tools">
 <button class="cv-wb-tool cv-rv-refresh" type="button">${icon('refresh', 14)}</button>
 <button class="cv-btn cv-btn-primary cv-rv-all" type="button">${icon('check', 14)}<span class="cv-rv-all-t"></span></button>
@@ -59,6 +59,8 @@ export class ReviewPane implements ViewDoc {
   private readonly target = q(this.root, '.cv-rv-target');
   private readonly summary = q(this.root, '.cv-rv-summary');
   private readonly skips = q(this.root, '.cv-rv-skips');
+  private readonly skipsLive = q(this.root, '.cv-rv-skips-live');
+  private skipsSaid = 0;
   private readonly notice = q(this.root, '.cv-rv-notice');
   private readonly noticeText = q(this.root, '.cv-rv-notice-t');
   private readonly fixBtn = q<HTMLButtonElement>(this.root, '.cv-rv-fix');
@@ -132,7 +134,9 @@ export class ReviewPane implements ViewDoc {
   private paintSkips(): void {
     let n = 0;
     for (const note of this.gateNotes.values()) if (note.kind === 'skipped') n++;
-    setText(this.skips, n ? `${n} ${t(n === 1 ? 'gate skipped' : 'gates skipped')}` : '');
+    const said = n ? `${n} ${t(n === 1 ? 'gate skipped' : 'gates skipped')}` : '';
+    setText(this.skips, said);
+    if (n !== this.skipsSaid) { this.skipsSaid = n; setText(this.skipsLive, said); }
     setTitle(this.skips, n ? t('The slot check could not run for these writes. Look at the files marked Gate skipped.') : '');
     if (this.skips.dataset.on !== (n ? '1' : '0')) this.skips.dataset.on = n ? '1' : '0';
   }
