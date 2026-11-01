@@ -1751,3 +1751,91 @@ From the fresh-context review of the F6 window, each reproduced in Chromium befo
 F6 exit, run end to end at 4x CPU throttle against the real engine with a fake claude: an interactive session in a worktree of a formslot clone; the agent edited README.md in two places and added NEW.md; in the review pane the first README hunk was accepted, the second rejected and NEW.md accepted; the commit through the wrapper, with a message ending in Co-Authored-By and Claude-Session lines, shows `nodemode-ai <mackin@nodemode.ai> | nodemode-ai <mackin@nodemode.ai>` and no trailer line; the commit holds NEW.md and the one kept README line, the rejected line is gone, the worktree is clean; layout shift 0, no page errors.
 
 Known and left for F7: Find and select-occurrence commands still act on the file editor while a diff tab is active; the review pane and diff tab do not unsubscribe their session and language listeners on close; the stale banner stays after undoing back to clean; "Accept all and commit" stages and focuses the commit box rather than committing; a second confirm dialog leaves the first promise pending; the terminal dock's pending buffer can start mid escape sequence after eviction.
+
+### frontend/src/ui/gate-cards.ts · GateCards
+
+- refers-to: frontend/src/ui/gate-cards.ts :: GateCards
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+Fixed-position stack, bottom right above the status bar, outside layout flow so no sibling moves. DOM order is newest first and the stack is bottom anchored, so a new card appears above the older ones and nothing already visible shifts; the oldest sits nearest the bar and is answered first. At most three cards show, the rest are counted. Cards never call focus() on arrival. Button mousedown is prevented so a click leaves focus in the terminal or editor; a keyboard answer moves focus to the next card or back to the element that held focus before. The Alt+Mod+G command is the keyboard way in. Session context is the title label on the card; the card is global rather than injected into the chat pane or terminal, so it is reachable from any of them. Limitation: not placed inside the terminal dock itself.
+
+### frontend/src/ui/status-formslot.ts · FormslotStatusItem
+
+- refers-to: frontend/src/ui/status.ts :: StatusBar
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+The formslot item and the tokens-saved item are always present with fixed flex bases (140 and 100 px) so text changes never move neighbours; the saved item turns visibility hidden when formslot is missing. Active figure is the session selected in the Sessions panel (event subform:session-selected), with the total across sessions. The old hidden-span setFormslot was never called and is removed. The language-server slot (F8) is a third fixed item, fed by subform:lsp-status.
+
+### frontend/src/styles/formslot.css · .cv-st-hint
+
+- refers-to: frontend/src/styles/shell.css :: .cv-st-hint
+- kind: warning-context
+- logged: v0.7.0 · 2026-10-30
+
+Two new status items (240 px) pushed the summed flex bases past 1400 px and the engine and workspace items shrank when the branch name arrived (layout shift 0.0004). The hint now has flex-basis 0 and min-width 120 px so it absorbs the squeeze; the other items keep their widths.
+
+### frontend/src/ui/menu.ts · F10
+
+- refers-to: frontend/src/ui/menu.ts :: MenuBar.claimed
+- kind: warning-context
+- logged: v0.7.0 · 2026-10-30
+
+The menu bar took a bare F10 to open the first menu, which swallowed Step Over. It now yields when a command bound to the combo is enabled (only while a program is paused), so F10 still opens the menu otherwise.
+
+### frontend/src/styles/debug.css · module
+
+- refers-to: frontend/src/styles/debug.css :: .cv-dbg
+- kind: explainer
+- logged: v0.7.0 · 2026-10-30
+
+Rules for .cv-bp-* (gutter dot, hover ghost), .cv-debug-line (warn tinted line with a 2 px rule) and .cv-dbg-*. Colours, space and radii from tokens only; no z-index.
+
+### frontend/src/styles/lsp.css · tooltip animation
+
+- refers-to: frontend/src/styles/lsp.css :: cv-tip-ready
+- kind: warning-context
+- logged: v0.7.0 · 2026-10-30
+
+CodeMirror places a new tooltip at the origin before measuring, which Chrome scored as layout shifts of 0.05 to 0.1 per hover. Tooltips are visibility:hidden for their first 140 ms (a zero-length animation with a delay), after which they are placed; measured shifts without user input dropped to zero.
+
+### frontend/src/ui/dialogs.ts · Confirm.ask, Prompt.ask, SaveChanges.ask
+
+- refers-to: frontend/src/ui/dialogs.ts :: Confirm.ask, Prompt.ask, SaveChanges.ask
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+The dialogs are singletons; a second ask used to overwrite `resolve`, leaving the first caller's promise pending for ever (for example the Tauri close prompt over a Close Tab confirm). The previous promise is now settled as cancelled (false, null, or choice `cancel`) before the new one opens.
+
+### frontend/src/ui/tabs.ts · closing
+
+- refers-to: frontend/src/ui/tabs.ts :: Tabs.onKey, Tabs.closing
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+`closing` (where focus goes after a keyboard close) stayed set after a cancelled close and was only cleared by the next key press, so a later mouse close of the same tab moved focus to the neighbour. The constructor now takes a close callback that may return a promise; when it settles and the document is still open the state is cleared. When the close went through the render pass still sees the state and moves focus. app.ts passes the promise of `requestClose` through.
+
+### frontend/src/ui/terminal-dock.ts · onData, safeStart
+
+- refers-to: frontend/src/ui/terminal-dock.ts :: TerminalDock.onData, safeStart
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+A hidden tab's pending buffer dropped whole chunks from the front when over 2 MiB, so the replay could begin in the middle of an escape sequence (stray `5;196m` text) or a UTF-8 character. After an eviction the head chunk is trimmed to its first ESC byte or the byte after its first newline; neither can fall inside a CSI sequence or a multi-byte character. A head chunk with no such byte is dropped when more chunks follow, and kept when it is the only one. Alt-screen enter sequences that were already evicted are still lost; keeping a bounded head is not done.
+
+### frontend/src/ui/reopen.ts · TRIES
+
+- refers-to: frontend/src/ui/reopen.ts :: TRIES
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+review5 L9, half: three dead entries at the top of the recent list blocked reopening a live fourth. It now tries up to ten recents. An engine workspace that no longer exists on disk is still returned as is; that needs an engine check and is not done.
+
+### frontend/src/styles/git.css · .cv-sc-flagcard
+
+- refers-to: frontend/src/styles/git.css :: .cv-sc-flagcard; frontend/src/styles/review.css :: .cv-rv-fix
+- kind: explainer
+- logged: v0.7.0 · 2026-10-30
+
+The flag card matches the other cards: same absolute overlay in the stack, fixed 76px height, warn-coloured border and text from tokens only. Review pane: the fix button sits in the existing notice row.

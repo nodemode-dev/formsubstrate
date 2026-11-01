@@ -100,3 +100,43 @@ Ported in idea from substrata extensions/search/index.ts (MIT, owner's), which o
 - logged: v0.4.0 · 2026-10-30
 
 Rules for .cv-wb-*, .cv-tree-* and .cv-search-*, all on tokens. The three layout numbers (44px rail, 5px grip, row height from --ctl-sm) are local custom properties on .cv-wb. Row hover, selected and current-file states use --bg-hover, --bg-tertiary, --accent-wash and, while the tree has focus, --accent-soft with --accent-line. Twist rotation and the dim transition are switched off by body.animations-disabled.
+
+### frontend/src/extensions/formslot/index.ts · FormslotPanel
+
+- refers-to: frontend/src/extensions/formslot/index.ts :: FormslotPanel
+- kind: explainer
+- logged: v0.7.0 · 2026-10-30
+
+Built once; search results, manifest files, copies and drift lines are patched with patchList. Results and manifest are both in the DOM and swap by hidden. Search is debounced 260 ms and sequence guarded. The owner Confirm goes through confirmAction. Paths from slot hits are opened as given and assume the corpus is the open workspace.
+
+### frontend/src/extensions/formslot/index.ts · offer
+
+- refers-to: frontend/src/extensions/formslot/index.ts :: register
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+The install offer is a persistent toast (ms 0) with Install (warn mode) and Not now. It shows once per workspace path, recorded in localStorage `subform.formslot.offered` (per viewer convenience), only when formslot is installed and the engine says pluginInstalled is false, judged on a status fetched after the workspace opened. Auto start runs once per page load when Preferences allow it.
+
+### frontend/src/extensions/debug/index.ts · panel
+
+- refers-to: frontend/src/extensions/debug/index.ts :: DebugPanel
+- kind: explainer
+- logged: v0.7.0 · 2026-10-30
+
+Run and Debug sidebar section: toolbar (start, continue, step over, into, out, stop, state text), adapter status line (two lines reserved), arguments field, call stack, variables, debug console with an expression field. Every box has a fixed height or a flex share, so nothing moves as content arrives; lists are patched with patchList, and a local wrapper makes patchList fill a new row at once because the shared helper only calls update on existing rows. Row keys live in data-node, because patchList overwrites data-key. Variable scopes and open nodes are remembered by name path (Locals opens by default) and reloaded at the next stop. Start order follows debugpy: initialize, launch (not awaited), wait for initialized, setBreakpoints, configurationDone, then the launch response. Stepping sets the phase to running at once and keeps the old stack, variables and highlight until the next stopped event replaces them in place. A terminated event or a closed socket ends the session and frees the engine's single slot. Unsaved text in the current file is saved first through the save command (up to 4 s). Not done: pause while running, conditional breakpoints and logpoints, watch expressions, a breakpoints list, a saved launch configuration file, node and other adapters, translations for the new strings, a breakpoint-not-verified marker.
+
+### frontend/src/extensions/lsp/index.ts · panels and status
+
+- refers-to: frontend/src/extensions/lsp/index.ts :: register
+- kind: explainer
+- logged: v0.7.0 · 2026-10-30
+
+Outline and Problems are two sidebar sections (rail icons code and warning), patched in place with patchList; the empty-state text is absolutely positioned so nothing moves. The status bar slot is a fixed 232 px button that is only visibility-hidden when the active file has no language server, so nothing shifts when it fills; it shows language, state and error and warning counts, and opens the Language Servers dialog (found servers, versions, install commands). The slot is fed by the window event subform:lsp-status, like the git sync event.
+
+### frontend/src/extensions/git/index.ts · paintFlag, flagged, fromReview
+
+- refers-to: frontend/src/extensions/git/index.ts :: GitPanel.paintFlag, GitPanel.flagged, GitPanel.fromReview, FOCUS_COMMIT
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+Flagging: a session target fetches `/api/git/audit` with the status and snapshots on every refresh. The flag card is an overlay like the other two cards (no layout shift) and is shown only when neither the check card nor the last-commit card is up; it says `commit <short> has a trailer or another identity` (plus how many more), and its button runs Sign and Push (title text says history is rewritten only on the click). Nothing rewrites history by itself. "Accept all and commit": the review pane already dispatched `subform:focus-commit` and nobody listened. The panel now listens: it reveals the section, retargets to the pane's session, focuses the message box and commits when the box has text (a zero-delay timeout lets the retarget settle). With an empty box it only focuses it. Also from review5 L6: discard and rewind capture the target before their confirm and stop if it changed while the dialog was open; commit sets the audit card only if the target is still the same; a refused push shows `Push refused: <check line>`.

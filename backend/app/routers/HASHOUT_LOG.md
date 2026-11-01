@@ -115,3 +115,35 @@ Names are checked with `fullmatch`: `$` in `match` accepts a trailing newline.
 - logged: v0.4.1 · 2026-10-30
 
 On a case-insensitive file system (macOS default, Windows) a write to `.GIT/config` reaches the git folder, so the protected-name check compares lowercased parts. On Linux `.GIT` is a different folder and is refused too, which costs nothing.
+
+### backend/app/routers/debug.py · relay
+
+- refers-to: backend/app/routers/debug.py :: debug_ws
+- kind: explainer
+- logged: v0.7.0 · 2026-10-30
+
+GET /api/debug/adapters reports root, and per adapter: available, python (the debuggee's), adapterPython, debugpy version, source (workspace venv or system), the probed candidates and, when missing, the exact install command for the python that would run the program. WS /api/debug/ws: one session at a time (a second connection gets the event subform/busy and close code 4409), no open workspace or no debugpy gets subform/unavailable with the install hint and close 4404. Messages are DAP JSON as text frames, framed with Content-Length towards the adapter and unframed back. Engine shutdown calls core.debug.shutdown from the lifespan, after terminals. The route sits behind LocalGuard like every other.
+
+### backend/app/routers/lsp.py · _answer
+
+- refers-to: backend/app/routers/lsp.py :: _answer
+- kind: warning-context
+- logged: v0.7.0 · 2026-10-30
+
+The relay answers three server-to-client requests itself (client/registerCapability, client/unregisterCapability, window/workDoneProgress/create get a null result; workspace/configuration gets a list of nulls). @codemirror/lsp-client answers every server request with MethodNotFound, which makes the native TypeScript server and pyright log failures. Everything else passes through untouched.
+
+### backend/app/routers/git.py · CommentBody.hunk
+
+- refers-to: backend/app/routers/git.py :: CommentBody
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+review5 L4: `hunk` was unbounded and is stored in sessions.json (200 kept). It is capped at 200000 characters. The size of whole diff output is still capped only per file text; not done.
+
+### backend/app/routers/git.py · push
+
+- refers-to: backend/app/routers/git.py :: push
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+A refused plain push answers like a refused sign-and-push: `detail` plus `ok`, `check`, `output` in the body, so the window can show the check line.

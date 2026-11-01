@@ -132,3 +132,43 @@ Word wrap as VS Code has it (the owner's request): on by default, lines wrap at 
 - logged: v0.5.0 · 2026-10-30
 
 The host starts with wordWrap true so the first file opened before prefs are applied already wraps; app.ts then applies the pref. The command toggle-word-wrap (Alt+Z, View > Word Wrap, the same key VS Code uses) flips the pref, applies it to every open file through setOptions (the wrap compartment is reconfigured per document as it is shown), and says so in the status hint; Preferences > Editor > Word wrap is the same pref.
+
+### frontend/src/ui/editor/breakpoints.ts · state
+
+- refers-to: frontend/src/ui/editor/breakpoints.ts :: breakpointExtension
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+Ported in idea from substrata frontend/src/ui/components/breakpoints.ts (MIT, owner's). Breakpoints are kept per file path in a module Map (memory only, lost on reload) and mirrored into each document's state as a RangeSet of gutter markers, which maps through edits so a breakpoint follows its line. The field is created from the Map, so closing and reopening a file keeps its breakpoints. Every change of the field is written back to the Map and announced to listeners, which is how the debug panel sends setBreakpoints (for an empty list too, to clear). The gutter uses renderEmptyElements, without which CodeMirror makes no element for lines without a marker and there is nothing to click. The gutter sits in its own `dbg` compartment, first in the list, so it is left of the line numbers.
+
+### frontend/src/ui/editor/breakpoints.ts · current line
+
+- refers-to: frontend/src/ui/editor/breakpoints.ts :: setDebugLocation
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+The stopped location is module state read by a view plugin when a document's view is built, so a file that opens after the stop already shows the highlight and scrolls to the line (one-shot reveal), with no empty frame. For the open document the plugin is refreshed by an effect. Scrolling is done here and not through Workbench.revealLine, because that moves the cursor and focuses the editor, which would take the keyboard out of the debug console on every step.
+
+### frontend/src/ui/editor/lsp-workspace.ts · SfWorkspace
+
+- refers-to: frontend/src/ui/editor/lsp-workspace.ts :: SfWorkspace
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+EditorHost swaps EditorState per tab with view.setState, which destroys and recreates the lsp-client view plugin on every tab switch. The default workspace would didClose and didOpen on each switch. This workspace keeps a file open from first display until the tab is closed (release()), only unlinking its view in closeFile. If a tab was edited while a previous plugin instance was alive, syncFiles detects that the new plugin's syncedDoc differs from the file's server copy and sends one whole-document change. displayFile opens the target through the editor and returns its view, which is how F12 crosses files; updateFile on a file with no view goes through EditorHost.transact (rename across open tabs). EditorHost gained `onClosed`, `runCommand` and `transact` for this; sf-dap's `dbg` compartment is separate.
+
+### frontend/src/ui/editor/lsp.ts · Session diagnostics
+
+- refers-to: frontend/src/ui/editor/lsp.ts :: Session.pull
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+lsp-client 6.3.0 only understands push diagnostics. The session handles textDocument/publishDiagnostics itself (version-checked, mapped through unsynced changes, tried before the library handler) and, when the server advertises diagnosticProvider, pulls after open (with one retry 1.6 s later, since the TypeScript project loads late), and 120 ms after each synced edit. Pulled results are mapped with a workspace mapping so edits during the request do not misplace marks. Hints (severity 4) are underlined but left out of the Problems list and counts.
+
+### frontend/src/ui/editor/lsp.ts · LspManager lifecycle
+
+- refers-to: frontend/src/ui/editor/lsp.ts :: LspManager
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+A session per language is created on the first file of that language, is dropped 4 s after its last file closes (closing the socket stops the engine process), and is dropped at once when the workspace changes. A server that was not found removes the plugin from open documents (refreshExtensions); a crashed one marks the status "stopped" and restarts on the next open, never in a loop. window/logMessage from servers goes to console.debug, since the library would print server errors as console errors. Hover HTML from the server is run through a small DOMParser sanitizer (scripts, iframes, on* attributes, javascript: and data: URLs removed). Not done: cross-file rename reaches only open tabs, definitions outside the workspace do nothing, Problems lists open files only, no format-before-save.

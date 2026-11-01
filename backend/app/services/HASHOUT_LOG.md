@@ -321,3 +321,149 @@ uvicorn waits for open connections before it runs the lifespan shutdown, and the
 From the fresh-context review of 729a361..v0.6.0, each reproduced before the fix. A branch named `+main` was a force push: branch names now match `^[A-Za-z0-9_][A-Za-z0-9._/-]*$`, the remote must be one `git remote` lists, and push sends the explicit refspec `refs/heads/<b>:refs/heads/<b>` with `--no-force-with-lease` and `remote.<r>.push` cleared, so neither the name nor a configured push refspec can force (rerun: `+main` is 400, an unknown remote is 400). Review comments could leave the bracketed paste with `\x1b[201~` and type into the agent's shell: C0, DEL and C1 controls are removed from the comment text in the router and again in `send_feedback`, a path with controls is 400, and text is typed only while the session is `working`; at `needs-input` it is stored, so the Enter cannot answer a permission prompt. Sign-and-push no longer takes over other people's commits: the range is refused before any rewrite when it holds a merge or a commit by another author, and when the post-rebase check fails the branch is put back with `reset --keep` to where it was. A backslash is a name character on POSIX (it was turned into `/`, so discarding `a\b.txt` reverted `a/b.txt`). Discarding an untracked folder that holds its own `.git` is refused before anything is touched. Mutating routes take a per-repository asyncio lock, and snapshot refs are created with a create-only `update-ref` that moves to the next number on a clash (rerun: four parallel snapshots got four distinct numbers). The commit wrapper drops attribution trailer lines anywhere in the message, not only at the end (rerun: `Co-Authored-By` before `Signed-off-by: Bob` and one inside the body are both gone, audit `trailers: 0`), and the commit-msg hook now matches the same lines with their colon, so "Generated with codegen" in a subject is kept. Saving the identity also rewrites `user.name` and `user.email` in every session worktree. `clean_path` refuses a path whose real location is under `.git`, and the diff reader confines the real path and opens with `O_NOFOLLOW`.
 
 Known and left for F7: `git commit --no-verify` inside a worktree skips the hook (plain push now refuses nothing on its own; an audit before plain push and refusing amend of a pushed commit are next); an empty commit in a sign-and-push range makes the amend step fail (the rebase is aborted and git's message returned); diff output size is capped only per file text, not per hunk list.
+
+### backend/app/services/formslot.py · _discovery
+
+- refers-to: backend/app/services/formslot.py :: _discovery
+- kind: explainer
+- logged: v0.7.0 · 2026-10-30
+
+Reads `<FORMSLOT_DATA_DIR or ~/.formslot>/service.json` and treats the service as running only when the pid is alive (runtime._alive) and the token is a string. The token is used only in the Authorization header of calls to 127.0.0.1:<port> and is never put in a response, a log line or an error.
+
+### backend/app/services/formslot.py · status
+
+- refers-to: backend/app/services/formslot.py :: status
+- kind: explainer
+- logged: v0.7.0 · 2026-10-30
+
+formslot's route is `/api/corpus` (CONTRACT.md), not `/api/corpora`. `workspaceCorpus` is the corpus with the longest path that holds the open workspace. `pluginInstalled` is true when `<workspace>/.claude/settings.json` has a hooks object mentioning formslot, false when not, null with no workspace open. There is no CLI command that lists corpora, so a stopped service reports an empty list.
+
+### backend/app/services/formslot.py · mcp
+
+- refers-to: backend/app/services/formslot.py :: mcp
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+The window gets a forwarder for read tools only. Only `tools/call` with a name in MCP_TOOLS passes; `slot_reindex` (a write) and every other JSON-RPC method are refused with 400, so a page cannot reach the token's full reach. It needs no `initialize` first: formslot answers a bare `tools/call`.
+
+### backend/app/services/formslot.py · drift
+
+- refers-to: backend/app/services/formslot.py :: drift
+- kind: explainer
+- logged: v0.7.0 · 2026-10-30
+
+`slot drift --repo <ws> --json` prints a list of slots, each with a `files` list of `{path, state, ...}`. The route flattens it to `{path, slot, state}`. A repository with no `slots.lock.json` makes formslot exit non-zero with "no slots.lock.json"; the route then retries with `--infer` (states `identical` and `drifted`). The JSON for 26 slots is over 20 kB, so stdout is not clipped for this command, only error text is.
+
+### backend/app/services/formslot.py · start
+
+- refers-to: backend/app/services/formslot.py :: start
+- kind: explainer
+- logged: v0.7.0 · 2026-10-30
+
+`formslot serve` is detached (new session on POSIX, DETACHED_PROCESS plus CREATE_NEW_PROCESS_GROUP on Windows), outputs to null, and outlives the engine on purpose: it is a shared per-data-folder service with its own lock. The route waits up to 5 s for a live discovery file.
+
+### backend/app/services/gate_hook.py · SCRIPT
+
+- refers-to: backend/app/services/gate_hook.py :: SCRIPT
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+The hook script is kept as a string constant so it ships inside a frozen engine without a data-file entry in the PyInstaller spec; `gates.ensure_script` writes it to `<data>/hooks/sf_gate.py` (0755), rewriting it when the text differs, which happens on every session start and resume. It is stdlib only.
+
+Path mapping: a session runs in a git worktree under the data folder, but formslot's `check` picks the corpus by the repository path holding `cwd`. The script therefore rewrites `cwd` and `tool_input.file_path` from `SUBFORM_WORKTREE` to `SUBFORM_REPO` (normpath and realpath compared) before calling `formslot check`; without it every check in a worktree would print nothing.
+
+The reuse warning has no machine-readable slot list, so the script parses `slot <id> (<status>) at <path>:<line>` and `unit <name> (<path>:<line>)` from the additionalContext text; slots come first, units after, and the first entry is the one the deny names. If formslot's wording changes this needs revisiting.
+
+`tokens` is lines of the matched slot file times 10 (a 36-byte average line at formslot's bytes / 3.6 estimate); 0 for a unit-only match.
+
+Failure policy: any exception exits 0 with no output. Two choices go beyond the contract text: an engine that cannot be reached, a missing session env, or a warning with no parsable slot prints the original warning as additionalContext (so the warning is not lost); a deny from formslot is printed unchanged. `SUBFORM_GATE_TIMEOUT` (seconds, 1 to 120) shortens the wait for the 2 s timeout check.
+
+### backend/app/services/gates.py · create and _close
+
+- refers-to: backend/app/services/gates.py :: create
+- kind: explainer
+- logged: v0.7.0 · 2026-10-30
+
+A gate moves a `working` session to `needs-input` (message "Existing slot found: <id>", which also raises the existing needs-input notice) and remembers the prior lastMessage. When the last open gate of the session closes, a session still in `needs-input` returns to `working`; a session that was already needs-input for another reason is left alone. `use` and `adapt` add the gate's tokens to the record's `tokensSaved` (persisted in sessions.json, in `public`). It uses sessions.py internals (`_sessions`, `_set_state`, `_changed`, `_publish`) on purpose, to keep the sessions.py edits small.
+
+Closing choices: `use`, `adapt`, `write` come from the owner; the engine adds `timeout` (the hook's long poll ran out, default 120 s) and `abandoned` (the hook's connection dropped, or the session was stopped or deleted). The `gate-closed` SSE payload is the whole Gate with `choice` set to one of those five. Closed gates stay readable for 10 minutes so a hook that polls after a fast answer still gets it; `GET /api/gates` lists only open ones. A new SSE subscriber receives the open gates as `gate` frames after the session snapshot.
+
+### backend/app/services/gates.py · merged_settings
+
+- refers-to: backend/app/services/gates.py :: merged_settings
+- kind: explainer
+- logged: v0.7.0 · 2026-10-30
+
+Reads the existing `.subform/settings.json`, keeps every key, forces the two attribution keys from SETTINGS_BODY, keeps other PreToolUse entries and replaces any earlier entry whose command names `sf_gate.py`. `_mcp_arg` now rewrites settings on every launch so old sessions gain the hook and a moved Python path is corrected. The hook command is `<python> <data>/hooks/sf_gate.py`; the Python is the engine's own interpreter, or `python3` from PATH when frozen. Hook timeout 135 s covers the 120 s wait.
+
+### backend/app/services/gates.py · session_env
+
+- refers-to: backend/app/services/gates.py :: session_env
+- kind: explainer
+- logged: v0.7.0 · 2026-10-30
+
+Besides the contract's `SUBFORM_ENGINE` and `SUBFORM_SESSION`, the session gets `SUBFORM_WORKTREE`, `SUBFORM_REPO` (for the path mapping) and `FORMSLOT_BIN`. Sessions started before this change keep their old environment until resumed.
+
+### backend/app/services/sessions.py · _mcp_config
+
+- refers-to: backend/app/services/sessions.py :: _mcp_config
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+formslot is now found by `formslot_service.binary()` (FORMSLOT_BIN, then `formslot`, then `formslot-cli` on PATH) so the session's mcp.json carries the same binary the bridge uses.
+
+### backend/app/services/gitops.py · push, _range_check, _range_rows, _is_signed
+
+- refers-to: backend/app/services/gitops.py :: push, _range_check, _range_rows, _is_signed
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+Plain push now audits what it is about to send, like sign-and-push does after its rewrite. The range is `refs/heads/<b> --not --remotes=<remote>`, so it works for a new branch and for one that already has an upstream. Counts: commits, unsigned (only when signing is on; shown as `-` otherwise), commits whose author or committer is not the stored identity (skipped when no identity is stored), and trailer lines (same counter as the commit audit). Anything above zero is a 409 that carries `ok:false`, `check` and `output` so the window prints the same check line as sign-and-push, and nothing is pushed or changed. The commit-box wrapper cannot see `git commit --no-verify` or commits made by tools outside it, which is why the audit has to sit on push. A commit made in a terminal with a different global identity is refused too; that is the point.
+
+### backend/app/services/gitops.py · commit (amend)
+
+- refers-to: backend/app/services/gitops.py :: commit
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+`amend` is refused when HEAD is contained in any remote-tracking ref (`for-each-ref --contains HEAD refs/remotes`, ignoring `<remote>/HEAD`). Checking only `@{upstream}` would miss a branch with no upstream whose commit was pushed under another name, and `--reset-author` on a pushed commit takes it over. The message names the ref and says to make a new commit.
+
+### backend/app/services/gitops.py · agent_audit, _branch_base
+
+- refers-to: backend/app/services/gitops.py :: agent_audit, _branch_base; backend/app/routers/git.py :: audit
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+`GET /api/git/audit?session=` lists commits of a session branch that carry a trailer or an identity other than the stored one, for agent commits made with `--no-verify` (the commit-msg hook is skipped, and the worktree identity can be overridden with `-c` or env). It only reads; nothing is rewritten. The range is the branch's creation point to HEAD: `session.base` is a ref name such as `HEAD` and cannot be used later, so the creation point is the oldest entry of the branch reflog (`reflog show --format=%H`), falling back to `HEAD --not --remotes` when there is no reflog. The workspace target returns an empty list: its commits go through the wrapper, which audits them. The list is capped at 50.
+
+### backend/app/services/gitops.py · sign_and_push
+
+- refers-to: backend/app/services/gitops.py :: sign_and_push
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+Changes so that "fix with sign-and-push" really fixes what the audit flags. (1) The rebase runs with `core.hooksPath` set to the engine's hook folder, so `git commit --amend --no-edit` inside the rebase strips trailers through the same commit-msg hook the worktrees use (`-c` configs are inherited by the exec'd git). (2) For a session target the "another author" refusal is skipped: every commit on a session branch since its creation point is the agent's work, and `--reset-author` restores the stored identity; the workspace target keeps the refusal because commits there may be other people's. (3) For a session branch with no upstream yet, the range starts at the branch creation point instead of refusing with "use Push for a new branch", so a brand-new agent branch can be signed and pushed in one go. (4) The exec amend has `--allow-empty`: an empty commit in the range used to fail the rebase with "doing so would make it empty" and git's raw text; it is now kept and signed. (5) Uncommitted changes to tracked files are refused up front with a clear sentence; git's own refusal ("cannot rebase: You have unstaged changes") was passed through raw. (6) The post-rebase check reuses `_range_check`, so the check line has one definition.
+
+### backend/app/services/gitops.py · _push_args
+
+- refers-to: backend/app/services/gitops.py :: _push_args
+- kind: warning-context
+- logged: v0.7.0 · 2026-10-30
+
+The `-c remote.<r>.push=` clearing from v0.6.1 is removed. On git 2.43 an empty `remote.<r>.push` is parsed as an empty refspec and every push fails with `fatal: invalid refspec ''` (reproduced with plain git, and through the engine for both Push and Sign and Push). The explicit refspec `refs/heads/<b>:refs/heads/<b>` on the command line already takes precedence over any configured push refspec, so the clearing added nothing; the `+` and force protections are unchanged (`--no-force-with-lease`, a refspec without `+`, branch regex).
+
+### backend/app/services/gitops.py · write_worktree_file, _write_atomic, _file_mtime, diff_file
+
+- refers-to: backend/app/services/gitops.py :: write_worktree_file; backend/app/routers/git.py :: worktree_file
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+`PUT /api/git/worktree-file` `{session, path, text, expectedMtime}` writes one existing regular file inside that session's worktree so a session diff tab can be saved. Confinement: a session id is required (the workspace has its own route), the path goes through `clean_path` (no absolute, no `..`, nothing under `.git`, real parent inside the root), a final-component symlink is refused, the file must already exist (404, creation is not offered), read-only is 403, text up to 8 MiB. The mtime check is the workspace route's: a number that differs by more than 1e-6 is 409 `file changed on disk`, null skips the check (the window sends null only after the user chose Overwrite). The write is temp file plus fsync plus `os.replace` with the old mode kept, under the target's lock like every other mutation. `GET /api/git/diff` now returns `mtime` (null when staged, missing or a link) so the tab has the value to send; the workspace tab keeps reading it from the file route.
+
+### backend/app/services/gitops.py · _exec
+
+- refers-to: backend/app/services/gitops.py :: _exec
+- kind: rationale
+- logged: v0.7.0 · 2026-10-30
+
+review5 L5: on timeout only the git process was killed, not ssh or hooks it had started. On POSIX the process starts a new session and the timeout kills the whole group (`killpg` with SIGKILL, falling back to `kill`). Windows has no sessions and keeps `kill`.

@@ -61,7 +61,7 @@ Transitive packages of fastapi and uvicorn[standard] (starlette, pydantic, click
 
 ## Found on the system, never bundled
 
-git (GPL-2.0), the `claude` command, Node.js and Python for development. ripgrep (`rg`, MIT OR Unlicense) when present, run as a separate program for workspace search; a Python search is used without it.
+git (GPL-2.0), the `claude` command, Node.js and Python for development. ripgrep (`rg`, MIT OR Unlicense) when present, run as a separate program for workspace search; a Python search is used without it. From v0.7.0: formslot (GPL-3.0-only, the owner's), run as a separate program and reached over its 127.0.0.1 service; debugpy (MIT) in the workspace's Python or on PATH, started as `python -m debugpy.adapter` and never imported by the engine; language servers (the TypeScript 7 `tsc --lsp`, typescript-language-server, pyright-langserver, pylsp, each under its own licence) found in the workspace's `node_modules/.bin`, `.venv` or `venv`, or on PATH, and run as separate programs.
 
 ## Art
 
