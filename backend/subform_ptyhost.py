@@ -21,7 +21,30 @@ MAX_COLS, MAX_ROWS = 1000, 500
 IDLE_SECONDS = float(os.environ.get("SUBFORM_PTYHOST_IDLE", "600"))
 REAP_SECONDS = float(os.environ.get("SUBFORM_PTYHOST_REAP", "300"))
 ID_RE = re.compile(r"^[a-z0-9]{16}$")
+TAIL_LINES = 2000
+TAIL_BYTES = 256 * 1024
+TAIL_RAW = 1024 * 1024
+ANSI_RE = re.compile(
+    r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?"
+    r"|\x1b[PX^_][^\x1b]*(?:\x1b\\)?"
+    r"|\x1b\[[0-?]*[ -/]*[@-~]?"
+    r"|\x1b[()*+][0-2AB]"
+    r"|\x1b[ -/]*[0-~]?"
+)
+CTRL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 WINDOWS = sys.platform == "win32"
+
+
+def plain_text(raw):
+    text = raw.decode("utf-8", "replace").replace("\r\n", "\n")
+    text = ANSI_RE.sub("", text)
+    lines = []
+    for line in text.split("\n"):
+        if "\r" in line:
+            parts = [p for p in line.split("\r") if p]
+            line = parts[-1] if parts else ""
+        lines.append(CTRL_RE.sub("", line))
+    return lines
 
 if not WINDOWS:
     import fcntl
@@ -487,6 +510,44 @@ class Host:
             term.paused = True
             term.pty.pause()
 
+    def tail(self, conn, term, msg):
+        lines = msg.get("lines")
+        lines = lines if isinstance(lines, int) and not isinstance(lines, bool) and lines > 0 else 200
+        lines = min(lines, TAIL_LINES)
+        since = msg.get("since")
+        since = since if isinstance(since, int) and not isinstance(since, bool) and since >= 0 else None
+        total = term.total
+        start = term.base if since is None else max(term.base, min(since, total))
+        start = max(start, total - TAIL_RAW)
+        missed = 0
+        if since is not None:
+            missed = max(0, start - since)
+        raw = bytes(term.buf[start - term.base:])
+        rows = plain_text(raw)
+        if since is None and rows and rows[-1] == "":
+            rows.pop()
+        dropped = max(0, len(rows) - lines)
+        rows = rows[-lines:]
+        text = "\n".join(rows)
+        encoded = text.encode("utf-8")
+        clipped = False
+        if len(encoded) > TAIL_BYTES:
+            encoded = encoded[-TAIL_BYTES:]
+            text = encoded.decode("utf-8", "ignore")
+            clipped = True
+        conn.send({
+            "op": "tailed",
+            "id": term.id,
+            "text": text,
+            "next": total,
+            "base": term.base,
+            "from": start,
+            "missed": missed,
+            "cut": bool(dropped or clipped),
+            "alive": term.alive,
+            "exitCode": term.exit_code,
+        })
+
     def detach(self, conn, term):
         term.subs.discard(conn)
         conn.attached.discard(term.id)
@@ -525,6 +586,8 @@ class Host:
             await self.attach(conn, term, start if isinstance(start, int) and not isinstance(start, bool) else None)
         elif op == "detach":
             self.detach(conn, term)
+        elif op == "tail":
+            self.tail(conn, term, msg)
         elif op == "ack":
             count = msg.get("bytes")
             if isinstance(count, int) and count > 0:

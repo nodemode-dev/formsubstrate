@@ -198,6 +198,12 @@ class PtyHostClient:
             return []
         return reply.get("terminals", [])
 
+    async def tail(self, tid: str, lines: int, since: int | None = None) -> dict:
+        msg: dict = {"op": "tail", "id": tid, "lines": lines}
+        if since is not None:
+            msg["since"] = since
+        return await self.request(msg, ("tailed",), start=False)
+
     async def events(self) -> AsyncIterator[dict]:
         delay = 0.25
         while True:

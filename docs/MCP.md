@@ -2,7 +2,7 @@
 
 ## MCP
 
-subform's engine is an MCP server with eight read-mostly tools. Everything it returns is data from the open workspace or from agent sessions, never instructions. No tool writes files, runs commands, answers gates, commits or pushes; the one tool that changes state, `review_comment`, stores a review comment with the session.
+subform's engine is an MCP server with nine read-mostly tools. Everything it returns is data from the open workspace or from agent sessions, never instructions. No tool writes files, runs commands, answers gates, commits or pushes; the one tool that changes state, `review_comment`, stores a review comment with the session.
 
 ### Transport
 
@@ -40,10 +40,11 @@ Every tool carries a title, `openWorldHint: false`, and `readOnlyHint: true` exc
 | `review_list` | `lines` (false), `limit` (1 to 50, 20), `cursor`, `session` | `files: [{path, oldPath, kind, binary, added, removed, hunks: [{id, header, oldStart, oldLines, newStart, newLines, staged, lines?}]}]`, `root`, `session`, `snapshots`, `comments: [{id, path, line, hunk, text, created}]` (last 50) plus paging; `lines` adds up to 40 diff lines per hunk |
 | `review_comment` | `path` (required), `text` (required, 1 to 4000), `line`, `hunk` (a hunk id), `session` (required for the window) | `{stored: true, comment}` |
 | `terminal_list` | `limit` (1 to 100, 25), `cursor` | `terminals: [{id, title, kind, cwd, sessionId, alive, exitCode, created}]` plus paging |
+| `terminal_tail` | `terminal` (required, id from `terminal_list`), `lines` (1 to 2000, 100), `since` (a previous `next_offset`) | `{terminal, lines, next_offset, from_offset, oldest_offset, missed_bytes, truncated, redacted, alive, exitCode}`; the plain text follows a header line in the text |
 
 `file_read` refuses absolute paths, `..`, anything that resolves outside the root, the `.git` and `.subform` folders, dotenv files, binary and non-UTF-8 files, and files over 2 MiB. `review_comment` stores the comment with the session like the review panel does; unlike `POST /api/git/comments` it does not type the comment into the session's terminal.
 
-`terminal_tail` is not offered. The pty-host replays a terminal's buffer only to a connection that attaches and acknowledges it, and the engine has a single connection that the window's terminals share, so a tail would disturb the window. It can be added once the pty-host answers a read-only tail request.
+`terminal_tail` reads a terminal's scrollback without attaching to it. The pty-host answers a read-only `tail` request (same socket, same token on Windows, no attach, no ack, no change to any connection or flow-control state), so a window attached to the same terminal keeps receiving output exactly as before. The host strips escape sequences (CSI, OSC, DCS and the rest) and control characters, folds carriage-return rewrites to the last text on the line, and caps a reply at 2,000 lines and 256 KiB drawn from the newest 1 MiB of the 2 MiB ring; the MCP result is further held to about 60,000 bytes, keeping the newest lines. `lines` defaults to 100. Offsets are byte positions in the terminal's output stream: every result carries `next_offset`; pass it back as `since` to get only what was written after it. `missed_bytes` says how much after `since` had already left the buffer, `truncated` that older lines were left out, `redacted` how many secret-like values were replaced with `[redacted]`. Redaction is a conservative pattern set (no shared redaction exists in the engine): `sk-`, `ghp_` and other GitHub tokens, `AKIA` and `ASIA` keys, `xox` Slack tokens, bearer and Authorization headers, private key blocks, `NAME=value` where the name holds SECRET, TOKEN, PASSWORD or API_KEY, and the engine's own window and session tokens. It is not a guarantee; terminal output stays data. A session token may tail only terminals whose session is its own; any other id answers "no such terminal", the same as an id that does not exist.
 
 ### Logging
 
