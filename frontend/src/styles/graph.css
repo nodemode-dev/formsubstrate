@@ -30,7 +30,7 @@
 .cv-gr-zbtn:focus-visible { outline: 1px solid var(--accent-color); }
 .cv-gr-mini { position: absolute; right: var(--space-3); bottom: var(--space-3); z-index: var(--z-raised); width: var(--gr-mini-w); height: var(--gr-mini-h); border: 1px solid var(--line-2); border-radius: var(--radius-lg); background: var(--surface-1); cursor: pointer; }
 .cv-gr-mini[hidden] { display: none; }
-.cv-gr-mm { position: absolute; right: var(--space-3); bottom: var(--space-3); z-index: var(--z-selected); display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); cursor: pointer; }
+.cv-gr-mm { position: absolute; right: var(--space-3); bottom: var(--space-3); z-index: var(--z-selected); display: inline-flex; align-items: center; justify-content: center; width: var(--size-row-sm); height: var(--size-row-sm); padding: 0; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); cursor: pointer; }
 .cv-gr-mm:hover { color: var(--text-primary); background: var(--bg-hover); }
 .cv-gr-mm .icon { transition: transform 120ms ease; }
 .cv-gr-mm.is-open .icon { transform: rotate(90deg); }

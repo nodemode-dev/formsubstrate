@@ -52,3 +52,11 @@ Thin call to `GET /api/graph`. Passing the last signature lets the engine answer
 - logged: v0.8.0 · 2026-10-30
 
 Everything that changes at run time is inside a fixed box: the toolbar has a fixed height and fixed widths for the search, folder and type controls, the count has a flexible slot that ellipsises, the canvas fills the stage absolutely, the tooltip, zoom column, minimap and legend are absolutely placed (the tooltip moves by transform only), and the minimap toggle keeps its corner whether or not the minimap is shown. Layers use `--z-raised` and `--z-selected` only.
+
+### frontend/src/ui/graph/graph-view.ts · placeOrphans
+
+- refers-to: frontend/src/ui/graph/graph-view.ts :: GraphView.placeOrphans
+- kind: rationale
+- logged: v0.11.0 · 2026-10-30
+
+Supersedes the placement in the entry on unlinked files. The grid used a fixed 140 unit offset and a column count from the file count alone, so the first fit left empty bands when the cluster was tall or small. The column count is now the one whose total box (cluster plus a 60 unit separation plus grid) best matches the viewport aspect, the grid is centred on the cluster's height, and the offset is 60. It still runs once, at the first settle, so nothing moves afterwards.

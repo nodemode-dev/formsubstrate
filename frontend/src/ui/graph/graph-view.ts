@@ -540,19 +540,36 @@ export class GraphTab implements ViewDoc {
     for (let i = 0; i < this.n; i++) if (this.inDeg[i] + this.outDeg[i] === 0) loose.push(i);
     this.placed = true;
     if (!loose.length) return;
-    let minY = Infinity, maxX = -Infinity;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     let any = false;
     for (const i of this.simIdx) {
       any = true;
-      if (this.pos[i * 2] > maxX) maxX = this.pos[i * 2];
-      if (this.pos[i * 2 + 1] < minY) minY = this.pos[i * 2 + 1];
+      const x = this.pos[i * 2], y = this.pos[i * 2 + 1];
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
     }
-    if (!any) { maxX = -140; minY = 0; }
-    const cols = Math.max(4, Math.ceil(Math.sqrt(loose.length * 1.4)));
     const gap = 14;
+    const sep = 60;
+    if (!any) { minX = 0; maxX = -sep; minY = 0; maxY = 0; }
+    const clusterW = Math.max(maxX - minX, 0), clusterH = Math.max(maxY - minY, 0);
+    const aspect = this.w > 0 && this.h > 0 ? this.w / this.h : 1.6;
+    let cols = 1, best = -Infinity;
+    for (let c = 1; c <= loose.length; c++) {
+      const rows = Math.ceil(loose.length / c);
+      const gw = (c - 1) * gap, gh = (rows - 1) * gap;
+      const totalW = Math.max((any ? clusterW + sep : 0) + gw, 40), totalH = Math.max(clusterH, gh, 40);
+      const score = Math.min(aspect / (totalW / totalH), totalW / totalH / aspect);
+      if (score > best + 1e-9) { best = score; cols = c; }
+    }
+    const rows = Math.ceil(loose.length / cols);
+    const gridH = (rows - 1) * gap;
+    const top = any ? (minY + maxY) / 2 - gridH / 2 : 0;
+    const left = any ? maxX + sep : 0;
     loose.forEach((i, k) => {
-      this.pos[i * 2] = maxX + 140 + (k % cols) * gap;
-      this.pos[i * 2 + 1] = minY + Math.floor(k / cols) * gap;
+      this.pos[i * 2] = left + (k % cols) * gap;
+      this.pos[i * 2 + 1] = top + Math.floor(k / cols) * gap;
     });
   }
 

@@ -9,6 +9,7 @@ export const ICONS: Record<string, string> = {
   collapseRight: `<svg ${S}><path d="m7 6 6 6-6 6M13 6l6 6-6 6"/></svg>`,
   collapseLeft: `<svg ${S}><path d="m17 6-6 6 6 6M11 6l-6 6 6 6"/></svg>`,
   more3: `<svg viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="18.5" cy="12" r="1.7" fill="currentColor"/></svg>`,
+  panelRight: `<svg ${S}><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M14.5 5v14"/></svg>`,
   panelNav: `<svg ${S}><rect x="3.5" y="5" width="17" height="14" rx="2"/><rect x="9" y="9" width="7" height="5" rx="1"/></svg>`,
   grip: `<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>`,
   minus: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 12h12"/></svg>`,

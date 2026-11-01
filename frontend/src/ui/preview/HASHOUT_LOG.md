@@ -44,3 +44,19 @@ Ctrl+K V is a chord and Mod+K already opens the command palette. While a Markdow
 - logged: v0.8.0 · 2026-10-30
 
 A media file opens as a view tab (id media:path) through Views, so the text editor never reads it; app.ts routes by extension in openInEditor, the one choke point every opener already uses. The bar, stage and footer are built once with fixed heights, the footer slots have minimum widths, and the image is invisible until it has loaded, so loading changes no layout. Fit is object-fit contain in a flex stage, 100% lifts the max size and scrolls. Media is paused when the tab is hidden (a MutationObserver on hidden, because Views has no deactivate) and its source is cleared on dispose to stop the stream. The URL carries the file's mtime so Reload from disk bypasses the cache. A PDF uses the webview's own viewer in an iframe when navigator.pdfViewerEnabled is not false, otherwise shows a message.
+
+### frontend/src/ui/preview/index.ts, command-palette.ts · Ctrl+K chord
+
+- refers-to: frontend/src/ui/preview/index.ts :: installPreview; frontend/src/ui/command-palette.ts :: PALETTE_CHORD
+- kind: rationale
+- logged: v0.11.0 · 2026-10-30
+
+Ctrl+K in a Markdown tab used to be swallowed and the palette opened 700 ms later unless V followed. Now Ctrl+K opens the palette at once (the preview only notes the time). If V is the first key typed into the still empty palette within 700 ms, the palette sends a cancelable window event with the key and a close callback; the preview answers by closing the palette and running Open Preview to the Side. Any other key just types. Measured: palette visible 85 ms after the key at 4x throttle, chord V closes it and opens the side preview.
+
+### frontend/src/ui/preview/external.ts · openExternal
+
+- refers-to: frontend/src/ui/preview/external.ts :: openExternal; frontend/src/ui/preview/md-preview.ts :: MarkdownPreview.click; src-tauri/capabilities/default.json :: shell:allow-open
+- kind: rationale
+- logged: v0.11.0 · 2026-10-30
+
+External links in the preview now do something and never navigate the window. Only http, https and mailto pass. In the desktop app the link goes to the shell plugin's open command through `invoke('plugin:shell|open')` from the Tauri core API already installed (no new npm dependency; the Rust plugin was already registered), which needed one capability line, shell:allow-open, in src-tauri/capabilities/default.json; the plugin's default scope accepts only http, https, mailto and tel. If that fails, or in a browser, the link is copied and a toast says so. The desktop path could not be run in this session (no desktop build); the browser path was measured: the page URL is unchanged, the clipboard holds the link and the toast reads Link copied.

@@ -12,6 +12,7 @@ export const SPLIT_MAX = 80;
 export const SPLIT_DEFAULT = 45;
 
 const KEY = 'subform.stage';
+export const RIGHT_PANEL_EVENT = 'subform:right-panel';
 
 interface Saved { right: string; rightOpen: boolean; rightW: number; splitOpen: boolean; splitPct: number }
 
@@ -51,6 +52,7 @@ export class StagePanels {
   private readonly bodies: HTMLElement;
   private readonly rightGrip: HTMLElement;
   private readonly close: HTMLElement;
+  private announced = false;
   private readonly split: HTMLElement;
   private readonly splitGrip: HTMLElement;
   private readonly panels = new Map<string, RightPanel>();
@@ -187,6 +189,10 @@ export class StagePanels {
       this.splitGrip.setAttribute('aria-valuemax', String(SPLIT_MAX));
     }
     this.relabel();
+    if (open !== this.announced) {
+      this.announced = open;
+      window.dispatchEvent(new Event(RIGHT_PANEL_EVENT));
+    }
   }
 
   private relabel(): void {

@@ -77,6 +77,11 @@
   --size-dot: 8px;
   --size-icon-sm: 14px;
   --size-chip-h: 20px;
+  --size-row-sm: 18px;
+  --size-field: 30px;
+  --size-pane-min: 160px;
+  --size-w-wide: 240px;
+  --size-btn-min: 72px;
   --size-st-lsp: 232px;
   --size-st-lsp-sm: 168px;
   --size-st-formslot: 140px;

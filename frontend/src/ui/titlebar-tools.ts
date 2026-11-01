@@ -3,6 +3,7 @@ import { el, patchList, q, setClass, setDisabled, setHidden, setText } from './d
 import { t } from './i18n';
 import { icon } from './icons';
 import { loadPrefs } from './prefs';
+import { RIGHT_PANEL_EVENT } from './panels/stage-panels';
 import { THEMES, readChoice, setTheme } from './themes';
 
 const SHOWN = 8;
@@ -13,6 +14,7 @@ export class TitleTools {
   private readonly theme: HTMLButtonElement;
   private readonly agent: HTMLButtonElement;
   private readonly terminal: HTMLButtonElement;
+  private readonly rightPanel: HTMLButtonElement;
   private readonly sun: HTMLElement;
   private readonly moon: HTMLElement;
   private readonly pop = el('<div class="cv-search-pop" hidden><input class="cv-search-input" type="search" placeholder="Search commands" aria-label="Search commands"><div class="cv-search-results" role="listbox"></div></div>');
@@ -28,6 +30,9 @@ export class TitleTools {
     const search = el<HTMLButtonElement>(`<button class="cv-tt-btn" type="button" title="${t('Search commands')}" aria-label="${t('Search commands')}">${icon('search', 16)}</button>`);
     this.agent = el<HTMLButtonElement>(`<button class="cv-tt-btn" type="button" title="${t('Claude Code')}" aria-label="${t('Claude Code')}">${icon('agent', 16)}</button>`);
     this.terminal = el<HTMLButtonElement>(`<button class="cv-tt-btn" type="button" title="${t('Show Terminal')}" aria-label="${t('Show Terminal')}">${icon('terminal', 16)}</button>`);
+    this.rightPanel = el<HTMLButtonElement>(`<button class="cv-tt-btn" type="button" title="${t('Toggle Right Panel')}" aria-label="${t('Toggle Right Panel')}" aria-pressed="false">${icon('panelRight', 16)}</button>`);
+    this.rightPanel.addEventListener('click', () => { commands.run('toggle-right-panel'); });
+    window.addEventListener(RIGHT_PANEL_EVENT, () => this.sync());
     this.theme.addEventListener('click', () => { setTheme(THEMES[readChoice().theme]?.light ? loadPrefs().themeDark : 'light'); this.syncTheme(); });
     this.agent.addEventListener('click', () => { commands.run('agent-new'); });
     this.terminal.addEventListener('click', () => { commands.run('terminal-toggle'); });
@@ -47,7 +52,7 @@ export class TitleTools {
     });
     document.addEventListener('pointerdown', (e) => { if (!this.pop.hidden && !this.pop.contains(e.target as Node) && !search.contains(e.target as Node)) this.close(); });
     document.addEventListener('nm:ui-settings-changed', () => this.syncTheme());
-    this.root.append(this.theme, search, this.agent, this.terminal, this.workspaceSelect, this.pop);
+    this.root.append(this.theme, search, this.agent, this.terminal, this.rightPanel, this.workspaceSelect, this.pop);
     host.appendChild(this.root);
     this.syncTheme();
     this.sync();
@@ -57,6 +62,16 @@ export class TitleTools {
     for (const [btn, id] of [[this.agent, 'agent-new'], [this.terminal, 'terminal-toggle']] as const) {
       const cmd = this.commands.get(id);
       setDisabled(btn, !cmd || !this.commands.enabled(cmd));
+    }
+    const right = this.commands.get('toggle-right-panel');
+    setDisabled(this.rightPanel, !right || !this.commands.enabled(right));
+    const on = !!right?.checked?.();
+    setClass(this.rightPanel, 'is-on', on);
+    if (this.rightPanel.getAttribute('aria-pressed') !== String(on)) this.rightPanel.setAttribute('aria-pressed', String(on));
+    const label = right ? t(this.commands.label(right)) : '';
+    if (label && this.rightPanel.getAttribute('aria-label') !== label) {
+      this.rightPanel.setAttribute('aria-label', label);
+      this.rightPanel.title = label;
     }
   }
 

@@ -330,6 +330,7 @@ class FormslotPanel {
       this.say(t('Indexing the workspace'));
       const r = await formslot.index(this.ctx.store.workspace?.path);
       this.say(lastLine(r.output) || t(r.ok ? 'Indexed.' : 'Indexing failed.'), !r.ok);
+      formslotState.noteIndexed();
       await formslotState.refresh();
       await formslotState.ensureDrift(true);
     });
@@ -509,7 +510,7 @@ class FormslotPanel {
 interface CardRow { key: string; kind: 'slot' | 'unit'; title: string; chip: string; where: string; line: number }
 
 const CARD_ROW = '<button class="cv-fsc-row" type="button"><span class="cv-fs-chip cv-fsc-kind"></span><span class="cv-fsc-name"></span><span class="cv-fsc-where"></span></button>';
-const CARD_SLOT_CHECKS = 5;
+const CARD_SLOT_BATCH = 5;
 
 class SlotCard {
   private readonly file: HTMLElement;
@@ -523,6 +524,10 @@ class SlotCard {
   private seq = 0;
   private frame = 0;
   private problem = false;
+  private stamp = '';
+  private readonly cache = new Map<string, CardRow[]>();
+  private readonly details = new Map<string, SlotDetail | null>();
+  private readonly modified = new Map<string, boolean>();
 
   constructor(host: HTMLElement, private readonly ctx: ExtensionContext, private readonly shell: Shell) {
     mountOnce(host, '<div class="cv-fsc"><div class="cv-fsc-head"><span class="cv-fsc-file"></span><span class="cv-fs-chip cv-fsc-drift"></span></div>' +
@@ -539,7 +544,17 @@ class SlotCard {
       else window.dispatchEvent(new CustomEvent(FORMSLOT_OPEN));
     });
     ctx.store.on('active', () => this.schedule());
-    ctx.store.on('docs', () => this.schedule());
+    ctx.store.on('docs', (docs) => {
+      for (const d of docs) {
+        if (this.modified.get(d.path) && !d.modified) {
+          const r = this.relOf(d.path);
+          this.cache.delete(r);
+          if (r === this.rel) this.fetched = '';
+        }
+        this.modified.set(d.path, d.modified);
+      }
+      this.schedule();
+    });
     ctx.store.on('workspace', () => { this.fetched = ''; this.schedule(); });
     formslotState.on('status', () => this.schedule());
     formslotState.on('drift', () => this.schedule());
@@ -552,20 +567,37 @@ class SlotCard {
     this.frame = requestAnimationFrame(() => { this.frame = 0; this.sync(); });
   }
 
-  private relative(): string {
-    const path = this.ctx.store.active?.path ?? '';
+  private relOf(path: string): string {
     const root = this.ctx.store.workspace?.path ?? '';
     return root && path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path;
+  }
+
+  private relative(): string {
+    return this.relOf(this.ctx.store.active?.path ?? '');
+  }
+
+  private stampNow(): string {
+    const s = formslotState.status;
+    const head = s?.corpora.find((c) => c.name === s.workspaceCorpus)?.head ?? '';
+    return `${s?.workspaceCorpus ?? ''}:${head}:${formslotState.indexGen}`;
   }
 
   private sync(): void {
     const rel = this.relative();
     const live = formslotState.isEnabled && formslotState.phase === 'running' && !!rel;
     const key = live ? rel : '';
+    const stamp = this.stampNow();
+    if (stamp !== this.stamp) { this.stamp = stamp; this.cache.clear(); this.details.clear(); this.fetched = ''; }
     if (rel !== this.rel) { this.rel = rel; this.seq++; this.rows = []; this.problem = false; this.fetched = ''; this.loaded = ''; }
     if (key && key !== this.fetched) {
       this.fetched = key;
-      void this.load(rel);
+      const hit = this.cache.get(key);
+      if (hit) {
+        this.seq++;
+        this.rows = hit;
+        this.problem = false;
+        this.loaded = rel;
+      } else void this.load(rel);
     } else if (!key && (this.fetched || this.rows.length || this.loaded)) {
       this.fetched = '';
       this.loaded = '';
@@ -580,8 +612,18 @@ class SlotCard {
     try {
       const found = (await formslot.find(rel, 25)).hits;
       const units = found.filter((h) => h.kind !== 'slot' && h.kind !== 'memory' && h.path === rel);
-      const slots = found.filter((h) => h.kind === 'slot').slice(0, CARD_SLOT_CHECKS);
-      const details = await Promise.all(slots.map((h) => formslot.get(h.id).catch(() => null)));
+      const slots = found.filter((h) => h.kind === 'slot');
+      const details: Array<SlotDetail | null> = [];
+      for (let i = 0; i < slots.length; i += CARD_SLOT_BATCH) {
+        const batch = await Promise.all(slots.slice(i, i + CARD_SLOT_BATCH).map(async (h) => {
+          if (this.details.has(h.id)) return this.details.get(h.id) ?? null;
+          const d = await formslot.get(h.id).catch(() => null);
+          if (mine === this.seq) this.details.set(h.id, d);
+          return d;
+        }));
+        details.push(...batch);
+        if (mine !== this.seq) return;
+      }
       if (mine !== this.seq) return;
       const rows: CardRow[] = [];
       slots.forEach((h, i) => {
@@ -589,6 +631,7 @@ class SlotCard {
       });
       units.forEach((h, i) => rows.push({ key: `unit:${h.id}:${i}`, kind: 'unit', title: h.title || h.qualified || h.id, chip: h.unit_kind ?? '', where: startLine(h.lines) > 0 ? `:${startLine(h.lines)}` : '', line: startLine(h.lines) }));
       this.rows = rows;
+      this.cache.set(rel, rows);
       this.problem = false;
       this.loaded = rel;
     } catch {

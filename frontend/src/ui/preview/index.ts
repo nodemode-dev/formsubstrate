@@ -1,3 +1,4 @@
+import { PALETTE_CHORD } from '../command-palette';
 import type { Commands } from '../commands';
 import { anyDialogOpen } from '../dialogs';
 import { isMac } from '../dom';
@@ -44,30 +45,23 @@ export function installPreview(d: PreviewDeps): PreviewApi {
     { id: 'md-preview-side', label: 'Open Preview to the Side', enabled: () => md.activePath !== null, checked: () => md.mode() === 'side', run: () => md.side() },
   );
 
-  let armed = false;
-  let timer = 0;
-  const disarm = (): void => { armed = false; window.clearTimeout(timer); };
+  let chordAt = -CHORD_MS;
   window.addEventListener('keydown', (e) => {
     if (e.defaultPrevented || anyDialogOpen()) return;
-    if (armed) {
-      if (e.key === 'Control' || e.key === 'Meta' || e.key === 'Shift' || e.key === 'Alt') return;
-      disarm();
-      if (e.key.toLowerCase() === 'v' && !e.altKey) {
-        e.preventDefault();
-        e.stopPropagation();
-        d.commands.run('md-preview-side');
-        return;
-      }
-      d.commands.run('command-palette');
-      return;
-    }
     const mod = isMac ? e.metaKey : e.ctrlKey;
     if (!mod || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'k' || md.activePath === null) return;
-    e.preventDefault();
-    e.stopPropagation();
-    armed = true;
-    timer = window.setTimeout(() => { if (!armed) return; armed = false; d.commands.run('command-palette'); }, CHORD_MS);
+    chordAt = performance.now();
   }, true);
+  window.addEventListener(PALETTE_CHORD, (e) => {
+    if (!(e instanceof CustomEvent) || performance.now() - chordAt >= CHORD_MS) return;
+    const detail: unknown = e.detail;
+    if (typeof detail !== 'object' || detail === null || !('key' in detail) || !('close' in detail)) return;
+    if (detail.key !== 'v' || typeof detail.close !== 'function' || md.activePath === null) return;
+    e.preventDefault();
+    chordAt = -CHORD_MS;
+    detail.close();
+    d.commands.run('md-preview-side');
+  });
 
   return {
     openMedia(path: string): boolean {

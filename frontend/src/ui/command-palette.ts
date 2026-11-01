@@ -42,6 +42,7 @@ function pathsOf(menus: MenuDef[]): Map<string, string> {
 interface Hit { key: string; label: string; meta: string; icon: string; enabled: boolean; why?: string; score: number; on?: boolean; run: () => void }
 
 const SHOWN = 12;
+export const PALETTE_CHORD = 'subform:palette-chord';
 
 export class CommandPalette extends Dialog {
   private readonly input = el<HTMLInputElement>('<input class="cv-input" type="search" placeholder="Search commands" aria-label="Search commands" spellcheck="false" autocomplete="off">');
@@ -64,6 +65,10 @@ export class CommandPalette extends Dialog {
         this.selected = Math.max(0, Math.min(this.hits.length - 1, this.selected + (e.key === 'ArrowDown' ? 1 : -1)));
         this.mark();
       } else if (e.key === 'Enter') { e.preventDefault(); this.runHit(this.selected); }
+      else if (!e.altKey && !this.input.value) {
+        const chord = new CustomEvent(PALETTE_CHORD, { cancelable: true, detail: { key: e.key.toLowerCase(), close: () => this.close() } });
+        if (!window.dispatchEvent(chord)) e.preventDefault();
+      }
     });
     this.list.addEventListener('mousedown', (e) => e.preventDefault());
     this.list.addEventListener('click', (e) => {

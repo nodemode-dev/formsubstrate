@@ -192,6 +192,7 @@ class FormslotState {
   private driftAt = 0;
   private driftInflight: Promise<void> | null = null;
   private selected: string | null = null;
+  private indexed = 0;
   private readonly listeners: Record<StateEvent, Set<() => void>> = { status: new Set(), drift: new Set(), active: new Set() };
 
   on(event: StateEvent, fn: () => void): () => void {
@@ -207,6 +208,12 @@ class FormslotState {
   get problem(): string { return this.failure; }
   get isEnabled(): boolean { return this.enabled; }
   get activeSession(): string | null { return this.selected; }
+  get indexGen(): number { return this.indexed; }
+
+  noteIndexed(): void {
+    this.indexed++;
+    this.emit('status');
+  }
 
   get phase(): FormslotPhase {
     if (this.failure) return 'unreachable';

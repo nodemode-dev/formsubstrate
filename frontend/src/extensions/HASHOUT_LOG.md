@@ -196,3 +196,19 @@ The card tracks `loaded`, the file whose find finished, apart from `fetched`, th
 - logged: v0.10.0 · 2026-10-30
 
 Refresh returns early while the panel has no layout box, and an IntersectionObserver on the host schedules a refresh when the panel becomes visible. Both Outline panels used to send documentSymbol while hidden.
+
+### frontend/src/extensions/formslot/index.ts · SlotCard cache and refresh
+
+- refers-to: frontend/src/extensions/formslot/index.ts :: SlotCard.sync, SlotCard.load; frontend/src/io/formslot.ts :: FormslotState.noteIndexed, FormslotState.indexGen
+- kind: rationale
+- logged: v0.11.0 · 2026-10-30
+
+Carried LOW from the F7 review, now closed. The card keeps two maps: rows by workspace-relative path and slot_get answers by slot id, both stamped with the workspace corpus name, its head from the formslot status and the index generation. A new stamp (the 5 s status poll sees a new head, or the Index action calls noteIndexed) clears both and refetches the shown file without clearing its rows, so nothing blinks. A save (an open document going from modified to saved) drops that file's cached rows and refetches. Switching back to a file seen under the same stamp paints from the cache with no call. Every slot hit from slot_find is now checked, five at a time, instead of the first five, so a slot listed sixth or later is no longer missed; the rows are painted once at the end. Measured against a mocked engine route at 4x CPU throttle: first visit 1 find and 8 gets, switch away and back 0 calls, save 1 find and 0 gets, new head 1 find and 8 gets, layout shift only the editor cursor.
+
+### frontend/src/ui/titlebar-tools.ts, panels/stage-panels.ts · right panel toggle
+
+- refers-to: frontend/src/ui/titlebar-tools.ts :: TitleTools; frontend/src/ui/panels/stage-panels.ts :: RIGHT_PANEL_EVENT, StagePanels.apply; frontend/src/ui/icons.ts :: panelRight
+- kind: rationale
+- logged: v0.11.0 · 2026-10-30
+
+The right panel starts closed, so the Outline was not reachable on first run. A toggle button (icon panelRight, is-on and aria-pressed while open) now follows the Show Terminal button in the title bar tools, per the formvis title bar map (section C5, tools in a row of cv-tt-btn). It runs the existing toggle-right-panel command, so Alt+Mod+B and View menu stay the same path. The panel announces a change of visibility with a window event (RIGHT_PANEL_EVENT, only when the visible state changes) so the button follows the panel's own close button too. The panel is still closed on first run; the button is the way in.

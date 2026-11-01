@@ -34,7 +34,7 @@
 .cv-st-lsp.is-idle { visibility: hidden; }
 .cv-st-lsp.is-unavailable, .cv-st-lsp.is-stopped { color: var(--warn); }
 .cv-st-lsp-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.cv-st-lsp-e, .cv-st-lsp-w { display: inline-flex; align-items: center; flex: none; gap: var(--space-0); min-width: 30px; font-variant-numeric: tabular-nums; }
+.cv-st-lsp-e, .cv-st-lsp-w { display: inline-flex; align-items: center; flex: none; gap: var(--space-0); min-width: var(--size-field); font-variant-numeric: tabular-nums; }
 .cv-st-lsp-e { color: var(--danger-soft); }
 .cv-st-lsp-w { color: var(--warn); }
 

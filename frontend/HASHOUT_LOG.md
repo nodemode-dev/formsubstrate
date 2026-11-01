@@ -1919,3 +1919,19 @@ A container query cannot style the container it names, so the narrow gap of the 
 - logged: v0.10.0 · 2026-10-30
 
 The Source Control panel shows an overlay card (like the flag and check cards, so it moves nothing) when the stored identity source is not Preferences: "No identity set: commits use your global git identity" with a Set identity button that opens Preferences at Git and Identity; if no identity exists at all it says commits will be refused. The Last commit card gains an Identity row from the commit result's `identitySource`. For a session target the footer shows "no flagged commits" or "N flagged"; the tooltip explains that only agent commits with a trailer or another identity are flagged, which is why the list can be empty after a normal wrapper commit. The Done type reads `identitySource` as optional because `io/git.ts` is typed without it. In the formslot panel an unindexed workspace turns the sub line amber, outlines the button, and the button reads Index workspace (tooltip: Index this workspace for formslot); layout is unchanged. The OFL-1.1 text for Inter and JetBrains Mono was not in the built window, so `public/licenses/fonts-OFL-1.1.txt` now ships with it.
+
+### frontend/src/styles · size tokens for raw pixel sizes
+
+- refers-to: frontend/src/styles/tokens.css :: --size-row-sm, --size-field, --size-pane-min, --size-w-wide, --size-btn-min
+- kind: rationale
+- logged: v0.11.0 · 2026-10-30
+
+Raw 18, 30, 160, 240 and 72 px sizes in dialogs, formslot, git, graph, home, lsp, sessions and shell stylesheets now read --size-row-sm (18), --size-field (30), --size-pane-min (160), --size-w-wide (240) and --size-btn-min (72); the 40 px home thumbnail width uses --ctl-xl. Computed values are identical. Left as they are: 1px borders, icon and glyph sizes, calc offsets inside dialog widths, and one-off values in terminal, debug, editor and workbench sheets (120, 110, 84, 64, 56, 44, 26, 22 px); they are not named by any finding and each is used by one rule, so a token would only rename it.
+
+### Translations since F7
+
+- refers-to: frontend/src/ui/i18n.ts :: LOADERS; frontend/src/ui/i18n/langs.ts :: LANG_CODES
+- kind: explainer
+- logged: v0.11.0 · 2026-10-30
+
+Only the English table exists (LANG_CODES is ['en'], LOADERS is empty and English strings are the keys), so there is no language table to add entries to. The strings added in v0.11.0 (Link copied, Could not open the link, and reuse of Toggle Right Panel) are plain English keys through t().

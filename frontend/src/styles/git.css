@@ -44,12 +44,12 @@
 .cv-sc-snap { display: flex; align-items: center; gap: var(--space-2); height: 38px; box-sizing: border-box; padding: 0 var(--space-2) 0 var(--space-3); }
 .cv-sc-snap:hover { background: var(--bg-hover); }
 .cv-sc-snap-main { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
-.cv-sc-snap-t { height: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-size: var(--fs-12); }
+.cv-sc-snap-t { height: var(--size-row-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-size: var(--fs-12); }
 .cv-sc-snap-m { height: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: var(--fs-11); font-variant-numeric: tabular-nums; }
 .cv-sc-rewind:hover:not(:disabled) { color: var(--warn); }
 
 .cv-sc-foot { display: flex; flex-direction: column; gap: var(--space-2); flex: none; padding: var(--space-2) var(--space-3) var(--space-3); border-top: 1px solid var(--line-1); }
-.cv-sc-meta { display: flex; align-items: center; gap: var(--space-1h); height: 18px; min-width: 0; color: var(--text-muted); font-size: var(--fs-11); }
+.cv-sc-meta { display: flex; align-items: center; gap: var(--space-1h); height: var(--size-row-sm); min-width: 0; color: var(--text-muted); font-size: var(--fs-11); }
 .cv-sc-meta > .icon { flex: none; }
 .cv-sc-branch { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-family: var(--font-mono); }
 .cv-sc-ahead { flex: none; margin-left: auto; font-variant-numeric: tabular-nums; }

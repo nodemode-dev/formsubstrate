@@ -3,6 +3,7 @@ import { isMarkdownPath } from '../editor/languages';
 import { t } from '../i18n';
 import { icon } from '../icons';
 import type { WorkspaceStore } from '../workspace-store';
+import { openExternal } from './external';
 import { patch, renderMarkdown, resolveRelative } from './markdown';
 
 export type PreviewMode = 'off' | 'side' | 'only';
@@ -137,7 +138,7 @@ export class MarkdownPreview {
       return;
     }
     if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('//')) {
-      this.deps.hint(`${t('Links do not open from the preview')}: ${href}`);
+      void openExternal(href.startsWith('//') ? `https:${href}` : href);
       return;
     }
     const file = this.shownPath;
