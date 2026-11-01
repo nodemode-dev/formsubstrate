@@ -319,3 +319,11 @@ The third candidate `../lib/subform/engine` is where a `.deb` or AppImage places
 - logged: v0.10.0 · 2026-10-30
 
 review M3. At setup the shell mints 32 random bytes (hex) with `getrandom` (already in the dependency tree through Tauri; now a direct dependency, NOTICE row added), keeps them in Tauri state and passes them to the engine in `SUBFORM_WINDOW_TOKEN` on both the packaged and the development spawn (both go through `engine_command`). The window asks for the token with the `window_token` command, which refuses any window except `main`; the command has an `allow-window-token` permission in `capabilities/default.json` and is listed in `build.rs`. A Tauri command cannot be invoked by another local process, unlike the old HTTP route. No initialization script is used, so no token sits in page scripts until the window asks. If the random source fails the shell shows the engine failure dialog instead of starting without a token. Limit: the variable is visible to the same user in the engine's process environment.
+
+### src-tauri/tauri.conf.json · plugins.shell.open; capabilities/default.json · remote urls
+
+- refers-to: src-tauri/tauri.conf.json :: plugins.shell.open; src-tauri/capabilities/default.json :: remote
+- kind: rationale
+- logged: v0.11.0 · 2026-10-30
+
+review L5. `plugins.shell.open` is `^(https?://[^\s]+|mailto:[^\s]+)$`: http, https and mailto with no whitespace. The remote capability `http://127.0.0.1:*` stays as it is: the engine picks its port at run time (the shell reads it from the engine's first output line), a capability file is static, and no other capability names a port, so there is no origin to write there. Any page served from a loopback port inside the main window could call the permitted commands; the main window only navigates to the engine, and the engine's LocalGuard, the window token and the open scope above are what limit a rogue loopback page.

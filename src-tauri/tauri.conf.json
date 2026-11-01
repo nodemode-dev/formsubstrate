@@ -41,5 +41,10 @@
       "hardenedRuntime": true,
       "entitlements": "entitlements.plist"
     }
+  },
+  "plugins": {
+    "shell": {
+      "open": "^(https?://[^\\s]+|mailto:[^\\s]+)$"
+    }
   }
 }

@@ -511,6 +511,19 @@ interface CardRow { key: string; kind: 'slot' | 'unit'; title: string; chip: str
 
 const CARD_ROW = '<button class="cv-fsc-row" type="button"><span class="cv-fs-chip cv-fsc-kind"></span><span class="cv-fsc-name"></span><span class="cv-fsc-where"></span></button>';
 const CARD_SLOT_BATCH = 5;
+const CARD_CACHE_MAX = 64;
+const CARD_DETAILS_MAX = 256;
+const FILES_CHANGED = 'subform:git-changed';
+
+function remember<V>(map: Map<string, V>, key: string, value: V, max: number): void {
+  map.delete(key);
+  map.set(key, value);
+  while (map.size > max) {
+    const oldest = map.keys().next();
+    if (oldest.done) break;
+    map.delete(oldest.value);
+  }
+}
 
 class SlotCard {
   private readonly file: HTMLElement;
@@ -556,6 +569,11 @@ class SlotCard {
       this.schedule();
     });
     ctx.store.on('workspace', () => { this.fetched = ''; this.schedule(); });
+    window.addEventListener(FILES_CHANGED, () => {
+      if (this.rel) this.cache.delete(this.rel);
+      this.fetched = '';
+      this.schedule();
+    });
     formslotState.on('status', () => this.schedule());
     formslotState.on('drift', () => this.schedule());
     onLanguage(() => this.paint());
@@ -593,6 +611,7 @@ class SlotCard {
       this.fetched = key;
       const hit = this.cache.get(key);
       if (hit) {
+        remember(this.cache, key, hit, CARD_CACHE_MAX);
         this.seq++;
         this.rows = hit;
         this.problem = false;
@@ -618,7 +637,7 @@ class SlotCard {
         const batch = await Promise.all(slots.slice(i, i + CARD_SLOT_BATCH).map(async (h) => {
           if (this.details.has(h.id)) return this.details.get(h.id) ?? null;
           const d = await formslot.get(h.id).catch(() => null);
-          if (mine === this.seq) this.details.set(h.id, d);
+          if (mine === this.seq) remember(this.details, h.id, d, CARD_DETAILS_MAX);
           return d;
         }));
         details.push(...batch);
@@ -631,7 +650,7 @@ class SlotCard {
       });
       units.forEach((h, i) => rows.push({ key: `unit:${h.id}:${i}`, kind: 'unit', title: h.title || h.qualified || h.id, chip: h.unit_kind ?? '', where: startLine(h.lines) > 0 ? `:${startLine(h.lines)}` : '', line: startLine(h.lines) }));
       this.rows = rows;
-      this.cache.set(rel, rows);
+      remember(this.cache, rel, rows, CARD_CACHE_MAX);
       this.problem = false;
       this.loaded = rel;
     } catch {

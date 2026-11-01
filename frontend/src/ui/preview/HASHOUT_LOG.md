@@ -60,3 +60,11 @@ Ctrl+K in a Markdown tab used to be swallowed and the palette opened 700 ms late
 - logged: v0.11.0 · 2026-10-30
 
 External links in the preview now do something and never navigate the window. Only http, https and mailto pass. In the desktop app the link goes to the shell plugin's open command through `invoke('plugin:shell|open')` from the Tauri core API already installed (no new npm dependency; the Rust plugin was already registered), which needed one capability line, shell:allow-open, in src-tauri/capabilities/default.json; the plugin's default scope accepts only http, https, mailto and tel. If that fails, or in a browser, the link is copied and a toast says so. The desktop path could not be run in this session (no desktop build); the browser path was measured: the page URL is unchanged, the clipboard holds the link and the toast reads Link copied.
+
+### frontend/src/ui/preview/external.ts · checked, openExternal
+
+- refers-to: frontend/src/ui/preview/external.ts :: checked, openExternal
+- kind: rationale
+- logged: v0.11.0 · 2026-10-30
+
+review L5. The link is parsed with `new URL()`; anything with whitespace or a control character, any scheme other than http, https and mailto, and an http link without a host are refused, and the normalised `href` is what is handed to the shell and shown. The toast shows the destination (cut at 200 characters) as text through `textContent` via `toast`. `src-tauri/tauri.conf.json` pins `plugins.shell.open` to `^(https?://[^\s]+|mailto:[^\s]+)$`, which drops `tel:` that the plugin default allowed.

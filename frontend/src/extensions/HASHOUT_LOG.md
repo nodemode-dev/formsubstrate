@@ -212,3 +212,11 @@ Carried LOW from the F7 review, now closed. The card keeps two maps: rows by wor
 - logged: v0.11.0 · 2026-10-30
 
 The right panel starts closed, so the Outline was not reachable on first run. A toggle button (icon panelRight, is-on and aria-pressed while open) now follows the Show Terminal button in the title bar tools, per the formvis title bar map (section C5, tools in a row of cv-tt-btn). It runs the existing toggle-right-panel command, so Alt+Mod+B and View menu stay the same path. The panel announces a change of visibility with a window event (RIGHT_PANEL_EVENT, only when the visible state changes) so the button follows the panel's own close button too. The panel is still closed on first run; the button is the way in.
+
+### frontend/src/extensions/formslot/index.ts · SlotCard cache
+
+- refers-to: frontend/src/extensions/formslot/index.ts :: remember, SlotCard
+- kind: rationale
+- logged: v0.11.0 · 2026-10-30
+
+review L8. The card's per-path rows cache is an LRU of 64 paths (`remember` re-inserts on hit and on store and drops the oldest), and the slot detail cache is capped at 256 ids. The window has no per-file watcher; the file-change signal it already receives is the git extension's `subform:git-changed` event, which also follows a Bash write. On it the shown file's cached rows are dropped and the card refetches without clearing its rows first, so the keyed list patches in place and does not flash.
