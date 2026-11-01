@@ -242,6 +242,64 @@ body.theme-light {
   --ft-ansi-bright-white: #374151;
 }
 
+:root[data-theme-profile="substrata"] {
+  --font-ui: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --radius: 9px;
+  --radius-ctl: 10px;
+  --radius-md: 10px;
+  --radius-input: 11px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --bg-hover: rgba(255, 255, 255, 0.07);
+  --bg-scrim: rgba(7, 3, 10, 0.55);
+  --border-soft: rgba(255, 255, 255, 0.085);
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.46);
+  --shadow-md: 0 6px 22px rgba(0, 0, 0, 0.6);
+  --shadow-window: 0 24px 64px rgba(0, 0, 0, 0.8);
+  --shadow-pop: 0 14px 44px rgba(0, 0, 0, 0.76), 0 2px 10px rgba(0, 0, 0, 0.46);
+  --shadow-dialog: 0 28px 80px rgba(0, 0, 0, 0.82);
+  --shadow-inset-hl: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --ok: #4ade80;
+  --ok-soft: #86efac;
+  --warn: #ffd23f;
+  --danger: #ff5c7a;
+  --danger-soft: #ff8fa3;
+  --danger-text: #ffb3c0;
+  --glass-bg: color-mix(in srgb, #130c17 90%, transparent);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-highlight: rgba(255, 255, 255, 0.2);
+  --glass-filter: blur(14px) saturate(2.35) brightness(0.94);
+  --glass-shadow: 0 14px 44px rgba(0, 0, 0, 0.76), 0 2px 10px rgba(0, 0, 0, 0.46), inset 0 -14px 30px -18px rgba(0, 0, 0, 0.65);
+  --syn-blue: #6ab8ff;
+  --syn-violet: #c792ff;
+  --syn-teal: #5fd4c4;
+  --syn-keyword: #f18fff;
+  --syn-string: #4ade80;
+  --syn-number: #ffd23f;
+  --syn-comment: #86798e;
+  --syn-meta: #86798e;
+  --syn-tag: #ff5c7a;
+  --syn-operator: #c3b5cb;
+  --syn-punct: #ac9cb4;
+  --syn-heading: #f18fff;
+  --ft-ansi-black: #2d2433;
+  --ft-ansi-red: #ff5c7a;
+  --ft-ansi-green: #4ade80;
+  --ft-ansi-yellow: #ffd23f;
+  --ft-ansi-blue: #6ab8ff;
+  --ft-ansi-magenta: #c792ff;
+  --ft-ansi-cyan: #5fd4c4;
+  --ft-ansi-white: #d9d2de;
+  --ft-ansi-bright-black: #675c6d;
+  --ft-ansi-bright-red: #ff8fa3;
+  --ft-ansi-bright-green: #86efac;
+  --ft-ansi-bright-yellow: #ffe27a;
+  --ft-ansi-bright-blue: #9bd0ff;
+  --ft-ansi-bright-magenta: #e0c2ff;
+  --ft-ansi-bright-cyan: #8fe9dc;
+  --ft-ansi-bright-white: #f4f1f6;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: var(--font-ui);

@@ -3,6 +3,7 @@ import { registerSearchProvider } from '../extensions/registry';
 import { el, q, setClass, setHidden, setStyleVar, setText, setTitle } from './dom';
 import { onLanguage, t } from './i18n';
 import { icon } from './icons';
+import { StagePanels } from './panels/stage-panels';
 import { loadPrefs, updatePrefs } from './prefs';
 import type { WorkspaceStore } from './workspace-store';
 
@@ -56,6 +57,7 @@ export class Workbench implements Shell {
   private readonly sideTitle: HTMLElement;
   private readonly panelsHost: HTMLElement;
   private readonly grip: HTMLElement;
+  private readonly stagePanels: StagePanels;
   private readonly panels = new Map<string, Panel>();
   private width: number;
   private collapsed: boolean;
@@ -82,6 +84,7 @@ export class Workbench implements Shell {
     this.grip = q(this.root, '.cv-wb-grip');
     this.editorArea = q(this.root, '.cv-wb-editor');
     this.editorHost = q(this.root, '.cv-editor-host');
+    this.stagePanels = new StagePanels(this.root, this.editorArea);
     this.applyWidth();
     setClass(this.root, 'is-collapsed', this.collapsed);
     stage.append(this.root);
@@ -92,6 +95,13 @@ export class Workbench implements Shell {
 
   get sidebarVisible(): boolean { return !this.collapsed; }
   get activePanel(): string { return this.activeId; }
+  get rightVisible(): boolean { return this.stagePanels.rightVisible; }
+  get splitVisible(): boolean { return this.stagePanels.splitVisible; }
+  get splitHost(): HTMLElement { return this.stagePanels.splitHost; }
+
+  rightSection(opts: SidebarSectionOptions): SidebarSection { return this.stagePanels.rightSection(opts); }
+  toggleRight(show?: boolean): void { this.stagePanels.toggleRight(show); }
+  toggleSplit(show?: boolean): void { this.stagePanels.toggleSplit(show); }
 
   sidebarSection(opts: SidebarSectionOptions): SidebarSection {
     const button = el<HTMLButtonElement>(`<button class="cv-wb-act" type="button" role="tab" data-panel="${opts.id}">${icon(opts.icon, 22)}</button>`);

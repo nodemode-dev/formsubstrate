@@ -1,6 +1,7 @@
-export interface ThemeProfile { label: string; vars: Record<string, string>; light?: boolean }
+export interface ThemeProfile { label: string; vars: Record<string, string>; light?: boolean; accent?: string }
 
 export const THEMES: Record<string, ThemeProfile> = {
+  'substrata': { label: 'Substrata', accent: '#c661ff', vars: { '--bg-primary': '#07030a', '--bg-secondary': '#100d13', '--bg-tertiary': '#1a1620', '--border-color': '#261f2c', '--border-light': '#372f3f', '--text-primary': '#f4f1f6', '--text-secondary': '#ac9cb4', '--text-muted': '#7d6f85', '--canvas-bg': '#07030a', '--grid-color': 'rgba(198,97,255,0.06)', '--bg-node': '#100d13' } },
   'studio': { label: 'Studio Dark', vars: { '--bg-primary': '#111111', '--bg-secondary': '#17151b', '--bg-tertiary': '#222127', '--border-color': '#2a2a2a', '--border-light': '#34333a', '--text-primary': '#f7f7f7', '--text-secondary': '#a4a4a4', '--text-muted': '#717072', '--canvas-bg': '#1c1b1d', '--grid-color': '#5e5e60', '--bg-node': '#191919' } },
   'nodemode-dark': { label: 'NodeMode Dark', vars: { '--bg-primary': '#0a0a0a', '--bg-secondary': '#121218', '--bg-tertiary': '#1a1a24', '--border-color': '#2a2a35', '--border-light': '#3a3a48', '--text-primary': '#e8e8ee', '--text-secondary': '#a8a8b8', '--text-muted': '#6a6a7a', '--canvas-bg': '#0a0a0a', '--grid-color': 'rgba(255,255,255,0.04)', '--node-shadow': '0 6px 18px rgba(0,0,0,0.45)' } },
   'light': { label: 'Light', light: true, vars: { '--bg-primary': '#ecebe6', '--bg-secondary': '#f7f6f1', '--bg-tertiary': '#e2e0d8', '--bg-node': '#f4f3ed', '--border-color': '#d1cdc1', '--border-light': '#beb9aa', '--text-primary': '#26241d', '--text-secondary': '#4c4a40', '--text-muted': '#8b887a', '--canvas-bg': '#e7e5dd', '--grid-color': 'rgba(70,60,30,0.10)', '--node-shadow': '0 5px 14px rgba(96,90,70,0.15)' } },
@@ -31,9 +32,10 @@ export const THEMES: Record<string, ThemeProfile> = {
   'soft-dark': { label: 'Soft Dark', vars: { '--bg-primary': '#22262b', '--bg-secondary': '#2b3036', '--bg-tertiary': '#353b43', '--border-color': '#454c56', '--border-light': '#7c8693', '--text-primary': '#e1e6ec', '--text-secondary': '#b9c1cb', '--text-muted': '#9ca6b2', '--canvas-bg': '#1b1e22', '--grid-color': 'rgba(225,230,236,0.06)' } },
 };
 
-export const DEFAULT_THEME = 'studio';
+export const DEFAULT_THEME = 'substrata';
 export const DEFAULT_ACCENT = '#f97316';
 export const OLD_DEFAULT_ACCENT = '#aba0d3';
+export const accentFor = (theme: string): string => THEMES[theme]?.accent ?? DEFAULT_ACCENT;
 export const DEFAULT_INTENSITY = 1;
 export const STORAGE_KEY = 'nodemode_ui_settings';
 export const APPEARANCE = 3;
@@ -47,14 +49,14 @@ export function readChoice(): ThemeChoice {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const saved = JSON.parse(raw) as Partial<ThemeChoice> & { appearance?: number };
-      if (saved.appearance === APPEARANCE) return { theme: saved.theme || DEFAULT_THEME, accentColor: saved.accentColor || DEFAULT_ACCENT, intensity: clampIntensity(saved.intensity) };
+      if (saved.appearance === APPEARANCE) return { theme: saved.theme || DEFAULT_THEME, accentColor: saved.accentColor || accentFor(saved.theme || DEFAULT_THEME), intensity: clampIntensity(saved.intensity) };
       if (saved.appearance === 2) return { theme: saved.theme || DEFAULT_THEME, accentColor: !saved.accentColor || saved.accentColor === OLD_DEFAULT_ACCENT ? DEFAULT_ACCENT : saved.accentColor, intensity: DEFAULT_INTENSITY };
-      if (saved.theme && saved.theme in THEMES) return { theme: saved.theme, accentColor: saved.accentColor || DEFAULT_ACCENT, intensity: clampIntensity(saved.intensity) };
+      if (saved.theme && saved.theme in THEMES) return { theme: saved.theme, accentColor: saved.accentColor || accentFor(saved.theme), intensity: clampIntensity(saved.intensity) };
     }
   } catch (e) {
     console.error('[theme] read failed:', e);
   }
-  return { theme: DEFAULT_THEME, accentColor: DEFAULT_ACCENT, intensity: DEFAULT_INTENSITY };
+  return { theme: DEFAULT_THEME, accentColor: accentFor(DEFAULT_THEME), intensity: DEFAULT_INTENSITY };
 }
 
 export function saveChoice(choice: ThemeChoice): void {
@@ -80,6 +82,7 @@ export function applyTheme(choice: ThemeChoice = readChoice()): void {
   const theme = THEMES[choice.theme] || THEMES[DEFAULT_THEME];
   for (const [k, v] of Object.entries(theme.vars)) root.style.setProperty(k, v);
   document.body.classList.toggle('theme-light', !!theme.light);
+  root.dataset.themeProfile = THEMES[choice.theme] ? choice.theme : DEFAULT_THEME;
   root.style.setProperty('--bg-node', theme.vars['--bg-node'] || theme.vars['--bg-secondary']);
   root.style.setProperty('--shadow-lg', theme.light ? '0 4px 14px rgba(96, 90, 70, 0.16)' : '0 8px 32px rgba(0, 0, 0, 0.5)');
   root.style.setProperty('--accent-color', choice.accentColor);
@@ -95,7 +98,8 @@ function announce(key: string): void {
 }
 
 export function setTheme(theme: string): void {
-  const choice = { ...readChoice(), theme };
+  const prev = readChoice();
+  const choice = { ...prev, theme, accentColor: prev.accentColor === accentFor(prev.theme) ? accentFor(theme) : prev.accentColor };
   saveChoice(choice);
   applyTheme(choice);
   announce('theme');

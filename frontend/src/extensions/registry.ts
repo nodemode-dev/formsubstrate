@@ -38,6 +38,10 @@ export interface Shell {
   revealLine(path: string, line: number, col?: number): void;
   setStatus(text: string, kind?: 'info' | 'error'): void;
   toggleBottom(show?: boolean): void;
+  rightSection?(opts: SidebarSectionOptions): SidebarSection;
+  toggleRight?(show?: boolean): void;
+  readonly splitHost?: HTMLElement;
+  toggleSplit?(show?: boolean): void;
   registerSearchProvider(provider: SearchProvider): void;
 }
 
