@@ -1,5 +1,6 @@
 import { request } from './api';
 import { owner } from './window-token';
+import { workspaceTrusted } from './trust';
 import { asGate, gates as gatesApi, type Gate, type GateChoice } from './formslot';
 import type { HomeSession } from '../ui/home';
 import type { SessionsSummary } from '../ui/workspace-store';
@@ -169,7 +170,7 @@ export class SessionsClient {
   }
 
   async create(body: NewSessionBody): Promise<Session> {
-    const s = await request<Session>('/api/sessions', json('POST', body));
+    const s = await owner<Session>('/api/sessions', json('POST', { ...body, trusted: workspaceTrusted() }));
     this.merge(s, true);
     this.publish();
     return s;

@@ -420,15 +420,19 @@ def _mcp_arg(item: dict) -> list[str]:
     return ["--mcp-config", str(worktree / MCP_DIR / MCP_NAME), "--settings", str(settings)]
 
 
+def _sources(item: dict) -> str:
+    return "user,project" if item.get("trusted") is True else "user"
+
+
 async def _start_claude_terminal(item: dict, args: list[str] | None = None) -> str:
-    return await _launch(item, [_claude(), "--setting-sources", "user", *_mcp_arg(item), *(args or [])], False)
+    return await _launch(item, [_claude(), "--setting-sources", _sources(item), *_mcp_arg(item), *(args or [])], False)
 
 
 async def _start_headless(item: dict, prompt: str, resume: str | None = None) -> str:
     mode = item.get("permissionMode")
     if mode not in PERMISSION_MODES:
         mode = DEFAULT_PERMISSION_MODE
-    argv = [_claude(), "-p", "--output-format", "stream-json", "--verbose", "--setting-sources", "user", "--permission-mode", mode, *_mcp_arg(item), *(["--resume", resume] if resume else []), "--", prompt]
+    argv = [_claude(), "-p", "--output-format", "stream-json", "--verbose", "--setting-sources", _sources(item), "--permission-mode", mode, *_mcp_arg(item), *(["--resume", resume] if resume else []), "--", prompt]
     return await _launch(item, argv, True)
 
 
@@ -685,7 +689,7 @@ def _need_title(title: object) -> str:
     return text[:120] if text else "Untitled session"
 
 
-async def create(title: str, mode: str, prompt: str | None, base: str | None, permission_mode: str | None = None) -> dict:
+async def create(title: str, mode: str, prompt: str | None, base: str | None, permission_mode: str | None = None, trusted: bool = False) -> dict:
     _load()
     if mode not in ("interactive", "headless"):
         raise Refused(400, "mode must be interactive or headless")
@@ -714,6 +718,7 @@ async def create(title: str, mode: str, prompt: str | None, base: str | None, pe
         "branch": branch,
         "base": base,
         "permissionMode": permission_mode,
+        "trusted": trusted is True,
         "worktree": str(path),
         "mode": mode,
         "state": "working",

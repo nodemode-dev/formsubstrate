@@ -746,3 +746,12 @@ Step 1 of the Use and Adapt texts now names formslot's v0.15.0 tool: call the MC
 - logged: v0.16.0 · 2026-11-01
 
 Live check (Claude Code 2.1.316, port 5653): a worktree holding a committed `.claude/settings.json` with a SessionStart hook ran that hook in an interactive session once the trust prompt was accepted, because the sessions passed only `--settings` and Claude Code still read project settings from the checkout. A committed `.subform/settings.json` never ran (Claude Code does not read that path). Both launches now pass `--setting-sources user`, so only user settings and the engine's own `--settings` file apply, as graph runs already do. The flag sits in the two launch functions and not in `_mcp_arg`, because `runs/worktree._run_args` indexes the `_mcp_arg` list and `runs/agent` adds the flag itself.
+
+### backend/app/services/sessions.py · _sources (project sources for trusted workspaces)
+
+- refers-to: backend/app/services/sessions.py :: _sources, create; backend/app/routers/sessions.py :: NewSession, create; frontend/src/io/sessions.ts :: SessionsClient.create
+- kind: rationale
+- logged: v0.16.0 · 2026-11-01
+
+Review found, and a `claude -p` probe confirmed, that `--setting-sources user` also drops the project's CLAUDE.md and `.claude/skills` (the probe answered NONE for both; with `user,project` it found the codeword and the skill). Sessions now record `trusted` at creation and pass `user,project` only for a workspace trusted in Preferences, matching how language servers, debug venvs and run tools treat programs found in a workspace; an untrusted workspace keeps `user` only, so its committed hooks do not run and its CLAUDE.md and skills are not loaded. The window sends `trusted` with its token, and the router honours the flag only when the window token is valid, so a local process without the token cannot ask for project sources. A session restored from the registry without the key is untrusted.
+- todo: graph runs (`runs/agent.py`) still pass `user` only, so graph agents never see the project's CLAUDE.md or skills.

@@ -1,10 +1,12 @@
 import asyncio
 import json
+import secrets
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
+from app.core.local_guard import WINDOW_HEADER, WINDOW_TOKEN
 from app.services import gates
 from app.services import sessions as svc
 
@@ -19,6 +21,7 @@ class NewSession(BaseModel):
     prompt: str | None = Field(default=None, max_length=100_000)
     base: str | None = None
     permissionMode: str | None = None
+    trusted: bool = False
 
 
 def _fail(err: svc.Refused) -> HTTPException:
@@ -61,9 +64,10 @@ async def events() -> StreamingResponse:
 
 
 @router.post("/sessions")
-async def create(body: NewSession) -> dict:
+async def create(body: NewSession, window: str | None = Header(default=None, alias=WINDOW_HEADER)) -> dict:
+    trusted = body.trusted and bool(window) and secrets.compare_digest(window.encode("utf-8"), WINDOW_TOKEN.encode("utf-8"))
     try:
-        return await svc.create(body.title, body.mode, body.prompt, body.base, body.permissionMode)
+        return await svc.create(body.title, body.mode, body.prompt, body.base, body.permissionMode, trusted)
     except svc.Refused as err:
         raise _fail(err)
 
