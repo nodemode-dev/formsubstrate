@@ -519,7 +519,7 @@ REDACTIONS = (
 )
 REDACTED = "[redacted]"
 TAIL_TEXT_MAX = 60_000
-PARTIAL_RUN = re.compile(r"[A-Za-z0-9+/_=.~-]{8,}")
+PARTIAL_RUN = re.compile(r"[A-Za-z0-9+_=~-]{16,}")
 
 
 def _entropy_secret(run: str) -> bool:
@@ -567,10 +567,28 @@ def _redact(text: str) -> tuple[str, int]:
     return text, count + hits[0]
 
 
+def _partial_secret(run: str) -> bool:
+    if sum(c.isdigit() for c in run) < 2 or sum(c.isalpha() for c in run) < 4:
+        return False
+    counts: dict[str, int] = {}
+    for c in run:
+        counts[c] = counts.get(c, 0) + 1
+    size = len(run)
+    return -sum(n / size * math.log2(n / size) for n in counts.values()) >= 3.5
+
+
 def _scrub_partial(text: str) -> tuple[str, int]:
     head, newline, rest = text.partition("\n")
-    head, n = PARTIAL_RUN.subn(REDACTED, head)
-    return head + newline + rest, n
+    hits = [0]
+
+    def run(m):
+        if _partial_secret(m.group(0)):
+            hits[0] += 1
+            return REDACTED
+        return m.group(0)
+
+    head = PARTIAL_RUN.sub(run, head)
+    return head + newline + rest, hits[0]
 
 
 async def terminal_tail(who: dict, args: dict) -> dict:
