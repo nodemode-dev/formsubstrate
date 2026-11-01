@@ -243,3 +243,11 @@ The port route resolves the destination and checks the block in the threadpool, 
 - logged: v0.11.0 · 2026-10-30
 
 review L7. `GET /api/gates/notes` now needs the window token (`require_window`) and answers `gates.live_notes`, which drops notes whose file is clean or committed. The earlier entry above that says it has LocalGuard only is superseded. Caller change needed outside this scope: `bashNotes` in frontend/src/io/sessions.ts must use the `owner` helper from io/window-token.ts instead of `request`, or the badge text reads as none.
+
+### backend/app/routers/terminal.py · terminal_env, inherited_env
+
+- refers-to: backend/app/routers/terminal.py :: terminal_env, inherited_env, PARENT_DROP, PARENT_KEEP
+- kind: rationale
+- logged: v0.13.0 · 2026-10-30
+
+A Claude Code session started from a terminal tab inherited the engine's environment, and when the engine itself ran under Claude Code that carried the parent's markers (`CLAUDE_CODE_SESSION_ID`, `CLAUDECODE`, `CLAUDE_CODE_ENTRYPOINT` and the rest of `CLAUDE_CODE_*`, `CCR_*`, `AI_AGENT`, a few `CLAUDE_*` helpers). The child then reported the parent's session id in hook payloads until `/clear` and said "Transcript saving is off". `inherited_env` drops every key with those prefixes and keeps `CLAUDE_CONFIG_DIR` plus a short list of configuration and provider keys (`CLAUDE_CODE_OAUTH_TOKEN`, `CLAUDE_CODE_USE_BEDROCK`, `_VERTEX`, `_FOUNDRY`, the skip-auth switches, git-bash path, client certificate keys, a few size and model settings). `CLAUDE_SESSION_*` is not dropped on purpose: `CLAUDE_SESSION_INGRESS_TOKEN_FILE` is how this machine's Claude Code authenticates, and a session id marker is not named that way. Checked with a real interactive session: the child's environment had no `CLAUDE_CODE_*`, `CLAUDECODE`, `CCR_*` or `AI_AGENT` key, its transcript was written under its own id (602287d0-..., not the parent's 5075d72d-...), and the parent's id appears nowhere in it. Shell tabs get the same environment, so a `claude` started by hand in one is also its own session. A user who needs another inherited key must set it in the terminal.

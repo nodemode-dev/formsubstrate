@@ -77,8 +77,38 @@ def shell_argv() -> list[str]:
     return [shell, "-l"]
 
 
+PARENT_DROP = ("CLAUDE_CODE_", "CLAUDECODE", "CCR_", "AI_AGENT", "CLAUDE_AUTO", "CLAUDE_AFTER_", "CLAUDE_EFFORT", "CLAUDE_PID", "CLAUDE_PROJECT_", "CLAUDE_INTERNAL_", "CLAUDE_ENABLE_", "CLAUDE_CHROME_", "CLAUDE_CLIENT_", "CLAUDE_ADDITIONAL_")
+PARENT_KEEP = frozenset((
+    "CLAUDE_CONFIG_DIR",
+    "CLAUDE_CODE_OAUTH_TOKEN",
+    "CLAUDE_CODE_API_KEY_HELPER_TTL_MS",
+    "CLAUDE_CODE_USE_BEDROCK",
+    "CLAUDE_CODE_USE_VERTEX",
+    "CLAUDE_CODE_USE_FOUNDRY",
+    "CLAUDE_CODE_SKIP_BEDROCK_AUTH",
+    "CLAUDE_CODE_SKIP_VERTEX_AUTH",
+    "CLAUDE_CODE_SKIP_FOUNDRY_AUTH",
+    "CLAUDE_CODE_GIT_BASH_PATH",
+    "CLAUDE_CODE_SHELL",
+    "CLAUDE_CODE_MAX_OUTPUT_TOKENS",
+    "CLAUDE_CODE_SUBAGENT_MODEL",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
+    "CLAUDE_CODE_CLIENT_CERT",
+    "CLAUDE_CODE_CLIENT_KEY",
+    "CLAUDE_CODE_CLIENT_KEY_PASSPHRASE",
+))
+
+
+def inherited_env() -> dict[str, str]:
+    return {
+        key: value
+        for key, value in os.environ.items()
+        if key in PARENT_KEEP or not key.startswith(PARENT_DROP)
+    }
+
+
 def terminal_env() -> dict[str, str]:
-    env = dict(os.environ)
+    env = inherited_env()
     env["TERM"] = "xterm-256color"
     env["COLORTERM"] = "truecolor"
     env["SUBFORM_TERMINAL"] = "1"

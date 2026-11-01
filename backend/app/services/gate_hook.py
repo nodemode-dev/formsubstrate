@@ -125,6 +125,75 @@ def call(method, url, body=None, timeout=10):
         return json.loads(reply.read().decode("utf-8"))
 
 
+def here():
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+def trail(text):
+    line = "%s %s %s" % (time.strftime("%Y-%m-%dT%H:%M:%S"), os.environ.get("SUBFORM_SESSION", "-"), " ".join(text.split())[:600])
+    try:
+        target = os.path.join(here(), "sf_gate.log")
+        if os.path.exists(target) and os.path.getsize(target) > 1048576:
+            os.replace(target, target + ".1")
+        with open(target, "a", encoding="utf-8") as handle:
+            handle.write(line + "\n")
+    except OSError:
+        pass
+    try:
+        sys.stderr.write("subform gate: " + line + "\n")
+    except OSError:
+        pass
+
+
+def skipped(why, shown, tool_name):
+    trail("gate skipped for %s %s: %s" % (tool_name, shown, why))
+    base = engine_base()
+    session = os.environ.get("SUBFORM_SESSION", "")
+    if not base or not session or not shown:
+        return
+    root = os.path.normpath(os.environ.get("SUBFORM_WORKTREE", ""))
+    rel = os.path.relpath(shown, root) if root != "." and os.path.normpath(shown).startswith(root + os.sep) else shown
+    try:
+        call("POST", base + "/api/gates/notes", {"session": session, "tool": tool_name, "path": rel, "slot": ("unchecked, gate skipped: " + why)[:190], "message": ("subform could not ask for this write: " + why)[:3000]}, timeout=2)
+    except (OSError, ValueError, urllib.error.URLError):
+        pass
+
+
+def seen_path():
+    session = re.sub(r"[^A-Za-z0-9_-]", "-", os.environ.get("SUBFORM_SESSION", ""))[:80]
+    return os.path.join(here(), "gate-seen", session + ".json") if session else ""
+
+
+def seen_has(key):
+    target = seen_path()
+    if not target:
+        return False
+    try:
+        with open(target, encoding="utf-8") as handle:
+            return key in json.load(handle)
+    except (OSError, ValueError, TypeError):
+        return False
+
+
+def seen_add(key):
+    target = seen_path()
+    if not target:
+        return
+    try:
+        with open(target, encoding="utf-8") as handle:
+            kept = [k for k in json.load(handle) if isinstance(k, str)]
+    except (OSError, ValueError, TypeError):
+        kept = []
+    if key in kept:
+        return
+    try:
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with open(target, "w", encoding="utf-8") as handle:
+            json.dump((kept + [key])[-200:], handle)
+    except OSError:
+        pass
+
+
 def estimate(binary, slots):
     if not slots:
         return 0
@@ -160,8 +229,11 @@ def reason_for(choice, slot):
     return "The owner chose to adapt the existing slot %s at %s. Do not write a parallel copy. Start from that code and change only what this task needs." % (slot["id"], where)
 
 
-def run_check(binary, payload, limit=10):
-    done = subprocess.run([binary, "check", "--mode", "warn"], input=json.dumps(remap(payload)), capture_output=True, text=True, timeout=limit)
+def run_check(binary, payload, limit=10, keep=False):
+    sent = payload if keep else dict(payload, session_id="")
+    done = subprocess.run([binary, "check", "--mode", "warn"], input=json.dumps(remap(sent)), capture_output=True, text=True, timeout=limit)
+    if done.returncode != 0 and not done.stdout.strip():
+        raise subprocess.CalledProcessError(done.returncode, "formslot check", stderr=(done.stderr or "")[:300])
     return done.stdout.strip()
 
 
@@ -182,7 +254,14 @@ def from_raw(text):
 
 
 def judge(binary, payload, tool_name, shown, deadline):
-    text = run_check(binary, payload)
+    try:
+        text = run_check(binary, payload)
+    except subprocess.TimeoutExpired:
+        skipped("formslot check did not finish in 10 s", shown, tool_name)
+        return None
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        skipped("formslot check failed: %s %s" % (type(exc).__name__, str(getattr(exc, "stderr", "") or exc).strip()), shown, tool_name)
+        return None
     if not text:
         return None
     spec = spec_of(text)
@@ -193,25 +272,35 @@ def judge(binary, payload, tool_name, shown, deadline):
     slots += [{"id": m.group(1), "path": m.group(2), "line": int(m.group(3))} for m in UNIT_RE.finditer(context)]
     base = engine_base()
     session = os.environ.get("SUBFORM_SESSION", "")
-    if not base or not session or not slots:
+    if not slots:
         return ("raw", text)
+    if not base or not session:
+        skipped("no engine address or session in the hook environment", shown, tool_name)
+        return ("raw", text)
+    key = "%s|%s" % (shown, slots[0]["id"])
+    if seen_has(key):
+        return None
     try:
         wait = max(1, min(WAIT_MAX, int(os.environ.get("SUBFORM_GATE_TIMEOUT", WAIT_DEFAULT))))
     except ValueError:
         wait = WAIT_DEFAULT
     wait = min(wait, int(deadline - time.monotonic()))
     if wait < 1:
+        skipped("no time left to wait for the owner", shown, tool_name)
         return ("context", context)
     try:
         gate = call("POST", base + "/api/gates", {"session": session, "tool": tool_name, "path": shown, "message": context[:4000], "slots": slots[:10], "tokens": estimate(binary, slots)})
         result = call("GET", "%s/api/gates/%s/wait?timeout=%d" % (base, gate["id"], wait), timeout=wait + 15)
-    except (OSError, ValueError, KeyError, urllib.error.URLError):
+    except (OSError, ValueError, KeyError, urllib.error.URLError) as exc:
+        skipped("the engine did not answer the gate: %s" % (exc,), shown, tool_name)
         return ("context", context)
     choice = result.get("choice")
     if choice in ("use", "adapt"):
         return ("deny", reason_for(choice, slots[0]))
     if choice != "write":
+        skipped("the gate closed as %s with no answer from the owner" % (choice,), shown, tool_name)
         return ("context", context)
+    seen_add(key)
     return None
 
 
@@ -1836,7 +1925,7 @@ def post_bash(event, binary):
         if payload is None:
             continue
         try:
-            text = run_check(binary, payload, left)
+            text = run_check(binary, payload, left, True)
             outcome = from_raw(text) if text else None
         except (subprocess.SubprocessError, ValueError):
             break
@@ -1866,6 +1955,7 @@ def main():
     event = json.loads(sys.stdin.read())
     binary = formslot_bin()
     if not binary:
+        trail("gate skipped: the formslot command was not found (FORMSLOT_BIN unset and not on PATH)")
         return
     name = event.get("hook_event_name")
     if event.get("tool_name") == "Bash":
@@ -1881,7 +1971,7 @@ def main():
 
 try:
     main()
-except Exception:
-    pass
+except Exception as exc:
+    trail("gate skipped: hook error %s: %s" % (type(exc).__name__, exc))
 sys.exit(0)
 '''
