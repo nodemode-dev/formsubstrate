@@ -13,6 +13,15 @@ export const anyDialogOpen = (): boolean => openCount > 0;
 
 const openStack: DialogHistory[] = [];
 const altKeys = (e: KeyboardEvent): void => { if (e.key === 'Alt') openStack[openStack.length - 1]?.alt(e.type === 'keydown'); };
+const FOCUSABLE = 'button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])';
+const trapTab = (e: KeyboardEvent, frame: HTMLElement): void => {
+  const items = Array.from(frame.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((n) => !n.hasAttribute('disabled') && n.getClientRects().length > 0);
+  if (!items.length) { e.preventDefault(); return; }
+  const at = document.activeElement, first = items[0], last = items[items.length - 1];
+  const outside = !(at instanceof HTMLElement) || at === frame || !frame.contains(at);
+  if (e.shiftKey && (outside || at === first)) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && (outside || at === last)) { e.preventDefault(); first.focus(); }
+};
 window.addEventListener('keydown', altKeys, true);
 window.addEventListener('keyup', altKeys, true);
 window.addEventListener('blur', () => { for (const d of openStack) d.alt(false); });
@@ -49,6 +58,7 @@ export class Dialog {
       e.stopPropagation();
       if (e.key === 'Escape') { e.preventDefault(); this.close(); }
       if (e.key === 'Tab' && !e.altKey && !e.ctrlKey && !e.metaKey) this.fieldHistory.tab(e);
+      if (e.key === 'Tab' && !e.defaultPrevented) trapTab(e, frame);
       if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && !e.altKey) this.fieldHistory.undo(e);
       const step = e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : 0;
       if (!step || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || !(document.activeElement instanceof HTMLButtonElement) || document.activeElement.parentElement !== this.foot) return;
