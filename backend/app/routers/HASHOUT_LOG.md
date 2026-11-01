@@ -147,3 +147,27 @@ review5 L4: `hunk` was unbounded and is stored in sessions.json (200 kept). It i
 - logged: v0.7.0 · 2026-10-30
 
 A refused plain push answers like a refused sign-and-push: `detail` plus `ok`, `check`, `output` in the body, so the window can show the check line.
+
+### backend/app/routers/git.py · WorktreeFileBody
+
+- refers-to: backend/app/routers/git.py :: WorktreeFileBody
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+review LOW: `text` had no length limit, so a very large body was parsed and held before the engine's own 8 MiB refusal. It now has `max_length` of 8 * 1024 * 1024 characters, so the model rejects an oversized body with a 422 first; the byte-length check in `write_worktree_file` still covers multi-byte text. Sign and Push: a refusal because the range holds a commit by someone other than the stored identity or the session's agent identity uses the same `detail` plus `ok`, `check`, `output` body as before.
+
+### backend/app/routers/lsp.py · lsp_ws
+
+- refers-to: backend/app/routers/lsp.py :: lsp_ws
+- kind: warning-context
+- logged: v0.7.1 · 2026-10-30
+
+review M1: the `serverStarted` send was outside the try/finally, so a client that dropped right after the upgrade left the spawned server running. Everything after spawn is now inside the try, and the finally stops the process (shielded from cancellation). Verified: a reset right after accept leaves no process and `running` stays 0. A server refused by the cap or for being unavailable gets a close code (4409 for the cap) with the reason text. `?trust=1` on the socket lets a workspace-local server run; without it only system servers do.
+
+### backend/app/routers/debug.py · debug_ws, relay
+
+- refers-to: backend/app/routers/debug.py :: debug_ws
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+review M3, M4, M6 and LOW: `?trust=1` on the debug socket lets the workspace venv python run (probe, adapter, debuggee); `GET /api/debug/adapters` never runs it. The unavailable answer reuses the resolved result instead of calling `describe` again on the event loop (a 2 s python no longer stalls other requests: worst concurrent poll 0.03 s). The relay uses the `ALLOWED` list, clears the debuggee on exited and terminated, and closes with 4500 after an `adapterError` event if the adapter sends an over-long header line.

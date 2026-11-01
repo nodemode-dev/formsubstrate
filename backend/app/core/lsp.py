@@ -6,6 +6,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import AsyncIterator
@@ -18,6 +19,22 @@ VERSION_WAIT = 6
 LOCAL_BIN_DIRS = ("node_modules/.bin", "frontend/node_modules/.bin", ".venv/bin", "venv/bin", ".venv/Scripts", "venv/Scripts")
 LOCAL_TS_DIRS = ("node_modules/typescript", "frontend/node_modules/typescript")
 WIN_SUFFIXES = ("", ".cmd", ".exe", ".bat")
+MAX_PER_LANG = 2
+MAX_TOTAL = 6
+ENV_KEEP = (
+    "PATH", "HOME", "USER", "LOGNAME", "LANG", "LANGUAGE", "TZ", "TMPDIR", "TEMP", "TMP",
+    "XDG_CACHE_HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_RUNTIME_DIR",
+    "SYSTEMROOT", "SystemDrive", "COMSPEC", "PATHEXT", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "PROGRAMDATA", "ProgramFiles", "ProgramFiles(x86)",
+    "SUBFORM_BIN_DIR",
+)
+
+
+def minimal_env() -> dict[str, str]:
+    env = {key: os.environ[key] for key in ENV_KEEP if key in os.environ}
+    for key, value in os.environ.items():
+        if key.startswith("LC_"):
+            env[key] = value
+    return env
 
 LANGS: dict[str, dict] = {
     "typescript": {
@@ -51,6 +68,7 @@ LANGS: dict[str, dict] = {
 
 _versions: dict[str, str | None] = {}
 _live: set["LspProc"] = set()
+_starting: list[str] = []
 
 
 @dataclass
@@ -85,8 +103,11 @@ def _local(root: str | None, exe: str) -> str | None:
     return None
 
 
-def locate(root: str | None, exe: str) -> str | None:
-    return _local(root, exe) or find_bin(exe)
+def locate(root: str | None, exe: str, trust: bool = False) -> str | None:
+    system = find_bin(exe)
+    if not trust:
+        return system
+    return _local(root, exe) or system
 
 
 def _version_of(path: str) -> str | None:
@@ -94,7 +115,7 @@ def _version_of(path: str) -> str | None:
         return _versions[path]
     found: str | None = None
     try:
-        out = subprocess.run([path, "--version"], capture_output=True, text=True, timeout=VERSION_WAIT, check=False, stdin=subprocess.DEVNULL)
+        out = subprocess.run([path, "--version"], capture_output=True, text=True, timeout=VERSION_WAIT, check=False, stdin=subprocess.DEVNULL, env=minimal_env(), cwd=tempfile.gettempdir())
         for token in (out.stdout + " " + out.stderr).replace("\n", " ").split():
             head = token.lstrip("v")
             if head[:1].isdigit() and "." in head:
@@ -125,16 +146,21 @@ def workspace_typescript(root: str | None) -> str | None:
     return None
 
 
-def report(lang: str, root: str | None) -> Report:
+def report(lang: str, root: str | None, trust: bool = False) -> Report:
     spec = LANGS[lang]
     out = Report(lang=lang, label=spec["label"], exts=spec["exts"], install=spec["install"], active=None)
     ws = workspace_typescript(root) if lang == "typescript" else None
     ws_new = ws is not None and (_major(ws) or 0) >= 7
     for cand in spec["candidates"]:
-        path = locate(root, cand["exe"])
-        item = {"name": cand["name"], "kind": cand["kind"], "found": path is not None, "path": path, "version": None, "usable": False, "note": ""}
+        local = _local(root, cand["exe"])
+        path = locate(root, cand["exe"], trust)
+        shown = path or local
+        item = {"name": cand["name"], "kind": cand["kind"], "found": shown is not None, "path": shown, "local": shown is not None and shown == local, "version": None, "usable": False, "note": ""}
         out.candidates.append(item)
         if path is None:
+            if local:
+                item["note"] = "found in this workspace; it is not run until the workspace is trusted"
+                out.notes.append(f"{cand['name']} is installed in this workspace and was not run; trust the workspace to use it")
             continue
         need = cand.get("min_major")
         if need or cand["kind"] == "native":
@@ -245,24 +271,43 @@ class Unavailable(Exception):
         self.install = install
 
 
-async def spawn(lang: str, root: str) -> LspProc:
+class Busy(Exception):
+    pass
+
+
+def _count(lang: str | None = None) -> int:
+    live = [h.lang for h in _live if h.alive()]
+    every = live + _starting
+    return len(every) if lang is None else sum(1 for item in every if item == lang)
+
+
+async def spawn(lang: str, root: str, trust: bool = False) -> LspProc:
     if lang not in LANGS:
         raise Unavailable(f"unknown language: {lang}", [])
-    rep = await asyncio.to_thread(report, lang, root)
-    if rep.active is None:
-        raise Unavailable(f"no language server for {rep.label} was found", rep.install)
-    argv = rep.active.argv
-    proc = await asyncio.create_subprocess_exec(
-        *argv,
-        cwd=root,
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.DEVNULL,
-        start_new_session=sys.platform != "win32",
-    )
-    handle = LspProc(lang=lang, resolved=rep.active, proc=proc)
-    _live.add(handle)
-    return handle
+    if _count() >= MAX_TOTAL:
+        raise Busy(f"too many language servers are running (limit {MAX_TOTAL})")
+    if _count(lang) >= MAX_PER_LANG:
+        raise Busy(f"too many {lang} language servers are running (limit {MAX_PER_LANG})")
+    _starting.append(lang)
+    try:
+        rep = await asyncio.to_thread(report, lang, root, trust)
+        if rep.active is None:
+            raise Unavailable(f"no language server for {rep.label} was found", rep.install)
+        argv = rep.active.argv
+        proc = await asyncio.create_subprocess_exec(
+            *argv,
+            cwd=root,
+            env=minimal_env(),
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+            start_new_session=sys.platform != "win32",
+        )
+        handle = LspProc(lang=lang, resolved=rep.active, proc=proc)
+        _live.add(handle)
+        return handle
+    finally:
+        _starting.remove(lang)
 
 
 def live_count() -> int:

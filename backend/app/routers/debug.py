@@ -12,6 +12,7 @@ router = APIRouter()
 CLOSE_BUSY = 4409
 CLOSE_UNAVAILABLE = 4404
 CLOSE_EXITED = 1000
+CLOSE_ERROR = 4500
 
 
 def current_root() -> str | None:
@@ -53,9 +54,10 @@ async def debug_ws(socket: WebSocket) -> None:
         if root is None:
             await refuse(socket, "subform/unavailable", {"message": "no workspace is open"}, CLOSE_UNAVAILABLE)
             return
-        found = await run_in_threadpool(debug.resolve_python, root)
+        trust = socket.query_params.get("trust") == "1"
+        found = await run_in_threadpool(debug.resolve_python, root, trust)
         if found["adapter"] is None or found["debuggee"] is None:
-            info = debug.describe(root)["adapters"][0]
+            info = debug.describe(root, found)["adapters"][0]
             await refuse(socket, "subform/unavailable", {"message": info["note"], "install": info["install"]}, CLOSE_UNAVAILABLE)
             return
         try:
@@ -85,22 +87,28 @@ async def relay(socket: WebSocket, adapter: debug.Adapter, root: str, python: st
                 continue
             if not isinstance(message, dict):
                 continue
-            if message.get("type") == "request":
-                command = message.get("command")
-                if command in ("attach", "runInTerminal", "startDebugging"):
-                    await socket.send_text(json.dumps(failure(message, f"{command} is not offered")))
+            if message.get("type") != "request":
+                continue
+            command = message.get("command")
+            if command not in debug.ALLOWED:
+                await socket.send_text(json.dumps(failure(message, f"{command} is not offered")))
+                continue
+            if command == "launch":
+                try:
+                    message["arguments"] = debug.launch_arguments(message.get("arguments"), root, python)
+                except ws.Refused as err:
+                    await socket.send_text(json.dumps(failure(message, err.detail)))
                     continue
-                if command == "launch":
-                    try:
-                        message["arguments"] = debug.launch_arguments(message.get("arguments"), root, python)
-                    except ws.Refused as err:
-                        await socket.send_text(json.dumps(failure(message, err.detail)))
-                        continue
             await adapter.send(message)
 
     async def downstream() -> None:
         while True:
-            message = await adapter.receive()
+            try:
+                message = await adapter.receive()
+            except debug.HeaderTooLong as err:
+                await socket.send_text(notice("subform/adapterError", {"message": str(err)}))
+                await socket.close(CLOSE_ERROR)
+                return
             if message is None:
                 tail = adapter.tail.decode("utf-8", "replace").strip()
                 await socket.send_text(notice("subform/adapterExited", {"stderr": tail}))
@@ -108,7 +116,9 @@ async def relay(socket: WebSocket, adapter: debug.Adapter, root: str, python: st
             if message.get("type") == "event" and message.get("event") == "process":
                 pid = (message.get("body") or {}).get("systemProcessId")
                 if isinstance(pid, int):
-                    adapter.debuggee = pid
+                    adapter.note_debuggee(pid)
+            if message.get("type") == "event" and message.get("event") in ("exited", "terminated"):
+                adapter.forget_debuggee()
             if message:
                 await socket.send_text(json.dumps(message))
 

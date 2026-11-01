@@ -8,7 +8,9 @@ from app.core import lsp, workspace_root
 
 router = APIRouter()
 
-PASSIVE_REPLIES = {"client/registerCapability", "client/unregisterCapability", "window/workDoneProgress/create"}
+CLOSE_BUSY = 4409
+
+PASSIVE_REPLIES ={"client/registerCapability", "client/unregisterCapability", "window/workDoneProgress/create"}
 
 
 def _root() -> str | None:
@@ -57,23 +59,26 @@ async def lsp_ws(ws: WebSocket) -> None:
     lang = ws.query_params.get("lang", "")
     root = _root()
 
-    async def refuse(message: str, install: list[str]) -> None:
-        await ws.send_text(json.dumps({"jsonrpc": "2.0", "method": "subform/serverUnavailable", "params": {"lang": lang, "error": message, "install": install}}))
-        await ws.close()
+    async def refuse(message: str, install: list[str], code: int = 1000) -> None:
+        with contextlib.suppress(Exception):
+            await ws.send_text(json.dumps({"jsonrpc": "2.0", "method": "subform/serverUnavailable", "params": {"lang": lang, "error": message, "install": install}}))
+            await ws.close(code=code, reason=message[:120])
 
     if root is None:
         await refuse("no workspace is open", [])
         return
+    trust = ws.query_params.get("trust") == "1"
     try:
-        proc = await lsp.spawn(lang, root)
+        proc = await lsp.spawn(lang, root, trust)
     except lsp.Unavailable as exc:
         await refuse(str(exc), exc.install)
+        return
+    except lsp.Busy as exc:
+        await refuse(str(exc), [], CLOSE_BUSY)
         return
     except OSError as exc:
         await refuse(f"the language server did not start: {exc}", [])
         return
-
-    await ws.send_text(json.dumps({"jsonrpc": "2.0", "method": "subform/serverStarted", "params": {"lang": lang, "name": proc.resolved.name, "kind": proc.resolved.kind, "version": proc.resolved.version, "root": root}}))
 
     async def client_to_server() -> None:
         while True:
@@ -93,10 +98,14 @@ async def lsp_ws(ws: WebSocket) -> None:
                 continue
             await ws.send_text(json.dumps(msg))
 
-    tasks = [asyncio.create_task(client_to_server()), asyncio.create_task(server_to_client())]
+    tasks: list[asyncio.Task] = []
     try:
+        await ws.send_text(json.dumps({"jsonrpc": "2.0", "method": "subform/serverStarted", "params": {"lang": lang, "name": proc.resolved.name, "kind": proc.resolved.kind, "version": proc.resolved.version, "root": root}}))
+        tasks = [asyncio.create_task(client_to_server()), asyncio.create_task(server_to_client())]
         await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
     except WebSocketDisconnect:
+        pass
+    except Exception:
         pass
     finally:
         for task in tasks:
@@ -104,6 +113,6 @@ async def lsp_ws(ws: WebSocket) -> None:
         for task in tasks:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await task
-        await proc.stop()
+        await asyncio.shield(proc.stop())
         with contextlib.suppress(Exception):
             await ws.close()

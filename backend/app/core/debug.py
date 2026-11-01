@@ -20,6 +20,33 @@ KILL_GRACE = 2.0
 DISCONNECT_GRACE = 0.8
 VENV_NAMES = (".venv", "venv")
 INSTALL_HINT = "{python} -m pip install debugpy"
+ENV_KEEP = (
+    "PATH", "HOME", "USER", "LOGNAME", "LANG", "LANGUAGE", "TZ", "TMPDIR", "TEMP", "TMP",
+    "XDG_CACHE_HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_RUNTIME_DIR",
+    "SYSTEMROOT", "SystemDrive", "COMSPEC", "PATHEXT", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "PROGRAMDATA",
+)
+TRUSTED_NOTE = "a workspace venv was found and was not run; trust the workspace to use it"
+ALLOWED = frozenset({
+    "initialize", "launch", "configurationDone", "disconnect", "terminate", "terminateThreads", "cancel",
+    "setBreakpoints", "setFunctionBreakpoints", "setExceptionBreakpoints", "setDataBreakpoints", "setInstructionBreakpoints",
+    "dataBreakpointInfo", "breakpointLocations", "exceptionInfo",
+    "continue", "next", "stepIn", "stepOut", "stepBack", "reverseContinue", "restartFrame", "goto", "gotoTargets", "stepInTargets", "pause",
+    "threads", "stackTrace", "scopes", "variables", "setVariable", "setExpression", "evaluate", "completions", "source", "loadedSources", "modules",
+    "disassemble", "readMemory",
+})
+HEADER_MAX = 65536
+
+
+class HeaderTooLong(Exception):
+    pass
+
+
+def minimal_env() -> dict[str, str]:
+    env = {key: os.environ[key] for key in ENV_KEEP if key in os.environ}
+    for key, value in os.environ.items():
+        if key.startswith("LC_"):
+            env[key] = value
+    return env
 
 
 def venv_python(root: str) -> str | None:
@@ -43,7 +70,7 @@ def system_pythons() -> list[str]:
 
 def probe(python: str) -> str | None:
     try:
-        done = subprocess.run([python, "-c", PROBE], capture_output=True, text=True, timeout=PROBE_TIMEOUT, cwd=tempfile.gettempdir())
+        done = subprocess.run([python, "-c", PROBE], capture_output=True, text=True, timeout=PROBE_TIMEOUT, cwd=tempfile.gettempdir(), env=minimal_env(), stdin=subprocess.DEVNULL)
     except (OSError, subprocess.SubprocessError):
         return None
     if done.returncode != 0:
@@ -53,30 +80,36 @@ def probe(python: str) -> str | None:
 
 def python_version(python: str) -> str | None:
     try:
-        done = subprocess.run([python, "-c", "import sys;print('.'.join(map(str,sys.version_info[:3])))"], capture_output=True, text=True, timeout=PROBE_TIMEOUT, cwd=tempfile.gettempdir())
+        done = subprocess.run([python, "-c", "import sys;print('.'.join(map(str,sys.version_info[:3])))"], capture_output=True, text=True, timeout=PROBE_TIMEOUT, cwd=tempfile.gettempdir(), env=minimal_env(), stdin=subprocess.DEVNULL)
     except (OSError, subprocess.SubprocessError):
         return None
     return done.stdout.strip() or None if done.returncode == 0 else None
 
 
-def resolve_python(root: str | None) -> dict:
+def resolve_python(root: str | None, trust: bool = False) -> dict:
     candidates: list[dict] = []
     venv = venv_python(root) if root else None
     if venv:
-        candidates.append({"python": venv, "source": "workspace venv"})
+        candidates.append({"python": venv, "source": "workspace venv", "runnable": trust})
     for path in system_pythons():
-        candidates.append({"python": path, "source": "system"})
+        candidates.append({"python": path, "source": "system", "runnable": True})
     for item in candidates:
-        item["debugpy"] = probe(item["python"])
-        item["version"] = python_version(item["python"]) if item["debugpy"] else None
-    debuggee = candidates[0]["python"] if candidates else None
-    adapter = next((c for c in candidates if c["debugpy"]), None)
+        if item["runnable"]:
+            item["debugpy"] = probe(item["python"])
+            item["version"] = python_version(item["python"]) if item["debugpy"] else None
+        else:
+            item["debugpy"] = None
+            item["version"] = None
+    runnable = [c for c in candidates if c["runnable"]]
+    debuggee = runnable[0]["python"] if runnable else None
+    adapter = next((c for c in runnable if c["debugpy"]), None)
     return {"candidates": candidates, "debuggee": debuggee, "adapter": adapter}
 
 
-def describe(root: str | None) -> dict:
-    found = resolve_python(root)
+def describe(root: str | None, found: dict | None = None) -> dict:
+    found = found if found is not None else resolve_python(root)
     adapter = found["adapter"]
+    held = any(not c["runnable"] for c in found["candidates"])
     target = found["debuggee"] or "python3"
     entry = {
         "id": "python",
@@ -86,9 +119,9 @@ def describe(root: str | None) -> dict:
         "adapterPython": adapter["python"] if adapter else None,
         "debugpy": adapter["debugpy"] if adapter else None,
         "source": adapter["source"] if adapter else None,
-        "candidates": [{"python": c["python"], "source": c["source"], "debugpy": c["debugpy"]} for c in found["candidates"]],
+        "candidates": [{"python": c["python"], "source": c["source"], "debugpy": c["debugpy"], "probed": c["runnable"]} for c in found["candidates"]],
         "install": None if adapter else INSTALL_HINT.format(python=target),
-        "note": "" if adapter else ("no python was found on this computer" if not found["candidates"] else "debugpy is not installed for any python that was found"),
+        "note": ("" if adapter else ("no python was found on this computer" if not found["candidates"] else "debugpy is not installed for any python that was found")) + (("; " if not adapter else "") + TRUSTED_NOTE if held else ""),
     }
     return {"root": root, "adapters": [entry]}
 
@@ -148,9 +181,14 @@ def encode(message: dict) -> bytes:
 async def read_message(reader: asyncio.StreamReader) -> dict | None:
     length = -1
     while True:
-        line = await reader.readline()
+        try:
+            line = await reader.readline()
+        except (ValueError, asyncio.LimitOverrunError) as err:
+            raise HeaderTooLong("the adapter sent a header line that is too long") from err
         if not line:
             return None
+        if len(line) > HEADER_MAX:
+            raise HeaderTooLong("the adapter sent a header line that is too long")
         line = line.strip()
         if not line:
             if length < 0:
@@ -175,11 +213,22 @@ async def read_message(reader: asyncio.StreamReader) -> dict | None:
     return parsed if isinstance(parsed, dict) else {}
 
 
+def start_of(pid: int) -> str | None:
+    try:
+        with open(f"/proc/{pid}/stat", "rb") as handle:
+            raw = handle.read().decode("utf-8", "replace")
+    except OSError:
+        return None
+    tail = raw.rpartition(")")[2].split()
+    return tail[19] if len(tail) > 19 else None
+
+
 class Adapter:
     def __init__(self, proc: asyncio.subprocess.Process) -> None:
         self.proc = proc
         self.tail = b""
         self.debuggee: int | None = None
+        self.debuggee_ident: tuple[int, str | None] | None = None
         self.drain = asyncio.create_task(self._drain())
 
     async def _drain(self) -> None:
@@ -219,24 +268,48 @@ class Adapter:
                 self._signal(signal.SIGKILL if sys.platform != "win32" else None, force=True)
                 with contextlib.suppress(asyncio.TimeoutError):
                     await asyncio.wait_for(proc.wait(), KILL_GRACE)
-        else:
-            self._signal(signal.SIGKILL if sys.platform != "win32" else None, force=True)
+        elif sys.platform.startswith("linux") and start_of(proc.pid) is None:
+            self._signal(signal.SIGKILL, force=True)
         self._kill_debuggee()
         self.drain.cancel()
         with contextlib.suppress(asyncio.CancelledError, Exception):
             await self.drain
 
+    def note_debuggee(self, pid: int) -> None:
+        self.debuggee = pid
+        try:
+            self.debuggee_ident = (os.getpgid(pid), start_of(pid)) if sys.platform != "win32" else None
+        except OSError:
+            self.debuggee = None
+            self.debuggee_ident = None
+
+    def forget_debuggee(self) -> None:
+        self.debuggee = None
+        self.debuggee_ident = None
+
     def _kill_debuggee(self) -> None:
         pid = self.debuggee
+        ident = self.debuggee_ident
+        self.forget_debuggee()
         if pid is None or pid <= 1:
             return
         if sys.platform == "win32":
             with contextlib.suppress(OSError, subprocess.SubprocessError):
                 subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, timeout=10)
             return
-        for killer in (lambda: os.killpg(pid, signal.SIGKILL), lambda: os.kill(pid, signal.SIGKILL)):
+        if ident is None:
+            return
+        try:
+            now = (os.getpgid(pid), start_of(pid))
+        except OSError:
+            return
+        if now != ident:
+            return
+        if ident[0] == pid:
             with contextlib.suppress(ProcessLookupError, PermissionError, OSError):
-                killer()
+                os.killpg(pid, signal.SIGKILL)
+        with contextlib.suppress(ProcessLookupError, PermissionError, OSError):
+            os.kill(pid, signal.SIGKILL)
 
     def _signal(self, sig, force: bool = False) -> None:
         pid = self.proc.pid
@@ -254,7 +327,7 @@ async def spawn(adapter_python: str, root: str) -> Adapter:
         kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
     else:
         kwargs["start_new_session"] = True
-    env = dict(os.environ)
+    env = minimal_env()
     env["PYTHONUNBUFFERED"] = "1"
     proc = await asyncio.create_subprocess_exec(
         adapter_python, "-m", "debugpy.adapter",

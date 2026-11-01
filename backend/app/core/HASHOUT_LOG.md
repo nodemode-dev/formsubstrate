@@ -52,3 +52,69 @@ Ported and rewritten from substrata v2.11.1 backend/app/core/lsp.py (MIT, owner'
 - logged: v0.7.0 · 2026-10-30
 
 TypeScript 7 compatibility, measured: typescript-language-server 6.0.2 refuses a TypeScript 7 workspace ("provides no tsserver.js"), because TypeScript 7 (the Go port) ships no tsserver. TypeScript 7 instead serves LSP itself: `tsc --lsp --stdio` (the native binary, also reachable as the node `tsc` wrapper). Candidate order is tsgo, tsc of major 7 or newer, then typescript-language-server; the last is skipped (noted, not usable) when the workspace TypeScript is 7 or newer. formvis uses typescript 7.0.2, so it gets the native server. The native server uses pull diagnostics only (textDocument/diagnostic), so the window pulls. Python uses pyright-langserver, verified end to end; pylsp was only probed with a raw initialize and hover.
+
+### backend/app/core/local_guard.py · WINDOW_TOKEN, hand_out_token, require_window
+
+- refers-to: backend/app/core/local_guard.py :: WINDOW_TOKEN, hand_out_token, require_window
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+review H1: LocalGuard lets a request with no Origin through, so an agent session could call the owner routes with curl. The engine now mints `WINDOW_TOKEN` (`secrets.token_urlsafe(32)`) at import and keeps it in memory only. `POST /api/window-token` returns it, and only when the request carries an Origin that LocalGuard's own rule accepts (the configured window origins, or an http origin equal to the Host). It is a POST on purpose: a browser sends no Origin on a same-origin GET, which is how the window is served when the engine hosts `dist`, while a POST always carries one. Owner routes (gate answer, formslot start, index, install, confirm, mcp, drift) depend on `require_window`, which compares the `X-Subform-Window` header in constant time and answers 403 for a missing or wrong value. The token is never written to a session env, a file, a log or an error body. A restart mints a new token and the window refetches once on a 403.
+
+Residual risk, stated plainly: a process of the same user that deliberately forges `Origin: http://localhost:5650` can still fetch the token, and a same-user process can read other processes' memory or `/proc/<pid>/environ` of the engine. What this stops is the agent session answering its own gate, confirming slots or changing the install mode through the environment and routes it was handed, by accident or by a prompt-injected command. It is not a sandbox.
+
+### backend/app/core/engine_addr.py · port
+
+- refers-to: backend/app/core/engine_addr.py :: port
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+review LOW: `engine.port` holding `{"port": null}` made `int(None)` raise `TypeError`, which was not caught. `TypeError` joins the caught errors and the port falls back to the default.
+
+### backend/app/core/lsp.py · report, locate, spawn
+
+- refers-to: backend/app/core/lsp.py :: report
+- kind: warning-context
+- logged: v0.7.1 · 2026-10-30
+
+review M3: listing servers ran `node_modules/.bin/tsgo --version` from the opened folder, so a cloned repo executed code on open. Workspace-local candidates (node_modules/.bin, .venv, venv) are now listed as found with `local: true` and never run by the listing, and `report` and `spawn` take `trust`. Without trust only binres.find_bin results are used and probed; with trust a workspace-local binary wins, and it is first run only when a socket is opened with `trust=1`. A local-only candidate without trust is `found` but not `usable`, with a note. The window must send `trust=1` for TypeScript servers installed under node_modules; until it does, only a system server is used.
+
+### backend/app/core/lsp.py · spawn limits
+
+- refers-to: backend/app/core/lsp.py :: spawn
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+review M1 and LOW: at most 2 servers per language and 6 in all (live plus those still starting, so a burst cannot pass the check together). `Busy` is raised before anything starts and the router closes the socket with 4409 and the reason. Pairs with the router fix that stops the process on every exit after spawn.
+
+### backend/app/core/lsp.py · minimal_env
+
+- refers-to: backend/app/core/lsp.py :: minimal_env
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+review LOW: language servers and the `--version` probe start with an allow-list environment (PATH, HOME, USER, LANG, LC_*, TZ, temp and XDG folders, the Windows system variables, SUBFORM_BIN_DIR) instead of the engine's full environment, so secrets held by the engine are not handed to a server. A tool that needs another variable will not see it; add it to `ENV_KEEP`.
+
+### backend/app/core/debug.py · resolve_python, describe
+
+- refers-to: backend/app/core/debug.py :: resolve_python
+- kind: warning-context
+- logged: v0.7.1 · 2026-10-30
+
+review M3 and M4: the workspace venv python is listed (`probed: false`) but not run unless `resolve_python` is called with `trust`; without it the debuggee and adapter python come from the system only. `describe` takes the already resolved result, so the websocket no longer re-probes (up to 12 s per candidate) on the event loop. Probes run with the minimal environment and a closed stdin.
+
+### backend/app/core/debug.py · Adapter debuggee tracking
+
+- refers-to: backend/app/core/debug.py :: Adapter
+- kind: warning-context
+- logged: v0.7.1 · 2026-10-30
+
+review M6: the recorded debuggee pid is cleared on the `exited` and `terminated` events. When it is recorded, its process group and, on Linux, its start time from /proc are stored; at stop it is signalled only if both still match, and the group only when the debuggee led it. A reaped adapter's group is signalled only on Linux and only when no process holds that pid (a reused pid is never hit). Elsewhere a reaped adapter's group is left alone. On Windows taskkill by pid is unchanged.
+
+### backend/app/core/debug.py · ALLOWED, read_message
+
+- refers-to: backend/app/core/debug.py :: ALLOWED
+- kind: rationale
+- logged: v0.7.1 · 2026-10-30
+
+review LOW: the relay forwards only the DAP requests in `ALLOWED` (launch is rewritten as before); attach, restart, runInTerminal, startDebugging, writeMemory and anything unknown are answered with a failure response. Messages that are not requests from the window are dropped. A header line over 64 KB raises `HeaderTooLong`; the relay sends `subform/adapterError` and closes with 4500 instead of ending silently. The adapter, and so the debuggee, starts with the minimal environment, so a program that needs other variables will not see them.
