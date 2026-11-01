@@ -58,3 +58,19 @@ Both dialogs are built once, on first use, and only patched afterwards: the fold
 - logged: v0.10.0 · 2026-10-30
 
 Disabling the focused field dropped focus to the page body, where the scrim's Escape handler never hears keys. Entering busy now moves focus to Stop (Clone) or Cancel (New app) before the fields are disabled, leaving busy puts it back on the address or name field, and a document-level Escape listener covers the case where focus is outside every scrim. The Browse label has its own class; before, the label was written into the 14px icon span and the icon vanished. Closing a running clone asks "Stop cloning?"; on yes the job is cancelled, the dialog closes and the outcome is toasted without opening the workspace. A New app request cannot be stopped, so closing only dismisses: the toast reports the result and the workspace is not opened. A poll error in followCloneJob is retried with doubling back-off up to four times (a 404 ends at once); after that the job stays in the jobs list labelled as connection lost, and its Stop button cancels and removes it. The port field refills the suggested block after a destination change unless a valid port was typed, and partial input of one to three digits shows no error and no port range.
+
+### frontend/src/ui/new-session.ts · permission mode select, prefs agentPermissionMode
+
+- refers-to: frontend/src/ui/new-session.ts :: NewSessionDialog; frontend/src/ui/prefs.ts :: agentPermissionMode, PERMISSION_MODES; frontend/src/ui/settings.ts :: Agents section
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+The New Agent Session dialog has a Permission mode select (Accept edits, Ask, Plan only) and a note that is always laid out at a fixed height; for an interactive session both are dimmed and the note says interactive sessions ask in the terminal, so choosing a mode causes no layout shift. The default comes from Preferences, Agents, Headless permission mode (`agentPermissionMode`, default `acceptEdits`). bypassPermissions is not offered anywhere. Settings also listens for `subform:open-settings` (detail.section) so a panel can open Preferences at a section, and dispatches `subform:identity-changed` after the identity is saved.
+
+### frontend/src/ui/status-formslot.ts · FormslotStatusItem.paint
+
+- refers-to: frontend/src/ui/status-formslot.ts :: FormslotStatusItem
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+When formslot is installed, a workspace is open and `workspaceCorpus` is null, the tooltip now says the workspace is not indexed and no gates run there (the PreToolUse hook fails open). The status item reads the workspace from the `workspace` store singleton, so it needs no change to status.ts.

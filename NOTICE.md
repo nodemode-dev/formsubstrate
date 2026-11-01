@@ -25,7 +25,7 @@ The file-by-file map from formvis and substrata paths to subform paths is kept i
 
 Transitive packages of fastapi and uvicorn[standard] (starlette, pydantic, click, h11, httptools, uvloop, watchfiles, websockets, python-dotenv, PyYAML and others) get rows when the engine is first frozen (Phase F9).
 
-Frozen with PyInstaller, these are the packages the engine folder carries besides the five direct ones (versions as installed from `requirements.txt` on 2026-10-30):
+Frozen with PyInstaller, these are the packages the engine folder carries besides the six direct ones above (requirements.txt has seven lines; on any one platform ptyprocess or pywinpty applies, not both) (versions as installed from `requirements.txt` on 2026-10-30):
 
 | Package | Version | Licence |
 | --- | --- | --- |
@@ -43,6 +43,21 @@ Frozen with PyInstaller, these are the packages the engine folder carries beside
 | cffi, pycparser | 2.1.1, 3.12 | MIT-0, BSD-3-Clause |
 | jaraco.classes, jaraco.context, jaraco.functools, more-itertools | 3.4.0, 6.1.2, 4.6.0, 11.2.1 | MIT |
 
+The frozen engine folder also carries the interpreter and native code that PyInstaller collects. Checked on 2026-10-30 by freezing the engine with `setup/freeze_backend` into a scratch folder on Linux x86_64 and listing every shared object with `ldd`:
+
+| Component | Version | Licence | Where it is in the freeze |
+| --- | --- | --- | --- |
+| CPython interpreter and standard library (`libpython3.13.so.1.0`, `base_library.zip`, `python3.13/lib-dynload`) | 3.13.18 | PSF-2.0 | `_internal/` |
+| OpenSSL | 3.5.9 in the interpreter; a second copy of the 4.0.x line statically inside the `cryptography` Rust module (`_rust.abi3.so`) | Apache-2.0 | built into `libpython3.13.so.1.0` on this Linux interpreter (`_ssl` and `_hashlib` are builtin modules) and inside `cryptography/hazmat/bindings/_rust.abi3.so` |
+| libffi | as built into the interpreter and `_cffi_backend` | MIT | statically linked (`_ctypes` is builtin; `_cffi_backend.cpython-313-x86_64-linux-gnu.so` has no libffi dependency) |
+| SQLite | as built into the interpreter | public domain | builtin `_sqlite3` of the interpreter (imported only if the engine uses it; the engine does not) |
+| zlib | system `libz.so.1` | Zlib | `lib-dynload/zlib.cpython-313-x86_64-linux-gnu.so` links the system copy, which PyInstaller does not collect on Linux; on macOS and Windows the interpreter's own copy is collected |
+| bzip2, xz (liblzma), expat | as built into the interpreter | bzip2-1.0.6, 0BSD and public domain (xz), MIT (expat) | builtin `_bz2`, `_lzma`, `pyexpat` modules of the interpreter; not collected as separate files in this freeze because the engine does not import them |
+| libgcc_s | 1.0 | GPL-3.0-or-later WITH GCC-exception-3.1 (the runtime library exception permits distribution with non-GPL-compatible and any other programs) | `_internal/libgcc_s.so.1`, collected on Linux |
+| uvloop, httptools, watchfiles, pydantic_core, websockets speedups, PyYAML `_yaml`, cffi | as in the table above | MIT, Apache-2.0 | native extension modules (`.so`), listed in the rows above |
+
+On macOS and Windows the interpreter is a python.org or Homebrew build, so OpenSSL, SQLite, libffi, bzip2 and xz may be separate shared libraries beside the executable; they carry the same licences as above and are re-listed here when the first Mac and Windows freezes are made.
+
 ## Freeze tool (Python, build only)
 
 | Package | Version | Licence | Use |
@@ -55,8 +70,8 @@ Frozen with PyInstaller, these are the packages the engine folder carries beside
 
 | Package | Version | Licence | Use |
 | --- | --- | --- | --- |
-| @fontsource/inter | 5.3.0 | MIT; font OFL-1.1 | UI font |
-| @fontsource/jetbrains-mono | 5.3.0 | MIT; font OFL-1.1 | code font |
+| @fontsource/inter | 5.3.0 | OFL-1.1 | UI font; the OFL text and both copyright lines ship in the built window as `licenses/fonts-OFL-1.1.txt` |
+| @fontsource/jetbrains-mono | 5.3.0 | OFL-1.1 | code font; same file |
 | @tauri-apps/api | 2.12.4 | Apache-2.0 OR MIT | desktop bridge |
 | @tauri-apps/plugin-dialog | 2.8.4 | MIT OR Apache-2.0 | folder picker in the desktop app |
 | @xterm/xterm 6.0.0, @xterm/addon-fit 0.11.0, @xterm/addon-webgl 0.19.0 | as listed | MIT | terminal dock |
@@ -69,6 +84,8 @@ Frozen with PyInstaller, these are the packages the engine folder carries beside
 | @tauri-apps/cli | 2.12.4 | Apache-2.0 OR MIT | build tool only |
 | typescript | 7.0.2 | Apache-2.0 | build tool only |
 | vite | 8.3.5 | MIT | build tool only |
+
+The npm packages not named above are all transitive and all MIT (checked in `node_modules` on 2026-10-30): the remaining `@codemirror/lang-*` packages and `@codemirror/legacy-modes` that language-data loads, the `@lezer/*` parsers, and vscode-jsonrpc 10.0.0, vscode-languageserver-types 3.18.5 and vscode-languageserver-protocol 3.18.5 pulled by `@codemirror/lsp-client`.
 
 ## Desktop shell (Rust)
 
@@ -87,9 +104,27 @@ Frozen with PyInstaller, these are the packages the engine folder carries beside
 | objc2 (macOS) | 0.6.5 | MIT |
 | objc2-app-kit (macOS) | 0.3.2 | Zlib OR Apache-2.0 OR MIT |
 
+### Transitive crates of the desktop shell
+
+`cargo metadata --format-version 1` in `src-tauri` (2026-10-30) lists 476 packages in the lock graph, counting every target (Linux, macOS, Windows). Most are MIT, Apache-2.0 or MIT OR Apache-2.0 (including the Apache-2.0 WITH LLVM-exception forms of rustix, linux-raw-sys, wasi and target-lexicon). These licence classes are present beyond those:
+
+| Licence | Crates | Handling |
+| --- | --- | --- |
+| MPL-2.0 | cssparser, cssparser-macros, selectors, dtoa-short, option-ext | file-level copyleft; the source is used unedited, as published on crates.io, and is not modified |
+| Unicode-3.0 | icu_collections, icu_locale_core, icu_normalizer, icu_normalizer_data, icu_properties, icu_properties_data, icu_provider, litemap, potential_utf, tinystr, writeable, yoke, yoke-derive, zerofrom, zerofrom-derive, zerotrie, zerovec, zerovec-derive; and unicode-ident as (MIT OR Apache-2.0) AND Unicode-3.0 | permissive; the Unicode data licence text travels with the crates |
+| BSD-3-Clause | alloc-no-stdlib, alloc-stdlib; brotli as BSD-3-Clause AND MIT; brotli-decompressor as BSD-3-Clause/MIT; encoding_rs as (Apache-2.0 OR MIT) AND BSD-3-Clause; num_enum and num_enum_derive as BSD-3-Clause OR MIT OR Apache-2.0 | permissive |
+| Unlicense | aho-corasick, byteorder, memchr, jiff, jiff-core, jiff-static, jiff-tzdb, jiff-tzdb-platform and winapi-util as Unlicense OR MIT; same-file and walkdir as Unlicense/MIT | taken under the MIT option |
+| 0BSD | adler2 as 0BSD OR MIT OR Apache-2.0 | taken under the MIT option |
+| Zlib | foldhash, zlib-rs; miniz_oxide, bytemuck, tinyvec, raw-window-handle, static_vcruntime, dispatch2 and the objc2-* crates as options in an OR expression | permissive |
+| ISC | libloading | permissive |
+| CC0-1.0 | dunce as CC0-1.0 OR MIT-0 OR Apache-2.0 | taken under the Apache-2.0 option |
+| LGPL-2.1-or-later | r-efi as MIT OR Apache-2.0 OR LGPL-2.1-or-later | only an OR option, never taken: r-efi is used under MIT or Apache-2.0 (it is a UEFI target crate and is not in the Linux, macOS or Windows build) |
+
+No crate in the graph is GPL, AGPL or LGPL-only, and none has a non-commercial or no-derivatives term.
+
 ## Found on the system, never bundled
 
-git (GPL-2.0), the `claude` command, Node.js and Python for development. ripgrep (`rg`, MIT OR Unlicense) when present, run as a separate program for workspace search; a Python search is used without it. From v0.7.0: formslot (GPL-3.0-only, the owner's), run as a separate program and reached over its 127.0.0.1 service; debugpy (MIT) in the workspace's Python or on PATH, started as `python -m debugpy.adapter` and never imported by the engine; language servers (the TypeScript 7 `tsc --lsp`, typescript-language-server, pyright-langserver, pylsp, each under its own licence) found in the workspace's `node_modules/.bin`, `.venv` or `venv`, or on PATH, and run as separate programs.
+The desktop window is drawn by the system webview, which the app uses and does not ship: WebKitGTK and GTK on Linux (LGPL-2.1, dynamically linked and replaceable by the system package; installed with the `.deb` dependencies), WKWebView on macOS (part of the operating system) and WebView2 on Windows (the Microsoft Edge WebView2 runtime, installed by Windows or the app's installer). Also: git (GPL-2.0), the `claude` command, Node.js and Python for development. ripgrep (`rg`, MIT OR Unlicense) when present, run as a separate program for workspace search; a Python search is used without it. From v0.7.0: formslot (GPL-3.0-only, the owner's), run as a separate program and reached over its 127.0.0.1 service; debugpy (MIT) in the workspace's Python or on PATH, started as `python -m debugpy.adapter` and never imported by the engine; language servers (the TypeScript 7 `tsc --lsp`, typescript-language-server, pyright-langserver, pylsp, each under its own licence) found in the workspace's `node_modules/.bin`, `.venv` or `venv`, or on PATH, and run as separate programs.
 
 ## Art
 

@@ -1911,3 +1911,11 @@ Supersedes the entry above. request now throws ApiError, which keeps the status 
 - logged: v0.10.0 · 2026-10-30
 
 A container query cannot style the container it names, so the narrow gap of the status bar was never applied. It now sits in a plain media query at the same 1039px, which equals the status bar width because the bar spans the window. The other narrow rules style children and stay in the container query. Two tokens were added for the New app dialogs: a footer button width that holds Stop and Cancel at the same size, and the progress bar transition.
+
+### frontend/src/extensions/git/index.ts, formslot/index.ts · identity notice, flagged note, index action
+
+- refers-to: frontend/src/extensions/git/index.ts :: GitPanel.paintIdent, GitPanel.paintFoot; frontend/src/extensions/formslot/index.ts :: FormslotPanel.paint; frontend/public/licenses/fonts-OFL-1.1.txt
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+The Source Control panel shows an overlay card (like the flag and check cards, so it moves nothing) when the stored identity source is not Preferences: "No identity set: commits use your global git identity" with a Set identity button that opens Preferences at Git and Identity; if no identity exists at all it says commits will be refused. The Last commit card gains an Identity row from the commit result's `identitySource`. For a session target the footer shows "no flagged commits" or "N flagged"; the tooltip explains that only agent commits with a trailer or another identity are flagged, which is why the list can be empty after a normal wrapper commit. The Done type reads `identitySource` as optional because `io/git.ts` is typed without it. In the formslot panel an unindexed workspace turns the sub line amber, outlines the button, and the button reads Index workspace (tooltip: Index this workspace for formslot); layout is unchanged. The OFL-1.1 text for Inter and JetBrains Mono was not in the built window, so `public/licenses/fonts-OFL-1.1.txt` now ships with it.

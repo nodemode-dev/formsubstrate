@@ -587,3 +587,19 @@ review M6, L2 to L5. `create.shutdown()` runs in the lifespan: it marks running 
 - logged: v0.10.0 · 2026-10-30
 
 Correcting an older entry: the sentence "subform's own server is always left out until F9" in the entry on the per-session `mcp.json` is out of date. The server exists (`POST /mcp`, mounted without the `/api` prefix, tools in `mcp_tools.py`) and `_mcp_config` adds the `subform` entry whenever the launcher script sits in the repository folder above the engine. In a packaged app it is not found, the session note says so, and the entry is left out. The older entry is kept as written.
+
+### backend/app/services/sessions.py · _start_headless, create, PERMISSION_MODES
+
+- refers-to: backend/app/services/sessions.py :: _start_headless, create, PERMISSION_MODES, DEFAULT_PERMISSION_MODE
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+A release check showed headless sessions could not edit: in an untrusted worktree Claude Code ignores `permissions.allow` from project settings, so every Edit was denied. Each session now stores a `permissionMode` chosen at creation (default `acceptEdits`) and `_start_headless` passes `--permission-mode <mode>`. `acceptEdits` auto-accepts file edits inside the worktree only; Bash and other tools still need approval, which `-p` cannot give, so they are denied. Allowed values are `default`, `acceptEdits` and `plan`; `bypassPermissions` and the other CLI choices are never offered and the API answers 400 for them. The claude 2.1.314 help lists `manual` where older docs say `default`, but `--permission-mode default` is still accepted and behaves as asking, so the stored value stays `default`; revisit if a later CLI drops the alias. A stored value that is not allowed falls back to `acceptEdits` on resume of a headless session. Interactive sessions do not use the flag. Checked live: a headless session with no mode given edited CHANGELOG.md in its worktree and finished without a denial.
+
+### backend/app/services/gitops.py · commit
+
+- refers-to: backend/app/services/gitops.py :: commit
+- kind: rationale
+- logged: v0.10.0 · 2026-10-30
+
+The wrapper now passes `-c commit.gpgsign=true` or `-c commit.gpgsign=false` explicitly, matching the identity's signing choice, so a global `commit.gpgsign=true` no longer signs (or fails without a key) when signing is off in Preferences. The result carries `identitySource` (`subform` when Preferences hold the identity, `git` when the global git identity was used as the fallback, which is kept). Checked with a `GIT_CONFIG_GLOBAL` file that sets `commit.gpgsign=true` and `gpg.program=/bin/false`: the commit succeeded, unsigned (signature N). `GET /api/git/audit?session=` returning no commits after a wrapper commit is by design: it lists only flagged agent commits (a trailer, or an author or committer that differs from the stored identity), and without a stored identity the identity check is skipped. The panel now says "no flagged commits" for a session instead of showing nothing.
