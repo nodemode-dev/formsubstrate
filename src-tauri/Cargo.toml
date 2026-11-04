@@ -1,6 +1,6 @@
 [package]
 name = "subform"
-version = "0.16.1"
+version = "0.16.2"
 description = "subform desktop shell"
 authors = ["nodemode-ai"]
 license = "GPL-3.0-only"
@@ -11,7 +11,7 @@ rust-version = "1.90"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["devtools"] }
+tauri = { version = "2", features = ["devtools", "macos-private-api"] }
 tauri-plugin-shell = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"
