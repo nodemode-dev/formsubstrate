@@ -157,7 +157,7 @@ fn main() {
                                 .unwrap_or(FALLBACK_SIZE)
                         };
                         let builder = WebviewWindowBuilder::new(&handle, "main", WebviewUrl::External(url.parse().unwrap()))
-                            .title("subform")
+                            .title("SubForm")
                             .visible(reveal::BUILD_VISIBLE)
                             .background_color(reveal::BACKGROUND)
                             .inner_size(width, height)

@@ -1,38 +1,175 @@
-<h1 align="center">subform</h1>
-
-<p align="center"><b>The Form family's developer workbench: a code editor in the family's shell that runs several Claude Code agents at once, each in its own git worktree, and shows what formslot already knows before an agent writes.</b></p>
-
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.16.0-f97316" alt="version v0.16.0" />
-  <img src="https://img.shields.io/badge/status-release-8b5cf6" alt="status release" />
-  <img src="https://img.shields.io/badge/license-GPL--3.0-555555" alt="license GPL 3.0" />
+  <img src="assets/app-icon/subform-256.png" width="128" height="128" alt="SubForm icon">
 </p>
 
-subform opens Form repositories, edits code with language servers and a debugger, hosts Claude Code sessions in terminal tabs and headless runs, reviews their changes hunk by hunk, and commits them under the family's identity and signing rules. It uses the formvis shell (splash, Home, menu bar, title bar, status bar, Preferences) and editor pieces from substrata, ported into a fresh repository.
+<h1 align="center">SubForm</h1>
 
-**Status:** v0.16.0. v0.16.0 adds a plain-language guide for new users (docs/GUIDE.md); serves graph, plugin and skill presets from one place with the window token and workspace trust checked; keeps an untrusted checkout's own Claude Code settings and hooks out of agent sessions while a trusted one keeps its CLAUDE.md and skills; lets edit agents in one graph run take turns in its worktree; loads half as much script before the window shows; and makes the side rail one Tab stop with arrow keys. v0.15.0 makes the substrata features work together end to end: graph runs whose agents may edit get their own worktree with the formslot gate and a Review run changes button, one approval card per waiting step, a keyboard-editable Studio canvas, the formslot path in Preferences and setup with no folder open, terminals that only the window can drive, and a packaged engine that ships every preset, plugin and built-in skill. v0.14.0 brought over substrata's Studio (a node canvas where agent graphs are built and run, View > Studio) with graph runs, a runs list and node inspector, recipes, triggers and approvals, cogentics, insight and a Console tab, and the library (collections, tools, plugins, MCP servers, an extension manager, blocks, an activity feed); a formslot card on Home; and a one-time carry-over of settings and secrets from the old substrataform name. See docs/PARITY.md. v0.13.0 showed an open permission gate as a banner in its terminal tab, gates a retried write again after Use or Adapt, keeps waivers in the engine, and logs any gate it had to skip. v0.12.0 added symbol search in the command palette (`@` for the file, `#` for the workspace), Bash gates for dd, curl, wget, rsync, archives and more, a readable `terminal_tail` of Claude Code, a quit guard for unsaved files, and the fix for the Vite parse error in the external link check. Phases F1 to F9 have landed, and v0.11.0 added Bash write gates (a PreToolUse lexer for common write forms and a PostToolUse check of what changed), a read-only `terminal_tail` MCP tool, New Form app templates whose desktop shells compile, external links that open in the system browser, and a faster slot card; signing and notarization on the owner's Mac and the formcompiler registry rows are the owner's steps (see `docs/RELEASE.md`). F1 to F4 gave: the engine skeleton, the root scripts and the desktop boot (splash, hidden build, reveal on `app_ready`); then the formvis shell (tokens and themes, title bar with menus and tools, document tab row, status bar, command palette, dialogs and toasts) with zero flash on first paint; then F3 and F4: Home (Start, Recent, Workspaces, Sessions), Preferences in eleven sections with secrets in the system keychain, and the workbench: open a folder, browse its files, edit and save in a CodeMirror 6 editor, and search across the workspace with ripgrep, with VS Code style word wrap on by default (Alt+Z). F5 added the terminal dock over a detached pty-host, so shells and Claude Code survive an engine restart, and agent sessions, each in its own git worktree, with a Sessions panel, a chat pane for headless runs and a Skills list. F6 added git: a Source Control panel for the workspace or any session, diff tabs and a review pane that accepts or rejects an agent's changes hunk by hunk and sends review comments back to the session, snapshots with rewind, and a commit wrapper that commits with your identity, strips attribution trailers and audits every commit, with Push and Sign and Push, which now audit every push and flag agent commits that skipped the hook. F7 brought formslot into the workbench: a status item with tokens saved, a slots panel with search, manifests and drift, provenance badges in review, an install offer, and permission gates that pause an agent session when it is about to rewrite an existing slot until you choose use, adapt or write; and Run and Debug for Python through debugpy, with breakpoints, stepping, call stack, variables and a debug console. F8 added language servers (TypeScript 7 and pyright, found on the system): hover, completion, diagnostics, go to definition, references, rename, format, an Outline and a Problems panel; a workspace's own servers and venv run only after you trust it. From substrata came the Substrata theme (the default for new installs), a right panel and an editor split with sashes, a file graph tab, a live Markdown preview, image, video, audio and PDF tabs, real folder and file pickers (typed paths only when Preferences allow them) and a developer Home. F9 completes the family: subform's own MCP server at `POST /mcp` (behind LocalGuard and a bearer token) with the stdio launcher `./subform mcp`, so agents can reach the workbench; the harness skill pack under `.claude/skills/subform-harness/` that routes an agent around this repository; packaging with `setup/freeze_backend` (the engine frozen with PyInstaller) and `build_app` (the Tauri desktop app), with a Linux `.deb` built and cold-started here; Clone repo and New Form app on Home; and a right panel. Headless sessions now run with a per-session permission mode (accept edits inside the worktree by default), commits say which identity they used, and a workspace that formslot has not indexed says so. The plan of record ships in the planning sidecar zip.
+<p align="center">
+  <b>Developer workbench; a code editor that runs several Claude Code agents at once.</b><br>
+  Each agent works in its own git worktree, and you review its changes hunk by hunk,<br>
+  with what FormSlot already knows shown before an agent writes.
+</p>
 
-## Quick start
+<p align="center">
+  <img alt="version 0.16.2" src="https://img.shields.io/badge/version-0.16.2-eef0f4?style=flat-square">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-7-3178c6?style=flat-square&logo=typescript&logoColor=white">
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-engine-009688?style=flat-square">
+  <img alt="Tauri 2" src="https://img.shields.io/badge/Tauri-2-2f7bf5?style=flat-square">
+  <img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-3a3a3a?style=flat-square">
+  <img alt="Status: release" src="https://img.shields.io/badge/status-release-d69e2e?style=flat-square">
+</p>
 
-New users: double-click `Install subform.command` on macOS (the first time, right-click it and choose Open, because macOS asks before it runs a downloaded file) or `Install subform.bat` on Windows. The window installs subform and stays open; on macOS it then offers to start it, and on Windows you start it with `subform.bat` in this folder. On Home, the formslot card then installs and sets up formslot for you, and adds each project you open with one click.
+<p align="center">
+  <a href="https://formai.studio/"><b>Download SubForm on formai.studio</b></a> ·
+  <a href="#run-it-from-source">Run it from source</a>
+</p>
 
-The plain-language walkthrough is in [docs/GUIDE.md](docs/GUIDE.md).
+<p align="center">
+  <img src="docs/images/subform-hero.png" alt="SubForm editing a TypeScript file with the FormSlot panel open on the left, showing the Toast notices slot and the copies of it found in two repositories" width="100%">
+  <br>
+  <sub>The editor on SubForm's own source, with the FormSlot panel showing a slot and its copies.</sub>
+</p>
 
-From a terminal:
+<p align="center">
+  <a href="#features">Features</a> ·
+  <a href="#everything-in-the-box">In the box</a> ·
+  <a href="#built-for-agents">Agents</a> ·
+  <a href="#under-the-hood">Under the hood</a> ·
+  <a href="#download">Download</a> ·
+  <a href="#run-it-from-source">Run from source</a>
+</p>
 
-```bash
-./subform_oc_install     # backend venv and frontend packages
-./subform                # engine on 127.0.0.1:5655, window on localhost:5650
-./subform doctor         # toolchain, installs and ports
-frontend/node_modules/.bin/tauri dev   # the desktop window, from the repository root
+<table>
+  <tr>
+    <td width="25%" valign="top">
+      <h3>Agents in worktrees</h3>
+      Claude Code sessions each get their own git worktree, so several agents work on one repository without stepping on each other.
+    </td>
+    <td width="25%" valign="top">
+      <h3>Review before commit</h3>
+      Accept or reject an agent's changes hunk by hunk, send comments back to the session, and commit under your own identity.
+    </td>
+    <td width="25%" valign="top">
+      <h3>FormSlot gates</h3>
+      An agent about to rewrite code that already exists pauses until you choose to use it, adapt it or write new.
+    </td>
+    <td width="25%" valign="top">
+      <h3>Agent-ready</h3>
+      An MCP server with nine tools lets an agent read the workbench's sessions, review and terminals.
+    </td>
+  </tr>
+</table>
+
+## Features
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/subform-formslot.png" alt="SubForm with the FormSlot panel listing slots and code units that match a search for toast notification" width="100%">
+      <br><sub>Search slots, code and decisions from the side panel.</sub>
+      <h3>FormSlot in the editor</h3>
+      A status item, a slots panel with search and manifests, and provenance badges in review show what already exists.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/subform-review.png" alt="SubForm Source Control panel beside a side-by-side diff of a changed file" width="100%">
+      <br><sub>Source Control with a side-by-side diff of a working-tree change.</sub>
+      <h3>Git and review</h3>
+      Stage, diff, snapshot and rewind, then commit with trailers stripped and every commit audited. Push and Sign and Push check each push.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/subform-file-graph.png" alt="File graph of a repository with files as nodes coloured by type and links between them" width="100%">
+      <br><sub>The file graph of this repository: 413 files and 1139 links.</sub>
+      <h3>File graph</h3>
+      See how a repository's files link to each other, filter by folder or type, and click a node to open the file.
+    </td>
+  </tr>
+</table>
+
+## Everything in the box
+
+<table>
+  <tr>
+    <td width="33%" valign="top">
+      <h4>Editor</h4>
+      CodeMirror 6 · TypeScript and pyright language servers · Outline · Problems · editor split · Markdown preview · Python debugging with debugpy
+    </td>
+    <td width="33%" valign="top">
+      <h4>Agents and git</h4>
+      Claude Code terminals · headless chat runs · worktree sessions · hunk review · snapshots · commit audit · Studio graphs
+    </td>
+    <td width="33%" valign="top">
+      <h4>Formats</h4>
+      Opens: code, Markdown, images, video, audio, PDF · Saves: files in your workspace
+    </td>
+  </tr>
+</table>
+
+## Built for agents
+
+SubForm's engine is an MCP server with nine read-mostly tools. Only `review_comment` changes state, and no tool writes files, commits or answers a gate.
+
+```sh
+./subform mcp        # MCP server on stdio for Claude Code, Codex and Cursor
+./subform doctor     # toolchain, installs and ports
 ```
 
-| Port | Use |
-| --- | --- |
-| 5650 | Vite dev server (localhost only) |
-| 5651 | Vite preview |
-| 5655 | engine in development; the desktop engine binds a free port |
+The HTTP endpoint is `POST /mcp`, behind a local guard and a bearer token. A routing skill pack for agents is in [`.claude/skills/subform-harness/`](.claude/skills/subform-harness/SKILL.md). See [`docs/MCP.md`](docs/MCP.md) and [`AGENTS.md`](AGENTS.md).
 
-## Licence
+## Under the hood
 
-GPL-3.0-only. Copyright (C) 2026 NodeAgentc, Inc. See `LICENSE`. Code ported from formvis (Apache-2.0) and substrata (MIT) keeps its notices in `NOTICE.md` when it lands.
+- **Engine:** FastAPI on `127.0.0.1` behind a local guard; owner-only changes need the window token.
+- **Window:** TypeScript and Vite 8 with CodeMirror 6, wrapped by a Tauri 2 desktop shell.
+- **Terminals:** a detached pty-host keeps shells and Claude Code running through an engine restart.
+
+## Download
+
+| Platform | Download | Release |
+|---|---|---|
+| macOS | [Download SubForm for macOS](https://formai.studio/get/subform/macos) | [SubForm releases on FormCompiler](https://github.com/nodemode-dev/formcompiler/releases?q=subform-v&expanded=true) |
+| Windows | [Download SubForm for Windows](https://formai.studio/get/subform/windows) | [SubForm releases on FormCompiler](https://github.com/nodemode-dev/formcompiler/releases?q=subform-v&expanded=true) |
+| Linux | [Download SubForm for Linux](https://formai.studio/get/subform/linux) | [SubForm releases on FormCompiler](https://github.com/nodemode-dev/formcompiler/releases?q=subform-v&expanded=true) |
+
+All SubForm builds are compiled and released from [FormCompiler](https://github.com/nodemode-dev/formcompiler); this repo holds the source.
+
+## Run it from source
+
+Prefer it in your browser, or want to contribute? Run the web UI straight from this repo.
+**Requires:** git, Python 3.13 or later, Node 20.19 or later, and Claude Code for agent sessions.
+
+```sh
+git clone git@github.com:nodemode-dev/subform.git
+cd subform
+./subform_oc_install     # backend venv and frontend packages
+./subform                # engine on 127.0.0.1:5655, web UI at http://localhost:5650
+```
+
+`frontend/node_modules/.bin/tauri dev` opens the desktop window instead; `SUBFORM_PORT` moves the engine port. On Windows use `subform_oc_install.bat` and `subform.bat`. New users can double-click `Install subform.command` or `Install subform.bat`. The guide is [`docs/GUIDE.md`](docs/GUIDE.md).
+
+> [!IMPORTANT]
+> **Status:** release. Signing and notarization of the desktop app, and the FormCompiler catalogue rows, are still the owner's steps. See [`docs/RELEASE.md`](docs/RELEASE.md).
+
+**Contributing:** branch from `main`, keep changes to source here, and leave packaging and releases to formcompiler. See [`AGENTS.md`](AGENTS.md).
+
+## Repository
+
+| Path | What it is |
+|---|---|
+| `frontend/` | The window: TypeScript, Vite and CodeMirror |
+| `backend/` | The FastAPI engine, MCP server, pty-host and presets |
+| `src-tauri/` | The Tauri 2 desktop shell |
+| `setup/` | Install, boot, doctor and freeze scripts |
+
+## Maintainers
+
+| Maintainer | Role |
+|---|---|
+| [@nodemode-ai](https://github.com/nodemode-ai) | Owner |
+| [@gbarnai](https://github.com/gbarnai) | Co-owner |
+
+Code owners are set in [`.github/CODEOWNERS`](.github/CODEOWNERS).
+
+## License
+
+SubForm is licensed under the GNU General Public License v3.0 ([`LICENSE`](LICENSE), SPDX `GPL-3.0-only`). Copyright (C) 2026 NodeAgentc, Inc. Third-party notices: [`NOTICE.md`](NOTICE.md). Code ported from FormVis (Apache-2.0) and substrata (MIT) keeps its notices there.

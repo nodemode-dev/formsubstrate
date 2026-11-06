@@ -7,7 +7,7 @@ This page is for the owner's Mac (and later a Windows machine). Nothing here is 
 1. `vite build` writes the window to `frontend/dist`.
 2. `setup/freeze_backend` freezes the engine with PyInstaller (6.22.3, one-folder, from `backend/requirements_build.txt`) into `src-tauri/engine/`. Six data folders go inside it (`--add-data` in `setup/freeze_backend` and its `.bat`): the window as `frontend_dist`, the New Form app templates and the Studio graph templates as `app/templates`, the graph presets as `presets/graphs`, the recipe presets as `app/services/recipes/presets`, the bundled plugins as `app/services/library/bundled` and the built-in skills as `skills`. Without them a packaged app cannot scaffold and its preset, plugin and skill lists are empty. `--selfcheck` prints a count for `graph_presets`, `graph_templates`, `recipe_presets`, `bundled_plugins` and `skills`, and fails when any group is missing. The gate hook script is a string constant in `app/services/gate_hook.py`, so it needs no data file.
 3. `tauri build` bundles that folder as the resource `engine` (`Contents/Resources/engine` on macOS) and compiles the shell. The shell finds it through `src-tauri/src/packaged.rs`.
-4. macOS: `subform.app` and a `.dmg` under `src-tauri/target/release/bundle/`. Linux: a `.deb` (set `SUBFORM_BUNDLES` for others). Windows: `build_app.bat`.
+4. macOS: `SubForm.app` and a `.dmg` under `src-tauri/target/release/bundle/`. Linux: a `.deb` (set `SUBFORM_BUNDLES` for others). Windows: `build_app.bat`.
 
 The resource entry is passed by `build_app` on the command line, not stored in `tauri.conf.json`, so a plain `cargo build` or `tauri dev` does not need a frozen engine. On macOS the same entry is also in `tauri.macos.conf.json`.
 
@@ -49,7 +49,7 @@ With the variable set:
 Then verify, and notarize the app by hand so the sequence is under your eye:
 
 ```
-APP=src-tauri/target/release/bundle/macos/subform.app
+APP=src-tauri/target/release/bundle/macos/SubForm.app
 codesign --verify --deep --strict --verbose=2 "$APP"
 codesign -dvv "$APP" 2>&1 | grep -E "Authority|flags|TeamIdentifier"
 ```
