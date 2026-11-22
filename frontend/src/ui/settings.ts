@@ -3,6 +3,7 @@ import { git, type Identity } from '../io/git';
 import { removeSecret, saveSecret, secretStatus, secretStatusText, type SecretStatus } from '../io/secrets';
 import { addMcpClient, listMcpClients, removeMcpClient, type McpClient } from '../io/mcp-clients';
 import { customLsp, type CustomPreset, type CustomServer, type CustomServerFields } from '../io/lsp';
+import { debugAdapters, debugSettings, saveDebugSettings } from '../io/debug';
 import { systemStatus } from '../io/api';
 import { setTrusted } from '../io/trust';
 import { formatKeys, type Commands } from './commands';
@@ -174,6 +175,12 @@ export class SettingsDialog {
   private lspNote = '';
   private lspBad = false;
   private lspBusy = false;
+  private readonly dbgPath = el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" autocomplete="off" maxlength="1024">');
+  private readonly dbgSave = el<HTMLButtonElement>('<button class="cv-btn cv-btn-primary" type="button"></button>');
+  private readonly dbgFound = valueRow('', '');
+  private readonly dbgNode = valueRow('', '');
+  private readonly dbgStatus = el('<p class="cv-note cv-prefs-status" role="status"></p>');
+  private dbgState: { server: string; node: string; note: string; bad: boolean } = { server: '', node: '', note: '', bad: false };
   private readonly version: HTMLElement;
 
   constructor(ctx: SettingsContext) {
@@ -306,7 +313,7 @@ export class SettingsDialog {
         grp('Service', this.slotEnabled.el, this.slotAuto.el, valueRow('Service status', t('Not running')).el),
         grp('Location', this.pathRow(), this.slotFound.el, nt('The folder you unpacked formslot into, or the formslot program itself. Home uses it to install formslot when none is found.')),
       ],
-      'Language Servers': [grp('Servers', nt('Language servers are found on this system and used when they are installed.')), this.lspCard()],
+      'Language Servers': [grp('Servers', nt('Language servers are found on this system and used when they are installed.')), this.lspCard(), this.debugCard()],
       Keys: [grp('Shortcuts', this.keyList, nt('Shortcuts can be changed in a later version.'))],
       Updates: [grp('Version', versionRow.el, nt('Updates come through FormPortal.'))],
     };
@@ -681,6 +688,7 @@ export class SettingsDialog {
     this.forgetMcpToken();
     void this.loadMcp();
     void this.loadLsp();
+    void this.loadDebug(true);
     this.gitTouched = false;
     void this.loadGit();
     void this.paintFound();
@@ -890,6 +898,61 @@ export class SettingsDialog {
       this.mcpBusy = false;
       this.paintMcp();
     }
+  }
+
+  private debugCard(): HTMLElement {
+    const actions = el('<div class="cv-prefs-actions"></div>');
+    actions.append(this.dbgSave);
+    const labels = (): void => {
+      setText(this.dbgSave, t('Save'));
+      this.dbgPath.placeholder = t('The unpacked js-debug folder, or its dapDebugServer.js');
+      this.dbgPath.setAttribute('aria-label', t('js-debug location'));
+      setText(q(this.dbgFound.el, 'span'), t('js-debug'));
+      setText(q(this.dbgNode.el, 'span'), t('Node.js'));
+      this.paintDebug();
+    };
+    this.dbgSave.addEventListener('click', () => { void this.saveDebug(); });
+    this.dbgPath.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); this.dbgSave.click(); } });
+    const card = grp('Run and Debug', this.fieldRow('js-debug location', this.dbgPath), actions, this.dbgFound.el, this.dbgNode.el, this.dbgStatus,
+      nt('Node.js debugging uses js-debug from Microsoft. Substrate never downloads it: get js-debug-dap from the vscode-js-debug releases page on GitHub, unpack it, and give the unpacked folder here. Leave the field empty to look in the usual places. Python debugging uses debugpy from the workspace venv or the system Python.'));
+    labels();
+    onLanguage(labels);
+    return card;
+  }
+
+  private paintDebug(): void {
+    const s = this.dbgState;
+    setText(this.dbgFound.value, s.server || t('Not found'));
+    setTitle(this.dbgFound.value, s.server);
+    setText(this.dbgNode.value, s.node || t('Not found'));
+    setTitle(this.dbgNode.value, s.node);
+    setText(this.dbgStatus, s.note);
+    setClass(this.dbgStatus, 'is-error', s.bad);
+  }
+
+  private async loadDebug(fill: boolean): Promise<void> {
+    try {
+      const [kept, found] = await Promise.all([debugSettings(), debugAdapters()]);
+      const node = found.adapters.find((a) => a.id === 'node');
+      if (fill) setValue(this.dbgPath, kept.jsDebugPath);
+      const lost = !!kept.jsDebugPath && node?.configuredFound === false;
+      this.dbgState = { server: node?.server ?? '', node: node?.node ? `${node.node}${node.nodeVersion ? ` (${node.nodeVersion})` : ''}` : '', note: lost ? t('dapDebugServer.js was not found at that location.') : fill ? '' : this.dbgState.note, bad: lost };
+    } catch (e) {
+      this.dbgState = { ...this.dbgState, note: e instanceof Error ? e.message : '', bad: true };
+    }
+    this.paintDebug();
+  }
+
+  private async saveDebug(): Promise<void> {
+    try {
+      await saveDebugSettings({ jsDebugPath: this.dbgPath.value.trim() });
+      this.dbgState = { ...this.dbgState, note: t('Saved'), bad: false };
+    } catch (e) {
+      this.dbgState = { ...this.dbgState, note: e instanceof Error ? e.message : '', bad: true };
+      this.paintDebug();
+      return;
+    }
+    await this.loadDebug(false);
   }
 
   private lspCard(): HTMLElement {

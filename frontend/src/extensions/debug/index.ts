@@ -1,14 +1,27 @@
-import { DapConnection, debugAdapters, frameOf, scopeOf, variableOf, type DapEvent, type DapStackFrame, type DebugAdapter } from '../../io/debug';
+import { DapConnection, capabilitiesOf, debugAdapters, frameOf, scopeOf, variableOf, type AdapterKind, type DapCapabilities, type DapEvent, type DapStackFrame, type DebugAdapter, type LaunchConfig } from '../../io/debug';
+import { TRUST_EVENT } from '../../io/trust';
 import { el, patchList as patchKeyed, q, setClass, setDisabled, setHidden, setText, setTitle } from '../../ui/dom';
-import { breakpointPaths, breakpointsOf, clearBreakpoints, onBreakpoints, setDebugLocation, toggleBreakpointAtCursor } from '../../ui/editor/breakpoints';
+import { breakpointPaths, breakpointsOf, clearBreakpoints, editBreakpointAtCursor, onBreakpoints, setBreakpointSupport, setDebugLocation, toggleBreakpointAtCursor } from '../../ui/editor/breakpoints';
 import { onLanguage, t } from '../../ui/i18n';
 import { icon } from '../../ui/icons';
 import { FOCUS_EVENT } from '../../ui/workbench';
 import { lazyPanel, register, type ExtensionContext, type Shell, type SidebarSection } from '../registry';
+import { LaunchPicker, keepFor, recallFor } from './launch';
 
 type Phase = 'idle' | 'starting' | 'running' | 'paused';
 type StepKind = 'next' | 'stepIn' | 'stepOut';
-type LineKind = 'out' | 'err' | 'in' | 'result' | 'info';
+type LineKind = 'out' | 'err' | 'in' | 'result' | 'info' | 'log';
+interface Watch { id: number; expr: string; node: VarNode; state: 'idle' | 'ok' | 'error' }
+
+const WATCH_KEY = 'formsubstrate.debug.watch';
+const WATCH_CAP = 40;
+const WATCH_TEXT_MAX = 400;
+const LOG_MARK = '⁣';
+const LOG_TAG = /⁣(\d+)⁣/;
+const NODE_FILE = /\.(?:[cm]?js|[cm]?ts)$/i;
+const ALL_CAPS: DapCapabilities = { condition: true, hit: true, log: true };
+const PENCIL = '<span class="icon" style="width:12px;height:12px" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13l.6-2.8L10.9 2.9a1.2 1.2 0 0 1 1.7 0l.5.5a1.2 1.2 0 0 1 0 1.7L5.8 12.4z"/><path d="M9.8 4l2.2 2.2"/></svg></span>';
+const JS_DEBUG_STEPS = 'js-debug was not found. Download js-debug-dap from the vscode-js-debug releases page on GitHub, unpack it, and set the unpacked folder in Preferences, Language Servers, Run and Debug.';
 
 interface ConsoleLine { id: number; kind: LineKind; text: string }
 interface Frame extends DapStackFrame { local: string }
@@ -81,6 +94,20 @@ class DebugPanel {
   private readonly varsEmpty: HTMLElement;
   private readonly consoleEl: HTMLElement;
   private readonly exprEl: HTMLInputElement;
+  private readonly watchEl: HTMLElement;
+  private readonly watchIn: HTMLInputElement;
+  private readonly launch: LaunchPicker;
+  private adapters: DebugAdapter[] = [];
+  private kind: AdapterKind = 'python';
+  private caps: DapCapabilities = ALL_CAPS;
+  private watches: Watch[] = [];
+  private watchId = 0;
+  private watchSeq = 0;
+  private watchEditing = 0;
+  private readonly watchOpen = new Set<string>();
+  private readonly logPoints = new Map<number, string>();
+  private logSeq = 0;
+  private launchDirty = false;
   private phase: Phase = 'idle';
   private note = '';
   private conn: DapConnection | null = null;
@@ -94,7 +121,7 @@ class DebugPanel {
   private frames: Frame[] = [];
   private selected = 0;
   private roots: VarNode[] = [];
-  private readonly open = new Set<string>(['Locals']);
+  private readonly open = new Set<string>(['Locals', 'Local', 'Block']);
   private varSeq = 0;
   private lines: ConsoleLine[] = [];
   private lineId = 0;
@@ -118,11 +145,16 @@ class DebugPanel {
       `<button class="cv-wb-tool cv-dbg-stop" type="button" data-act="stop">${icon('stop', 14)}</button>` +
       '<span class="cv-dbg-state"></span></div>' +
       '<div class="cv-dbg-meta"><span class="cv-dbg-adapter cv-note"></span></div>' +
+      `<div class="cv-dbg-cfg"><select class="cv-input cv-dbg-pick"></select><button class="cv-wb-tool" type="button" data-act="config">${icon('settings', 14)}</button></div>` +
+      '<div class="cv-dbg-cfgnote cv-note"></div>' +
       '<div class="cv-dbg-args"><input class="cv-input cv-dbg-argin" type="text" spellcheck="false" autocomplete="off"></div>' +
       '<div class="cv-dbg-sec cv-dbg-sec-stack"><div class="cv-dbg-head"><span class="cv-dbg-head-t"></span><span class="cv-dbg-head-n"></span></div>' +
       '<div class="cv-dbg-list cv-dbg-stack" role="listbox"></div></div>' +
       '<div class="cv-dbg-sec cv-dbg-sec-vars"><div class="cv-dbg-head"><span class="cv-dbg-head-t"></span></div>' +
       '<div class="cv-dbg-list cv-dbg-vars" role="tree"></div><p class="cv-dbg-empty cv-note"></p></div>' +
+      '<div class="cv-dbg-sec cv-dbg-sec-watch"><div class="cv-dbg-head"><span class="cv-dbg-head-t"></span></div>' +
+      '<div class="cv-dbg-list cv-dbg-watch" role="tree"></div>' +
+      '<div class="cv-dbg-exprrow"><input class="cv-input cv-dbg-watchin" type="text" spellcheck="false" autocomplete="off" maxlength="400"></div></div>' +
       '<div class="cv-dbg-sec cv-dbg-sec-console"><div class="cv-dbg-head"><span class="cv-dbg-head-t"></span></div>' +
       '<div class="cv-dbg-list cv-dbg-console" role="log"></div>' +
       '<div class="cv-dbg-exprrow"><input class="cv-input cv-dbg-expr" type="text" spellcheck="false" autocomplete="off"></div></div>' +
@@ -144,22 +176,37 @@ class DebugPanel {
     this.varsEmpty = q(host, '.cv-dbg-empty');
     this.consoleEl = q(host, '.cv-dbg-console');
     this.exprEl = q(host, '.cv-dbg-expr');
+    this.watchEl = q(host, '.cv-dbg-watch');
+    this.watchIn = q(host, '.cv-dbg-watchin');
+    this.launch = new LaunchPicker(
+      q<HTMLSelectElement>(host, '.cv-dbg-pick'), q(host, '.cv-dbg-cfgnote'), q<HTMLButtonElement>(host, '[data-act="config"]'),
+      (path) => shell.openEditorTab(path),
+      () => this.paint(),
+      (text) => shell.setStatus(text, 'error'),
+    );
     this.bind();
     this.relabel();
-    onLanguage(() => { this.relabel(); this.paint(); });
+    onLanguage(() => { this.relabel(); this.launch.paint(); this.paint(); });
     this.wsPath = ctx.store.workspace?.path ?? '';
+    this.loadWatches();
     ctx.store.on('workspace', (ws) => {
       const next = ws?.path ?? '';
       if (next !== this.wsPath) {
         this.wsPath = next;
         clearBreakpoints();
         this.root = '';
+        this.loadWatches();
         if (this.phase !== 'idle') void this.stop();
       }
       void this.refreshAdapter();
     });
     ctx.store.on('active', () => this.paint());
-    ctx.store.on('docs', () => this.paint());
+    ctx.store.on('docs', (docs) => {
+      const dirty = docs.some((d) => d.modified && /(^|\/)launch\.json$/.test(d.path));
+      if (this.launchDirty && !dirty) void this.refreshAdapter();
+      this.launchDirty = dirty;
+    });
+    window.addEventListener(TRUST_EVENT, () => { void this.refreshAdapter(); });
     host.addEventListener(FOCUS_EVENT, () => { void this.refreshAdapter(); });
     onBreakpoints((path) => { void this.sendBreakpoints(path); });
     this.paint();
@@ -168,10 +215,24 @@ class DebugPanel {
 
   get currentPhase(): Phase { return this.phase; }
 
-  canStart(): boolean {
-    const doc = this.ctx.store.active;
-    return this.phase === 'idle' && !!this.ctx.store.workspace && !!doc && PY.test(doc.path);
+  private kindOfFile(path: string | undefined): AdapterKind | null {
+    if (!path) return null;
+    return PY.test(path) ? 'python' : NODE_FILE.test(path) ? 'node' : null;
   }
+
+  private wantedKind(): AdapterKind | null {
+    const choice = this.launch.selected();
+    return choice ? choice.kind : this.kindOfFile(this.ctx.store.active?.path);
+  }
+
+  canStart(): boolean {
+    if (this.phase !== 'idle' || !this.ctx.store.workspace) return false;
+    const choice = this.launch.selected();
+    if (choice) return !choice.needsFile || !!this.ctx.store.active;
+    return this.kindOfFile(this.ctx.store.active?.path) !== null;
+  }
+
+  addConfiguration(): void { void this.launch.openFile(); }
 
   canStep(): boolean { return this.phase === 'paused'; }
   canStop(): boolean { return this.phase !== 'idle'; }
@@ -193,6 +254,9 @@ class DebugPanel {
     }
     this.argsEl.placeholder = t('Arguments');
     this.exprEl.placeholder = t('Evaluate an expression');
+    this.watchIn.placeholder = t('Add an expression to watch');
+    if (this.watchIn.getAttribute('aria-label') !== t('Add an expression to watch')) this.watchIn.setAttribute('aria-label', t('Add an expression to watch'));
+    setText(q(this.host, '.cv-dbg-sec-watch .cv-dbg-head-t'), t('Watch'));
     setText(q(this.host, '.cv-dbg-sec-stack .cv-dbg-head-t'), t('Call Stack'));
     setText(q(this.host, '.cv-dbg-sec-vars .cv-dbg-head-t'), t('Variables'));
     setText(q(this.host, '.cv-dbg-sec-console .cv-dbg-head-t'), t('Debug Console'));
@@ -230,6 +294,200 @@ class DebugPanel {
         this.recall(e.key === 'ArrowUp' ? 1 : -1);
       }
     });
+    this.watchIn.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const text = this.watchIn.value.trim();
+      if (!text) return;
+      this.watchIn.value = '';
+      this.addWatch(text);
+    });
+    const watchOf = (target: EventTarget | null): { row: HTMLElement; watch: Watch | undefined } | null => {
+      const row = target instanceof Element ? target.closest<HTMLElement>('.cv-dbg-wrow') : null;
+      return row ? { row, watch: this.watches.find((w) => w.node.key === row.dataset.node) } : null;
+    };
+    this.watchEl.addEventListener('click', (e) => {
+      const hit = watchOf(e.target);
+      if (!hit || (e.target instanceof Element && e.target.closest('.cv-dbg-wedit'))) return;
+      const act = e.target instanceof Element ? e.target.closest<HTMLElement>('[data-act]')?.dataset.act : undefined;
+      if (act === 'remove' && hit.watch) { this.removeWatch(hit.watch.id); return; }
+      if (act === 'edit' && hit.watch) { this.editWatch(hit.watch.id); return; }
+      const node = this.flattenWatch().find((n) => n.key === hit.row.dataset.node);
+      if (node) void this.toggleWatchNode(node);
+    });
+    this.watchEl.addEventListener('dblclick', (e) => {
+      const hit = watchOf(e.target);
+      if (hit?.watch && !(e.target instanceof Element && e.target.closest('button, input'))) this.editWatch(hit.watch.id);
+    });
+    this.watchEl.addEventListener('keydown', (e) => {
+      const input = e.target instanceof HTMLInputElement && e.target.classList.contains('cv-dbg-wedit') ? e.target : null;
+      if (!input) return;
+      if (e.key === 'Enter') { e.preventDefault(); this.commitWatch(input.value); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.commitWatch(null); }
+    });
+    this.watchEl.addEventListener('focusout', (e) => {
+      if (this.watchEditing && e.target instanceof HTMLInputElement && e.target.classList.contains('cv-dbg-wedit')) this.commitWatch(null);
+    });
+  }
+
+  private loadWatches(): void {
+    const kept = recallFor<unknown>(WATCH_KEY, this.wsPath, []);
+    const list = Array.isArray(kept) ? kept.filter((x): x is string => typeof x === 'string' && !!x.trim()).slice(0, WATCH_CAP) : [];
+    this.watchSeq++;
+    this.watchEditing = 0;
+    this.watchOpen.clear();
+    this.watches = list.map((expr) => this.newWatch(expr.slice(0, WATCH_TEXT_MAX)));
+    this.paintWatch();
+  }
+
+  private newWatch(expr: string): Watch {
+    const id = ++this.watchId;
+    return { id, expr, state: 'idle', node: { key: `w${id}`, name: expr, value: '', type: '', ref: 0, depth: 0, scope: false, kids: null } };
+  }
+
+  private keepWatches(): void {
+    keepFor(WATCH_KEY, this.wsPath, this.watches.map((w) => w.expr));
+  }
+
+  private addWatch(expr: string): void {
+    if (this.watches.length >= WATCH_CAP) { this.shell.setStatus(t('The watch list is full'), 'error'); return; }
+    this.watches.push(this.newWatch(expr.slice(0, WATCH_TEXT_MAX)));
+    this.keepWatches();
+    this.paintWatch();
+    this.watchEl.scrollTop = this.watchEl.scrollHeight;
+    void this.evalWatches();
+  }
+
+  private removeWatch(id: number): void {
+    this.watches = this.watches.filter((w) => w.id !== id);
+    this.keepWatches();
+    this.paintWatch();
+  }
+
+  private editWatch(id: number): void {
+    this.watchEditing = id;
+    this.paintWatch();
+    const input = this.watchEl.querySelector<HTMLInputElement>('.cv-dbg-wrow.is-editing .cv-dbg-wedit');
+    if (input) { input.value = this.watches.find((w) => w.id === id)?.expr ?? ''; input.focus(); input.select(); }
+  }
+
+  private commitWatch(text: string | null): void {
+    const id = this.watchEditing;
+    if (!id) return;
+    this.watchEditing = 0;
+    const watch = this.watches.find((w) => w.id === id);
+    const next = text?.trim().slice(0, WATCH_TEXT_MAX);
+    if (watch && next && next !== watch.expr) {
+      watch.expr = next;
+      watch.node = { ...watch.node, name: next, value: '', type: '', ref: 0, kids: null };
+      watch.state = 'idle';
+      this.keepWatches();
+      this.paintWatch();
+      void this.evalWatches();
+      return;
+    }
+    this.paintWatch();
+  }
+
+  private flattenWatch(): VarNode[] {
+    const out: VarNode[] = [];
+    const walk = (nodes: VarNode[]): void => {
+      for (const n of nodes) {
+        out.push(n);
+        if (n.kids && this.watchOpen.has(n.key)) walk(n.kids);
+      }
+    };
+    walk(this.watches.map((w) => w.node));
+    return out;
+  }
+
+  private paintWatch(): void {
+    const tops = new Map(this.watches.map((w) => [w.node.key, w]));
+    patchList(this.watchEl, this.flattenWatch(), {
+      key: (n) => `w:${n.key}`,
+      create: () => el(
+        `<div class="cv-dbg-row cv-dbg-var cv-dbg-wrow" role="treeitem"><span class="cv-dbg-twist">${icon('chevronRight', 12)}</span>` +
+        '<span class="cv-dbg-vn"></span><span class="cv-dbg-vv"></span>' +
+        '<input class="cv-input cv-dbg-wedit" type="text" spellcheck="false" autocomplete="off" maxlength="400" hidden>' +
+        `<span class="cv-dbg-wacts"><button class="cv-wb-tool" type="button" data-act="edit">${PENCIL}</button><button class="cv-wb-tool" type="button" data-act="remove">${icon('close', 12)}</button></span></div>`),
+      update: (node, n) => {
+        const watch = tops.get(n.key);
+        const editing = !!watch && watch.id === this.watchEditing;
+        const idle = !!watch && watch.state === 'idle';
+        node.dataset.node = n.key;
+        if (node.style.getPropertyValue('--depth') !== String(n.depth)) node.style.setProperty('--depth', String(n.depth));
+        setText(q(node, '.cv-dbg-vn'), n.name);
+        setText(q(node, '.cv-dbg-vv'), idle ? t('not available') : n.value);
+        setTitle(node, idle ? n.name : `${n.name}: ${n.type ? `${n.type} = ` : ''}${n.value}`);
+        setClass(node, 'is-expandable', n.ref > 0);
+        setClass(node, 'is-open', n.ref > 0 && this.watchOpen.has(n.key));
+        setClass(node, 'is-error', !!watch && watch.state === 'error');
+        setClass(node, 'is-idle', idle);
+        setClass(node, 'is-child', !watch);
+        setClass(node, 'is-editing', editing);
+        setHidden(q(node, '.cv-dbg-wedit'), !editing);
+        const edit = q<HTMLButtonElement>(node, '[data-act="edit"]');
+        const remove = q<HTMLButtonElement>(node, '[data-act="remove"]');
+        setTitle(edit, t('Edit Expression'));
+        setTitle(remove, t('Remove Expression'));
+        if (edit.getAttribute('aria-label') !== t('Edit Expression')) edit.setAttribute('aria-label', t('Edit Expression'));
+        if (remove.getAttribute('aria-label') !== t('Remove Expression')) remove.setAttribute('aria-label', t('Remove Expression'));
+      },
+    });
+  }
+
+  private async evalWatches(): Promise<void> {
+    const conn = this.conn;
+    const seq = ++this.watchSeq;
+    if (!conn || this.phase !== 'paused') return;
+    const frameId = this.frames.some((f) => f.id === this.selected) ? this.selected : undefined;
+    for (const watch of [...this.watches]) {
+      let node: VarNode;
+      let state: Watch['state'] = 'ok';
+      try {
+        const res = await conn.request<{ result?: string; type?: string; variablesReference?: number }>('evaluate', { expression: watch.expr, frameId, context: 'watch' });
+        node = { ...watch.node, value: String(res.result ?? ''), type: String(res.type ?? ''), ref: Number(res.variablesReference ?? 0), kids: null };
+      } catch (err) {
+        state = 'error';
+        node = { ...watch.node, value: failText(err), type: '', ref: 0, kids: null };
+      }
+      if (seq !== this.watchSeq || this.conn !== conn) return;
+      if (node.ref > 0 && this.watchOpen.has(node.key)) {
+        try { await this.fetchKids(conn, node, seq, 'watchSeq', this.watchOpen); } catch { node.kids = []; }
+        if (seq !== this.watchSeq || this.conn !== conn) return;
+      }
+      if (!this.watches.includes(watch) || watch.node.name !== node.name) continue;
+      if (node.kids === null && watch.node.kids && watch.node.ref === node.ref) node.kids = watch.node.kids;
+      watch.node = node;
+      watch.state = state;
+      this.paintWatch();
+    }
+  }
+
+  private idleWatches(): void {
+    this.watchSeq++;
+    for (const watch of this.watches) {
+      watch.state = 'idle';
+      watch.node = { ...watch.node, value: '', type: '', ref: 0, kids: null };
+    }
+    this.paintWatch();
+  }
+
+  private async toggleWatchNode(node: VarNode): Promise<void> {
+    if (node.ref <= 0) return;
+    if (this.watchOpen.has(node.key)) {
+      this.watchOpen.delete(node.key);
+      this.paintWatch();
+      return;
+    }
+    this.watchOpen.add(node.key);
+    const conn = this.conn;
+    if (node.kids === null && conn) {
+      try { await this.fetchKids(conn, node, this.watchSeq, 'watchSeq', this.watchOpen); } catch (err) { this.log('info', failText(err)); }
+      const live = this.flattenWatch().find((n) => n.key === node.key);
+      if (live && live !== node && live.kids === null && live.ref === node.ref) live.kids = node.kids;
+    }
+    this.paintWatch();
   }
 
   private remember(text: string): void {
@@ -251,16 +509,23 @@ class DebugPanel {
       this.paint();
       return;
     }
+    const wsPath = this.wsPath;
     try {
-      const info = await debugAdapters();
-      this.adapter = info.adapters.find((a) => a.id === 'python') ?? null;
+      const [info] = await Promise.all([debugAdapters(), this.launch.refresh(wsPath)]);
+      this.adapters = info.adapters;
       this.root = info.root ?? this.root;
       this.adapterError = '';
     } catch (err) {
-      this.adapter = null;
+      this.adapters = [];
       this.adapterError = failText(err);
     }
+    this.adapter = this.adapters.find((a) => a.id === (this.wantedKind() ?? 'python')) ?? null;
     this.paint();
+  }
+
+  private missingText(a: DebugAdapter): string {
+    if (a.id === 'node') return a.reason === 'no-node' ? t('Node.js was not found on this computer.') : t(JS_DEBUG_STEPS);
+    return `${t('debugpy was not found.')} ${a.install ? `${t('Install')}: ${a.install}` : a.note}`;
   }
 
   private adapterText(): string {
@@ -268,8 +533,9 @@ class DebugPanel {
     if (this.adapterError) return this.adapterError;
     const a = this.adapter;
     if (!a) return t('Checking for debugpy');
-    if (a.available) return `debugpy ${a.debugpy ?? ''} · ${t(a.source ?? '')}`;
-    return `${t('debugpy was not found.')} ${a.install ? `${t('Install')}: ${a.install}` : a.note}`;
+    if (!a.available) return this.missingText(a);
+    if (a.id === 'node') return `js-debug · Node.js ${a.nodeVersion ?? ''} · ${t(a.source ?? '')}`;
+    return `debugpy ${a.debugpy ?? ''} · ${t(a.source ?? '')}`;
   }
 
   private stateText(): string {
@@ -287,8 +553,11 @@ class DebugPanel {
     setDisabled(this.buttons.stepIn, p !== 'paused');
     setDisabled(this.buttons.stepOut, p !== 'paused');
     setDisabled(this.buttons.stop, p === 'idle');
-    setDisabled(this.argsEl, p !== 'idle');
+    setDisabled(this.argsEl, p !== 'idle' || !!this.launch.selected());
+    this.launch.setDisabled(p !== 'idle');
     setDisabled(this.exprEl, p !== 'paused');
+    const kind = p === 'idle' ? this.wantedKind() ?? 'python' : this.kind;
+    this.adapter = this.adapters.find((a) => a.id === kind) ?? null;
     const state = this.stateText();
     setText(this.stateEl, state);
     setTitle(this.stateEl, state);
@@ -302,6 +571,7 @@ class DebugPanel {
     setHidden(this.varsEmpty, this.roots.length > 0);
     this.paintStack();
     this.paintVars();
+    this.paintWatch();
     this.paintConsole();
   }
 
@@ -419,12 +689,12 @@ class DebugPanel {
   async start(): Promise<void> {
     if (!this.canStart()) return;
     const doc = this.ctx.store.active;
-    if (!doc) return;
     const seq = ++this.startSeq;
+    this.kind = this.wantedKind() ?? 'python';
     this.phase = 'starting';
     this.note = '';
     this.paint();
-    const saved = await this.saveFirst(doc.path);
+    const saved = doc ? await this.saveFirst(doc.path) : true;
     if (seq !== this.startSeq) return;
     if (!saved) {
       this.reset('');
@@ -433,13 +703,24 @@ class DebugPanel {
     }
     await this.refreshAdapter();
     if (seq !== this.startSeq) return;
-    const adapter = this.adapter;
-    if (!adapter?.available) {
+    const choice = this.launch.selected();
+    const kind = choice ? choice.kind : this.kindOfFile(doc?.path);
+    if (!kind || (!choice && !doc)) {
       this.reset('');
-      this.shell.setStatus(adapter?.install ? `${t('debugpy was not found.')} ${t('Install')}: ${adapter.install}` : t('No debug adapter is available'), 'error');
+      this.shell.setStatus(t('Choose a launch configuration or open a Python or JavaScript file'), 'error');
       return;
     }
+    this.kind = kind;
+    const adapter = this.adapters.find((a) => a.id === kind);
+    if (!adapter?.available) {
+      this.reset('');
+      if (adapter) this.log('info', this.missingText(adapter));
+      this.shell.setStatus(adapter ? this.missingText(adapter) : t('No debug adapter is available'), 'error');
+      return;
+    }
+    const launch: LaunchConfig = choice ? { configuration: { index: choice.index, name: choice.name }, file: doc?.path ?? '' } : { program: doc?.path ?? '', args: splitArgs(this.argsEl.value) };
     this.sessionRoot = this.root;
+    this.logPoints.clear();
     this.refusal = '';
     this.configured = false;
     this.exitCode = null;
@@ -453,11 +734,13 @@ class DebugPanel {
     conn.onEvent((e) => { if (this.conn === conn) this.onEvent(e); });
     conn.onClose((reason) => { this.onClosed(conn, reason); });
     try {
-      await conn.open();
-      await conn.request('initialize', { clientID: 'formsubstrate', clientName: 'formsubstrate', adapterID: 'python', linesStartAt1: true, columnsStartAt1: true, pathFormat: 'path', supportsVariableType: true });
+      await conn.open(kind);
       const initialized = this.waitFor(conn, 'initialized');
-      const launching = conn.request('launch', { program: doc.path, args: splitArgs(this.argsEl.value) }).then(() => '', (err: unknown) => failText(err));
       initialized.catch(() => undefined);
+      const offered = await conn.request('initialize', { clientID: 'formsubstrate', clientName: 'formsubstrate', adapterID: kind === 'node' ? 'pwa-node' : 'python', linesStartAt1: true, columnsStartAt1: true, pathFormat: 'path', supportsVariableType: true });
+      this.caps = capabilitiesOf(offered);
+      setBreakpointSupport(this.caps);
+      const launching = conn.request('launch', { ...launch }).then(() => '', (err: unknown) => failText(err));
       await Promise.race([initialized, launching.then((failed) => (failed ? Promise.reject(new Error(failed)) : new Promise<never>(() => undefined)))]);
       this.configured = true;
       for (const path of breakpointPaths()) await this.sendBreakpoints(path, true);
@@ -477,10 +760,29 @@ class DebugPanel {
   private async sendBreakpoints(path: string, report = false): Promise<void> {
     const conn = this.conn;
     if (!conn || !conn.isOpen || !this.configured || !this.root) return;
-    const lines = breakpointsOf(path);
+    const caps = this.caps;
+    const lines: number[] = [];
+    const breakpoints: Array<Record<string, unknown>> = [];
+    for (const b of breakpointsOf(path)) {
+      if (!b.enabled) continue;
+      if ((b.condition && !caps.condition) || (b.hitCondition && !caps.hit) || (b.logMessage && !caps.log)) {
+        if (report) this.log('info', `${t('Breakpoint skipped, this debugger does not support its condition or message')}: ${baseOf(path)}:${b.line}`);
+        continue;
+      }
+      const item: Record<string, unknown> = { line: b.line };
+      if (b.condition) item.condition = b.condition;
+      if (b.hitCondition) item.hitCondition = b.hitCondition;
+      if (b.logMessage) {
+        const id = ++this.logSeq;
+        this.logPoints.set(id, `${baseOf(path)}:${b.line}`);
+        item.logMessage = `${LOG_MARK}${id}${LOG_MARK}${b.logMessage}`;
+      }
+      lines.push(b.line);
+      breakpoints.push(item);
+    }
     try {
-      const res = await conn.request<{ breakpoints?: Array<{ verified?: boolean; line?: number }> }>('setBreakpoints', { source: { path: this.absOf(path) }, breakpoints: lines.map((line) => ({ line })), lines });
-      if (!report) return;
+      const res = await conn.request<{ breakpoints?: Array<{ verified?: boolean; line?: number }> }>('setBreakpoints', { source: { path: this.absOf(path) }, breakpoints, lines });
+      if (!report || this.kind !== 'python') return;
       for (const [i, b] of (res.breakpoints ?? []).entries()) {
         if (b.verified === false) this.log('info', `${t('Breakpoint not verified')}: ${baseOf(path)}:${lines[i] ?? b.line ?? ''}`);
       }
@@ -494,7 +796,13 @@ class DebugPanel {
     if (e.event === 'output') {
       const category = typeof body.category === 'string' ? body.category : 'console';
       if (category === 'telemetry' || typeof body.output !== 'string') return;
-      this.log(category === 'stderr' ? 'err' : category === 'console' || category === 'important' ? 'info' : 'out', body.output);
+      const kind: LineKind = category === 'stderr' ? 'err' : category === 'console' || category === 'important' ? 'info' : 'out';
+      if (!body.output.includes(LOG_MARK)) { this.log(kind, body.output); return; }
+      for (const piece of body.output.match(/[^\n]*\n|[^\n]+/g) ?? []) {
+        const tag = LOG_TAG.exec(piece);
+        if (tag) this.log('log', `${this.logPoints.get(Number(tag[1])) ?? ''}  ${piece.replace(tag[0], '')}`);
+        else this.log(kind, piece);
+      }
     } else if (e.event === 'stopped') {
       this.threadId = Number(body.threadId ?? this.threadId);
       this.phase = 'paused';
@@ -534,7 +842,10 @@ class DebugPanel {
     this.roots = [];
     this.pausedAt = '';
     this.varSeq++;
+    this.caps = ALL_CAPS;
+    setBreakpointSupport(null);
     setDebugLocation(null);
+    this.idleWatches();
     this.paint();
   }
 
@@ -588,7 +899,7 @@ class DebugPanel {
       setDebugLocation(null);
     }
     this.paint();
-    await this.loadScopes(frame.id);
+    await Promise.all([this.loadScopes(frame.id), this.evalWatches()]);
   }
 
   private async loadScopes(frameId: number): Promise<void> {
@@ -597,9 +908,13 @@ class DebugPanel {
     const seq = ++this.varSeq;
     try {
       const res = await conn.request<{ scopes?: Array<Record<string, unknown>> }>('scopes', { frameId });
+      const taken = new Set<string>();
       const roots = (res.scopes ?? []).map((raw) => {
         const s = scopeOf(raw);
-        const node: VarNode = { key: s.name, name: s.name, value: '', type: '', ref: s.variablesReference, depth: 0, scope: true, kids: null };
+        let key = s.name;
+        while (taken.has(key)) key += '+';
+        taken.add(key);
+        const node: VarNode = { key, name: s.name, value: '', type: '', ref: s.variablesReference, depth: 0, scope: true, kids: null };
         return node;
       });
       for (const n of roots) {
@@ -614,7 +929,7 @@ class DebugPanel {
     }
   }
 
-  private async fetchKids(conn: DapConnection, node: VarNode, seq: number): Promise<void> {
+  private async fetchKids(conn: DapConnection, node: VarNode, seq: number, counter: 'varSeq' | 'watchSeq' = 'varSeq', open: Set<string> = this.open): Promise<void> {
     if (node.ref <= 0 || node.depth >= DEPTH_CAP) { node.kids = []; return; }
     const res = await conn.request<{ variables?: Array<Record<string, unknown>> }>('variables', { variablesReference: node.ref, count: VAR_CAP });
     const taken = new Set<string>();
@@ -628,8 +943,8 @@ class DebugPanel {
     }
     node.kids = kids;
     for (const k of kids) {
-      if (seq !== this.varSeq) return;
-      if (this.open.has(k.key) && k.ref > 0) await this.fetchKids(conn, k, seq);
+      if (seq !== this[counter]) return;
+      if (open.has(k.key) && k.ref > 0) await this.fetchKids(conn, k, seq, counter, open);
     }
   }
 
@@ -679,9 +994,9 @@ class DebugPanel {
     this.log('in', expression);
     if (!conn || this.phase !== 'paused') { this.log('info', t('Evaluation needs a paused program')); return; }
     try {
-      const res = await conn.request<{ result?: string; type?: string }>('evaluate', { expression, frameId: this.selected || undefined, context: 'repl' });
+      const res = await conn.request<{ result?: string; type?: string }>('evaluate', { expression, frameId: this.frames.some((f) => f.id === this.selected) ? this.selected : undefined, context: 'repl' });
       this.log('result', String(res.result ?? ''));
-      await this.loadScopes(this.selected);
+      await Promise.all([this.loadScopes(this.selected), this.evalWatches()]);
     } catch (err) {
       this.log('err', failText(err));
     }
@@ -693,7 +1008,7 @@ let panel: DebugPanel | null = null;
 register({
   id: 'debug',
   name: 'Run and Debug',
-  description: 'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.',
+  description: 'Python and Node.js debugging: conditional breakpoints, logpoints, stepping, call stack, variables, watch and a console.',
   required: true,
   setup(ctx, shell) {
     let section: SidebarSection | null = null;
@@ -717,6 +1032,9 @@ register({
       { id: 'debug-step-out', label: 'Step Out', keys: ['Shift+F11'], enabled: () => panel?.canStep() === true, run: () => { void panel?.step('stepOut'); } },
       { id: 'debug-stop', label: 'Stop Debugging', keys: ['Shift+F5'], enabled: () => panel?.canStop() === true, run: () => { void panel?.stop(); } },
       { id: 'debug-toggle-breakpoint', label: 'Toggle Breakpoint', keys: ['F9'], enabled: () => !!ctx.store.active, run: () => { toggleBreakpointAtCursor(); } },
+      { id: 'debug-conditional-breakpoint', label: 'Add Conditional Breakpoint', enabled: () => !!ctx.store.active, run: () => { editBreakpointAtCursor('condition'); } },
+      { id: 'debug-logpoint', label: 'Add Logpoint', enabled: () => !!ctx.store.active, run: () => { editBreakpointAtCursor('log'); } },
+      { id: 'debug-add-configuration', label: 'Add Configuration', enabled: ws, run: () => { panel?.addConfiguration(); } },
       { id: 'debug-focus', label: 'Run and Debug', keys: ['Shift+Mod+D'], enabled: () => !!ctx.store.workspace, run: () => section?.reveal() },
     );
   },
