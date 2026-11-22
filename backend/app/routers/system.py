@@ -1,9 +1,8 @@
-import shutil
 import subprocess
 
 from fastapi import APIRouter
 
-from app.core import config
+from app.core import binres, config
 
 router = APIRouter()
 
@@ -11,7 +10,7 @@ GIT_PREFIX = "git version "
 
 
 def git_version() -> str | None:
-    found = shutil.which("git")
+    found = binres.find_bin("git")
     if not found:
         return None
     try:
@@ -32,5 +31,5 @@ def status() -> dict:
         "engine": "python",
         "data_dir": str(config.data_dir()),
         "git": git_version(),
-        "claude": shutil.which("claude"),
+        "claude": binres.find_agent("claude"),
     }

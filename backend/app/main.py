@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.core import config, lsp, runtime
+from app.core import binres, config, lsp, runtime
 from app.core import debug as debug_core
 from app.core.engine_addr import remember
 from app.core.local_guard import LocalGuard, token_mode
@@ -71,6 +71,7 @@ async def lifespan(_: FastAPI):
     for note in await asyncio.to_thread(secrets.migrate_keyring):
         log.info("%s", note)
     saved = _end_streams_on_signal()
+    binres.warm()
     await session_service.reconcile()
     trigger_service.start()
     yield
