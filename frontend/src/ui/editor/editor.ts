@@ -15,6 +15,7 @@ import { bracketColors } from './brackets';
 import { multiCursor } from './cursors';
 import { folding } from './folding';
 import { conflicts } from './conflicts';
+import { editorMenu } from './code-actions';
 import { lsp } from './lsp';
 import { EDITOR_PREFS_EVENT, loadPrefs } from '../prefs';
 import { toast } from '../toast';
@@ -186,6 +187,7 @@ export class EditorHost {
         autocompletion(),
         highlightSelectionMatches(),
         conflicts,
+        editorMenu,
         EditorState.phrases.of(searchPhrases()),
         d.wrap.of(this.wrapExt()),
         d.opts.of(this.optionsExt()),

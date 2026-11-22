@@ -3,6 +3,7 @@ import { CUSTOM_LSP_EVENT, syncTrust, type CustomServer, type LspServerInfo, typ
 import { setTrusted, TRUST_EVENT } from '../../io/trust';
 import { Dialog } from '../../ui/dialogs';
 import { el, patchList, q, setClass, setHidden, setText, setTitle } from '../../ui/dom';
+import { bindEditorMenu, organizeImports, quickFix, sourceActions } from '../../ui/editor/code-actions';
 import { lsp, type LspStatus, type OutlineItem, type Problem } from '../../ui/editor/lsp';
 import { onLanguage, t, tn } from '../../ui/i18n';
 import { icon } from '../../ui/icons';
@@ -337,6 +338,9 @@ register({
       { id: 'lsp-references', label: 'Find All References', keys: ['Shift+F12'], enabled: onCode, run: () => { lsp.run(findReferences); } },
       { id: 'lsp-rename', label: 'Rename Symbol', keys: ['F2'], enabled: onCode, run: () => { lsp.run(renameSymbol); } },
       { id: 'lsp-format', label: 'Format Document', keys: ['Shift+Alt+F'], enabled: onCode, run: () => { lsp.run(formatDocument); } },
+      { id: 'lsp-quick-fix', label: 'Quick Fix...', keys: ['Mod+.'], enabled: onCode, run: () => { lsp.run(quickFix); } },
+      { id: 'lsp-source-action', label: 'Source Action...', enabled: onCode, run: () => { lsp.run(sourceActions); } },
+      { id: 'lsp-organize-imports', label: 'Organize Imports', keys: ['Alt+Shift+O'], enabled: onCode, run: () => { lsp.run(organizeImports); } },
       { id: 'lsp-outline', label: 'Show Outline', run: () => (outlineRight ?? outlineSection).reveal() },
       { id: 'lsp-outline-left', label: 'Show Outline in the Sidebar', run: () => outlineSection.reveal() },
       { id: 'lsp-problems', label: 'Show Problems', run: () => problemsSection.reveal() },
@@ -344,6 +348,7 @@ register({
       { id: 'lsp-restart', label: 'Restart Language Servers', enabled: () => ctx.store.docs.length > 0, run: () => lsp.restart(ctx.store.docs.map((d) => d.path)) },
     );
 
+    bindEditorMenu(ctx.commands);
     let last = '';
     const publish = (): void => {
       const d = describe(lsp.statusFor(ctx.store.active?.path ?? null));

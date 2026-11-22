@@ -71,6 +71,19 @@
 .cm-editor .cm-lint-marker-error { background: var(--danger); }
 .cm-editor .cm-lint-marker-warning { background: var(--warn); }
 .cm-editor .cm-tooltip-lint { padding: 0; }
+.cm-editor .cm-gutter.cv-ca-gutter { width: var(--space-4); }
+.cm-editor .cv-ca-gutter .cm-gutterElement { padding: 0; display: flex; align-items: center; justify-content: center; }
+.cm-editor .cv-ca-bulb { display: inline-flex; width: var(--space-3h); height: var(--space-3h); border-radius: var(--radius-xs); color: var(--warn); cursor: pointer; }
+.cm-editor .cv-ca-bulb:hover { background: var(--bg-hover); }
+.cm-editor .cv-ca-bulb svg { width: 100%; height: 100%; }
+.cm-editor .cv-ca-diag { display: block; min-width: var(--size-w-wide); }
+.cm-editor .cv-ca-msg { display: block; white-space: pre-wrap; }
+.cm-editor .cv-ca-fixes { display: flex; align-items: center; gap: var(--space-1); width: 0; min-width: 100%; height: var(--ctl-sm); margin-top: var(--space-0); overflow: hidden; color: var(--text-muted); font-size: var(--fs-11); white-space: nowrap; }
+.cm-editor .cv-ca-fix { flex: 0 1 auto; min-width: 0; height: var(--size-chip-h); margin: 0; padding: 0 var(--space-1h); overflow: hidden; border: 1px solid var(--accent-line); border-radius: var(--radius-sm); background: var(--accent-soft); color: var(--text-primary); font-size: var(--fs-11); text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.cm-editor .cv-ca-fix:hover { border-color: var(--accent-color); }
+.cm-editor .cv-ca-more { flex: none; background: transparent; border-color: var(--border-color); color: var(--text-secondary); }
+.cv-menu.cv-ca-menu { max-width: min(calc(var(--size-w-wide) * 2.5), calc(100vw - var(--space-4))); }
+.cv-menu.cv-ca-menu .cv-menu-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cm-editor .cm-diagnostic { padding: var(--space-1) var(--space-2); margin: 0; border-left: 3px solid var(--accent-color); font-family: var(--font-ui); font-size: var(--fs-12); color: var(--text-primary); }
 .cm-editor .cm-diagnostic-error { border-left-color: var(--danger); }
 .cm-editor .cm-diagnostic-warning { border-left-color: var(--warn); }

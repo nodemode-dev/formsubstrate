@@ -6,6 +6,9 @@ import { LSPClient, LSPPlugin, languageServerExtensions, type Transport, type Wo
 import { CUSTOM_LSP_EVENT, customLsp, forgetTrustSync, lspServers, lspSocketUrl, syncTrust, trustSynced, type LspLang, type LspServers } from '../../io/lsp';
 import { t, tn } from '../i18n';
 import { toast } from '../toast';
+import { isolateHistory } from '@codemirror/commands';
+import { actionBulb, diagnosticBody } from './code-actions';
+import { applyWorkspaceEdit, editsOf, textOf, type EditHost, type EditOutcome, type WorkspaceEdit } from './lsp-edits';
 import { SfWorkspace, type SfFile, type WorkspaceHost } from './lsp-workspace';
 
 export type LspState = 'starting' | 'ready' | 'unavailable' | 'stopped';
@@ -15,6 +18,7 @@ export interface LspHost {
   open(path: string, line?: number, col?: number): Promise<boolean>;
   transact(path: string, spec: TransactionSpec): void;
   read(path: string): Promise<string | null>;
+  text(path: string): string | null;
   refresh(path: string): void;
   status(text: string): void;
   run(command: (view: EditorView) => boolean): boolean;
@@ -65,7 +69,42 @@ interface RawSymbol {
   children?: RawSymbol[];
 }
 
+interface RawCommand { command: string; arguments?: unknown[] }
+interface RawAction { title: string; kind?: string; isPreferred?: boolean; disabled?: unknown; edit?: WorkspaceEdit; command?: RawCommand | string; arguments?: unknown[] }
+
+export interface ActionChoice { title: string; kind: string; preferred: boolean; apply(): Promise<boolean> }
+export interface ActionQuery { from: number; to: number; only?: string[]; auto: boolean; diagnostics?: unknown[]; signal?: AbortSignal }
+
 type Topic = 'state' | 'diagnostics' | 'changed';
+
+const ACTION_KINDS = ['', 'quickfix', 'refactor', 'refactor.extract', 'refactor.inline', 'refactor.rewrite', 'source', 'source.organizeImports', 'source.fixAll'];
+const ACTION_CAPABILITIES = {
+  textDocument: {
+    codeAction: {
+      dynamicRegistration: false,
+      codeActionLiteralSupport: { codeActionKind: { valueSet: ACTION_KINDS } },
+      isPreferredSupport: true,
+      dataSupport: true,
+      resolveSupport: { properties: ['edit'] },
+    },
+  },
+  workspace: {
+    applyEdit: true,
+    workspaceEdit: { documentChanges: true, resourceOperations: ['create', 'rename'], failureHandling: 'abort' },
+    executeCommand: { dynamicRegistration: false },
+  },
+};
+const UNUSED_IMPORTS = 'source.removeUnusedImports';
+const FILES_WRITTEN = 'formsubstrate:files-written';
+const PATHS_CHANGED = 'formsubstrate:paths-changed';
+const GIT_CHANGED = 'formsubstrate:git-changed';
+
+interface ServerRequest { id?: number | string; method?: string; params?: { edit?: WorkspaceEdit } }
+const serverRequest = (data: string): ServerRequest | null => {
+  try { return JSON.parse(data) as ServerRequest | null; } catch { return null; }
+};
+const errorText = (e: unknown): string => (e instanceof Error ? e.message : String((e as { message?: unknown } | null)?.message ?? e));
+const earlier = (a: RawPos, b: RawPos): boolean => a.line < b.line || (a.line === b.line && a.character < b.character);
 
 const LANG_OF_EXT: Record<string, { lang: LspLang; id: string }> = {
   ts: { lang: 'typescript', id: 'typescript' },
@@ -205,7 +244,7 @@ class Session {
         'window/logMessage': (_c, params: { message?: string }) => { console.debug('[lsp]', params.message); return true; },
         'textDocument/publishDiagnostics': (_c, params: { uri: string; version?: number; diagnostics: RawDiagnostic[] }) => this.onPush(params),
       },
-      extensions: [...languageServerExtensions(), { editorExtension: mgr.watcher() }],
+      extensions: [...languageServerExtensions(), { editorExtension: mgr.watcher() }, { clientCapabilities: ACTION_CAPABILITIES }],
     });
     this.workspace = this.client.workspace as SfWorkspace;
     guardLinks();
@@ -252,7 +291,163 @@ class Session {
       this.onControl(data);
       return;
     }
+    if (data.includes('"workspace/applyEdit"')) {
+      const msg = serverRequest(data);
+      if (msg && msg.method === 'workspace/applyEdit' && msg.id !== undefined) {
+        void this.onApplyEdit(msg.id, msg.params?.edit);
+        return;
+      }
+    }
     for (const h of Array.from(this.listeners)) h(data);
+  }
+
+  private async onApplyEdit(id: number | string, edit: WorkspaceEdit | undefined): Promise<void> {
+    const stamp = this.stamp();
+    let outcome: EditOutcome;
+    try { outcome = await applyWorkspaceEdit(edit, stamp, this.editHost()); } catch (e) { outcome = { applied: false, reason: errorText(e) }; }
+    if (!outcome.applied) toast(outcome.reason, 'error');
+    const result = outcome.applied ? { applied: true } : { applied: false, failureReason: outcome.reason };
+    if (!this.disposed && this.socket.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify({ jsonrpc: '2.0', id, result }));
+  }
+
+  private stamp(): Map<string, number> {
+    return new Map(this.workspace.files.map((f) => [f.uri, f.version]));
+  }
+
+  private editHost(): EditHost {
+    return {
+      pathOf: (uri) => this.pathOf(uri),
+      sync: () => { if (this.state === 'ready') this.client.sync(); },
+      openDoc: (uri) => {
+        const path = this.pathOf(uri);
+        if (!path) return null;
+        const file = this.workspace.getFile(uri);
+        if (file?.view && LSPPlugin.get(file.view)) return { key: file.uri, doc: file.doc, version: file.version, stale: !file.doc.eq(file.view.state.doc) };
+        const text = this.mgr.textOf(path);
+        if (text === null) return null;
+        const doc = textOf(text);
+        return file ? { key: file.uri, doc: file.doc, version: file.version, stale: !doc.eq(file.doc) } : { key: uri, doc, version: null, stale: false };
+      },
+      commit: (uri, changes) => {
+        const path = this.pathOf(uri);
+        if (!path) return;
+        const file = this.workspace.getFile(uri);
+        const hidden = file && !file.view ? changes.apply(file.doc) : null;
+        this.mgr.transact(path, { changes, userEvent: 'input.codeaction', annotations: isolateHistory.of('full') });
+        if (file && hidden) this.workspace.pushHidden(file, hidden);
+      },
+      settled: (uris, written, renamed) => {
+        for (const uri of uris) this.afterEdit(uri);
+        if (written.length) window.dispatchEvent(new CustomEvent(FILES_WRITTEN, { detail: { paths: written } }));
+        for (const r of renamed) window.dispatchEvent(new CustomEvent(PATHS_CHANGED, { detail: { kind: 'rename', from: r.from, to: r.to } }));
+        if (written.length || renamed.length) window.dispatchEvent(new Event(GIT_CHANGED));
+      },
+    };
+  }
+
+  private diagnosticsIn(uri: string, range: RawRange): RawDiagnostic[] {
+    const items = this.raw.get(this.pathOf(uri) ?? uri) ?? [];
+    return items.filter((d) => !earlier(range.end, d.range.start) && !earlier(d.range.end, range.start));
+  }
+
+  async actions(view: EditorView, q: ActionQuery): Promise<ActionChoice[]> {
+    const plugin = LSPPlugin.get(view);
+    if (!plugin || plugin.client !== this.client || this.state !== 'ready' || !this.client.serverCapabilities?.codeActionProvider) return [];
+    this.client.sync();
+    const uri = plugin.uri;
+    const range = { start: plugin.toPosition(q.from), end: plugin.toPosition(q.to) };
+    const stamp = this.stamp();
+    const context = { diagnostics: q.diagnostics ?? this.diagnosticsIn(uri, range), ...(q.only ? { only: q.only } : {}), triggerKind: q.auto ? 2 : 1 };
+    const params = { textDocument: { uri }, range, context };
+    const stop = (): void => this.client.cancelRequest(params);
+    q.signal?.addEventListener('abort', stop, { once: true });
+    let found: Array<RawAction | null> | null;
+    try {
+      found = await this.client.request<typeof params, Array<RawAction | null> | null>('textDocument/codeAction', params);
+    } catch {
+      return [];
+    } finally {
+      q.signal?.removeEventListener('abort', stop);
+    }
+    if (q.signal?.aborted) return [];
+    const out: ActionChoice[] = [];
+    for (const item of found ?? []) {
+      if (!item || typeof item.title !== 'string' || item.disabled) continue;
+      const literal = typeof item.command !== 'string';
+      const action: RawAction = typeof item.command === 'string' ? { title: item.title, command: { command: item.command, arguments: item.arguments } } : item;
+      const kind = typeof action.kind === 'string' ? action.kind : '';
+      if (q.only && !q.only.some((o) => kind === o || kind.startsWith(`${o}.`))) continue;
+      out.push({ title: action.title, kind, preferred: action.isPreferred === true, apply: () => this.runAction(uri, action, stamp, literal) });
+    }
+    const flagged = context.diagnostics as RawDiagnostic[];
+    const wantsFix = !q.only || q.only.includes('quickfix');
+    if (wantsFix && flagged.length && !out.some((c) => c.kind === 'quickfix' || c.kind.startsWith('quickfix.'))) out.push(...await this.unusedImportFixes(uri, flagged, stamp, q));
+    return out.sort((a, b) => Number(b.preferred) - Number(a.preferred));
+  }
+
+  private async unusedImportFixes(uri: string, flagged: RawDiagnostic[], stamp: Map<string, number>, q: ActionQuery): Promise<ActionChoice[]> {
+    const provider = this.client.serverCapabilities?.codeActionProvider;
+    const kinds = typeof provider === 'object' && Array.isArray(provider.codeActionKinds) ? provider.codeActionKinds : [];
+    const file = this.workspace.getFile(uri);
+    if (!file || !kinds.some((k) => k === UNUSED_IMPORTS || k.startsWith(`${UNUSED_IMPORTS}.`))) return [];
+    const params = { textDocument: { uri }, range: flagged[0].range, context: { diagnostics: [], only: [UNUSED_IMPORTS], triggerKind: q.auto ? 2 : 1 } };
+    let found: Array<RawAction | null> | null;
+    try {
+      found = await this.client.request<typeof params, Array<RawAction | null> | null>('textDocument/codeAction', params);
+    } catch {
+      return [];
+    }
+    if (q.signal?.aborted || stamp.get(file.uri) !== file.version) return [];
+    const doc = file.doc, flat = decoded(uri);
+    const removes = (action: RawAction): boolean => {
+      const edits = editsOf(action.edit, (other) => decoded(other) === flat);
+      return flagged.some((d) => {
+        const word = doc.sliceString(clampPos(doc, d.range.start), clampPos(doc, d.range.end));
+        return edits.some((e) => !earlier(e.range.end, d.range.start) && !earlier(d.range.end, e.range.start) && (!word || !e.newText.includes(word)));
+      });
+    };
+    const out: ActionChoice[] = [];
+    for (const item of found ?? []) {
+      if (!item || typeof item.title !== 'string' || typeof item.command === 'string' || !item.edit || !removes(item)) continue;
+      out.push({ title: item.title, kind: typeof item.kind === 'string' ? item.kind : UNUSED_IMPORTS, preferred: false, apply: () => this.runAction(uri, item, stamp, true) });
+    }
+    return out;
+  }
+
+  private async runAction(uri: string, picked: RawAction, stamp: Map<string, number>, literal: boolean): Promise<boolean> {
+    if (this.state !== 'ready') return false;
+    this.client.sync();
+    const file = this.workspace.getFile(uri);
+    if (!file || stamp.get(file.uri) !== file.version) {
+      toast(t('The file changed since this fix was offered, so it was not applied. Ask for the fixes again.'), 'error');
+      return false;
+    }
+    let action = picked;
+    const provider = this.client.serverCapabilities?.codeActionProvider;
+    if (literal && !action.edit && typeof provider === 'object' && provider.resolveProvider) {
+      try {
+        action = (await this.client.request<RawAction, RawAction | null>('codeAction/resolve', action)) ?? action;
+      } catch (e) {
+        toast(`${t('The language server could not prepare this fix')}: ${errorText(e)}`, 'error');
+        return false;
+      }
+    }
+    if (action.edit) {
+      const outcome = await applyWorkspaceEdit(action.edit, stamp, this.editHost());
+      if (!outcome.applied) {
+        toast(outcome.reason, 'error');
+        return false;
+      }
+    }
+    const command = typeof action.command === 'object' ? action.command : null;
+    if (!command || typeof command.command !== 'string') return true;
+    try {
+      await this.client.request('workspace/executeCommand', { command: command.command, arguments: command.arguments ?? [] });
+    } catch (e) {
+      toast(`${t('The language server could not run this action')}: ${errorText(e)}`, 'error');
+      return false;
+    }
+    return true;
   }
 
   private onControl(data: string): void {
@@ -339,10 +534,13 @@ class Session {
     if (!view || !view.dom.isConnected) return;
     const doc = view.state.doc;
     const at = map ?? ((pos: RawPos) => clampPos(doc, pos));
+    const fixes = !!this.client.serverCapabilities?.codeActionProvider;
     const list: Diagnostic[] = items.map((d) => {
       const from = Math.min(doc.length, at(d.range.start));
       const to = Math.min(doc.length, Math.max(from, at(d.range.end)));
-      return { from, to, severity: SEVERITY[d.severity ?? 1] ?? 'error', message: d.message, source: d.source };
+      const item: Diagnostic = { from, to, severity: SEVERITY[d.severity ?? 1] ?? 'error', message: d.message, source: d.source };
+      if (fixes) item.renderMessage = (shown) => diagnosticBody(shown, item, d);
+      return item;
     });
     view.dispatch(setDiagnostics(view.state, list));
   }
@@ -561,12 +759,36 @@ export class LspManager {
     if (!info || !root) return [];
     if (!trustSynced()) {
       void syncTrust().then(() => { if (this.opened.has(path)) this.host?.refresh(path); });
-      return [lintGutter()];
+      return [lintGutter(), actionBulb];
     }
     const s = this.ensure(info.lang, root);
-    if (s.state === 'unavailable' || s.state === 'stopped') return [lintGutter()];
-    return [s.client.plugin(s.uriFor(path), info.id), lintGutter(), lspPhrases()];
+    if (s.state === 'unavailable' || s.state === 'stopped') return [lintGutter(), actionBulb];
+    return [s.client.plugin(s.uriFor(path), info.id), lintGutter(), actionBulb, lspPhrases()];
   };
+
+  textOf(path: string): string | null {
+    return this.host?.text(path) ?? null;
+  }
+
+  transact(path: string, spec: TransactionSpec): void {
+    this.host?.transact(path, spec);
+  }
+
+  private sessionFor(view: EditorView): Session | null {
+    const plugin = LSPPlugin.get(view);
+    return plugin ? this.sessionOf(plugin.client) : null;
+  }
+
+  codeActions(view: EditorView, q: ActionQuery): Promise<ActionChoice[]> {
+    return this.sessionFor(view)?.actions(view, q) ?? Promise.resolve([]);
+  }
+
+  actionKinds(view: EditorView): string[] | null {
+    const s = this.sessionFor(view);
+    const provider = s && s.state === 'ready' ? s.client.serverCapabilities?.codeActionProvider : null;
+    if (!provider) return null;
+    return typeof provider === 'object' && Array.isArray(provider.codeActionKinds) ? provider.codeActionKinds : [];
+  }
 
   release(path: string): void {
     this.opened.delete(path);

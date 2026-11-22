@@ -87,6 +87,13 @@ export class SfWorkspace extends Workspace {
     if (file && file.view === view) file.view = null;
   }
 
+  pushHidden(file: SfFile, doc: Text): void {
+    if (file.view) return;
+    file.doc = doc;
+    file.version = this.next(file.uri);
+    this.client.notification('textDocument/didChange', { textDocument: { uri: file.uri, version: file.version }, contentChanges: [{ text: doc.toString() }] });
+  }
+
   release(uri: string): void {
     const file = this.getFile(uri);
     if (!file) return;
