@@ -23,6 +23,8 @@ const MIN_SIZE: (f64, f64) = (980.0, 640.0);
 const SCREEN_FRACTION: f64 = 0.9;
 const DEV_ENGINE: &str = "../backend/formsubstrate_engine.py";
 const SHELL_ENV: &str = "FORMSUBSTRATE_SHELL_PID";
+const ADDRESS_WAIT: std::time::Duration = std::time::Duration::from_secs(90);
+static FAILED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 fn kill_backend(handle: &tauri::AppHandle) {
     let state = handle.state::<Backend>();
@@ -59,10 +61,15 @@ fn close_splash(handle: &tauri::AppHandle) {
 }
 
 fn engine_failed(handle: &tauri::AppHandle) {
+    if FAILED.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        return;
+    }
     close_splash(handle);
     let _ = handle
         .dialog()
         .message("The Substrate engine failed to start. Please relaunch the app.")
+        .title("Substrate")
+        .kind(tauri_plugin_dialog::MessageDialogKind::Error)
         .blocking_show();
     kill_backend(handle);
     handle.exit(1);
@@ -140,6 +147,13 @@ fn main() {
                 return Ok(());
             };
             *app.state::<Backend>().0.lock().unwrap() = Some(child);
+            let late = handle.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(ADDRESS_WAIT);
+                if late.get_webview_window("main").is_none() {
+                    engine_failed(&late);
+                }
+            });
 
             tauri::async_runtime::spawn(async move {
                 let pattern = regex::Regex::new(r"http://127\.0\.0\.1:(\d+)").unwrap();
@@ -199,7 +213,7 @@ fn main() {
                             traffic_lights::place(&window.as_ref().window());
                             window_state::restore(&window, &place);
                         } else {
-                            close_splash(&handle);
+                            engine_failed(&handle);
                         }
                     }
                     None => engine_failed(&handle),

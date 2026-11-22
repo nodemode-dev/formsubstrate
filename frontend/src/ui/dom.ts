@@ -79,7 +79,9 @@ export function revealApp(): void {
   if (document.body.classList.contains('app-ready')) return;
   requestAnimationFrame(() => requestAnimationFrame(() => {
     document.body.classList.add('app-ready');
-    if ('__TAURI_INTERNALS__' in window) requestAnimationFrame(() => { void import('@tauri-apps/api/core').then((m) => m.invoke('app_ready')).catch((err: unknown) => console.warn('window reveal (app_ready) failed', err)); });
+    const rgb = (getComputedStyle(document.body).backgroundColor.match(/\d+/g) ?? []).slice(0, 3).map(Number);
+    const bg = rgb.length === 3 ? rgb : null;
+    if ('__TAURI_INTERNALS__' in window) requestAnimationFrame(() => { void import('@tauri-apps/api/core').then((m) => m.invoke('app_ready', { bg })).catch((err: unknown) => console.warn('window reveal (app_ready) failed', err)); });
   }));
 }
 
