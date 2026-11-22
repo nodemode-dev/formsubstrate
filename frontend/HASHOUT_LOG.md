@@ -2299,3 +2299,10 @@ Every promise `.catch(() => undefined)` and every empty `catch { }` in `frontend
 | src/ui/preview/md-preview.ts | settle | image decode rejects | silent | a broken image is normal; a timer reveals the page anyway |
 | src/ui/tabs.ts | title update | set_window_title rejects | silent | cosmetic; document.title is set before it |
 | src/ui/terminal-dock.ts | close | deleteTerminal rejects | silent | the terminal may already be gone; the tab is torn down either way |
+
+### frontend/package.json · @codemirror/lsp-client (where updates come from)
+- refers-to: frontend/package.json :: dependencies["@codemirror/lsp-client"]; NOTICE.md
+- kind: rationale
+- logged: v0.24.0 · 2026-11-22
+
+The GitHub repository github.com/codemirror/lsp-client was archived by its owner on 15 April 2026 and is read-only; its notice says the repository moved to https://code.haverbeke.berlin/codemirror/lsp-client. Releases keep coming on npm from the same maintainer (marijn): 6.2.3 on 2026-04-15, 6.2.4 on 2026-05-15, 6.2.5 on 2026-06-09, 6.3.0 on 2026-09-17 and 6.3.1 on 2026-11-16, the latest (npm registry read on 22 November 2026). So updates come from npm, the source and the issues live on the maintainer's host (code.haverbeke.berlin, with the CodeMirror forum), and GitHub is a read-only copy. The pin stays 6.3.0 for this release; 6.3.1, which stops declaring pull diagnostics in the client capabilities and has the same dependencies as 6.3.0, is to be tried after the release. code.haverbeke.berlin itself could not be read by an automated fetch, so the move is known from GitHub's notice only. Licence MIT, unchanged.
