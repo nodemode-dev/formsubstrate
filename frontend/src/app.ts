@@ -1,6 +1,6 @@
 import { activateAll, idleLoad, settleVisible, startIdle } from './extensions/registry';
 import { PATHS_CHANGED, type PathsChanged } from './extensions/files';
-import './extensions/search';
+import { FILES_WRITTEN, type FilesWritten } from './extensions/search';
 import './extensions/git';
 import './extensions/lsp';
 import './extensions/debug';
@@ -379,6 +379,10 @@ export async function startApp(): Promise<void> {
       editor?.close(d.path);
       store.closeDoc(d.id);
     }
+  });
+  window.addEventListener(FILES_WRITTEN, (e) => {
+    const written = new Set((e as CustomEvent<FilesWritten>).detail.paths);
+    for (const d of store.docs) if (written.has(d.path) && !d.modified) void editor?.reload(d.path);
   });
   let shownRoot = store.workspace?.path ?? '';
   store.on('workspace', (ws) => {

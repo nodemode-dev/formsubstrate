@@ -1,4 +1,4 @@
-import { listDir } from '../../io/workspace';
+import { listDir, listFiles, statusOf } from '../../io/workspace';
 import { t } from '../i18n';
 import { loadPrefs } from '../prefs';
 import { workspace } from '../workspace-store';
@@ -82,6 +82,7 @@ export class FileIndex {
   private readonly root: string;
   private readonly stale: boolean;
   private live = true;
+  private readonly abort = new AbortController();
   private lastQuery = '';
   private lastSize = -1;
   private lastSource: FileEntry[] | null = null;
@@ -105,10 +106,23 @@ export class FileIndex {
 
   get ready(): boolean { return this.done || this.failed || this.stale; }
 
-  stop(): void { this.live = false; }
+  stop(): void { this.live = false; this.abort.abort(); }
 
-  private run(): Promise<void> {
-    const hide = new Set(loadPrefs().hiddenFolders);
+  private async run(): Promise<void> {
+    const hide = loadPrefs().hiddenFolders;
+    try {
+      const res = await listFiles(hide, this.abort.signal);
+      if (!this.live) return;
+      for (const path of res.files) this.fresh.push(entryOf(path));
+      this.truncated = res.truncated;
+    } catch (err) {
+      if (!this.live) return;
+      if (statusOf(err) === 404) await this.walk(new Set(hide));
+      else this.failed = true;
+    }
+  }
+
+  private walk(hide: Set<string>): Promise<void> {
     const queue: { dir: string; depth: number }[] = [{ dir: '', depth: 0 }];
     let dirs = 1, busy = 0, first = true;
     return new Promise<void>((resolve) => {

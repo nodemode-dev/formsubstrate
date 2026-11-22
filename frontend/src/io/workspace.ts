@@ -10,6 +10,7 @@ export interface BrowseListing { path: string; parent: string | null; home: stri
 export type EntryKind = 'file' | 'dir';
 export interface DirEntry { name: string; path: string; kind: EntryKind; size: number; mtime: number }
 export interface DirListing { path: string; entries: DirEntry[] }
+export interface WorkspaceFiles { files: string[]; truncated: boolean }
 export interface FileContent { path: string; text: string; size: number; mtime: number }
 export interface FileSaved { path: string; size: number; mtime: number }
 export interface SearchHit { path: string; line: number; col: number; text: string }
@@ -58,6 +59,12 @@ export async function forgetRecent(path: string): Promise<void> {
 
 export function listDir(path: string): Promise<DirListing> {
   return request<DirListing>(`/api/workspace/tree?path=${encodeURIComponent(path)}`);
+}
+
+export function listFiles(hide: string[], signal?: AbortSignal): Promise<WorkspaceFiles> {
+  const p = new URLSearchParams();
+  for (const name of hide) p.append('hide', name);
+  return request<WorkspaceFiles>(`/api/workspace/files?${p.toString()}`, { signal });
 }
 
 export function readFile(path: string): Promise<FileContent> {

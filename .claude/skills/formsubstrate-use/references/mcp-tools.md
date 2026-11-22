@@ -22,7 +22,7 @@ Every tool has `openWorldHint` false and is read-only except `review_comment`.
 | Tool | What it answers | Main arguments | S | W | C |
 | --- | --- | --- | --- | --- | --- |
 | `workspace_info` | Root, name, branch and changed file count | `session` | yes | yes | yes, no `session` |
-| `workspace_search` | Content search (ripgrep), confined to the root | `query` (required), `regex`, `case`, `glob`, `limit`, `cursor`, `session` | yes | yes | yes, no `session` |
+| `workspace_search` | Content search (ripgrep, or the engine's own search without it, regex included), confined to the root | `query` (required), `regex`, `case`, `glob`, `limit`, `cursor`, `session` | yes | yes | yes, no `session` |
 | `file_read` | A UTF-8 text file, numbered by line | `path` (required), `start_line`, `max_lines`, `session` | yes | yes | yes, no `session` |
 | `session_list` | Agent sessions, newest first | `limit`, `cursor` | own only | all | all |
 | `session_status` | State, branch, worktree, last message, comment count, open gates | `session` | own only | yes | yes |

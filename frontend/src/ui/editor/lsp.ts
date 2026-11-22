@@ -215,7 +215,6 @@ class Session {
       });
     };
     this.socket = new WebSocket(lspSocketUrl(lang));
-    this.socket.addEventListener('open', () => this.onOpen());
     this.socket.addEventListener('message', (e) => this.onMessage(String(e.data)));
     this.socket.addEventListener('close', () => this.onClose());
     this.socket.addEventListener('error', () => undefined);
@@ -229,8 +228,8 @@ class Session {
     };
   }
 
-  private onOpen(): void {
-    if (this.disposed) return;
+  private connect(): void {
+    if (this.disposed || this.client.connected) return;
     this.client.connect(this.transport());
     this.client.initializing.then(() => {
       if (this.disposed) return;
@@ -259,6 +258,7 @@ class Session {
       this.name = String(p.name ?? '');
       this.version = typeof p.version === 'string' ? p.version : null;
       this.mgr.emit('state');
+      this.connect();
     } else if (msg.method === 'formsubstrate/serverUnavailable') {
       this.error = String(p.error ?? '');
       this.install = Array.isArray(p.install) ? p.install.map(String) : [];

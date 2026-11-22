@@ -9,7 +9,7 @@ import threading
 import tomllib
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
@@ -265,6 +265,51 @@ def tree(path: str = "") -> dict:
         raise HTTPException(status_code=403, detail="permission denied")
     entries.sort(key=lambda e: (e["kind"] != "dir", e["name"].lower(), e["name"]))
     return {"path": rel, "entries": entries}
+
+
+FILES_MAX = 20000
+HIDE_MAX = 200
+
+
+def _list_files(base: str, hide: frozenset[str]) -> tuple[list[str], bool]:
+    files: list[str] = []
+    queue = [("", base)]
+    at = 0
+    while at < len(queue):
+        rel, real = queue[at]
+        at += 1
+        try:
+            with os.scandir(real) as scan:
+                items = sorted(scan, key=lambda item: item.name)
+        except OSError:
+            continue
+        for item in items:
+            if item.name in ws.HIDDEN_NAMES:
+                continue
+            path = f"{rel}/{item.name}" if rel else item.name
+            try:
+                if item.is_symlink():
+                    continue
+                if item.is_dir(follow_symlinks=False):
+                    if item.name not in hide:
+                        queue.append((path, item.path))
+                    continue
+                if not item.is_file(follow_symlinks=False):
+                    continue
+            except OSError:
+                continue
+            if len(files) >= FILES_MAX:
+                return files, True
+            files.append(path)
+    return files, False
+
+
+@router.get("/workspace/files")
+def list_files(hide: list[str] = Query(default=[])) -> dict:
+    base = _base()
+    names = frozenset(name for name in hide[:HIDE_MAX] if name and "\0" not in name and "/" not in name)
+    files, truncated = _list_files(base, names)
+    return {"files": files, "truncated": truncated}
 
 
 def _is_binary(chunk: bytes) -> bool:

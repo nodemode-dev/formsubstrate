@@ -80,3 +80,13 @@ Rows: ranking keeps the best 500; 50 are shown and 50 more are added when the se
 A `:line` or `:line:col` suffix is parsed off the query; Enter then opens through the workbench's `revealLine` (which opens the file first when it is not open), otherwise through `openEditorTab`, the call the Files panel makes. File picks are not added to the command recents.
 
 Measured on a 2,000-file, 216-folder scratch workspace in headless Chrome at 4x CPU throttling with 40 ms network latency: the first walk took 2.8 s (213 tree requests), typing `command` a letter at a time cost 77, 47, 31, 13, 19, 12 and 14 ms of script per key (the first key also creates the 50 row nodes, the only nodes ever added), and no layout shift was recorded while the palette was in use.
+
+### frontend/src/ui/palette/files.ts · FileIndex.run reads the flat list
+
+- refers-to: frontend/src/ui/palette/files.ts :: FileIndex.run, FileIndex.walk, FileIndex.stop, FileIndex.abort; frontend/src/io/workspace.ts :: listFiles, WorkspaceFiles; backend/app/routers/workspace.py :: list_files, _list_files
+- kind: rationale
+- logged: v0.22.0 · 2026-11-22
+
+The engine now has `GET /api/workspace/files` (see backend/app/routers/HASHOUT_LOG.md), so `FileIndex.run` asks for the whole list in one request, passing the `hiddenFolders` preference as repeated `hide` parameters, and fills `fresh` and `truncated` from the answer; the constructor's completion (swap into the cache, `done`, one `changed()`) is unchanged, as are ranking, recents, the per-root cache and paging. `stop()` now also aborts that request. Only a 404 (an engine older than the route) falls back to the tree walk, which is the previous `run` body renamed `walk(hide)` and kept whole with its caps, its six parallel requests and its progressive `changed()` calls, since those still serve that case; any other failure sets `failed` as a failed root listing did. Nothing of the walk was removed, because the fallback still uses all of it. The route skips symbolic links, where the walk listed linked files and followed linked folders (up to its caps), so a linked file or folder no longer appears in Go to File.
+
+Measured on the same kind of 2,000-file, 216-folder scratch workspace in headless Chrome at 4x CPU throttling with 40 ms latency and 1.6 Mbit/s: the first opening made one files request and no tree requests; the list arrived 486 ms after Mod+P and the first match for `mod25file8` was on screen 560 ms after Mod+P (the walk took 2.8 s and 213 requests). With the route answered 404 by the DevTools Fetch domain the walk ran instead (217 tree requests) and found the same rows, with no console errors.
