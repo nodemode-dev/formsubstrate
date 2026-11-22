@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="version 0.18.0" src="https://img.shields.io/badge/version-0.18.0-eef0f4?style=flat-square">
+  <img alt="version 0.18.1" src="https://img.shields.io/badge/version-0.18.1-eef0f4?style=flat-square">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-7-3178c6?style=flat-square&logo=typescript&logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-engine-009688?style=flat-square">
   <img alt="Tauri 2" src="https://img.shields.io/badge/Tauri-2-2f7bf5?style=flat-square">
@@ -127,11 +127,11 @@ The HTTP endpoint is `POST /mcp`, behind a local guard and a bearer token. A rou
 
 | Platform | Download | Release |
 |---|---|---|
-| macOS | [Download Substrate for macOS](https://formai.studio/get/formsubstrate/macos) | [Substrate releases on FormCompiler](https://github.com/nodemode-dev/formcompiler/releases?q=formsubstrate-v&expanded=true) |
-| Windows | [Download Substrate for Windows](https://formai.studio/get/formsubstrate/windows) | [Substrate releases on FormCompiler](https://github.com/nodemode-dev/formcompiler/releases?q=formsubstrate-v&expanded=true) |
-| Linux | [Download Substrate for Linux](https://formai.studio/get/formsubstrate/linux) | [Substrate releases on FormCompiler](https://github.com/nodemode-dev/formcompiler/releases?q=formsubstrate-v&expanded=true) |
+| macOS | [Download Substrate for macOS](https://formai.studio/get/formsubstrate/macos) | [Substrate releases](https://github.com/nodemode-dev/formsubstrate/releases) |
+| Windows | [Download Substrate for Windows](https://formai.studio/get/formsubstrate/windows) | [Substrate releases](https://github.com/nodemode-dev/formsubstrate/releases) |
+| Linux | [Download Substrate for Linux](https://formai.studio/get/formsubstrate/linux) | [Substrate releases](https://github.com/nodemode-dev/formsubstrate/releases) |
 
-All Substrate builds are compiled and released from [FormCompiler](https://github.com/nodemode-dev/formcompiler); this repo holds the source.
+All Substrate builds are compiled and signed by [FormCompiler](https://github.com/nodemode-dev/formcompiler), which drafts each release on this repository's own [Releases page](https://github.com/nodemode-dev/formsubstrate/releases); this repo holds the source. What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 
 ## Run it from source
 

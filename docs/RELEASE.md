@@ -92,7 +92,7 @@ Tauri can also notarize during `tauri build` when `APPLE_API_ISSUER`, `APPLE_API
 
 The plist is the only one; the engine, the pty host and the shell all inherit it from the signing commands above. If the notary log or the first launch reports a missing entitlement, add the key to that file, note why in `src-tauri/HASHOUT_LOG.md`, and sign again.
 
-Apple's own pages were not readable when this was written, so the nested-signing order and the entitlement pair above come from how the PyInstaller and Tauri tools behave, not from Apple's text. Read the first notarization log (`notarytool log`) before trusting this section, and correct it here.
+Apple's pages are readable and say what notarization needs: a Developer ID certificate, the hardened runtime, a secure timestamp, no `com.apple.security.get-task-allow` entitlement, a well-formed XML entitlements file, and a valid signature on every executable, checked with `codesign -vvv --deep --strict` ([Notarizing macOS software before distribution](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution), [Resolving common notarization issues](https://developer.apple.com/documentation/security/resolving-common-notarization-issues)). A disk image can be notarized. Those two pages do not give an order for signing nested code, and they name `disable-library-validation` and `allow-unsigned-executable-memory` only for apps that host plug-ins, not for a bundled Python. So the inside-out order and the entitlement pair above still come from how the PyInstaller and Tauri tools behave, not from Apple's text. Read the first notarization log (`notarytool log`) before trusting this section, and correct it here.
 
 ## Checks after signing
 
@@ -103,13 +103,13 @@ Apple's own pages were not readable when this was written, so the nested-signing
 ## Windows
 
 - Build on Windows with `build_app.bat` (Rust, Node and Python 3.13 installed). The frozen engine is `src-tauri/engine/formsubstrate-engine.exe`; the shell looks for an `engine` folder beside the executable.
-- Sign with an Authenticode certificate (an OV or EV code signing certificate from a CA, or Azure Trusted Signing). Keep the certificate in the Windows certificate store or in the signing service; set the thumbprint in the environment of the build, not in `tauri.conf.json` in the repository:
+- Sign with an Authenticode certificate (Azure Artifact Signing, formerly Trusted Signing, which Microsoft recommends for apps distributed outside the Store, or an OV or EV code signing certificate from a CA; [SmartScreen reputation](https://learn.microsoft.com/windows/apps/package-and-deploy/smartscreen-reputation), [Code signing options](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/code-signing-options)). Keep the certificate in the Windows certificate store or in the signing service; set the thumbprint in the environment of the build, not in `tauri.conf.json` in the repository:
 
   ```
   signtool sign /sha1 <thumbprint> /fd sha256 /tr http://timestamp.digicert.com /td sha256 Substrate.exe
   ```
 
-- Sign the frozen engine's `.exe` and `.dll` files too, before bundling, so SmartScreen and antivirus tools see signed code throughout. Then sign the installer. An EV certificate builds SmartScreen reputation at once; an OV one builds it over time.
+- Sign the frozen engine's `.exe` and `.dll` files too, before bundling, so SmartScreen and antivirus tools see signed code throughout. Then sign the installer. No certificate gives SmartScreen reputation at once: Microsoft removed the EV bypass in 2024, and an EV-signed file now builds reputation the same way an OV-signed one does, over weeks and many clean installs (Microsoft's two pages above; DigiCert's notice [EV signed application showing Microsoft Defender SmartScreen warnings](https://knowledge.digicert.com/alerts/ev-signed-application-showing-microsoft-defender-smartscreen-warnings) says the same). Reputation follows the publisher, so sign every release with the same identity and keep that identity when the certificate is renewed. Expect a SmartScreen warning on the first releases.
 - Tauri reads `bundle.windows.certificateThumbprint`, `digestAlgorithm` and `timestampUrl`; pass them with `--config` at release time rather than committing them.
 
 ## Linux

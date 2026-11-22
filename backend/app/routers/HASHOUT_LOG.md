@@ -329,3 +329,17 @@ Review finding: LocalGuard lets a request with no Origin through, so an agent se
 - logged: v0.16.0 · 2026-10-30
 
 `/api/presets`, `/api/presets/{group}`, `/api/presets/{group}/{name}` and `POST /api/presets/{group}/{name}/install` (window token; `trust` and `replace` query flags) are the one presets service; see `services/presets/HASHOUT_LOG.md`. The router is included before the graphs and runs routers. `/api/graphs/presets` and its install stay in `graphs.py` as aliases whose reads now go through the service (the saved-graph install keeps its response shape for the Studio). The three `/presets/graphs` routes still defined in `runs.py` are now shadowed by the unified router because it is registered first; they are dead code to delete when `runs.py` is next edited (sf-runs3 owned it this turn). The Studio list now reads `/api/presets/graphs` (`frontend/src/io/studio.ts`, one line); its install still posts to the alias.
+
+### backend/app/routers/runs.py · the three shadowed /presets/graphs routes removed
+
+- refers-to: backend/app/routers/runs.py :: graph_presets, graph_preset, install_preset (removed)
+- kind: removed-code
+- logged: v0.18.1 · 2026-11-22
+
+The entry above left three routes in `runs.py` to delete at its next edit. The presets router is included first, so `/api/presets/{group}` with `group` = `graphs` always answered and these never ran. Removed, with the `presets` name from the import of `app.services.runs`:
+
+- `GET /presets/graphs` → `return {"presets": presets.list_presets()}`
+- `GET /presets/graphs/{name}` → `presets.read_preset(name)`, 404 `no graph preset {name}` when missing
+- `POST /presets/graphs/{name}/install` (window token) → `_root()`, `presets.install(name)`, `ws.Refused` to its status, `rt.GraphError` to 403, 404 when missing, `{"installed": rel}`
+
+`app/services/runs/presets.py` stays: the presets service reads through it. Run after the removal with a made-up data folder: `GET /api/presets/graphs` answers 200 with the list, and `POST /api/presets/graphs/<name>/install` without the window token answers 403.

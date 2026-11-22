@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from app.core import workspace_root as ws
 from app.core.local_guard import require_window
-from app.services.runs import agent, presets, rt, tools
+from app.services.runs import agent, rt, tools
 from app.services.runs.manager import TERMINAL, manager
 
 router = APIRouter()
@@ -195,30 +195,3 @@ async def delete_run(run_id: str) -> dict:
     if not manager.delete(_root(), run_id):
         raise HTTPException(status_code=409, detail="run is active or missing")
     return {"deleted": run_id}
-
-
-@router.get("/presets/graphs")
-def graph_presets() -> dict:
-    return {"presets": presets.list_presets()}
-
-
-@router.get("/presets/graphs/{name}")
-def graph_preset(name: str) -> dict:
-    data = presets.read_preset(name)
-    if data is None:
-        raise HTTPException(status_code=404, detail=f"no graph preset {name}")
-    return data
-
-
-@router.post("/presets/graphs/{name}/install", dependencies=[Depends(require_window)])
-def install_preset(name: str) -> dict:
-    _root()
-    try:
-        rel = presets.install(name)
-    except ws.Refused as err:
-        raise HTTPException(status_code=err.status, detail=err.detail)
-    except rt.GraphError as err:
-        raise HTTPException(status_code=403, detail=str(err))
-    if rel is None:
-        raise HTTPException(status_code=404, detail=f"no graph preset {name}")
-    return {"installed": rel}
