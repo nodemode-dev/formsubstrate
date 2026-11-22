@@ -337,7 +337,7 @@ register({
       { id: 'lsp-definition', label: 'Go to Definition', keys: ['F12'], enabled: onCode, run: () => { lsp.run(jumpToDefinition); } },
       { id: 'lsp-references', label: 'Find All References', keys: ['Shift+F12'], enabled: onCode, run: () => { lsp.run(findReferences); } },
       { id: 'lsp-rename', label: 'Rename Symbol', keys: ['F2'], enabled: onCode, run: () => { lsp.run(renameSymbol); } },
-      { id: 'lsp-format', label: 'Format Document', keys: ['Shift+Alt+F'], enabled: onCode, run: () => { lsp.run(formatDocument); } },
+      { id: 'lsp-format', label: 'Format Document', keys: ['Alt+Shift+F'], enabled: onCode, run: () => { lsp.run(formatDocument); } },
       { id: 'lsp-quick-fix', label: 'Quick Fix...', keys: ['Mod+.'], enabled: onCode, run: () => { lsp.run(quickFix); } },
       { id: 'lsp-source-action', label: 'Source Action...', enabled: onCode, run: () => { lsp.run(sourceActions); } },
       { id: 'lsp-organize-imports', label: 'Organize Imports', keys: ['Alt+Shift+O'], enabled: onCode, run: () => { lsp.run(organizeImports); } },

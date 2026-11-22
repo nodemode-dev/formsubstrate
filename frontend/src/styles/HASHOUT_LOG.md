@@ -110,3 +110,11 @@ Conflict tokens sit beside the `--diff-*` ones, in VS Code's colours: current is
 - logged: v0.23.0 · 2026-11-22
 
 The File History section follows the Snapshots and Stashes recipe: a fixed height (`--ctl-md` for the bar plus six 38px rows, the row height of the other two-line sections) with `contain: strict`, its own scrolling list, and the empty and loading notes placed absolutely under the bar, so nothing inside it changes the panel's layout. A Load More slot keeps the row box and only swaps which children are displayed (`.is-more`), so a slot turning into a commit row does not change size. The signature box keeps its width for N with `visibility: hidden`. The status letter colours repeat the Source Control row colours by `data-status`. The `.cv-diff` conflict rules copy editor.css's `.cv-editor` ones (tints, marker colour, the fixed-height action line and its buttons) for the diff tab's editable side, which is not inside `.cv-editor`; both use the same tokens, so a token change reaches both.
+
+### frontend/src/styles/lsp.css · .cv-ca-gutter, .cv-ca-bulb, .cv-ca-diag, .cv-ca-fixes, .cv-ca-fix, .cv-ca-menu
+
+- refers-to: frontend/src/styles/lsp.css :: .cv-ca-gutter, .cv-ca-bulb, .cv-ca-diag, .cv-ca-msg, .cv-ca-fixes, .cv-ca-fix, .cv-ca-more, .cv-ca-menu; frontend/src/ui/editor/code-actions.ts :: bulbGutter, diagnosticBody, ChoiceMenu
+- kind: rationale
+- logged: v0.24.0 · 2026-11-22
+
+One block after `.cm-tooltip-lint`. The bulb column is `--space-4` wide whether or not it holds a bulb; the bulb is `--warn` on a `--space-3h` box. The fix row in the lint tooltip has a fixed height (`--ctl-sm`) and `width: 0; min-width: 100%`, so filling it changes neither the tooltip's height nor its width; a long title is cut with an ellipsis and shown whole in the button's title. `.cv-ca-diag` has a minimum width (`--size-w-wide`) so a short message still leaves room for a fix. The action list reuses `.cv-menu` and `.cv-wb-context` (the `--z-context` layer) and only caps its width and cuts long titles. No new token.
