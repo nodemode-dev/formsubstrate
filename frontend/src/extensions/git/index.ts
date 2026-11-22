@@ -1,8 +1,8 @@
-import { git, type Audit, type FlaggedCommit, type GitFile, type GitStatus, type Snapshot } from '../../io/git';
+import { git, GitError, type Audit, type FlaggedCommit, type GitFile, type GitStatus, type Snapshot } from '../../io/git';
 import { sessionsClient } from '../../io/sessions';
 import { confirmAction } from '../../ui/dialogs';
 import { el, mountOnce, patchList, q, setClass, setDisabled, setHidden, setText, setTitle } from '../../ui/dom';
-import { onLanguage, t } from '../../ui/i18n';
+import { onLanguage, t, tn } from '../../ui/i18n';
 import { icon } from '../../ui/icons';
 import { FOCUS_EVENT } from '../../ui/workbench';
 import { lazyPanel, register, type ExtensionContext, type Shell, type SidebarSection } from '../registry';
@@ -13,10 +13,11 @@ export const OPEN_DIFF = 'formsubstrate:open-diff';
 export const OPEN_REVIEW = 'formsubstrate:open-review';
 export const GIT_SYNC = 'formsubstrate:git-sync';
 export const FOCUS_COMMIT = 'formsubstrate:focus-commit';
+export const OPEN_CONFLICT = 'formsubstrate:open-conflict';
 
 export interface GitSync { branch: string; ahead: number; behind: number; upstream: string }
 
-type Group = 'staged' | 'changes';
+type Group = 'merge' | 'staged' | 'changes';
 
 type Entry =
   | { key: string; kind: 'head'; group: Group; count: number }
@@ -24,7 +25,9 @@ type Entry =
 
 const POLL_MS = 5000;
 
-const GROUP_LABEL: Record<Group, string> = { staged: 'Staged Changes', changes: 'Changes' };
+const GROUP_LABEL: Record<Group, string> = { merge: 'Merge Changes', staged: 'Staged Changes', changes: 'Changes' };
+
+const FILES_WRITTEN = 'formsubstrate:files-written';
 
 const SIGNATURE: Record<string, string> = {
   G: 'Good signature',
@@ -92,6 +95,7 @@ class GitPanel {
   private flaggedKnown = false;
   private session: string | null = null;
   private status: GitStatus | null = null;
+  private conflicts: number | null = null;
   private snaps: Snapshot[] = [];
   private done: Done | null = null;
   private problem = '';
@@ -196,7 +200,7 @@ ${REFS_HTML}
       const row = e.target instanceof Element ? e.target.closest<HTMLElement>('.cv-sc-row') : null;
       if (!row || e.target !== row) return;
       e.preventDefault();
-      this.open(row.dataset.group === 'staged', row.dataset.path ?? '');
+      this.openRow(row.dataset.group === 'staged' ? 'staged' : row.dataset.group === 'merge' ? 'merge' : 'changes', row.dataset.path ?? '');
     });
     this.snapList.addEventListener('click', (e) => {
       const b = e.target instanceof Element ? e.target.closest<HTMLButtonElement>('.cv-sc-rewind') : null;
@@ -212,7 +216,7 @@ ${REFS_HTML}
       const now = ctx.store.workspace?.path ?? null;
       if (now === root) { this.schedule(); return; }
       root = now;
-      this.status = null; this.snaps = []; this.flagged = []; this.done = null; this.refs.reset(); this.schedule(); void this.refresh();
+      this.status = null; this.conflicts = null; this.snaps = []; this.flagged = []; this.done = null; this.refs.reset(); this.schedule(); void this.refresh();
     });
     new IntersectionObserver((records) => { if (records.some((r) => r.isIntersecting)) void this.refresh(); }).observe(host);
     window.setInterval(() => { if (this.visible() && document.hasFocus() && !document.hidden) void this.refresh(); }, POLL_MS);
@@ -247,6 +251,7 @@ ${REFS_HTML}
     if (next === this.session) return;
     this.session = next;
     this.status = null;
+    this.conflicts = null;
     this.snaps = [];
     this.flagged = [];
     this.flaggedKnown = false;
@@ -276,6 +281,7 @@ ${REFS_HTML}
       if (target !== this.session) return;
       this.refs.take(refs);
       this.status = status;
+      this.noteConflicts(status);
       if (snaps) this.snaps = snaps;
       if (flagged) { this.flagged = flagged; this.flaggedKnown = !!target; }
       this.problem = '';
@@ -307,10 +313,16 @@ ${REFS_HTML}
   }
 
   private entries(): Entry[] {
-    const files = this.status?.files ?? [];
+    const all = this.status?.files ?? [];
+    const merge = all.filter((f) => f.kind === 'conflicted');
+    const files = merge.length ? all.filter((f) => f.kind !== 'conflicted') : all;
     const staged = files.filter((f) => f.staged);
     const changes = files.filter((f) => f.unstaged || !f.staged);
     const out: Entry[] = [];
+    if (merge.length) {
+      out.push({ key: 'h:merge', kind: 'head', group: 'merge', count: merge.length });
+      for (const file of merge) out.push({ key: `f:merge:${file.path}`, kind: 'row', group: 'merge', file });
+    }
     if (staged.length) {
       out.push({ key: 'h:staged', kind: 'head', group: 'staged', count: staged.length });
       for (const file of staged) out.push({ key: `f:staged:${file.path}`, kind: 'row', group: 'staged', file });
@@ -376,7 +388,8 @@ ${REFS_HTML}
     setTitle(this.commitBtn, t('Commit the staged changes'));
     setTitle(this.commitAllBtn, t('Stage every tracked change and commit'));
     const typed = this.msg.value.trim().length > 0;
-    setDisabled(this.commitBtn, this.busy || !typed || this.stagedCount === 0);
+    const merging = !!this.status?.merging && !this.status.conflicted;
+    setDisabled(this.commitBtn, this.busy || !typed || (this.stagedCount === 0 && !merging));
     setDisabled(this.commitAllBtn, this.busy || !typed || this.fileCount === 0);
     setDisabled(this.refreshBtn, false);
     setDisabled(this.reviewBtn, !this.status);
@@ -502,7 +515,10 @@ ${REFS_HTML}
     const n = el(`<div class="cv-sc-row" role="listitem" tabindex="0"><span class="cv-sc-k"></span><span class="cv-sc-name"></span><span class="cv-sc-dir"></span><span class="cv-sc-acts">
 <button class="cv-wb-tool cv-sc-act" type="button" data-act="stage" hidden>${icon('add', 14)}</button>
 <button class="cv-wb-tool cv-sc-act" type="button" data-act="unstage" hidden>${icon('remove', 14)}</button>
-<button class="cv-wb-tool cv-sc-act" type="button" data-act="discard" hidden>${icon('undo', 14)}</button></span></div>`);
+<button class="cv-wb-tool cv-sc-act" type="button" data-act="discard" hidden>${icon('undo', 14)}</button>
+<button class="cv-wb-tool cv-sc-act" type="button" data-act="take-ours" hidden>${icon('home', 14)}</button>
+<button class="cv-wb-tool cv-sc-act" type="button" data-act="take-theirs" hidden>${icon('download', 14)}</button>
+<button class="cv-wb-tool cv-sc-act" type="button" data-act="resolve" hidden>${icon('check', 14)}</button></span></div>`);
     this.update(n, e);
     return n;
   }
@@ -517,12 +533,13 @@ ${REFS_HTML}
       setTitle(b, t(label));
       if (b.getAttribute('aria-label') !== t(label)) b.setAttribute('aria-label', t(label));
     };
+    const merge = e.group === 'merge';
     if (e.kind === 'head') {
       setText(q(n, '.cv-sc-head-t'), t(GROUP_LABEL[e.group]));
       setText(q(n, '.cv-sc-head-n'), String(e.count));
-      show('stage-all', !staged, 'Stage all');
+      show('stage-all', !staged && !merge, 'Stage all');
       show('unstage-all', staged, 'Unstage all');
-      show('discard-all', !staged, 'Discard all');
+      show('discard-all', !staged && !merge, 'Discard all');
       return;
     }
     const f = e.file;
@@ -533,9 +550,12 @@ ${REFS_HTML}
     setText(q(n, '.cv-sc-name'), name);
     setText(q(n, '.cv-sc-dir'), dir);
     setTitle(n, f.oldPath ? `${f.oldPath} -> ${f.path}` : f.path);
-    show('stage', !staged, 'Stage');
+    show('stage', !staged && !merge, 'Stage');
     show('unstage', staged, 'Unstage');
-    show('discard', !staged, 'Discard');
+    show('discard', !staged && !merge, 'Discard');
+    show('take-ours', merge, 'Accept All Current');
+    show('take-theirs', merge, 'Accept All Incoming');
+    show('resolve', merge, 'Mark Resolved');
   }
 
   private onList(e: MouseEvent): void {
@@ -543,14 +563,17 @@ ${REFS_HTML}
     const act = target?.closest<HTMLButtonElement>('.cv-sc-act')?.dataset.act;
     const node = target?.closest<HTMLElement>('.cv-sc-row, .cv-sc-head');
     if (!node) return;
-    const group = node.dataset.group === 'staged' ? 'staged' : 'changes';
+    const group = node.dataset.group === 'staged' ? 'staged' : node.dataset.group === 'merge' ? 'merge' : 'changes';
+    const path = node.dataset.path ?? '';
     if (!act) {
-      if (node.classList.contains('cv-sc-row')) this.open(group === 'staged', node.dataset.path ?? '');
+      if (node.classList.contains('cv-sc-row')) this.openRow(group, path);
       return;
     }
-    const files = this.status?.files ?? [];
+    const files = (this.status?.files ?? []).filter((f) => f.kind !== 'conflicted');
     const inGroup = files.filter((f) => (group === 'staged' ? f.staged : f.unstaged || !f.staged));
-    if (act === 'stage') void this.stage([node.dataset.path ?? '']);
+    if (act === 'take-ours' || act === 'take-theirs') void this.takeSide(path, act === 'take-ours' ? 'ours' : 'theirs');
+    else if (act === 'resolve') void this.markResolved([path]);
+    else if (act === 'stage') void this.stage([node.dataset.path ?? '']);
     else if (act === 'unstage') void this.unstage([node.dataset.path ?? '']);
     else if (act === 'discard') void this.discard(inGroup.filter((f) => f.path === node.dataset.path));
     else if (act === 'stage-all') void this.stage(inGroup.map((f) => f.path));
@@ -561,6 +584,56 @@ ${REFS_HTML}
   private open(staged: boolean, path: string): void {
     if (!path) return;
     window.dispatchEvent(new CustomEvent(OPEN_DIFF, { detail: { path, staged, session: this.session } }));
+  }
+
+  private openRow(group: Group, path: string): void {
+    if (group !== 'merge' || this.session !== null) { this.open(group === 'staged', path); return; }
+    if (path) this.shell.openEditorTab(path);
+  }
+
+  private noteConflicts(s: GitStatus, lead = ''): void {
+    const n = s.files.filter((f) => f.kind === 'conflicted').length;
+    const was = this.conflicts;
+    this.conflicts = n;
+    const count = was === n || (was === null && n === 0) ? '' : n ? tn(n, '{n} file still has merge conflicts.', '{n} files still have merge conflicts.') : t('No merge conflicts remain.');
+    const text = [lead, count].filter(Boolean).join(' ');
+    if (text) this.say(text, false);
+  }
+
+  private async takeSide(path: string, side: 'ours' | 'theirs'): Promise<void> {
+    if (!path) return;
+    const session = this.session;
+    await this.run(async () => {
+      const r = await git.takeSide(path, side, session);
+      if (session !== this.session) return;
+      this.apply(r.status, `${t(side === 'ours' ? 'Took the current side of' : 'Took the incoming side of')} ${r.path} (${t('snapshot')} #${r.snapshot}).`);
+      if (session === null) window.dispatchEvent(new CustomEvent(FILES_WRITTEN, { detail: { paths: [r.path] } }));
+      this.fire();
+    });
+  }
+
+  private async markResolved(paths: string[]): Promise<void> {
+    if (!paths.length || this.busy) return;
+    const session = this.session;
+    let held: GitError | null = null;
+    await this.run(async () => {
+      try {
+        this.apply(await git.stage(paths, session));
+        this.fire();
+      } catch (err) {
+        if (err instanceof GitError && err.status === 409 && err.extra.markers) held = err;
+        else throw err;
+      }
+    });
+    const refusal = held as GitError | null;
+    if (!refusal || session !== this.session) return;
+    const where = refusal.extra.path && refusal.extra.line ? `${refusal.extra.path}:${refusal.extra.line}` : paths[0];
+    if (!(await confirmAction(t('Mark Resolved'), `${where}: ${t('this file still has conflict markers; stage it anyway?')}`, t('Stage'), true))) return;
+    if (session !== this.session) return;
+    await this.run(async () => {
+      this.apply(await git.stage(paths, session, true));
+      this.fire();
+    });
   }
 
   review(): void {
@@ -589,9 +662,10 @@ ${REFS_HTML}
     this.schedule();
   }
 
-  private apply(s: GitStatus): void {
+  private apply(s: GitStatus, lead = ''): void {
     this.status = s;
     this.problem = '';
+    this.noteConflicts(s, lead);
     if (this.session === null) this.broadcast(s);
   }
 
@@ -722,6 +796,14 @@ register({
       render: (host) => { lazyPanel(host, () => Promise.resolve(), () => { panel = new GitPanel(host, ctx, shell); }, true); },
     });
     const ws = (): boolean => !!ctx.store.workspace && !!panel;
+    window.addEventListener(OPEN_CONFLICT, (e) => {
+      const d = (e as CustomEvent<{ path?: unknown; session?: unknown } | null>).detail;
+      const path = typeof d?.path === 'string' ? d.path : '';
+      const session = typeof d?.session === 'string' ? d.session : null;
+      if (!path) return;
+      if (session === null) shell.openEditorTab(path);
+      else window.dispatchEvent(new CustomEvent(OPEN_DIFF, { detail: { path, staged: false, session } }));
+    });
     window.addEventListener(FOCUS_COMMIT, (e) => {
       const d = (e as CustomEvent<{ session?: string | null } | null>).detail;
       section?.reveal();

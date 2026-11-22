@@ -60,3 +60,11 @@ The badge toggled between display none and shown when drift arrived, which reflo
 - logged: v0.14.0 · 2026-10-30
 
 A fail-open gate note now has its own kind and reason, so the badge reads "Gate skipped: <reason>" (for example "Gate skipped: formslot did not answer in time") instead of "Bash · slot unchecked, gate skipped: ...". The title carries the reason and the hook's detail text. Style: `data-state="skipped"`, muted text with a dashed warn border, set on the same badge element, so no node is added and the fixed-width badge keeps the row layout. Slot notes (kind slot) are unchanged. `bashNotes` returns `GateNote` objects; a stored note of the old shape (kind absent, slot starting "unchecked, gate skipped:") is read as a skipped note whose reason is the rest of that text, so notes posted by an older hook still display sensibly. The header shows `.cv-rv-skips` ("N gates skipped", title explains) counting the files whose note is skipped; it is always laid out with a fixed min-width and toggles `visibility` through `data-on`, so it never shifts the bar. The count is of files, not events: a note replaces an earlier note for the same path.
+
+### frontend/src/ui/review/review-pane.ts · conflicted files
+
+- refers-to: frontend/src/ui/review/review-pane.ts :: ReviewPane.updateFile, updateHunk, createHunk, onClick, acceptAll, paint, OPEN_CONFLICT
+- kind: rationale
+- logged: v0.23.0 · 2026-11-22
+
+The engine refuses hunk actions on a conflicted file, so the pane no longer offers them: such a file hides Accept file, Reject file and each hunk's Accept and Reject (the hunks stay visible, with comments), shows a warning line that says to resolve the conflicts and then use Mark Resolved in Source Control, and an Open to Resolve button that sends `formsubstrate:open-conflict`; the git extension opens the editor for the workspace and the diff tab for a session. Accept all and commit is disabled while any file is conflicted, with the reason as its title. The nodes are the same `patchList` nodes, toggled with `hidden`; their rules live in git.css because review.css was outside this change. Checked in headless Chrome against the /tmp merge: four conflicted files each showed the note and Open to Resolve, no accept buttons, Accept all disabled, and Open to Resolve opened big.py in the editor with its actions.

@@ -94,3 +94,11 @@ A light profile paints light from the first frame: the critical style paints htm
 - logged: v0.20.0 · 2026-11-22
 
 The dark half of Auto, and the theme the title bar's light and dark toggle goes back to, was `'substrata'` in both places. Both are now `'studio'`, the suite's default (the owner's decision). The two values change together because the boot and the preferences must agree, or the window repaints after load. A person who chose a dark theme for Auto keeps it; only someone who never chose gets Studio Dark there.
+
+### frontend/src/styles/tokens.css, editor.css, git.css · conflict tokens and rules
+
+- refers-to: frontend/src/styles/tokens.css :: --conflict-*; frontend/src/styles/editor.css :: .cm-conflict-*; frontend/src/styles/git.css :: .cv-sc-row[data-group="merge"], .cv-rv-conflict, .cv-rv-resolve
+- kind: rationale
+- logged: v0.23.0 · 2026-11-22
+
+Conflict tokens sit beside the `--diff-*` ones, in VS Code's colours: current is green (`--ok`), incoming is blue (`--conflict-incoming-ink`, #3b9eff dark and #1d6fd8 light), the base is the muted grey, each with a stronger tint for its marker line. The light theme sets its own ink and tints in `body.theme-light`, because a custom property resolved on `:root` would keep the dark ink. `--conflict-actions-h` is `1lh`, one editor line, so the action line under each block header takes exactly the height CodeMirror reserved for it. The review pane's conflict note and Open to Resolve button are styled in git.css with their `[hidden]` rules (`.cv-rv-act` is `inline-flex`, which would otherwise beat `hidden`).

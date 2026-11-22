@@ -23,6 +23,7 @@ class PathsBody(BaseModel):
     session: str | None = None
     paths: list[str] = []
     untracked: bool = False
+    force: bool = False
 
 
 class CommitBody(BaseModel):
@@ -129,13 +130,19 @@ async def hunks(body: HunksBody) -> dict:
 
 
 @router.post("/git/stage", dependencies=OWNER)
-async def stage(body: PathsBody) -> dict:
-    try:
-        t = await gitops.resolve_target(body.session)
-        async with gitops.lock_for(t):
-            return await gitops.stage(t, body.paths)
-    except gitops.Refused as err:
-        raise _fail(err)
+async def stage(body: PathsBody):
+    return await _locked(body.session, lambda t: gitops.stage(t, body.paths, body.force))
+
+
+class TakeBody(BaseModel):
+    session: str | None = None
+    path: str = ""
+    side: str = ""
+
+
+@router.post("/git/conflicts/take", dependencies=OWNER)
+async def conflicts_take(body: TakeBody):
+    return await _locked(body.session, lambda t: gitops.take_side(t, body.path, body.side))
 
 
 @router.post("/git/unstage", dependencies=OWNER)

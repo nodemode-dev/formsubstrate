@@ -2,7 +2,7 @@ import { ApiError, request } from './api';
 import { owner } from './window-token';
 
 export interface GitFile { path: string; oldPath: string | null; index: string; worktree: string; staged: boolean; unstaged: boolean; kind: 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked' | 'conflicted' }
-export interface GitStatus { root: string; session: string | null; branch: string | null; head: string | null; upstream: string | null; ahead: number; behind: number; files: GitFile[]; conflicted: boolean }
+export interface GitStatus { root: string; session: string | null; branch: string | null; head: string | null; upstream: string | null; ahead: number; behind: number; files: GitFile[]; conflicted: boolean; merging?: boolean }
 export interface HunkLine { t: ' ' | '+' | '-'; text: string }
 export interface Hunk { id: string; header: string; oldStart: number; oldLines: number; newStart: number; newLines: number; lines: HunkLine[] }
 export interface FileDiff { path: string; oldPath: string | null; binary: boolean; staged: boolean; original: string; modified: string; hunks: Hunk[]; tooLarge: boolean; mtime: number | null }
@@ -20,7 +20,7 @@ export interface RemoteBranch { name: string; remote: string; sha: string; date:
 export interface Branches { root: string; session: string | null; current: string | null; detached: boolean; head: string | null; local: Branch[]; remote: RemoteBranch[]; remotes: string[] }
 export interface Stash { index: number; ref: string; sha: string; message: string; branch: string | null; created: string }
 export interface Tag { name: string; annotated: boolean; target: string; date: string; message: string }
-export interface GitRefusal { overwrite?: boolean; files?: string[]; unmerged?: boolean; diverged?: boolean; ahead?: number; behind?: number }
+export interface GitRefusal { overwrite?: boolean; files?: string[]; unmerged?: boolean; diverged?: boolean; ahead?: number; behind?: number; markers?: boolean; path?: string; line?: number }
 
 export class GitError extends Error {
   constructor(message: string, readonly status: number, readonly extra: GitRefusal = {}) {
@@ -95,8 +95,11 @@ export const git = {
   hunks(path: string, hunks: string[], action: 'accept' | 'reject', session?: string | null): Promise<{ ok: boolean; applied: number; review: FileReview | null }> {
     return held('/api/git/hunks', post(withSession({ path, hunks, action }, session)));
   },
-  stage(paths: string[], session?: string | null): Promise<GitStatus> {
-    return held<GitStatus>('/api/git/stage', post(withSession({ paths }, session)));
+  stage(paths: string[], session?: string | null, force = false): Promise<GitStatus> {
+    return held<GitStatus>('/api/git/stage', post(withSession(force ? { paths, force } : { paths }, session)));
+  },
+  takeSide(path: string, side: 'ours' | 'theirs', session?: string | null): Promise<{ path: string; side: 'ours' | 'theirs'; snapshot: number; status: GitStatus }> {
+    return held('/api/git/conflicts/take', post(withSession({ path, side }, session)));
   },
   unstage(paths: string[], session?: string | null): Promise<GitStatus> {
     return held<GitStatus>('/api/git/unstage', post(withSession({ paths }, session)));

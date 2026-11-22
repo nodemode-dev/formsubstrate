@@ -162,6 +162,16 @@
   --diff-add-strong: color-mix(in srgb, var(--ok) 30%, transparent);
   --diff-del: color-mix(in srgb, var(--danger) 13%, transparent);
   --diff-del-strong: color-mix(in srgb, var(--danger) 30%, transparent);
+  --conflict-incoming-ink: #3b9eff;
+  --conflict-current: color-mix(in srgb, var(--ok) 14%, transparent);
+  --conflict-current-strong: color-mix(in srgb, var(--ok) 32%, transparent);
+  --conflict-incoming: color-mix(in srgb, var(--conflict-incoming-ink) 15%, transparent);
+  --conflict-incoming-strong: color-mix(in srgb, var(--conflict-incoming-ink) 34%, transparent);
+  --conflict-base: color-mix(in srgb, var(--text-muted) 14%, transparent);
+  --conflict-base-strong: color-mix(in srgb, var(--text-muted) 30%, transparent);
+  --conflict-action: var(--text-secondary);
+  --conflict-action-hover: var(--accent-ink);
+  --conflict-actions-h: 1lh;
 
   --z-under: -1;
   --z-base: 0;
@@ -301,6 +311,11 @@ body.theme-light {
   --syn-bracket-1: #8f6400;
   --syn-bracket-2: #a3309f;
   --syn-bracket-3: #0b62c4;
+  --conflict-incoming-ink: #1d6fd8;
+  --conflict-current: color-mix(in srgb, var(--ok) 16%, transparent);
+  --conflict-current-strong: color-mix(in srgb, var(--ok) 34%, transparent);
+  --conflict-incoming: color-mix(in srgb, var(--conflict-incoming-ink) 14%, transparent);
+  --conflict-incoming-strong: color-mix(in srgb, var(--conflict-incoming-ink) 30%, transparent);
   --ft-ansi-black: #1f2328;
   --ft-ansi-red: #b42318;
   --ft-ansi-green: #047857;

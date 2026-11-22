@@ -35,6 +35,7 @@ CONTROL_RE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
 LINE_TRAILER_RE = re.compile(r"^\s*(Co-Authored-By\s*:|Claude-Session\s*:|Signed-off-by:\s*Claude\b)", re.IGNORECASE)
 HUNK_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$")
 ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
+MARKER_RE = re.compile(rb"^(?:<{7}|>{7})(?:[ \t]|\r?$)", re.MULTILINE)
 TRAILER_RE = re.compile(r"^(Co-Authored-By|Claude-Session|Generated with|Signed-off-by: Claude)\b", re.IGNORECASE)
 GENERATED_MARK = "Generated with [Claude Code]"
 STALE = "the file changed; reload the review"
@@ -384,7 +385,8 @@ async def status(t: Target) -> dict:
         unmerged = kind == "u"
         x, y = ("U", "U") if unmerged else (_letter(xy[0]), _letter(xy[1]))
         files.append({"path": _pub(path), "oldPath": _pub(old) if old else None, "index": x, "worktree": y, "staged": x not in (".", "?") and not unmerged, "unstaged": y != "." or unmerged, "kind": _map_kind(xy, unmerged)})
-    return {"root": t.root, "session": t.session, "branch": branch, "head": head, "upstream": upstream, "ahead": ahead, "behind": behind, "files": files, "conflicted": any(f["kind"] == "conflicted" for f in files)}
+    merging = (await run(t.root, ["rev-parse", "-q", "--verify", "MERGE_HEAD"]))[0] == 0
+    return {"root": t.root, "session": t.session, "branch": branch, "head": head, "upstream": upstream, "ahead": ahead, "behind": behind, "files": files, "conflicted": any(f["kind"] == "conflicted" for f in files), "merging": merging}
 
 
 def _hunk_id(path: str, header: str, lines: list[tuple[str, str]]) -> str:
@@ -757,10 +759,55 @@ def _paths(t: Target, paths: object) -> list[str]:
     return [clean_path(t.root, p) for p in paths]
 
 
-async def stage(t: Target, paths: object) -> dict:
+def _marker_line(data: bytes) -> int:
+    if b"\0" in data[:8000]:
+        return 0
+    match = MARKER_RE.search(data)
+    return data.count(b"\n", 0, match.start()) + 1 if match else 0
+
+
+async def stage(t: Target, paths: object, force: bool = False) -> dict:
     cleaned = _paths(t, paths)
+    if not force:
+        st = await status(t)
+        for entry in _under(st["files"], cleaned):
+            if entry["kind"] != "conflicted":
+                continue
+            data = await asyncio.to_thread(_read_file, t.root, entry["path"])
+            line = _marker_line(data) if data else 0
+            if line:
+                raise Refused(409, f"{entry['path']} still has conflict markers at line {line}", {"markers": True, "path": entry["path"], "line": line})
     await must(t.root, ["add", "-A", "--", *cleaned])
     return await status(t)
+
+
+async def _conflict_stages(t: Target, path: str) -> set[int]:
+    out = await must(t.root, ["ls-files", "-u", "-z", "--", path])
+    found: set[int] = set()
+    for rec in out.split("\0"):
+        head, _, name = rec.partition("\t")
+        fields = head.split(" ")
+        if name == path and len(fields) == 3 and fields[2].isdigit():
+            found.add(int(fields[2]))
+    return found
+
+
+async def take_side(t: Target, path: object, side: object) -> dict:
+    if side not in ("ours", "theirs"):
+        raise Refused(400, 'side must be "ours" or "theirs"')
+    _not_live(t, "resolve a conflict")
+    rel = clean_path(t.root, path)
+    entry = _find(await status(t), rel)
+    if entry is None or entry["kind"] != "conflicted":
+        raise Refused(409, f"{rel} is not in conflict")
+    stages = await _conflict_stages(t, rel)
+    want, label = (2, "current") if side == "ours" else (3, "incoming")
+    if want not in stages:
+        raise Refused(409, f"{rel} was deleted on the {label} side, so there is no {label} version to take; take the other side, or delete the file and mark it resolved")
+    snap = await snapshot_create(t, f"before taking the {label} side of {rel}")
+    await must(t.root, ["checkout", f"--{side}", "--", rel])
+    await must(t.root, ["add", "--", rel])
+    return {"path": rel, "side": side, "snapshot": snap["n"], "status": await status(t)}
 
 
 async def unstage(t: Target, paths: object) -> dict:
@@ -837,7 +884,10 @@ async def commit(t: Target, message: object, amend: bool, all_: bool) -> dict:
         if all_:
             code, _, _ = await run(t.root, ["diff", "--quiet"])
             has_tracked = code == 1
-        if not has_staged and not has_tracked:
+        merging = (await run(t.root, ["rev-parse", "-q", "--verify", "MERGE_HEAD"]))[0] == 0
+        if merging and (await status(t))["conflicted"]:
+            raise Refused(409, "resolve the merge conflicts first, then commit to finish the merge")
+        if not has_staged and not has_tracked and not merging:
             raise Refused(409, "nothing to commit")
     args = ["commit", "-F", "-"]
     if amend:

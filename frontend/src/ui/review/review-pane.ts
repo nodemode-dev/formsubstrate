@@ -15,6 +15,7 @@ import type { EditorPrefs, ViewDoc } from './views';
 export const OPEN_DIFF = 'formsubstrate:open-diff';
 export const OPEN_REVIEW = 'formsubstrate:open-review';
 export const FOCUS_COMMIT = 'formsubstrate:focus-commit';
+export const OPEN_CONFLICT = 'formsubstrate:open-conflict';
 
 const RELOAD_MS = 120;
 const NOTICE_MS = 5000;
@@ -270,6 +271,7 @@ export class ReviewPane implements ViewDoc {
   private async acceptAll(): Promise<void> {
     const files = this.review?.files ?? [];
     if (this.allBusy || !files.length) return;
+    if (files.some((f) => f.kind === 'conflicted')) { this.say(t('Resolve the merge conflicts first.'), 'error'); return; }
     this.allBusy = true;
     this.paint();
     let done = 0;
@@ -304,6 +306,9 @@ export class ReviewPane implements ViewDoc {
         break;
       case 'open':
         window.dispatchEvent(new CustomEvent(OPEN_DIFF, { detail: { path, staged: false, session: this.session } }));
+        break;
+      case 'resolve':
+        window.dispatchEvent(new CustomEvent(OPEN_CONFLICT, { detail: { path, session: this.session } }));
         break;
       case 'file-accept':
         void this.apply(path, ['*'], 'accept', `file:${path}`);
@@ -380,9 +385,10 @@ export class ReviewPane implements ViewDoc {
     const snaps = this.review?.snapshots ?? 0;
     setText(this.summary, this.review ? [`${files.length} ${t(files.length === 1 ? 'file' : 'files')}`, `+${added} -${removed}`, snaps ? `${snaps} ${t(snaps === 1 ? 'snapshot' : 'snapshots')}` : ''].filter(Boolean).join(' · ') : '');
     this.paintSkips();
+    const conflicted = files.some((f) => f.kind === 'conflicted');
     setText(q(this.allBtn, '.cv-rv-all-t'), t('Accept all and commit'));
-    setDisabled(this.allBtn, !files.length || this.allBusy);
-    setTitle(this.allBtn, t('Stage every change, then commit with the message in Source Control. With an empty message the box is focused instead.'));
+    setDisabled(this.allBtn, !files.length || this.allBusy || conflicted);
+    setTitle(this.allBtn, conflicted ? t('Resolve the merge conflicts first.') : t('Stage every change, then commit with the message in Source Control. With an empty message the box is focused instead.'));
     this.paintNotice();
     setTitle(this.refreshBtn, t('Refresh'));
     if (this.refreshBtn.getAttribute('aria-label') !== t('Refresh')) this.refreshBtn.setAttribute('aria-label', t('Refresh'));
@@ -406,8 +412,10 @@ ${PROVENANCE_HTML}
 <button class="cv-rv-act" type="button" data-act="open">${icon('diff', 14)}</button>
 <button class="cv-rv-act is-ok" type="button" data-act="file-accept">${icon('check', 14)}</button>
 <button class="cv-rv-act is-bad" type="button" data-act="file-reject">${icon('close', 14)}</button>
+<button class="cv-btn cv-rv-resolve" type="button" data-act="resolve" hidden></button>
 </div>
 </div>
+<p class="cv-rv-conflict" hidden>${icon('warning', 12)}<span class="cv-rv-conflict-t"></span></p>
 <div class="cv-rv-hunks"></div>
 <p class="cv-rv-nohunks cv-note"></p>
 </section>`);
@@ -437,19 +445,29 @@ ${PROVENANCE_HTML}
     this.label(q(n, '[data-act="file-reject"]'), t('Reject file'));
     for (const b of Array.from(n.querySelectorAll<HTMLButtonElement>('.cv-rv-acts .cv-rv-act'))) setDisabled(b, busy && b.dataset.act !== 'open');
     setDisabled(q<HTMLButtonElement>(n, '[data-act="open"]'), f.binary || f.kind === 'deleted');
+    const locked = f.kind === 'conflicted';
+    setHidden(q(n, '[data-act="file-accept"]'), locked);
+    setHidden(q(n, '[data-act="file-reject"]'), locked);
+    const resolve = q<HTMLButtonElement>(n, '[data-act="resolve"]');
+    setHidden(resolve, !locked);
+    setText(resolve, t('Open to Resolve'));
+    setTitle(resolve, this.session ? t('Open the file in a diff tab to edit out the conflict markers') : t('Open the file in the editor, where each conflict has Accept actions'));
+    const note = q(n, '.cv-rv-conflict');
+    setHidden(note, !locked);
+    setText(q(note, '.cv-rv-conflict-t'), t('This file has merge conflicts. Resolve them, then use Mark Resolved in Source Control. Hunks cannot be accepted or rejected until then.'));
     const hunks = q(n, '.cv-rv-hunks');
     patchList(hunks, f.hunks, {
       key: (h) => h.id,
-      create: (h) => this.createHunk(h, busy),
-      update: (node, h) => this.updateHunk(node, h, busy),
+      create: (h) => this.createHunk(h, busy, locked),
+      update: (node, h) => this.updateHunk(node, h, busy, locked),
     });
     setHidden(hunks, collapsed);
     const none = q(n, '.cv-rv-nohunks');
     setText(none, f.binary ? t('Binary file: accept or reject applies to the whole file.') : t('No line changes to show: accept or reject applies to the whole file.'));
-    setHidden(none, collapsed || f.hunks.length > 0);
+    setHidden(none, collapsed || f.hunks.length > 0 || locked);
   }
 
-  private createHunk(h: Hunk, fileBusy: boolean): HTMLElement {
+  private createHunk(h: Hunk, fileBusy: boolean, locked: boolean): HTMLElement {
     const n = el(`<article class="cv-rv-hunk">
 <div class="cv-rv-hunk-head"><span class="cv-rv-hdr"></span>
 <div class="cv-rv-acts">
@@ -485,16 +503,18 @@ ${PROVENANCE_HTML}
       frag.append(more);
     }
     code.append(frag);
-    this.updateHunk(n, h, fileBusy);
+    this.updateHunk(n, h, fileBusy, locked);
     return n;
   }
 
-  private updateHunk(n: HTMLElement, h: Hunk, fileBusy: boolean): void {
+  private updateHunk(n: HTMLElement, h: Hunk, fileBusy: boolean, locked: boolean): void {
     setText(q(n, '.cv-rv-hdr'), h.header);
     setTitle(q(n, '.cv-rv-hdr'), h.header);
     const busy = this.busy.has(`hunk:${h.id}`) || fileBusy;
     const acts = q(n, '.cv-rv-hunk-head');
     for (const b of Array.from(acts.querySelectorAll<HTMLButtonElement>('.cv-rv-act'))) setDisabled(b, busy);
+    setHidden(q(n, '[data-act="hunk-accept"]'), locked);
+    setHidden(q(n, '[data-act="hunk-reject"]'), locked);
     this.label(q(n, '[data-act="hunk-accept"]'), t('Accept hunk'));
     this.label(q(n, '[data-act="hunk-reject"]'), t('Reject hunk'));
     this.label(q(n, '[data-act="hunk-comment"]'), this.session ? t('Comment on this hunk') : t('Comments need a session'));
