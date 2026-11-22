@@ -452,3 +452,11 @@ The check formcompiler's gate waits for (`checks: ["ci.yml"]` in its registry en
 The entry script now imports `os` and `sys`, replaces a missing `stdin`, `stdout` or `stderr` with the null device, and only then imports anything else. A windowless program on Windows has no streams, and the first `print` or log line would end it; the family rule is that the guard runs before any other import. The Windows freeze is still a console program (see `src-tauri/HASHOUT_LOG.md`, "the engine has no console window"), so this is a guard and not a fix for a seen failure.
 
 `watch_parent` took no argument and returned at once on Windows (`if os.name != "posix": return`), then looped on `os.getppid() == parent` every two seconds. It now takes the data folder and watches the process named in `FORMSUBSTRATE_SHELL_PID` through `startup.watch`, on Windows too (a wait on the process handle); with no such variable it watches its parent on macOS and Linux as before and nothing on Windows as before. On leaving it gives up the lock and the port file through `runtime.release`, removes the unpacked `_MEI` folder as before, and exits 0.
+
+### .github/workflows/ci.yml · the shell job
+
+- refers-to: .github/workflows/ci.yml :: jobs.shell
+- kind: rationale
+- logged: v0.18.1 · 2026-11-22
+
+The workflow ran no Rust check, so a shell change that did not compile for Windows or macOS was first seen in the family build. The `shell` job runs `cargo check --locked` in `src-tauri` on `windows-latest` and `macos-latest`, each natively, so the Objective-C that two macOS crates compile gets Apple's headers (a Linux machine cannot check the macOS targets for that reason). It writes stand-ins for `frontend/dist` (an `index.html` and the splash page) and `src-tauri/engine`, because `tauri-build` refuses a missing window folder and the build maps the engine folder. It uses the Rust the runner image ships; `Cargo.toml` asks for 1.90 or newer. No Linux leg: that needs the WebKitGTK development packages and the family build covers Linux. Not run on GitHub yet.

@@ -52,3 +52,28 @@ jobs:
           for f in formsubstrate formsubstrate_oc_install build_app "Install formsubstrate.command" backend/oc_install backend/boot_backend frontend/oc_install frontend/boot_frontend setup/lib.sh setup/boot_all setup/boot_backend setup/boot_frontend setup/clean setup/doctor setup/freeze_backend setup/install_all setup/serve; do
             bash -n "$f"
           done
+
+  shell:
+    name: shell (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stand-ins for the built window and the frozen engine
+        run: |
+          mkdir -p frontend/dist src-tauri/engine
+          printf '<!doctype html><title>stand-in</title>\n' > frontend/dist/index.html
+          cp frontend/public/splash.html frontend/dist/splash.html
+          printf 'stand-in\n' > src-tauri/engine/stand-in
+      - name: Toolchain
+        run: rustc --version && cargo --version
+      - name: Type check the desktop shell
+        working-directory: src-tauri
+        run: cargo check --locked
