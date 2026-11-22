@@ -62,7 +62,7 @@ export const da: Record<string, string> = {
   'Stop Debugging': 'Stop fejlfinding', 'Stop Task': 'Stop opgave', 'Stop and close': 'Stop og luk', 'Stop cloning?': 'Vil du stoppe kloningen?', 'Stopped': 'Stoppet', 'Stopping': 'Stopper',
   'Stored in the system keyring': 'Gemt i systemets nøglering', 'Stored on the session. It is not running, so nothing was sent.': 'Gemt i sessionen. Den kører ikke, så intet blev sendt.',
   'Streaming': 'Streamer', 'String arguments accept {{task}} {{context}} {{inputs.x}} {{steps.id}} {{item}}.': 'Strengargumenter accepterer {{task}} {{context}} {{inputs.x}} {{steps.id}} {{item}}.',
-  'Studio': 'Studio', 'Studio Dark': 'Studio Dark', 'Styles': 'Typografier', 'Substrata': 'Substrata',
+  'Studio': 'Studio', 'Studio Dark': 'Studio Dark', 'Styles': 'Typografiark', 'Substrata': 'Substrata',
   'Substrate is the Form family code and text editor. A quick check of what is ready on this computer': 'Substrate er Form-familiens kode- og teksteditor. En hurtig kontrol af, hvad der er klar på denne computer',
   'Substrate is waiting for your answer': 'Substrate venter på dit svar', 'Symbols could not be searched': 'Der kunne ikke søges i symboler', 'System': 'System',
   'System status': 'Systemstatus', 'Take Snapshot': 'Tag snapshot', 'Target': 'Mål', 'Task: what should the agents do?': 'Opgave: hvad skal agenterne gøre?',
@@ -190,4 +190,9 @@ export const da: Record<string, string> = {
   '{n} results': '{n} resultater', '{n} server of yours': '{n} egen server', '{n} servers of yours': '{n} egne servere', '{n} tool': '{n} værktøj', '{n} tool call': '{n} værktøjskald',
   '{n} tool calls': '{n} værktøjskald', '{n} tools': '{n} værktøjer', '{n} trigger on': '{n} udløser aktiv', '{n} triggers on': '{n} udløsere aktive', '{n} turn': '{n} tur',
   '{n} turns': '{n} ture', '{n} warning': '{n} advarsel', '{n} warnings': '{n} advarsler',
+  'Save changes to {name}?': 'Vil du gemme ændringerne i {name}?', 'Apply to All': 'Anvend på alle', 'Your changes will be lost if you don’t save them.': 'Dine ændringer går tabt, hvis du ikke gemmer dem.',
+  'unit': 'enhed', 'Agent sessions': 'Agentsessioner', 'Language intelligence': 'Sprogintelligens', 'Source control': 'Kildekontrol', 'Tools and blocks': 'Værktøjer og blokke',
+  'interactive': 'interaktiv', 'personal': 'personlig', 'outside .formsubstrate': 'uden for .formsubstrate',
+  'run records and agent logs are never imported': 'kørselsdata og agentlogge importeres aldrig',
+  'plugins run code: trust this workspace first': 'plugins kører kode: hav tillid til dette arbejdsområde først', 'Timeout must be at least 10 seconds': 'Timeout skal være mindst 10 sekunder',
 };

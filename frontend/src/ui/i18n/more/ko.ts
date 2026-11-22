@@ -190,4 +190,9 @@ export const ko: Record<string, string> = {
   '{n} results': '결과 {n}개', '{n} server of yours': '내 서버 {n}개', '{n} servers of yours': '내 서버 {n}개', '{n} tool': '도구 {n}개', '{n} tool call': '도구 호출 {n}회',
   '{n} tool calls': '도구 호출 {n}회', '{n} tools': '도구 {n}개', '{n} trigger on': '트리거 {n}개 켜짐', '{n} triggers on': '트리거 {n}개 켜짐', '{n} turn': '{n}턴',
   '{n} turns': '{n}턴', '{n} warning': '경고 {n}개', '{n} warnings': '경고 {n}개',
+  'Save changes to {name}?': '{name}의 변경 사항을 저장하시겠습니까?', 'Apply to All': '모두에 적용', 'Your changes will be lost if you don’t save them.': '저장하지 않으면 변경 사항이 손실됩니다.',
+  'unit': '단위', 'Agent sessions': '에이전트 세션', 'Language intelligence': '언어 인텔리전스', 'Source control': '소스 제어', 'Tools and blocks': '도구 및 블록',
+  'interactive': '대화형', 'personal': '개인', 'outside .formsubstrate': '.formsubstrate 외부',
+  'run records and agent logs are never imported': '실행 기록과 에이전트 로그는 가져오지 않습니다',
+  'plugins run code: trust this workspace first': '플러그인은 코드를 실행합니다: 먼저 이 작업 영역을 신뢰하세요', 'Timeout must be at least 10 seconds': '시간 제한은 10초 이상이어야 합니다',
 };

@@ -190,4 +190,9 @@ export const th: Record<string, string> = {
   '{n} results': '{n} ผลลัพธ์', '{n} server of yours': 'เซิร์ฟเวอร์ของคุณ {n} รายการ', '{n} servers of yours': 'เซิร์ฟเวอร์ของคุณ {n} รายการ', '{n} tool': '{n} เครื่องมือ', '{n} tool call': 'การเรียกเครื่องมือ {n} ครั้ง',
   '{n} tool calls': 'การเรียกเครื่องมือ {n} ครั้ง', '{n} tools': '{n} เครื่องมือ', '{n} trigger on': 'ทริกเกอร์เปิดอยู่ {n} รายการ', '{n} triggers on': 'ทริกเกอร์เปิดอยู่ {n} รายการ', '{n} turn': '{n} รอบ',
   '{n} turns': '{n} รอบ', '{n} warning': '{n} คำเตือน', '{n} warnings': '{n} คำเตือน',
+  'Save changes to {name}?': 'บันทึกการเปลี่ยนแปลงใน {name} หรือไม่', 'Apply to All': 'ใช้กับทั้งหมด', 'Your changes will be lost if you don’t save them.': 'การเปลี่ยนแปลงจะหายไปหากคุณไม่บันทึก',
+  'unit': 'หน่วย', 'Agent sessions': 'เซสชันเอเจนต์', 'Language intelligence': 'ความสามารถด้านภาษา', 'Source control': 'การควบคุมแหล่งที่มา', 'Tools and blocks': 'เครื่องมือและบล็อก',
+  'interactive': 'แบบโต้ตอบ', 'personal': 'ส่วนตัว', 'outside .formsubstrate': 'นอก .formsubstrate',
+  'run records and agent logs are never imported': 'ไม่มีการนำเข้าบันทึกการรันและล็อกของเอเจนต์',
+  'plugins run code: trust this workspace first': 'ปลั๊กอินรันโค้ดได้: โปรดเชื่อถือเวิร์กสเปซนี้ก่อน', 'Timeout must be at least 10 seconds': 'การหมดเวลาต้องไม่น้อยกว่า 10 วินาที',
 };

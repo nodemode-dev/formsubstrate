@@ -62,7 +62,7 @@ export const sv: Record<string, string> = {
   'Stop Debugging': 'Stoppa felsökning', 'Stop Task': 'Stoppa uppgift', 'Stop and close': 'Stoppa och stäng', 'Stop cloning?': 'Vill du stoppa kloningen?', 'Stopped': 'Stoppad', 'Stopping': 'Stoppar',
   'Stored in the system keyring': 'Lagrad i systemets nyckelring', 'Stored on the session. It is not running, so nothing was sent.': 'Lagrat i sessionen. Den körs inte, så inget skickades.',
   'Streaming': 'Strömmar', 'String arguments accept {{task}} {{context}} {{inputs.x}} {{steps.id}} {{item}}.': 'Strängargument accepterar {{task}} {{context}} {{inputs.x}} {{steps.id}} {{item}}.',
-  'Studio': 'Studio', 'Studio Dark': 'Studio Dark', 'Styles': 'Format', 'Substrata': 'Substrata',
+  'Studio': 'Studio', 'Studio Dark': 'Studio Dark', 'Styles': 'Formatmallar', 'Substrata': 'Substrata',
   'Substrate is the Form family code and text editor. A quick check of what is ready on this computer': 'Substrate är Form-familjens kod- och textredigerare. En snabb kontroll av vad som är klart på den här datorn',
   'Substrate is waiting for your answer': 'Substrate väntar på ditt svar', 'Symbols could not be searched': 'Det gick inte att söka efter symboler', 'System': 'System',
   'System status': 'Systemstatus', 'Take Snapshot': 'Ta ögonblicksbild', 'Target': 'Mål', 'Task: what should the agents do?': 'Uppgift: vad ska agenterna göra?',
@@ -190,4 +190,9 @@ export const sv: Record<string, string> = {
   '{n} results': '{n} resultat', '{n} server of yours': '{n} egen server', '{n} servers of yours': '{n} egna servrar', '{n} tool': '{n} verktyg', '{n} tool call': '{n} verktygsanrop',
   '{n} tool calls': '{n} verktygsanrop', '{n} tools': '{n} verktyg', '{n} trigger on': '{n} utlösare aktiv', '{n} triggers on': '{n} utlösare aktiva', '{n} turn': '{n} omgång',
   '{n} turns': '{n} omgångar', '{n} warning': '{n} varning', '{n} warnings': '{n} varningar',
+  'Save changes to {name}?': 'Vill du spara ändringarna i {name}?', 'Apply to All': 'Använd för alla', 'Your changes will be lost if you don’t save them.': 'Dina ändringar går förlorade om du inte sparar dem.',
+  'unit': 'enhet', 'Agent sessions': 'Agentsessioner', 'Language intelligence': 'Språkintelligens', 'Source control': 'Källkontroll', 'Tools and blocks': 'Verktyg och block',
+  'interactive': 'interaktiv', 'personal': 'personlig', 'outside .formsubstrate': 'utanför .formsubstrate',
+  'run records and agent logs are never imported': 'körningsdata och agentloggar importeras aldrig',
+  'plugins run code: trust this workspace first': 'insticksmoduler kör kod: lita på den här arbetsytan först', 'Timeout must be at least 10 seconds': 'Tidsgränsen måste vara minst 10 sekunder',
 };

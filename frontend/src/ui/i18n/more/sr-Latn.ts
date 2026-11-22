@@ -197,4 +197,9 @@ export const srLatn: Record<string, string> = {
   '{n} tool': '{n} alat', '{n} tool call': '{n} poziv alata', '{n} tool calls': '{n} poziva alata', '{n} tool calls#few': '{n} poziva alata', '{n} tools': '{n} alata', '{n} tools#few': '{n} alata',
   '{n} trigger on': '{n} okidač uključen', '{n} triggers on': '{n} okidača uključeno', '{n} triggers on#few': '{n} okidača uključena',
   '{n} turn': '{n} krug', '{n} turns': '{n} krugova', '{n} turns#few': '{n} kruga', '{n} warning': '{n} upozorenje', '{n} warnings': '{n} upozorenja', '{n} warnings#few': '{n} upozorenja',
+  'Save changes to {name}?': 'Želite li da sačuvate izmene u {name}?', 'Apply to All': 'Primeni na sve', 'Your changes will be lost if you don’t save them.': 'Izmene će biti izgubljene ako ih ne sačuvate.',
+  'unit': 'jedinica', 'Agent sessions': 'Sesije agenata', 'Language intelligence': 'Jezičke funkcije', 'Source control': 'Kontrola izvornog koda', 'Tools and blocks': 'Alati i blokovi',
+  'interactive': 'interaktivna', 'personal': 'lična', 'outside .formsubstrate': 'van .formsubstrate',
+  'run records and agent logs are never imported': 'zapisi pokretanja i evidencije agenata se nikada ne uvoze',
+  'plugins run code: trust this workspace first': 'dodaci pokreću kôd: prvo ukažite poverenje ovom radnom prostoru', 'Timeout must be at least 10 seconds': 'Vremensko ograničenje mora biti najmanje 10 sekundi',
 };

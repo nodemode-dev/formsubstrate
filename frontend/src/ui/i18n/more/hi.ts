@@ -190,4 +190,9 @@ export const hi: Record<string, string> = {
   '{n} results': '{n} परिणाम', '{n} server of yours': 'आपका {n} सर्वर', '{n} servers of yours': 'आपके {n} सर्वर', '{n} tool': '{n} टूल', '{n} tool call': '{n} टूल कॉल',
   '{n} tool calls': '{n} टूल कॉल', '{n} tools': '{n} टूल', '{n} trigger on': '{n} ट्रिगर चालू', '{n} triggers on': '{n} ट्रिगर चालू', '{n} turn': '{n} टर्न',
   '{n} turns': '{n} टर्न', '{n} warning': '{n} चेतावनी', '{n} warnings': '{n} चेतावनियाँ',
+  'Save changes to {name}?': 'क्या {name} में किए गए बदलाव सहेजें?', 'Apply to All': 'सभी पर लागू करें', 'Your changes will be lost if you don’t save them.': 'यदि आप बदलाव नहीं सहेजते हैं, तो वे खो जाएँगे।',
+  'unit': 'इकाई', 'Agent sessions': 'एजेंट सत्र', 'Language intelligence': 'भाषा सुविधाएँ', 'Source control': 'सोर्स कंट्रोल', 'Tools and blocks': 'टूल और ब्लॉक',
+  'interactive': 'इंटरैक्टिव', 'personal': 'व्यक्तिगत', 'outside .formsubstrate': '.formsubstrate के बाहर',
+  'run records and agent logs are never imported': 'रन रिकॉर्ड और एजेंट लॉग कभी आयात नहीं किए जाते',
+  'plugins run code: trust this workspace first': 'प्लगइन कोड चलाते हैं: पहले इस कार्यक्षेत्र पर भरोसा करें', 'Timeout must be at least 10 seconds': 'टाइमआउट कम से कम 10 सेकंड होना चाहिए',
 };

@@ -206,4 +206,9 @@ export const cs: Record<string, string> = {
   '{n} trigger on': '{n} aktivní spouštěč', '{n} triggers on': '{n} aktivních spouštěčů', '{n} triggers on#few': '{n} aktivní spouštěče', '{n} triggers on#many': '{n} aktivního spouštěče',
   '{n} turn': '{n} kolo', '{n} turns': '{n} kol', '{n} turns#few': '{n} kola', '{n} turns#many': '{n} kola',
   '{n} warning': '{n} upozornění', '{n} warnings': '{n} upozornění', '{n} warnings#few': '{n} upozornění', '{n} warnings#many': '{n} upozornění',
+  'Save changes to {name}?': 'Uložit změny v {name}?', 'Apply to All': 'Použít pro všechny', 'Your changes will be lost if you don’t save them.': 'Pokud změny neuložíte, budou ztraceny.',
+  'unit': 'jednotka', 'Agent sessions': 'Relace agentů', 'Language intelligence': 'Jazykové funkce', 'Source control': 'Správa zdrojového kódu', 'Tools and blocks': 'Nástroje a bloky',
+  'interactive': 'interaktivní', 'personal': 'osobní', 'outside .formsubstrate': 'mimo .formsubstrate',
+  'run records and agent logs are never imported': 'záznamy běhů a protokoly agentů se nikdy neimportují',
+  'plugins run code: trust this workspace first': 'moduly plug-in spouštějí kód: nejprve tomuto pracovnímu prostoru důvěřujte', 'Timeout must be at least 10 seconds': 'Časový limit musí být alespoň 10 sekund',
 };

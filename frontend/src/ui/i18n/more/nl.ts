@@ -190,4 +190,9 @@ export const nl: Record<string, string> = {
   '{n} results': '{n} resultaten', '{n} server of yours': '{n} eigen server', '{n} servers of yours': '{n} eigen servers', '{n} tool': '{n} gereedschap', '{n} tool call': '{n} gereedschapsaanroep',
   '{n} tool calls': '{n} gereedschapsaanroepen', '{n} tools': '{n} gereedschappen', '{n} trigger on': '{n} trigger actief', '{n} triggers on': '{n} triggers actief', '{n} turn': '{n} beurt',
   '{n} turns': '{n} beurten', '{n} warning': '{n} waarschuwing', '{n} warnings': '{n} waarschuwingen',
+  'Save changes to {name}?': 'Wijzigingen in {name} opslaan?', 'Apply to All': 'Op alles toepassen', 'Your changes will be lost if you don’t save them.': 'Uw wijzigingen gaan verloren als u ze niet opslaat.',
+  'unit': 'eenheid', 'Agent sessions': 'Agentsessies', 'Language intelligence': 'Taalintelligentie', 'Source control': 'Broncodebeheer', 'Tools and blocks': 'Gereedschappen en blokken',
+  'interactive': 'interactief', 'personal': 'persoonlijk', 'outside .formsubstrate': 'buiten .formsubstrate',
+  'run records and agent logs are never imported': 'uitvoeringsgegevens en agentlogboeken worden nooit geïmporteerd',
+  'plugins run code: trust this workspace first': 'plug-ins voeren code uit: vertrouw eerst deze werkruimte', 'Timeout must be at least 10 seconds': 'De time-out moet minimaal 10 seconden zijn',
 };

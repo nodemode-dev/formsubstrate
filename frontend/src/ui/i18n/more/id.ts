@@ -190,4 +190,9 @@ export const id: Record<string, string> = {
   '{n} results': '{n} hasil', '{n} server of yours': '{n} server milik Anda', '{n} servers of yours': '{n} server milik Anda', '{n} tool': '{n} alat', '{n} tool call': '{n} panggilan alat',
   '{n} tool calls': '{n} panggilan alat', '{n} tools': '{n} alat', '{n} trigger on': '{n} pemicu aktif', '{n} triggers on': '{n} pemicu aktif', '{n} turn': '{n} giliran',
   '{n} turns': '{n} giliran', '{n} warning': '{n} peringatan', '{n} warnings': '{n} peringatan',
+  'Save changes to {name}?': 'Simpan perubahan pada {name}?', 'Apply to All': 'Terapkan ke Semua', 'Your changes will be lost if you don’t save them.': 'Perubahan Anda akan hilang jika tidak disimpan.',
+  'unit': 'unit', 'Agent sessions': 'Sesi agen', 'Language intelligence': 'Kecerdasan bahasa', 'Source control': 'Kontrol sumber', 'Tools and blocks': 'Alat dan blok',
+  'interactive': 'interaktif', 'personal': 'pribadi', 'outside .formsubstrate': 'di luar .formsubstrate',
+  'run records and agent logs are never imported': 'catatan eksekusi dan log agen tidak pernah diimpor',
+  'plugins run code: trust this workspace first': 'plugin menjalankan kode: percayai ruang kerja ini terlebih dahulu', 'Timeout must be at least 10 seconds': 'Batas waktu harus setidaknya 10 detik',
 };

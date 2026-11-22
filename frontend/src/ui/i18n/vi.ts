@@ -21,7 +21,7 @@ export const vi: Record<string, string> = {
   'Agents': 'Tác nhân', 'Agents are warned before writing code that already exists.': 'Tác nhân được cảnh báo trước khi viết mã đã tồn tại.',
   'All folders': 'Tất cả thư mục', 'All preset handles are already present.': 'Tất cả định danh của cài đặt sẵn đã có.',
   'All sessions': 'Tất cả phiên', 'All types': 'Tất cả loại', 'Allow': 'Cho phép', 'Answer Existing Slot Prompt': 'Trả lời lời nhắc về slot hiện có',
-  'Anthropic API key': 'Khóa API Anthropic', 'Appearance': 'Giao diện', 'Apply': 'Áp dụng', 'Apply provider': 'Áp dụng nhà cung cấp',
+  'Anthropic API key': 'Khóa API Anthropic', 'Appearance': 'Diện mạo', 'Apply': 'Áp dụng', 'Apply provider': 'Áp dụng nhà cung cấp',
   'Approval needed': 'Cần phê duyệt', 'Approval needed for': 'Cần phê duyệt cho', 'Approvals': 'Phê duyệt', 'Approve': 'Phê duyệt',
   'Approved. The run continues.': 'Đã phê duyệt. Lần chạy tiếp tục.', 'Arguments': 'Đối số', 'Ask (default)': 'Hỏi (mặc định)', 'Author': 'Tác giả',
   'Author email': 'Email tác giả', 'Author name': 'Tên tác giả', 'Auto layout': 'Bố cục tự động', 'Automation': 'Tự động hóa', 'Back': 'Quay lại',

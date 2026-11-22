@@ -33,4 +33,5 @@ export const frCA: Record<string, string> = {
   'manual: resume from the runs panel. delay: resume after N seconds. watch: resume when matching files change. webhook: resume from a trigger. approval: wait for an answer.': 'manuel : reprendre à partir du panneau Exécutions. délai : reprendre après N secondes. surveillance : reprendre quand des fichiers correspondants changent. webhook : reprendre à partir d’un déclencheur. approbation : attendre une réponse.',
   'marks this slot canonical. Only you can do this; agents can only propose.': 'marque ce slot comme canonique. Vous seul pouvez le faire; les agents peuvent seulement le proposer.',
   'settings saved and plugin reloaded': 'paramètres enregistrés et module rechargé', 'to its state before this turn?': 'dans son état d’avant ce tour?',
+  'Save changes to {name}?': 'Enregistrer les modifications apportées à {name}?',
 };

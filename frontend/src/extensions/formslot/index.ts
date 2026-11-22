@@ -698,7 +698,7 @@ const baseName = (path: string): string => path.slice(path.lastIndexOf('/') + 1)
 function fillCard(node: HTMLElement, r: CardRow): HTMLElement {
   node.dataset.kind = r.kind;
   node.dataset.line = String(r.line);
-  setText(q(node, '.cv-fsc-kind'), r.chip || t(r.kind));
+  setText(q(node, '.cv-fsc-kind'), r.chip || t(r.kind === 'slot' ? 'slot' : 'unit'));
   setText(q(node, '.cv-fsc-name'), r.title);
   setText(q(node, '.cv-fsc-where'), r.where);
   setTitle(node, r.where ? `${r.title} ${r.where}` : r.title);

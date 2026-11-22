@@ -190,4 +190,9 @@ export const el: Record<string, string> = {
   '{n} results': '{n} αποτελέσματα', '{n} server of yours': '{n} δικός σας διακομιστής', '{n} servers of yours': '{n} δικοί σας διακομιστές', '{n} tool': '{n} εργαλείο', '{n} tool call': '{n} κλήση εργαλείου',
   '{n} tool calls': '{n} κλήσεις εργαλείων', '{n} tools': '{n} εργαλεία', '{n} trigger on': '{n} ενεργό έναυσμα', '{n} triggers on': '{n} ενεργά εναύσματα', '{n} turn': '{n} γύρος',
   '{n} turns': '{n} γύροι', '{n} warning': '{n} προειδοποίηση', '{n} warnings': '{n} προειδοποιήσεις',
+  'Save changes to {name}?': 'Να αποθηκευτούν οι αλλαγές στο {name};', 'Apply to All': 'Εφαρμογή σε όλα', 'Your changes will be lost if you don’t save them.': 'Οι αλλαγές σας θα χαθούν αν δεν τις αποθηκεύσετε.',
+  'unit': 'μονάδα', 'Agent sessions': 'Συνεδρίες πρακτόρων', 'Language intelligence': 'Γλωσσικές λειτουργίες', 'Source control': 'Έλεγχος προέλευσης', 'Tools and blocks': 'Εργαλεία και μπλοκ',
+  'interactive': 'διαδραστική', 'personal': 'προσωπική', 'outside .formsubstrate': 'εκτός .formsubstrate',
+  'run records and agent logs are never imported': 'οι εγγραφές εκτελέσεων και τα αρχεία καταγραφής πρακτόρων δεν εισάγονται ποτέ',
+  'plugins run code: trust this workspace first': 'τα πρόσθετα εκτελούν κώδικα: δηλώστε πρώτα αυτόν τον χώρο εργασίας ως αξιόπιστο', 'Timeout must be at least 10 seconds': 'Το χρονικό όριο πρέπει να είναι τουλάχιστον 10 δευτερόλεπτα',
 };

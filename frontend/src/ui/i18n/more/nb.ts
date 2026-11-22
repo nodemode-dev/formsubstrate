@@ -190,4 +190,9 @@ export const nb: Record<string, string> = {
   '{n} results': '{n} resultater', '{n} server of yours': '{n} egen tjener', '{n} servers of yours': '{n} egne tjenere', '{n} tool': '{n} verktøy', '{n} tool call': '{n} verktøykall',
   '{n} tool calls': '{n} verktøykall', '{n} tools': '{n} verktøy', '{n} trigger on': '{n} utløser på', '{n} triggers on': '{n} utløsere på', '{n} turn': '{n} runde',
   '{n} turns': '{n} runder', '{n} warning': '{n} advarsel', '{n} warnings': '{n} advarsler',
+  'Save changes to {name}?': 'Vil du lagre endringene i {name}?', 'Apply to All': 'Bruk på alle', 'Your changes will be lost if you don’t save them.': 'Endringene dine går tapt hvis du ikke lagrer dem.',
+  'unit': 'enhet', 'Agent sessions': 'Agentøkter', 'Language intelligence': 'Språkintelligens', 'Source control': 'Kildekontroll', 'Tools and blocks': 'Verktøy og blokker',
+  'interactive': 'interaktiv', 'personal': 'personlig', 'outside .formsubstrate': 'utenfor .formsubstrate',
+  'run records and agent logs are never imported': 'kjøringsdata og agentlogger importeres aldri',
+  'plugins run code: trust this workspace first': 'programtillegg kjører kode: klarer dette arbeidsområdet først', 'Timeout must be at least 10 seconds': 'Tidsavbruddet må være minst 10 sekunder',
 };

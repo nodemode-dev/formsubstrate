@@ -204,4 +204,9 @@ export const pl: Record<string, string> = {
   '{n} trigger on': '{n} wyzwalacz włączony', '{n} triggers on': '{n} wyzwalacza włączonego', '{n} triggers on#few': '{n} wyzwalacze włączone', '{n} triggers on#many': '{n} wyzwalaczy włączonych',
   '{n} turn': '{n} tura', '{n} turns': '{n} tury', '{n} turns#few': '{n} tury', '{n} turns#many': '{n} tur',
   '{n} warning': '{n} ostrzeżenie', '{n} warnings': '{n} ostrzeżenia', '{n} warnings#few': '{n} ostrzeżenia', '{n} warnings#many': '{n} ostrzeżeń',
+  'Save changes to {name}?': 'Zapisać zmiany w {name}?', 'Apply to All': 'Zastosuj do wszystkich', 'Your changes will be lost if you don’t save them.': 'Jeśli nie zapiszesz zmian, zostaną utracone.',
+  'unit': 'jednostka', 'Agent sessions': 'Sesje agentów', 'Language intelligence': 'Funkcje językowe', 'Source control': 'Kontrola źródła', 'Tools and blocks': 'Narzędzia i bloki',
+  'interactive': 'interaktywna', 'personal': 'osobista', 'outside .formsubstrate': 'poza .formsubstrate',
+  'run records and agent logs are never imported': 'zapisy uruchomień i dzienniki agentów nigdy nie są importowane',
+  'plugins run code: trust this workspace first': 'wtyczki uruchamiają kod: najpierw zaufaj temu obszarowi roboczemu', 'Timeout must be at least 10 seconds': 'Limit czasu musi wynosić co najmniej 10 sekund',
 };

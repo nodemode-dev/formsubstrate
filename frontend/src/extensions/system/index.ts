@@ -26,6 +26,12 @@ const message = (e: unknown): string => (e instanceof Error ? e.message : String
 interface ManifestEntry { path: string; group: string; bytes: number; action: 'write' | 'overwrite' | 'skip' | 'refuse'; reason: string }
 interface Preview { entries: ManifestEntry[]; will_write: number }
 
+const REASONS = new Map<string, () => string>([
+  ['outside .formsubstrate', () => t('outside .formsubstrate')],
+  ['run records and agent logs are never imported', () => t('run records and agent logs are never imported')],
+  ['plugins run code: trust this workspace first', () => t('plugins run code: trust this workspace first')],
+]);
+
 class ManifestDialog extends Dialog {
   private readonly note = el('<p class="cv-note"></p>');
   private readonly list = el('<div class="cv-harness-list"></div>');
@@ -48,7 +54,8 @@ class ManifestDialog extends Dialog {
     setText(this.note, `${p.will_write} ${t('files will be written')}, ${skipped} ${t('skipped')}, ${refused} ${t('refused')}${trusted ? '' : ` (${t('plugins need a trusted workspace')})`}. ${t('Imported graphs, recipes and skills can steer agents: read the list first.')}`);
     const fill = (n: HTMLElement, e: ManifestEntry): void => {
       setText(q(n, 'span'), t(e.action === 'overwrite' ? 'Overwrite' : e.action === 'write' ? 'New' : e.action === 'skip' ? 'Skip' : 'Refuse'));
-      setText(q(n, '.cv-note'), `${e.path}${e.reason ? ` (${t(e.reason)})` : ''}`);
+      const reason = REASONS.get(e.reason)?.() ?? e.reason;
+      setText(q(n, '.cv-note'), `${e.path}${reason ? ` (${reason})` : ''}`);
     };
     patchList(this.list, p.entries, {
       key: (e) => e.path,

@@ -212,4 +212,9 @@ export const ar: Record<string, string> = {
   '{n} triggers on#few': '{n} محفّزات مفعّلة', '{n} triggers on#many': '{n} محفّزًا مفعّلًا',
   '{n} turn': '{n} دور', '{n} turns': '{n} دور', '{n} turns#zero': '{n} أدوار', '{n} turns#two': '{n} دوران', '{n} turns#few': '{n} أدوار', '{n} turns#many': '{n} دورًا',
   '{n} warning': '{n} تحذير', '{n} warnings': '{n} تحذير', '{n} warnings#zero': '{n} تحذيرات', '{n} warnings#two': '{n} تحذيران', '{n} warnings#few': '{n} تحذيرات', '{n} warnings#many': '{n} تحذيرًا',
+  'Save changes to {name}?': 'هل تريد حفظ التغييرات في {name}؟', 'Apply to All': 'تطبيق على الكل', 'Your changes will be lost if you don’t save them.': 'ستفقد تغييراتك إذا لم تحفظها.',
+  'unit': 'وحدة', 'Agent sessions': 'جلسات الوكلاء', 'Language intelligence': 'ميزات اللغة', 'Source control': 'التحكم في المصدر', 'Tools and blocks': 'الأدوات والكتل',
+  'interactive': 'تفاعلية', 'personal': 'شخصية', 'outside .formsubstrate': 'خارج .formsubstrate',
+  'run records and agent logs are never imported': 'لا تُستورد سجلات التشغيل وسجلات الوكلاء أبدًا',
+  'plugins run code: trust this workspace first': 'تشغّل الإضافات تعليمات برمجية: ثق بمساحة العمل هذه أولاً', 'Timeout must be at least 10 seconds': 'يجب ألا تقل المهلة عن 10 ثوانٍ',
 };

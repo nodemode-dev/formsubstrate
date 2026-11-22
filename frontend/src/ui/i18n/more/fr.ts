@@ -190,4 +190,9 @@ export const fr: Record<string, string> = {
   '{n} results': '{n} résultats', '{n} server of yours': '{n} serveur à vous', '{n} servers of yours': '{n} serveurs à vous', '{n} tool': '{n} outil', '{n} tool call': '{n} appel d’outil',
   '{n} tool calls': '{n} appels d’outils', '{n} tools': '{n} outils', '{n} trigger on': '{n} déclencheur actif', '{n} triggers on': '{n} déclencheurs actifs', '{n} turn': '{n} tour',
   '{n} turns': '{n} tours', '{n} warning': '{n} avertissement', '{n} warnings': '{n} avertissements',
+  'Save changes to {name}?': 'Enregistrer les modifications apportées à {name} ?', 'Apply to All': 'Appliquer à tous', 'Your changes will be lost if you don’t save them.': 'Vos modifications seront perdues si vous ne les enregistrez pas.',
+  'unit': 'unité', 'Agent sessions': 'Sessions d’agent', 'Language intelligence': 'Intelligence du langage', 'Source control': 'Contrôle de code source', 'Tools and blocks': 'Outils et blocs',
+  'interactive': 'interactive', 'personal': 'personnel', 'outside .formsubstrate': 'hors de .formsubstrate',
+  'run records and agent logs are never imported': 'les enregistrements d’exécution et les journaux d’agent ne sont jamais importés',
+  'plugins run code: trust this workspace first': 'les modules exécutent du code : faites d’abord confiance à cet espace de travail', 'Timeout must be at least 10 seconds': 'Le délai doit être d’au moins 10 secondes',
 };

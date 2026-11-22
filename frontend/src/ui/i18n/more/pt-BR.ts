@@ -190,4 +190,9 @@ export const ptBR: Record<string, string> = {
   '{n} results': '{n} resultados', '{n} server of yours': '{n} servidor seu', '{n} servers of yours': '{n} servidores seus', '{n} tool': '{n} ferramenta', '{n} tool call': '{n} chamada de ferramenta',
   '{n} tool calls': '{n} chamadas de ferramenta', '{n} tools': '{n} ferramentas', '{n} trigger on': '{n} gatilho ativo', '{n} triggers on': '{n} gatilhos ativos', '{n} turn': '{n} turno',
   '{n} turns': '{n} turnos', '{n} warning': '{n} aviso', '{n} warnings': '{n} avisos',
+  'Save changes to {name}?': 'Salvar as alterações em {name}?', 'Apply to All': 'Aplicar a todos', 'Your changes will be lost if you don’t save them.': 'Suas alterações serão perdidas se você não salvá-las.',
+  'unit': 'unidade', 'Agent sessions': 'Sessões de agente', 'Language intelligence': 'Inteligência de linguagem', 'Source control': 'Controle do código-fonte', 'Tools and blocks': 'Ferramentas e blocos',
+  'interactive': 'interativa', 'personal': 'pessoal', 'outside .formsubstrate': 'fora de .formsubstrate',
+  'run records and agent logs are never imported': 'registros de execução e logs de agentes nunca são importados',
+  'plugins run code: trust this workspace first': 'plug-ins executam código: confie neste espaço de trabalho primeiro', 'Timeout must be at least 10 seconds': 'O tempo limite deve ser de pelo menos 10 segundos',
 };

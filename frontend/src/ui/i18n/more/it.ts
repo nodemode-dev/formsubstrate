@@ -190,4 +190,9 @@ export const it: Record<string, string> = {
   '{n} results': '{n} risultati', '{n} server of yours': '{n} server personale', '{n} servers of yours': '{n} server personali', '{n} tool': '{n} strumento', '{n} tool call': '{n} chiamata a strumento',
   '{n} tool calls': '{n} chiamate a strumenti', '{n} tools': '{n} strumenti', '{n} trigger on': '{n} trigger attivo', '{n} triggers on': '{n} trigger attivi', '{n} turn': '{n} turno',
   '{n} turns': '{n} turni', '{n} warning': '{n} avviso', '{n} warnings': '{n} avvisi',
+  'Save changes to {name}?': 'Salvare le modifiche a {name}?', 'Apply to All': 'Applica a tutti', 'Your changes will be lost if you don’t save them.': 'Le modifiche andranno perse se non vengono salvate.',
+  'unit': 'unità', 'Agent sessions': 'Sessioni agente', 'Language intelligence': 'Intelligenza del linguaggio', 'Source control': 'Controllo del codice sorgente', 'Tools and blocks': 'Strumenti e blocchi',
+  'interactive': 'interattiva', 'personal': 'personale', 'outside .formsubstrate': 'fuori da .formsubstrate',
+  'run records and agent logs are never imported': 'i dati delle esecuzioni e i log degli agenti non vengono mai importati',
+  'plugins run code: trust this workspace first': 'i plugin eseguono codice: considera prima attendibile questo spazio di lavoro', 'Timeout must be at least 10 seconds': 'Il timeout deve essere di almeno 10 secondi',
 };

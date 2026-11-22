@@ -206,4 +206,9 @@ export const uk: Record<string, string> = {
   '{n} trigger on': '{n} активний тригер', '{n} triggers on': '{n} активних тригерів', '{n} triggers on#few': '{n} активні тригери', '{n} triggers on#many': '{n} активних тригерів',
   '{n} turn': '{n} хід', '{n} turns': '{n} ходів', '{n} turns#few': '{n} ходи', '{n} turns#many': '{n} ходів',
   '{n} warning': '{n} попередження', '{n} warnings': '{n} попереджень', '{n} warnings#few': '{n} попередження', '{n} warnings#many': '{n} попереджень',
+  'Save changes to {name}?': 'Зберегти зміни в {name}?', 'Apply to All': 'Застосувати до всіх', 'Your changes will be lost if you don’t save them.': 'Якщо не зберегти зміни, їх буде втрачено.',
+  'unit': 'одиниця', 'Agent sessions': 'Сеанси агентів', 'Language intelligence': 'Мовні функції', 'Source control': 'Керування версіями', 'Tools and blocks': 'Інструменти та блоки',
+  'interactive': 'інтерактивний', 'personal': 'особиста', 'outside .formsubstrate': 'поза .formsubstrate',
+  'run records and agent logs are never imported': 'записи запусків і журнали агентів ніколи не імпортуються',
+  'plugins run code: trust this workspace first': 'плагіни виконують код: спершу позначте це робоче середовище як довірене', 'Timeout must be at least 10 seconds': 'Тайм-аут має бути не менше 10 секунд',
 };

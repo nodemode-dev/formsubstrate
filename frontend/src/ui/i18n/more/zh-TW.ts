@@ -190,4 +190,9 @@ export const zhTW: Record<string, string> = {
   '{n} results': '{n} 個結果', '{n} server of yours': '您的 {n} 個伺服器', '{n} servers of yours': '您的 {n} 個伺服器', '{n} tool': '{n} 個工具', '{n} tool call': '{n} 次工具呼叫',
   '{n} tool calls': '{n} 次工具呼叫', '{n} tools': '{n} 個工具', '{n} trigger on': '{n} 個觸發程序已開啟', '{n} triggers on': '{n} 個觸發程序已開啟', '{n} turn': '{n} 個輪次',
   '{n} turns': '{n} 個輪次', '{n} warning': '{n} 個警告', '{n} warnings': '{n} 個警告',
+  'Save changes to {name}?': '要儲存對 {name} 的變更嗎？', 'Apply to All': '全部套用', 'Your changes will be lost if you don’t save them.': '如果不儲存，您的變更將會遺失。',
+  'unit': '單元', 'Agent sessions': '代理程式工作階段', 'Language intelligence': '語言智慧', 'Source control': '原始檔控制', 'Tools and blocks': '工具和區塊',
+  'interactive': '互動式', 'personal': '個人', 'outside .formsubstrate': '在 .formsubstrate 之外',
+  'run records and agent logs are never imported': '執行記錄和代理程式記錄永遠不會匯入',
+  'plugins run code: trust this workspace first': '外掛程式會執行程式碼：請先信任此工作區', 'Timeout must be at least 10 seconds': '逾時必須至少為 10 秒',
 };

@@ -190,4 +190,9 @@ export const ja: Record<string, string> = {
   '{n} results': '{n} 件の結果', '{n} server of yours': 'ご自身のサーバー {n} 個', '{n} servers of yours': 'ご自身のサーバー {n} 個', '{n} tool': '{n} 個のツール', '{n} tool call': '{n} 回のツール呼び出し',
   '{n} tool calls': '{n} 回のツール呼び出し', '{n} tools': '{n} 個のツール', '{n} trigger on': '{n} 個のトリガーが有効', '{n} triggers on': '{n} 個のトリガーが有効', '{n} turn': '{n} ターン',
   '{n} turns': '{n} ターン', '{n} warning': '{n} 件の警告', '{n} warnings': '{n} 件の警告',
+  'Save changes to {name}?': '{name} への変更を保存しますか?', 'Apply to All': 'すべてに適用', 'Your changes will be lost if you don’t save them.': '保存しないと、変更は失われます。',
+  'unit': 'ユニット', 'Agent sessions': 'エージェント セッション', 'Language intelligence': '言語インテリジェンス', 'Source control': 'ソース管理', 'Tools and blocks': 'ツールとブロック',
+  'interactive': '対話型', 'personal': '個人', 'outside .formsubstrate': '.formsubstrate の外',
+  'run records and agent logs are never imported': '実行記録とエージェントのログはインポートされません',
+  'plugins run code: trust this workspace first': 'プラグインはコードを実行します: 先にこのワークスペースを信頼してください', 'Timeout must be at least 10 seconds': 'タイムアウトは 10 秒以上にしてください',
 };

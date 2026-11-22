@@ -204,4 +204,9 @@ export const ru: Record<string, string> = {
   '{n} trigger on': '{n} триггер включён', '{n} triggers on': '{n} триггера включено', '{n} triggers on#few': '{n} триггера включены', '{n} triggers on#many': '{n} триггеров включено',
   '{n} turn': '{n} ход', '{n} turns': '{n} хода', '{n} turns#few': '{n} хода', '{n} turns#many': '{n} ходов',
   '{n} warning': '{n} предупреждение', '{n} warnings': '{n} предупреждения', '{n} warnings#few': '{n} предупреждения', '{n} warnings#many': '{n} предупреждений',
+  'Save changes to {name}?': 'Сохранить изменения в {name}?', 'Apply to All': 'Применить ко всем', 'Your changes will be lost if you don’t save them.': 'Если не сохранить изменения, они будут потеряны.',
+  'unit': 'единица', 'Agent sessions': 'Сеансы агентов', 'Language intelligence': 'Языковые функции', 'Source control': 'Система управления версиями', 'Tools and blocks': 'Инструменты и блоки',
+  'interactive': 'интерактивный', 'personal': 'личный', 'outside .formsubstrate': 'вне .formsubstrate',
+  'run records and agent logs are never imported': 'записи запусков и журналы агентов никогда не импортируются',
+  'plugins run code: trust this workspace first': 'плагины выполняют код: сначала отметьте эту рабочую среду как доверенную', 'Timeout must be at least 10 seconds': 'Тайм-аут должен быть не меньше 10 секунд',
 };

@@ -190,4 +190,9 @@ export const hu: Record<string, string> = {
   '{n} results': '{n} találat', '{n} server of yours': '{n} saját kiszolgáló', '{n} servers of yours': '{n} saját kiszolgáló', '{n} tool': '{n} eszköz', '{n} tool call': '{n} eszközhívás',
   '{n} tool calls': '{n} eszközhívás', '{n} tools': '{n} eszköz', '{n} trigger on': '{n} aktív eseményindító', '{n} triggers on': '{n} aktív eseményindító', '{n} turn': '{n} kör',
   '{n} turns': '{n} kör', '{n} warning': '{n} figyelmeztetés', '{n} warnings': '{n} figyelmeztetés',
+  'Save changes to {name}?': 'Menti a(z) {name} módosításait?', 'Apply to All': 'Alkalmazás mindegyikre', 'Your changes will be lost if you don’t save them.': 'A módosítások elvesznek, ha nem menti őket.',
+  'unit': 'egység', 'Agent sessions': 'Ügynök-munkamenetek', 'Language intelligence': 'Nyelvi funkciók', 'Source control': 'Verziókezelés', 'Tools and blocks': 'Eszközök és blokkok',
+  'interactive': 'interaktív', 'personal': 'személyes', 'outside .formsubstrate': 'a .formsubstrate mappán kívül',
+  'run records and agent logs are never imported': 'a futtatási adatok és az ügynöknaplók soha nem kerülnek importálásra',
+  'plugins run code: trust this workspace first': 'a beépülő modulok kódot futtatnak: előbb jelölje megbízhatónak ezt a munkaterületet', 'Timeout must be at least 10 seconds': 'Az időkorlátnak legalább 10 másodpercnek kell lennie',
 };

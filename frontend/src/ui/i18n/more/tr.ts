@@ -190,4 +190,9 @@ export const tr: Record<string, string> = {
   '{n} results': '{n} sonuç', '{n} server of yours': '{n} sunucunuz', '{n} servers of yours': '{n} sunucunuz', '{n} tool': '{n} araç', '{n} tool call': '{n} araç çağrısı',
   '{n} tool calls': '{n} araç çağrısı', '{n} tools': '{n} araç', '{n} trigger on': '{n} tetikleyici etkin', '{n} triggers on': '{n} tetikleyici etkin', '{n} turn': '{n} tur',
   '{n} turns': '{n} tur', '{n} warning': '{n} uyarı', '{n} warnings': '{n} uyarı',
+  'Save changes to {name}?': '{name} dosyasındaki değişiklikler kaydedilsin mi?', 'Apply to All': 'Tümüne uygula', 'Your changes will be lost if you don’t save them.': 'Kaydetmezseniz değişiklikleriniz kaybolacak.',
+  'unit': 'birim', 'Agent sessions': 'Ajan oturumları', 'Language intelligence': 'Dil özellikleri', 'Source control': 'Kaynak denetimi', 'Tools and blocks': 'Araçlar ve bloklar',
+  'interactive': 'etkileşimli', 'personal': 'kişisel', 'outside .formsubstrate': '.formsubstrate dışında',
+  'run records and agent logs are never imported': 'çalıştırma kayıtları ve ajan günlükleri hiçbir zaman içe aktarılmaz',
+  'plugins run code: trust this workspace first': 'eklentiler kod çalıştırır: önce bu çalışma alanına güvenin', 'Timeout must be at least 10 seconds': 'Zaman aşımı en az 10 saniye olmalıdır',
 };

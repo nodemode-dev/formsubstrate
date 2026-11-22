@@ -191,4 +191,9 @@ export const fi: Record<string, string> = {
   '{n} results': '{n} tulosta', '{n} server of yours': '{n} oma palvelin', '{n} servers of yours': '{n} omaa palvelinta', '{n} tool': '{n} työkalu', '{n} tool call': '{n} työkalukutsu',
   '{n} tool calls': '{n} työkalukutsua', '{n} tools': '{n} työkalua', '{n} trigger on': '{n} laukaisin käytössä', '{n} triggers on': '{n} laukaisinta käytössä', '{n} turn': '{n} vuoro',
   '{n} turns': '{n} vuoroa', '{n} warning': '{n} varoitus', '{n} warnings': '{n} varoitusta',
+  'Save changes to {name}?': 'Tallennetaanko kohteen {name} muutokset?', 'Apply to All': 'Käytä kaikkiin', 'Your changes will be lost if you don’t save them.': 'Muutokset menetetään, jos et tallenna niitä.',
+  'unit': 'yksikkö', 'Agent sessions': 'Agenttiistunnot', 'Language intelligence': 'Kielituki', 'Source control': 'Lähdekoodin hallinta', 'Tools and blocks': 'Työkalut ja lohkot',
+  'interactive': 'vuorovaikutteinen', 'personal': 'henkilökohtainen', 'outside .formsubstrate': '.formsubstrate-kansion ulkopuolella',
+  'run records and agent logs are never imported': 'ajotietoja ja agenttilokeja ei koskaan tuoda',
+  'plugins run code: trust this workspace first': 'lisäosat suorittavat koodia: luota ensin tähän työtilaan', 'Timeout must be at least 10 seconds': 'Aikakatkaisun on oltava vähintään 10 sekuntia',
 };

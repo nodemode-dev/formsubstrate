@@ -223,7 +223,7 @@ export class NodeInspector {
       const value = this.read(c);
       if (this.initial.get(c.field.id) === value) continue;
       const bad = c.field.set(cfg, value);
-      if (bad) { toast(t(bad), 'error'); return; }
+      if (bad) { toast(bad, 'error'); return; }
     }
     this.deps.engine.dispatch({ type: 'update_node_config', id: node.id, config: cfg }, 'canvas');
     this.show(node.id);

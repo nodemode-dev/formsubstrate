@@ -32,7 +32,7 @@ export const zhCN: Record<string, string> = {
   'Search the text of every file in the workspace.': '搜索工作区中所有文件的文本。', 'Search tools': '搜索工具', 'Searching': '正在搜索',
   'See all': '查看全部', 'Select All Occurrences': '选择所有匹配项', 'Select a channel first.': '请先选择一个频道。', 'Select a channel.': '请选择一个频道。',
   'Select a node on the canvas to see what it did in a run and to set how it runs.': '在画布上选择一个节点，即可查看它在运行中做了什么，并设置它的运行方式。',
-  'Select a node or an edge to edit it.': '选择一个节点或一条边进行编辑。', 'Selection': '选区',
+  'Select a node or an edge to edit it.': '选择一个节点或一条边进行编辑。', 'Selection': '选择',
   'Semantic HTML snippets for the editor cursor, and the block registry the Studio palette reads.': '用于编辑器光标处的语义化 HTML 代码片段，以及 Studio 面板读取的块注册表。',
   'Send a POST with three headers: X-FormSubstrate-Timestamp (unix seconds, within five minutes), X-FormSubstrate-Nonce (a fresh random string of 8 to 64 letters, digits, dashes or underscores, never reused) and X-FormSubstrate-Signature, which is sha256= and the HMAC-SHA256 of timestamp, a dot, the nonce, a dot and the raw body, keyed with the secret. A stale, repeated or unsigned request does not fire the trigger.': '发送带有三个请求头的 POST：X-FormSubstrate-Timestamp（Unix 秒数，五分钟以内）、X-FormSubstrate-Nonce（由 8 到 64 个字母、数字、连字符或下划线组成的全新随机字符串，不得重复使用）和 X-FormSubstrate-Signature，其值为 sha256= 加上以机密为密钥、对时间戳、一个点、nonce、一个点和原始请求体计算出的 HMAC-SHA256。过期、重复或未签名的请求不会触发触发器。',
   'Send comment': '发送评论', 'Sent to the session terminal.': '已发送到会话终端。', 'Sent to the session: a follow-up run started.': '已发送到会话：后续运行已开始。',
@@ -190,4 +190,9 @@ export const zhCN: Record<string, string> = {
   '{n} results': '{n} 个结果', '{n} server of yours': '你的 {n} 个服务器', '{n} servers of yours': '你的 {n} 个服务器', '{n} tool': '{n} 个工具', '{n} tool call': '{n} 次工具调用',
   '{n} tool calls': '{n} 次工具调用', '{n} tools': '{n} 个工具', '{n} trigger on': '{n} 个触发器已开启', '{n} triggers on': '{n} 个触发器已开启', '{n} turn': '{n} 个轮次',
   '{n} turns': '{n} 个轮次', '{n} warning': '{n} 个警告', '{n} warnings': '{n} 个警告',
+  'Save changes to {name}?': '要存储对 {name} 的更改吗？', 'Apply to All': '全部应用', 'Your changes will be lost if you don’t save them.': '如果不存储，你的更改将会丢失。',
+  'unit': '单元', 'Agent sessions': '智能体会话', 'Language intelligence': '语言智能', 'Source control': '源代码管理', 'Tools and blocks': '工具和块',
+  'interactive': '交互式', 'personal': '个人', 'outside .formsubstrate': '在 .formsubstrate 之外',
+  'run records and agent logs are never imported': '运行记录和智能体日志永远不会导入',
+  'plugins run code: trust this workspace first': '插件会运行代码：请先信任此工作区', 'Timeout must be at least 10 seconds': '超时必须至少为 10 秒',
 };
