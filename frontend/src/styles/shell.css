@@ -155,7 +155,7 @@ body.large-tabs .cv-tab-name { font-size: var(--fs-14); }
 .cv-st-bar > i { position: absolute; inset: 0 auto 0 0; width: var(--p, 0%); background: var(--accent-color); transition: width 120ms linear; }
 .cv-st-steps { min-width: 84px; font-variant-numeric: tabular-nums; }
 .cv-st-engine { flex: 0 1 150px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cv-st-branch { flex: 0 1 120px; min-width: 0; display: inline-flex; align-items: center; gap: var(--space-1); overflow: hidden; white-space: nowrap; }
+.cv-st-branch { flex: 0 1 120px; min-width: 0; display: inline-flex; align-items: center; gap: var(--space-1); overflow: hidden; white-space: nowrap; cursor: pointer; }
 .cv-st-branch-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .cv-st-ws { flex: 0 1 140px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cv-st-problems { flex: 0 0 auto; min-width: var(--size-btn-min); white-space: nowrap; }

@@ -6,6 +6,7 @@ import { onLanguage, t } from '../../ui/i18n';
 import { icon } from '../../ui/icons';
 import { FOCUS_EVENT } from '../../ui/workbench';
 import { lazyPanel, register, type ExtensionContext, type Shell, type SidebarSection } from '../registry';
+import { GitRefs, REFS_HTML } from './refs';
 
 export const GIT_CHANGED = 'formsubstrate:git-changed';
 export const OPEN_DIFF = 'formsubstrate:open-diff';
@@ -85,6 +86,8 @@ class GitPanel {
   private readonly flagFix: HTMLButtonElement;
   private readonly identCard: HTMLElement;
   private readonly flaggedNote: HTMLElement;
+  private readonly branchBtn: HTMLButtonElement;
+  private readonly refs: GitRefs;
   private identSource: string | null = null;
   private flaggedKnown = false;
   private session: string | null = null;
@@ -121,8 +124,9 @@ class GitPanel {
 </div>
 </div></div>
 <div class="cv-sc-snaps"><div class="cv-sc-snaps-bar"><span class="cv-sc-snaps-t"></span><span class="cv-sc-snaps-n"></span><button class="cv-wb-tool cv-sc-take" type="button">${icon('add', 14)}</button></div><div class="cv-sc-snaplist" role="list"></div><p class="cv-sc-snaps-empty cv-note"></p></div>
+${REFS_HTML}
 <div class="cv-sc-foot">
-<div class="cv-sc-meta">${icon('branch', 12)}<span class="cv-sc-branch"></span><span class="cv-sc-flagged"></span><span class="cv-sc-ahead"></span></div>
+<div class="cv-sc-meta"><button class="cv-sc-branchbtn" type="button" aria-haspopup="menu">${icon('branch', 12)}<span class="cv-sc-branch"></span>${icon('chevronDown', 12)}</button><span class="cv-sc-flagged"></span><span class="cv-sc-ahead"></span></div>
 <div class="cv-sc-pushes"><button class="cv-btn cv-sc-push" type="button" data-act="push">${icon('upload', 14)}<span class="cv-sc-bt"></span></button><button class="cv-btn cv-sc-sign-push" type="button" data-act="sign-push">${icon('lock', 14)}<span class="cv-sc-bt"></span></button></div>
 </div>
 </div>`);
@@ -150,6 +154,18 @@ class GitPanel {
     this.flagFix = q<HTMLButtonElement>(host, '.cv-sc-flag-fix');
     this.identCard = q(host, '.cv-sc-identcard');
     this.flaggedNote = q(host, '.cv-sc-flagged');
+    this.branchBtn = q<HTMLButtonElement>(host, '.cv-sc-branchbtn');
+    this.refs = new GitRefs(host, {
+      session: () => this.session,
+      status: () => this.status,
+      busy: () => this.busy,
+      run: (job) => this.run(job),
+      say: (text, bad) => this.say(text, bad),
+      applied: (s) => this.apply(s),
+      changed: () => this.fire(),
+      schedule: () => this.schedule(),
+    });
+    this.branchBtn.addEventListener('click', () => this.openBranchMenu(this.branchBtn.getBoundingClientRect()));
     q(host, '.cv-sc-ident-set').addEventListener('click', () => { document.dispatchEvent(new CustomEvent('formsubstrate:open-settings', { detail: { section: 'Git and Identity' } })); });
     document.addEventListener('formsubstrate:identity-changed', () => { void this.loadIdentity(); });
     void this.loadIdentity();
@@ -196,7 +212,7 @@ class GitPanel {
       const now = ctx.store.workspace?.path ?? null;
       if (now === root) { this.schedule(); return; }
       root = now;
-      this.status = null; this.snaps = []; this.flagged = []; this.done = null; this.schedule(); void this.refresh();
+      this.status = null; this.snaps = []; this.flagged = []; this.done = null; this.refs.reset(); this.schedule(); void this.refresh();
     });
     new IntersectionObserver((records) => { if (records.some((r) => r.isIntersecting)) void this.refresh(); }).observe(host);
     window.setInterval(() => { if (this.visible() && document.hasFocus() && !document.hidden) void this.refresh(); }, POLL_MS);
@@ -208,6 +224,13 @@ class GitPanel {
   private visible(): boolean { return this.host.getClientRects().length > 0; }
 
   focusMessage(): void { this.msg.focus(); }
+
+  openBranchMenu(at?: DOMRect): void {
+    const r = at ?? this.branchBtn.getBoundingClientRect();
+    this.refs.openMenu(r.left, r.top > window.innerHeight / 2 ? r.top : r.bottom);
+  }
+
+  get gitRefs(): GitRefs { return this.refs; }
 
   get hasMessage(): boolean { return this.msg.value.trim().length > 0; }
 
@@ -230,6 +253,7 @@ class GitPanel {
     this.done = null;
     this.problem = '';
     this.checkText = '';
+    this.refs.reset();
     this.paint();
     void this.refresh();
   }
@@ -248,8 +272,9 @@ class GitPanel {
     this.inflight = true;
     const target = this.session;
     try {
-      const [status, snaps, flagged] = await Promise.all([git.status(target), git.snapshots(target).catch(() => null), target ? git.audit(target).catch(() => null) : Promise.resolve([] as FlaggedCommit[])]);
+      const [status, snaps, flagged, refs] = await Promise.all([git.status(target), git.snapshots(target).catch(() => null), target ? git.audit(target).catch(() => null) : Promise.resolve([] as FlaggedCommit[]), this.refs.read(target)]);
       if (target !== this.session) return;
+      this.refs.take(refs);
       this.status = status;
       if (snaps) this.snaps = snaps;
       if (flagged) { this.flagged = flagged; this.flaggedKnown = !!target; }
@@ -307,6 +332,7 @@ class GitPanel {
     setClass(this.empty, 'is-error', !!this.problem && !st);
     this.paintBar();
     this.paintSnaps();
+    this.refs.paint();
     this.paintFoot();
   }
 
@@ -389,6 +415,9 @@ class GitPanel {
   private paintFoot(): void {
     const st = this.status;
     setText(this.branch, st ? st.branch ?? t('detached HEAD') : '');
+    setTitle(this.branchBtn, t('Branches, fetch, pull, stash and tags'));
+    if (this.branchBtn.getAttribute('aria-label') !== t('Branch menu')) this.branchBtn.setAttribute('aria-label', t('Branch menu'));
+    setDisabled(this.branchBtn, !st);
     const known = this.flaggedKnown && !!this.session;
     setText(this.flaggedNote, known ? (this.flagged.length === 0 ? t('no flagged commits') : `${this.flagged.length} ${t('flagged')}`) : '');
     setTitle(this.flaggedNote, known ? t('Only agent commits with a trailer or another identity are flagged. Other commits in the session are not listed here.') : '');
@@ -709,6 +738,31 @@ register({
       { id: 'git-snapshot', label: 'Take Snapshot', enabled: ws, run: () => { section?.reveal(); void panel?.snapshot(); } },
       { id: 'git-push', label: 'Push', enabled: ws, run: () => { section?.reveal(); void panel?.push(false); } },
       { id: 'git-sign-push', label: 'Sign and Push', enabled: ws, run: () => { section?.reveal(); void panel?.push(true); } },
+      { id: 'git-branch-menu', label: 'Switch Branch...', enabled: ws, run: () => withPanel((p) => p.openBranchMenu()) },
+      { id: 'git-branch-create', label: 'Create Branch...', enabled: ws, run: () => withPanel((p) => { void p.gitRefs.create(); }) },
+      { id: 'git-fetch', label: 'Fetch', enabled: ws, run: () => withPanel((p) => { void p.gitRefs.fetch(); }) },
+      { id: 'git-pull', label: 'Pull', enabled: ws, run: () => withPanel((p) => { void p.gitRefs.pull('ff-only'); }) },
+      { id: 'git-stash', label: 'Stash Changes...', enabled: ws, run: () => withPanel((p) => { void p.gitRefs.stash(); }) },
+      { id: 'git-tag', label: 'Create Tag...', enabled: ws, run: () => withPanel((p) => { void p.gitRefs.createTag(); }) },
     );
+    function withPanel(job: (p: GitPanel) => void, tries = 30): void {
+      section?.reveal();
+      if (panel) { job(panel); return; }
+      if (tries > 0) requestAnimationFrame(() => withPanel(job, tries - 1));
+    }
+    document.addEventListener('click', (e) => {
+      const item = e.target instanceof Element ? e.target.closest<HTMLElement>('.cv-st-branch') : null;
+      if (!item || !ctx.store.workspace) return;
+      const at = item.getBoundingClientRect();
+      withPanel((p) => p.openBranchMenu(at));
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const item = e.target instanceof Element ? e.target.closest<HTMLElement>('.cv-st-branch') : null;
+      if (!item || !ctx.store.workspace) return;
+      e.preventDefault();
+      const at = item.getBoundingClientRect();
+      withPanel((p) => p.openBranchMenu(at));
+    });
   },
 });

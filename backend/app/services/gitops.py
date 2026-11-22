@@ -1201,3 +1201,404 @@ async def sign_and_push(t: Target, remote: object, branch: object) -> dict:
         await restore()
         raise Refused(409, "not pushed, and the branch was put back as it was: " + _clip(_pub(err) or _pub(out) or "git push failed"), {"ok": False, "check": check, "output": ""})
     return {"ok": True, "check": check, "output": _combined(out, err)}
+
+
+TRACK_RE = re.compile(r"(ahead|behind) (\d+)")
+OVERWRITE_RE = re.compile(r"would be overwritten|untracked working tree files would be|already exists, no checkout", re.IGNORECASE)
+LIST_MAX = 500
+STASH_LABEL_MAX = 200
+PULL_MODES = ("ff-only", "merge")
+SESSION_SIDE = "a session's worktree stays on its own branch; {what} in the workspace target instead"
+
+
+def _no_session(t: Target, what: str) -> None:
+    if t.session is not None:
+        raise Refused(409, SESSION_SIDE.format(what=what))
+
+
+def _not_live(t: Target, what: str) -> None:
+    if t.item is not None and t.item.get("state") in LIVE_STATES:
+        raise Refused(409, f"the session is running; stop it before you {what}")
+
+
+async def _ref_name(t: Target, name: object, kind: str) -> str:
+    text = str(name or "").strip()
+    if not text or len(text) > 250 or not BRANCH_RE.match(text) or text.endswith("/") or text.endswith(".lock") or ".." in text or "//" in text:
+        raise Refused(400, f"bad {kind} name")
+    full = f"refs/heads/{text}" if kind == "branch" else f"refs/tags/{text}"
+    code, _, _ = await run(t.root, ["check-ref-format", full])
+    if code != 0:
+        raise Refused(400, f"bad {kind} name")
+    return text
+
+
+async def _commit_of(t: Target, ref: object) -> str:
+    text = str(ref or "").strip() or "HEAD"
+    if text.startswith("-") or "\0" in text or CONTROL_RE.search(text) or len(text) > 250:
+        raise Refused(400, "bad ref")
+    code, out, _ = await run(t.root, ["rev-parse", "--verify", "--quiet", "--end-of-options", f"{text}^{{commit}}"])
+    if code != 0 or not out.strip():
+        raise Refused(404, f"{text} does not name a commit")
+    return out.strip()
+
+
+async def _has_ref(t: Target, full: str) -> bool:
+    code, _, _ = await run(t.root, ["rev-parse", "--verify", "--quiet", full])
+    return code == 0
+
+
+async def _branch_or_none(t: Target) -> str | None:
+    code, out, _ = await run(t.root, ["symbolic-ref", "--short", "-q", "HEAD"])
+    return out.strip() if code == 0 and out.strip() else None
+
+
+async def _remote_names(t: Target) -> list[str]:
+    code, out, _ = await run(t.root, ["remote"])
+    return [line.strip() for line in out.split("\n") if line.strip()] if code == 0 else []
+
+
+async def _remote_name(t: Target, remote: object) -> str:
+    name = str(remote or "origin")
+    if not REMOTE_RE.match(name):
+        raise Refused(400, "bad remote name")
+    if name not in await _remote_names(t):
+        raise Refused(400, f"{name} is not a remote of this repository")
+    return name
+
+
+def _session_branches() -> dict[str, dict]:
+    from app.services import sessions as sv
+
+    sv._load()
+    found: dict[str, dict] = {}
+    for item in sv._sessions.values():
+        sid = str(item.get("id") or "")
+        branch = item.get("branch")
+        if isinstance(branch, str) and branch:
+            found[branch] = item
+        if sid:
+            found.setdefault(f"sf/{sid}", item)
+    return found
+
+
+def _overwrite_files(text: str) -> list[str]:
+    return [line.strip() for line in text.split("\n") if line.startswith("\t") and line.strip()][:20]
+
+
+def _overwrite_refusal(what: str, err: str, out: str) -> Refused:
+    text = _pub(err) + "\n" + _pub(out)
+    files = _overwrite_files(text)
+    named = f": {', '.join(files[:5])}{' and more' if len(files) > 5 else ''}" if files else ""
+    return Refused(409, f"{what} would overwrite local changes{named}. Nothing was changed; commit your changes, or stash them and try again", {"overwrite": True, "files": files})
+
+
+def _track(text: str) -> tuple[int, int, bool]:
+    ahead = behind = 0
+    for word, count in TRACK_RE.findall(text):
+        if word == "ahead":
+            ahead = int(count)
+        else:
+            behind = int(count)
+    return ahead, behind, text.strip() == "gone"
+
+
+async def branches(t: Target) -> dict:
+    current = await _branch_or_none(t)
+    head = None
+    if await _has_head(t.root):
+        head = (await must(t.root, ["rev-parse", "HEAD"])).strip()
+    fmt = "%(refname)%00%(refname:short)%00%(objectname)%00%(upstream:short)%00%(upstream:track,nobracket)%00%(committerdate:iso-strict)%00%(contents:subject)%00%(worktreepath)"
+    out = await must(t.root, ["for-each-ref", "--sort=-committerdate", f"--format={fmt}", "refs/heads", "refs/remotes"])
+    owners = _session_branches()
+    local: list[dict] = []
+    remote: list[dict] = []
+    here = os.path.realpath(t.root)
+    for line in out.split("\n"):
+        if not line:
+            continue
+        f = (line.split("\0") + [""] * 8)[:8]
+        full, short, sha, upstream, track, date, subject, tree = f
+        if full.startswith("refs/heads/"):
+            name = full[len("refs/heads/"):]
+            ahead, behind, gone = _track(track)
+            owner = owners.get(name)
+            elsewhere = tree and os.path.realpath(tree) != here
+            local.append({"name": _pub(name), "sha": sha, "upstream": _pub(upstream) or None, "ahead": ahead, "behind": behind, "gone": gone, "current": name == current, "date": date, "subject": _pub(subject), "session": str(owner.get("id")) if owner else None, "worktree": _pub(tree) if elsewhere else None})
+        elif full.startswith("refs/remotes/"):
+            if full.endswith("/HEAD"):
+                continue
+            rest = full[len("refs/remotes/"):]
+            remote.append({"name": _pub(rest), "remote": _pub(rest.split("/", 1)[0]), "sha": sha, "date": date, "subject": _pub(subject)})
+    return {"root": t.root, "session": t.session, "current": current, "detached": current is None and head is not None, "head": head, "local": local[:LIST_MAX], "remote": remote[:LIST_MAX], "remotes": await _remote_names(t)}
+
+
+async def _switch_run(t: Target, args: list[str], what: str) -> None:
+    code, out, err = await run(t.root, args)
+    if code == 0:
+        return
+    if OVERWRITE_RE.search(err) or OVERWRITE_RE.search(out):
+        raise _overwrite_refusal(what, err, out)
+    raise Refused(409, _clip(_pub(err) or _pub(out) or "git switch failed"))
+
+
+async def branch_create(t: Target, name: object, start: object, switch: bool) -> dict:
+    if switch:
+        _no_session(t, "create and switch to a branch")
+    branch = await _ref_name(t, name, "branch")
+    if await _has_ref(t, f"refs/heads/{branch}"):
+        raise Refused(409, f"a branch named {branch} already exists")
+    if not await _has_head(t.root) and not start:
+        raise Refused(409, "this repository has no commit yet; make a first commit before creating a branch")
+    point = await _commit_of(t, start)
+    from_text = str(start or "").strip()
+    base = from_text if from_text and await _has_ref(t, f"refs/remotes/{from_text}") else point
+    if switch:
+        await _switch_run(t, ["switch", "-c", branch, base], f"creating {branch} from {from_text or 'HEAD'}")
+    else:
+        await must(t.root, ["branch", branch, base])
+    return {"created": branch, "sha": point, "switched": bool(switch), "status": await status(t)}
+
+
+async def branch_switch(t: Target, name: object) -> dict:
+    _no_session(t, "switch branches")
+    text = str(name or "").strip()
+    if text and not await _has_ref(t, f"refs/heads/{text}") and await _has_ref(t, f"refs/remotes/{text}"):
+        remote, _, rest = text.partition("/")
+        if remote in await _remote_names(t) and rest:
+            local = await _ref_name(t, rest, "branch")
+            if await _has_ref(t, f"refs/heads/{local}"):
+                raise Refused(409, f"a local branch {local} already exists; switch to it instead")
+            await _switch_run(t, ["switch", "--track", f"{remote}/{local}"], f"switching to {local}")
+            return {"switched": local, "created": True, "status": await status(t)}
+    branch = await _ref_name(t, text, "branch")
+    if not await _has_ref(t, f"refs/heads/{branch}"):
+        raise Refused(404, f"there is no local branch named {branch}")
+    if branch == await _branch_or_none(t):
+        return {"switched": branch, "created": False, "status": await status(t)}
+    await _switch_run(t, ["switch", "--no-guess", branch], f"switching to {branch}")
+    return {"switched": branch, "created": False, "status": await status(t)}
+
+
+async def branch_delete(t: Target, name: object, force: bool) -> dict:
+    branch = await _ref_name(t, name, "branch")
+    if not await _has_ref(t, f"refs/heads/{branch}"):
+        raise Refused(404, f"there is no local branch named {branch}")
+    if branch == await _branch_or_none(t):
+        raise Refused(409, f"{branch} is the current branch; switch to another branch first")
+    owner = _session_branches().get(branch)
+    if owner is not None:
+        title = str(owner.get("title") or owner.get("id") or "")
+        raise Refused(409, f"{branch} belongs to the agent session {title}; delete the session to remove its branch")
+    sha = (await must(t.root, ["rev-parse", f"refs/heads/{branch}"])).strip()
+    code, out, err = await run(t.root, ["branch", "-D" if force else "-d", branch])
+    if code != 0:
+        text = _pub(err) or _pub(out)
+        if "not fully merged" in text:
+            raise Refused(409, f"{branch} is not fully merged; deleting it would drop commits that are on no other branch. Nothing was changed", {"unmerged": True})
+        raise Refused(409, _clip(text or "git branch failed"))
+    return {"deleted": branch, "sha": sha}
+
+
+async def fetch(t: Target, remote: object, prune: bool) -> dict:
+    names = await _remote_names(t)
+    if not names:
+        raise Refused(409, "this repository has no remote")
+    args = ["fetch"]
+    if prune:
+        args.append("--prune")
+    if remote:
+        args.append(await _remote_name(t, remote))
+    else:
+        args.append("--all")
+    code, out, err = await run(t.root, args, timeout=NET_TIMEOUT)
+    if code != 0:
+        raise Refused(409, _clip(_pub(err) or _pub(out) or "git fetch failed"))
+    return {"ok": True, "output": _combined(out, err), "status": await status(t)}
+
+
+async def pull(t: Target, mode: object) -> dict:
+    _no_session(t, "pull")
+    how = str(mode or "ff-only")
+    if how not in PULL_MODES:
+        raise Refused(400, "mode must be ff-only or merge")
+    branch = await _current_branch(t)
+    code, upstream, _ = await run(t.root, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", f"{branch}@{{upstream}}"])
+    upstream = upstream.strip()
+    if code != 0 or not upstream:
+        raise Refused(409, f"{branch} has no upstream branch; push it once to set one")
+    code, remote, _ = await run(t.root, ["config", "--get", f"branch.{branch}.remote"])
+    remote = remote.strip()
+    if code == 0 and remote and remote != ".":
+        name = await _remote_name(t, remote)
+        code, out, err = await run(t.root, ["fetch", name], timeout=NET_TIMEOUT)
+        if code != 0:
+            raise Refused(409, _clip(_pub(err) or _pub(out) or "git fetch failed"))
+    if not await _has_ref(t, f"{branch}@{{upstream}}"):
+        raise Refused(409, f"{upstream} was not found on the remote")
+    counts = (await must(t.root, ["rev-list", "--left-right", "--count", f"HEAD...{branch}@{{upstream}}"])).split()
+    ahead, behind = (int(counts[0]), int(counts[1])) if len(counts) == 2 else (0, 0)
+    if behind == 0:
+        return {"ok": True, "result": "up-to-date", "ahead": ahead, "behind": 0, "output": "", "status": await status(t)}
+    if ahead > 0 and how == "ff-only":
+        raise Refused(409, f"{branch} and {upstream} have diverged ({ahead} local and {behind} remote commits); nothing was changed. Pull with a merge, or rebase yourself", {"diverged": True, "ahead": ahead, "behind": behind})
+    if ahead == 0:
+        code, out, err = await run(t.root, ["merge", "--ff-only", "--no-stat", f"{branch}@{{upstream}}"])
+        if code != 0:
+            if OVERWRITE_RE.search(err) or OVERWRITE_RE.search(out):
+                raise _overwrite_refusal("pulling", err, out)
+            raise Refused(409, _clip(_pub(err) or _pub(out) or "git merge failed"))
+        return {"ok": True, "result": "fast-forward", "ahead": 0, "behind": behind, "output": _combined(out, err), "status": await status(t)}
+    code, dirty, _ = await run(t.root, ["status", "--porcelain", "--untracked-files=no"])
+    if code == 0 and dirty.strip():
+        raise Refused(409, "there are uncommitted changes to tracked files; commit or stash them before a merge pull, so an aborted merge cannot lose them", {"overwrite": True, "files": []})
+    ident = await _need_identity()
+    sign = bool(ident["sign"]) and bool(ident["signingKey"])
+    if ident["sign"] and not ident["signingKey"]:
+        raise Refused(409, "signing is on but no signing key is set; choose a .pub key in Preferences, Git and Identity")
+    args = ["merge", "--no-ff", "--no-edit", "--no-stat"]
+    if sign:
+        args.append("-S")
+    args.append(f"{branch}@{{upstream}}")
+    code, out, err = await run(t.root, args, configs=[*_ident_configs(ident, sign), f"commit.gpgsign={'true' if sign else 'false'}"], env=_ident_env(ident), timeout=NET_TIMEOUT)
+    if code != 0:
+        await run(t.root, ["merge", "--abort"])
+        raise Refused(409, f"the merge stopped and was aborted, nothing was changed: {_clip(_pub(out) or _pub(err) or 'git merge failed')}", {"diverged": True, "ahead": ahead, "behind": behind})
+    return {"ok": True, "result": "merged", "ahead": ahead, "behind": behind, "output": _combined(out, err), "status": await status(t)}
+
+
+async def stash_list(t: Target) -> list[dict]:
+    code, out, _ = await run(t.root, ["stash", "list", "--format=%gd%x00%H%x00%gs%x00%cI"])
+    if code != 0:
+        return []
+    found = []
+    for line in out.split("\n"):
+        if not line:
+            continue
+        ref, sha, subject, date = (line.split("\0") + ["", "", "", ""])[:4]
+        match = re.match(r"^stash@\{(\d+)\}$", ref)
+        if not match:
+            continue
+        label = subject
+        branch = None
+        head = re.match(r"^(?:WIP on|On) ([^:]+): ?(.*)$", subject)
+        if head:
+            branch, label = head.group(1), head.group(2)
+        found.append({"index": int(match.group(1)), "ref": ref, "sha": sha, "message": _pub(label), "branch": _pub(branch) if branch else None, "created": date})
+        if len(found) >= LIST_MAX:
+            break
+    return found
+
+
+async def _stash_ref(t: Target, index: object, sha: object) -> str:
+    if not isinstance(index, int) or isinstance(index, bool) or index < 0:
+        raise Refused(400, "index must be a stash number")
+    ref = f"stash@{{{index}}}"
+    code, out, _ = await run(t.root, ["rev-parse", "--verify", "--quiet", ref])
+    if code != 0 or (isinstance(sha, str) and sha and out.strip() != sha):
+        raise Refused(409, "the stash list changed; refresh it and try again")
+    return ref
+
+
+def _stash_ident(ident: dict) -> dict:
+    if ident["name"].strip() and ident["email"].strip():
+        return _ident_env(ident)
+    return dict(SNAP_IDENT)
+
+
+async def stash_push(t: Target, message: object, untracked: bool) -> dict:
+    _not_live(t, "stash its changes")
+    label = " ".join(CONTROL_RE.sub(" ", str(message or "")).split())[:STASH_LABEL_MAX]
+    st = await status(t)
+    if st["conflicted"]:
+        raise Refused(409, "resolve the conflicts first; a stash cannot hold a conflicted file")
+    tracked = [f for f in st["files"] if f["kind"] != "untracked"]
+    loose = [f for f in st["files"] if f["kind"] == "untracked"]
+    if not tracked and not (untracked and loose):
+        raise Refused(409, "only untracked files changed; include untracked files to stash them" if loose else "there are no local changes to stash")
+    if not await _has_head(t.root):
+        raise Refused(409, "this repository has no commit yet; a stash needs one")
+    args = ["stash", "push"]
+    if untracked:
+        args.append("--include-untracked")
+    if label:
+        args += ["-m", label]
+    ident = await identity_get()
+    code, out, err = await run(t.root, args, env=_stash_ident(ident))
+    if code != 0:
+        raise Refused(409, _clip(_pub(err) or _pub(out) or "git stash failed"))
+    stashes = await stash_list(t)
+    return {"stash": stashes[0] if stashes else None, "stashes": stashes, "status": await status(t)}
+
+
+async def stash_apply(t: Target, index: object, sha: object, pop: bool) -> dict:
+    _not_live(t, "apply a stash")
+    ref = await _stash_ref(t, index, sha)
+    exact = (await must(t.root, ["rev-parse", ref])).strip()
+    code, out, err = await run(t.root, ["stash", "apply", exact])
+    text = _pub(err) + "\n" + _pub(out)
+    conflicted = code != 0 and "CONFLICT" in text
+    if code != 0 and not conflicted:
+        if OVERWRITE_RE.search(text):
+            raise _overwrite_refusal("applying the stash", err, out)
+        raise Refused(409, _clip(text.strip() or "git stash apply failed"))
+    dropped = False
+    if pop and not conflicted:
+        ref = await _stash_ref(t, index, exact)
+        code, _, _ = await run(t.root, ["stash", "drop", "--quiet", ref])
+        dropped = code == 0
+    return {"applied": exact, "dropped": dropped, "conflicted": conflicted, "stashes": await stash_list(t), "status": await status(t)}
+
+
+async def stash_drop(t: Target, index: object, sha: object) -> dict:
+    ref = await _stash_ref(t, index, sha)
+    exact = (await must(t.root, ["rev-parse", ref])).strip()
+    await must(t.root, ["stash", "drop", "--quiet", ref])
+    return {"dropped": exact, "stashes": await stash_list(t)}
+
+
+async def tag_list(t: Target) -> list[dict]:
+    fmt = "%(refname:short)%00%(objecttype)%00%(*objectname)%00%(objectname)%00%(creatordate:iso-strict)%00%(contents:subject)"
+    code, out, _ = await run(t.root, ["for-each-ref", "--sort=-creatordate", f"--count={LIST_MAX}", f"--format={fmt}", "refs/tags"])
+    if code != 0:
+        return []
+    found = []
+    for line in out.split("\n"):
+        if not line:
+            continue
+        name, kind, peeled, sha, date, subject = (line.split("\0") + [""] * 6)[:6]
+        annotated = kind == "tag"
+        found.append({"name": _pub(name), "annotated": annotated, "target": peeled if annotated and peeled else sha, "date": date, "message": _pub(subject) if annotated else ""})
+    return found
+
+
+async def tag_create(t: Target, name: object, message: object, ref: object) -> dict:
+    tag = await _ref_name(t, name, "tag")
+    if await _has_ref(t, f"refs/tags/{tag}"):
+        raise Refused(409, f"a tag named {tag} already exists")
+    point = await _commit_of(t, ref)
+    text = message if isinstance(message, str) and message.strip() else ""
+    if not text:
+        await must(t.root, ["tag", tag, point], configs=["tag.gpgSign=false"])
+    else:
+        body = clean_message(text)
+        ident = await _need_identity()
+        sign = bool(ident["sign"]) and bool(ident["signingKey"])
+        if ident["sign"] and not ident["signingKey"]:
+            raise Refused(409, "signing is on but no signing key is set; choose a .pub key in Preferences, Git and Identity")
+        args = ["tag", "-s" if sign else "-a", "-F", "-", tag, point]
+        code, out, err = await run(t.root, args, configs=[*_ident_configs(ident, sign), f"tag.gpgSign={'true' if sign else 'false'}"], env=_ident_env(ident), stdin=body.encode("utf-8", "surrogateescape"), timeout=NET_TIMEOUT)
+        if code != 0:
+            raise Refused(409, _clip(_pub(err) or _pub(out) or "git tag failed"))
+    tags = await tag_list(t)
+    return {"tag": next((x for x in tags if x["name"] == tag), None), "tags": tags}
+
+
+async def tag_push(t: Target, name: object, remote: object) -> dict:
+    tag = await _ref_name(t, name, "tag")
+    if not await _has_ref(t, f"refs/tags/{tag}"):
+        raise Refused(404, f"there is no tag named {tag}")
+    where = await _remote_name(t, remote)
+    code, out, err = await run(t.root, ["push", "--no-force-with-lease", where, f"refs/tags/{tag}:refs/tags/{tag}"], timeout=NET_TIMEOUT)
+    if code != 0:
+        raise Refused(409, _clip(_pub(err) or _pub(out) or "git push failed"))
+    return {"ok": True, "output": _combined(out, err)}

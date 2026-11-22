@@ -15,8 +15,15 @@ export interface Identity { name: string; email: string; sign: boolean; signingK
 export interface Snapshot { n: number; ref: string; commit: string; label: string; created: string; files: number }
 export interface ReviewComment { id: string; path: string; line: number | null; hunk: string | null; text: string; created: string }
 
+export interface Branch { name: string; sha: string; upstream: string | null; ahead: number; behind: number; gone: boolean; current: boolean; date: string; subject: string; session: string | null; worktree: string | null }
+export interface RemoteBranch { name: string; remote: string; sha: string; date: string; subject: string }
+export interface Branches { root: string; session: string | null; current: string | null; detached: boolean; head: string | null; local: Branch[]; remote: RemoteBranch[]; remotes: string[] }
+export interface Stash { index: number; ref: string; sha: string; message: string; branch: string | null; created: string }
+export interface Tag { name: string; annotated: boolean; target: string; date: string; message: string }
+export interface GitRefusal { overwrite?: boolean; files?: string[]; unmerged?: boolean; diverged?: boolean; ahead?: number; behind?: number }
+
 export class GitError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(message: string, readonly status: number, readonly extra: GitRefusal = {}) {
     super(message);
     this.name = 'GitError';
   }
@@ -27,8 +34,9 @@ const PREFIX = /^(\d{3}) ([\s\S]*)$/;
 const asGitError = (err: unknown): GitError => {
   if (err instanceof GitError) return err;
   const text = err instanceof Error ? err.message : String(err);
+  const extra = err instanceof ApiError && err.body && typeof err.body === 'object' ? (err.body as GitRefusal) : {};
   const m = PREFIX.exec(text);
-  return m ? new GitError(m[2], Number(m[1])) : new GitError(text, 0);
+  return m ? new GitError(m[2], Number(m[1]), extra) : new GitError(text, 0, extra);
 };
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
@@ -134,5 +142,46 @@ export const git = {
   },
   signAndPush(opts: { session?: string | null; remote?: string; branch?: string } = {}): Promise<{ ok: boolean; check: string; output: string }> {
     return refusable('/api/git/sign-and-push', withSession({ remote: opts.remote ?? 'origin', ...(opts.branch ? { branch: opts.branch } : {}) }, opts.session));
+  },
+  branches(session?: string | null): Promise<Branches> {
+    return call<Branches>(`/api/git/branches${query({ session })}`);
+  },
+  createBranch(name: string, opts: { start?: string | null; switch?: boolean; session?: string | null } = {}): Promise<{ created: string; sha: string; switched: boolean; status: GitStatus }> {
+    return held('/api/git/branches', post(withSession({ name, start: opts.start || null, switch: opts.switch === true }, opts.session)));
+  },
+  switchBranch(name: string, session?: string | null): Promise<{ switched: string; created: boolean; status: GitStatus }> {
+    return held('/api/git/switch', post(withSession({ name }, session)));
+  },
+  deleteBranch(name: string, force: boolean, session?: string | null): Promise<{ deleted: string; sha: string }> {
+    return held('/api/git/branches/delete', post(withSession({ name, force }, session)));
+  },
+  fetch(opts: { remote?: string | null; prune?: boolean; session?: string | null } = {}): Promise<{ ok: boolean; output: string; status: GitStatus }> {
+    return held('/api/git/fetch', post(withSession({ remote: opts.remote || null, prune: opts.prune !== false }, opts.session)));
+  },
+  pull(mode: 'ff-only' | 'merge' = 'ff-only', session?: string | null): Promise<{ ok: boolean; result: 'up-to-date' | 'fast-forward' | 'merged'; ahead: number; behind: number; output: string; status: GitStatus }> {
+    return held('/api/git/pull', post(withSession({ mode }, session)));
+  },
+  async stashes(session?: string | null): Promise<Stash[]> {
+    const r = await call<{ stashes: Stash[] }>(`/api/git/stashes${query({ session })}`);
+    return r.stashes;
+  },
+  stash(message: string, untracked: boolean, session?: string | null): Promise<{ stash: Stash | null; stashes: Stash[]; status: GitStatus }> {
+    return held('/api/git/stashes', post(withSession({ message, untracked }, session)));
+  },
+  applyStash(s: Pick<Stash, 'index' | 'sha'>, pop: boolean, session?: string | null): Promise<{ applied: string; dropped: boolean; conflicted: boolean; stashes: Stash[]; status: GitStatus }> {
+    return held('/api/git/stashes/apply', post(withSession({ index: s.index, sha: s.sha, pop }, session)));
+  },
+  dropStash(s: Pick<Stash, 'index' | 'sha'>, session?: string | null): Promise<{ dropped: string; stashes: Stash[] }> {
+    return held('/api/git/stashes/drop', post(withSession({ index: s.index, sha: s.sha }, session)));
+  },
+  async tags(session?: string | null): Promise<Tag[]> {
+    const r = await call<{ tags: Tag[] }>(`/api/git/tags${query({ session })}`);
+    return r.tags;
+  },
+  createTag(name: string, message: string, opts: { ref?: string | null; session?: string | null } = {}): Promise<{ tag: Tag | null; tags: Tag[] }> {
+    return held('/api/git/tags', post(withSession({ name, message, ref: opts.ref || null }, opts.session)));
+  },
+  pushTag(name: string, remote: string, session?: string | null): Promise<{ ok: boolean; output: string }> {
+    return held('/api/git/tags/push', post(withSession({ name, remote }, session)));
   },
 };

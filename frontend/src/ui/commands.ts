@@ -3,6 +3,7 @@ import { isMac } from './dom';
 export interface Command {
   id: string;
   label: string | (() => string);
+  verbatim?: boolean;
   keys?: string[];
   icon?: string;
   run: (params?: Record<string, unknown>) => unknown;

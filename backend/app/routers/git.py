@@ -260,3 +260,132 @@ async def sign_and_push(body: PushBody):
         if err.extra:
             return JSONResponse(status_code=err.status, content={"detail": err.detail, **err.extra})
         raise _fail(err)
+
+
+class BranchBody(BaseModel):
+    session: str | None = None
+    name: str = ""
+    start: str | None = None
+    switch: bool = False
+    force: bool = False
+
+
+class FetchBody(BaseModel):
+    session: str | None = None
+    remote: str | None = None
+    prune: bool = True
+
+
+class PullBody(BaseModel):
+    session: str | None = None
+    mode: str = "ff-only"
+
+
+class StashBody(BaseModel):
+    session: str | None = None
+    message: str = Field(default="", max_length=TEXT_MAX)
+    untracked: bool = False
+
+
+class StashPickBody(BaseModel):
+    session: str | None = None
+    index: int = -1
+    sha: str = ""
+    pop: bool = False
+
+
+class TagBody(BaseModel):
+    session: str | None = None
+    name: str = ""
+    message: str = Field(default="", max_length=TEXT_MAX)
+    ref: str | None = None
+    remote: str = "origin"
+
+
+def _answer(err: gitops.Refused):
+    if err.extra:
+        return JSONResponse(status_code=err.status, content={"detail": err.detail, **err.extra})
+    raise _fail(err)
+
+
+async def _locked(session: str | None, job):
+    try:
+        t = await gitops.resolve_target(session)
+        async with gitops.lock_for(t):
+            return await job(t)
+    except gitops.Refused as err:
+        return _answer(err)
+
+
+@router.get("/git/branches")
+async def branches(session: str | None = None) -> dict:
+    try:
+        return await gitops.branches(await gitops.resolve_target(session))
+    except gitops.Refused as err:
+        raise _fail(err)
+
+
+@router.post("/git/branches", dependencies=OWNER)
+async def branch_create(body: BranchBody):
+    return await _locked(body.session, lambda t: gitops.branch_create(t, body.name, body.start, body.switch))
+
+
+@router.post("/git/switch", dependencies=OWNER)
+async def branch_switch(body: BranchBody):
+    return await _locked(body.session, lambda t: gitops.branch_switch(t, body.name))
+
+
+@router.post("/git/branches/delete", dependencies=OWNER)
+async def branch_delete(body: BranchBody):
+    return await _locked(body.session, lambda t: gitops.branch_delete(t, body.name, body.force))
+
+
+@router.post("/git/fetch", dependencies=OWNER)
+async def fetch(body: FetchBody):
+    return await _locked(body.session, lambda t: gitops.fetch(t, body.remote, body.prune))
+
+
+@router.post("/git/pull", dependencies=OWNER)
+async def pull(body: PullBody):
+    return await _locked(body.session, lambda t: gitops.pull(t, body.mode))
+
+
+@router.get("/git/stashes")
+async def stashes(session: str | None = None) -> dict:
+    try:
+        return {"stashes": await gitops.stash_list(await gitops.resolve_target(session))}
+    except gitops.Refused as err:
+        raise _fail(err)
+
+
+@router.post("/git/stashes", dependencies=OWNER)
+async def stash_push(body: StashBody):
+    return await _locked(body.session, lambda t: gitops.stash_push(t, body.message, body.untracked))
+
+
+@router.post("/git/stashes/apply", dependencies=OWNER)
+async def stash_apply(body: StashPickBody):
+    return await _locked(body.session, lambda t: gitops.stash_apply(t, body.index, body.sha, body.pop))
+
+
+@router.post("/git/stashes/drop", dependencies=OWNER)
+async def stash_drop(body: StashPickBody):
+    return await _locked(body.session, lambda t: gitops.stash_drop(t, body.index, body.sha))
+
+
+@router.get("/git/tags")
+async def tags(session: str | None = None) -> dict:
+    try:
+        return {"tags": await gitops.tag_list(await gitops.resolve_target(session))}
+    except gitops.Refused as err:
+        raise _fail(err)
+
+
+@router.post("/git/tags", dependencies=OWNER)
+async def tag_create(body: TagBody):
+    return await _locked(body.session, lambda t: gitops.tag_create(t, body.name, body.message, body.ref))
+
+
+@router.post("/git/tags/push", dependencies=OWNER)
+async def tag_push(body: TagBody):
+    return await _locked(body.session, lambda t: gitops.tag_push(t, body.name, body.remote))
