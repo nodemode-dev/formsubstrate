@@ -130,3 +130,11 @@ Logged here because this worker could not write the styles log. The side and rig
 - logged: v0.20.0 · 2026-11-22
 
 `revealApp` called `invoke('app_ready')` with nothing. It now reads the body's computed background and sends it as `bg` (three numbers, or null when it cannot be read), as FormDeck's page does, and the shell sets the main window's own background to it before showing the window. With a light theme the window behind the page was the dark default until the page covered it; now the two match from the first shown frame. `index.html` gains `<link rel="icon" type="image/png" href="/icon.png">`: the browser asked for `/favicon.ico` on every load and logged a 404. Type-checked; not seen in the desktop app.
+
+### frontend/src/ui/terminal-dock.ts, frontend/src/styles/terminal.css · a family exception: Substrate keeps its own terminal dock
+
+- refers-to: frontend/src/ui/terminal-dock.ts :: TerminalDock; frontend/src/styles/terminal.css; backend/app/routers/terminal.py; backend/formsubstrate_ptyhost.py
+- kind: warning-context
+- logged: v0.20.0 · 2026-11-22
+
+The family's shared terminal panel is FormVis's `frontend/src/dock/` (version 2.2.1, fifteen files whose SHA-256 values are in its `MANIFEST.json`), copied byte for byte with everything app-specific in an adapter. Substrate does not take it, by the owner's decision of 22 November (handoff question Q4): it keeps its own terminals and sessions, recorded as a family exception beside formAT's. The reason is what the dock would have to carry for an editor: terminals that outlive an engine restart through the pty-host (`formsubstrate_ptyhost.py`), a Claude Code tab per session bound to that session, and the gate cards (FormSlot's gate type) that hold an agent until the person answers. Substrate does take the family's finder for agent programs (`backend/app/services/agent_lookup.py` 1.0.1, unchanged; see `backend/app/core/HASHOUT_LOG.md`, v0.18.0), so its terminals and the dock find the same programs the same way. No file of `frontend/src/dock/` is in this repository, so there is nothing to keep in step with the manifest; if Substrate takes the dock later, the copy must match the manifest and this entry is closed. The dock's look (tokens, tab chips, the accent line) is still the family's: `terminal.css` reads only tokens.
