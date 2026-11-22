@@ -374,3 +374,21 @@ Names only. `productName` and the window titles are Substrate, the identifier is
 - logged: v0.17.1 · 2026-11-22
 
 Closes the double mapping. Tauri merges `tauri.macos.conf.json` over `tauri.conf.json` and then the `--config` JSON over both, each as a JSON merge patch (tauri-utils 2.10.2 `config/parse.rs` line 185, tauri-build 2.7.4 `lib.rs` lines 681 to 683), so object keys add up. On a Mac, `build_app` passed `{"<root>/src-tauri/engine": "engine"}` while the file held `{"engine": "engine"}`: the same folder under two spellings, both listed for `Resources/engine`, and with `FORMSUBSTRATE_ENGINE_OUT` set a second, stale folder was still required. The file also made tauri-build refuse a plain `cargo build` or `tauri dev` on a Mac without a frozen engine (`ResourcePathNotFound`), which the v0.10.0 entry above says the `--config` route exists to avoid. The file held nothing else, so it is removed and `build_app` is the one place that maps the engine, on every platform. A direct `tauri build` on a Mac now ships no engine, as on Linux and Windows; `build_app` is the release path (docs/RELEASE.md). formcompiler writes its own `tauri.macos.conf.json` before a build and creates it when it is missing. The debug shell still starts `../backend/formsubstrate_engine.py` with the venv's Python (`main.rs`), so `tauri dev` needs no engine folder. Read only: no Mac build ran here.
+
+### Cargo.toml, main.rs · single instance, the shell's process id, devtools in debug builds only
+
+- refers-to: Cargo.toml :: dependencies; src/main.rs :: SHELL_ENV, show_first_window, main
+- kind: rationale
+- logged: v0.18.0 · 2026-11-22
+
+- `tauri-plugin-single-instance` 2.5.5 (Apache-2.0 OR MIT, row in `NOTICE.md`) is registered first, as the plugin asks. A second launch ends in the plugin and the first instance brings its window forward: the main window, or the splash while the engine is still starting. Before this a second launch started a second engine, which refused the data folder, and the person saw "The Substrate engine failed to start".
+- The engine is started with `FORMSUBSTRATE_SHELL_PID` set to this process, so it can tell a leftover engine from a running app and can leave when the shell is gone (`backend/app/core/HASHOUT_LOG.md`, startup.py).
+- The `devtools` feature is removed from `tauri`. It kept the Web Inspector in release builds (the entry "Cargo.toml · devtools" above gives FormVis's reason). The window token lives in the page's memory, so an inspector in a shipped app lets anyone at the keyboard read it; Tauri still enables the inspector in debug builds without the feature.
+
+### freeze_backend.bat, main.rs · the engine has no console window on Windows
+
+- refers-to: setup/freeze_backend.bat :: pyinstaller line; src/main.rs :: engine_command
+- kind: warning-context
+- logged: v0.18.0 · 2026-11-22
+
+The Windows engine stays a console program. It is started through `tauri-plugin-shell`, whose 2.6.0 source sets `CREATE_NO_WINDOW` on every command it spawns (`src/process/mod.rs`, lines 228 and 406), so the engine gets a console with no window and the programs it starts (git, rg, the pty-host) inherit that console and show none either. FormVis and FormDeck freeze a windowless engine (`--noconsole`) instead; that was not taken, because a windowless parent gives each console child a new visible window unless every start passes its own flag, and this engine starts many. Read from source, not seen on Windows: the first Windows build is the check (`TEST_PLAN.md`).

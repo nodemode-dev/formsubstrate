@@ -82,3 +82,11 @@ When formslot is installed, a workspace is open and `workspaceCorpus` is null, t
 - logged: v0.13.0 · 2026-10-30
 
 The gate banner was repainted only inside the animation frame queued by `scheduleGates`, so for up to one frame after a `gates` event the banner could still show the previous gate id and a click in that window answered the wrong (already closed) gate. The `gates` handler now calls `paintGate` synchronously (it patches text, hidden flags and disabled state in place, so no node is rebuilt) and still queues `scheduleGates` for the tab badges; `answerGate` reads `this.gateId` set by that paint. The `sessions` event keeps the queued path because it only changes tab state.
+
+### frontend/src/ui/settings.ts, prefs.ts · "Check for updates at start" removed
+
+- refers-to: frontend/src/ui/settings.ts :: Settings (General, Updates); frontend/src/ui/prefs.ts
+- kind: removed-code
+- logged: v0.18.0 · 2026-11-22
+
+Preferences showed a switch "Check for updates at start" on General (group Startup) and again on Updates. It was stored under `formsubstrate.updateAtStart` in local storage and nothing read it: Substrate has no updater, and updates come through FormPortal (the owner's decision). Removed: the two `toggleRow` rows `updatesGeneral` and `updatesPanel`, the Startup group on General, their three lines in `sync`, and from `prefs.ts` the key `UPDATE_KEY`, `updateAtStart()` (`localStorage.getItem(UPDATE_KEY) !== '0'`) and `setUpdateAtStart(on)`. The Updates page keeps the version row and now says "Updates come through FormPortal." A stored `formsubstrate.updateAtStart` value is left where it is and never read.
