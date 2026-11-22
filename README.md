@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="version 0.18.1" src="https://img.shields.io/badge/version-0.18.1-eef0f4?style=flat-square">
+  <img alt="version 0.19.0" src="https://img.shields.io/badge/version-0.19.0-eef0f4?style=flat-square">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-7-3178c6?style=flat-square&logo=typescript&logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-engine-009688?style=flat-square">
   <img alt="Tauri 2" src="https://img.shields.io/badge/Tauri-2-2f7bf5?style=flat-square">

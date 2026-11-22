@@ -4,6 +4,18 @@ Versions follow `v*.*.*` with dots. Dates are US Eastern. The newest version is 
 
 The app was renamed Substrate (family name FormSubstrate, machine name `formsubstrate`) at 0.17.0. The entries below read with the new name throughout; the git history keeps the former one.
 
+## 0.19.0 · 2026-11-22
+
+Owner-only changes need the window's key, keys are handled without waking the keychain, and Substrate says what it sends over the network.
+
+- Starting, resuming, stopping and removing a session, every git change (stage, unstage, discard, commit, push, Sign and Push, rewind, snapshots, identity, review comments) and every workspace change (open folder, forget recent, write, new folder, rename, delete) now need the window's key. Before, another program on this computer that knew the engine's address could make them. Reading stays open to this computer.
+- Opening Welcome or Preferences no longer reads the keychain, so it raises no keychain prompt. Whether a key is saved comes from a small index that holds names only. The keychain is read when a key is used and written when you save or remove one.
+- On a computer with no system keychain, a saved key goes into a file in the data folder that only your user can read. Before, saving answered an error.
+- After an upgrade a key may show "Not checked yet" until it is first used, saved again or removed.
+- The README and the guide list what Substrate sends over the network and when. It collects no usage data.
+- The sample snippet draws its picture locally instead of loading one from the web.
+- Failures that were swallowed are now logged where they matter.
+
 ## 0.18.1 · 2026-11-22
 
 Release paperwork and checks for the first family build.
