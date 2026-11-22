@@ -29,6 +29,7 @@ case "$cmd" in
   frontend) exec setup/boot_frontend "$@" ;;
   serve) exec setup/serve "$@" ;;
   doctor) exec setup/doctor "$@" ;;
+  i18n) exec setup/i18n_check "$@" ;;
   mcp)
     py=backend/venv/bin/python
     [ -x "$py" ] || py="$(command -v python3 || command -v python)"

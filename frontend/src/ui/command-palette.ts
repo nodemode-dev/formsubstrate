@@ -32,7 +32,7 @@ export const PALETTE_CHORD = 'formsubstrate:palette-chord';
 
 export class CommandPalette extends Dialog {
   private readonly input = el<HTMLInputElement>('<input class="cv-input" type="search" placeholder="Search commands" aria-label="Search commands" spellcheck="false" autocomplete="off">');
-  private readonly list = el('<div class="cv-palette-list" role="listbox" aria-label="Commands"></div>');
+  private readonly list = el(`<div class="cv-palette-list" role="listbox" aria-label="${t('Commands')}"></div>`);
   private readonly empty = el('<p class="cv-note cv-palette-empty" hidden>No command matches.</p>');
   private hits: Hit[] = [];
   private selected = 0;

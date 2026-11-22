@@ -1,5 +1,6 @@
 import { el } from './dom';
 import { icon } from './icons';
+import { t } from './i18n';
 import { loadPrefs } from './prefs';
 
 const timers = new WeakMap<Element, number>();
@@ -125,7 +126,7 @@ export function toast(text: string, kind: 'info' | 'error' = 'info', opts: Notic
     stack(root);
     return () => leave(same);
   }
-  const node = el(`<div class="${cls}" role="status"><span class="cv-toast-text"></span><span class="cv-toast-actions"></span><button class="cv-toast-close" type="button" title="Dismiss" aria-label="Dismiss notice">${icon('close', 12)}</button></div>`);
+  const node = el(`<div class="${cls}" role="status"><span class="cv-toast-text"></span><span class="cv-toast-actions"></span><button class="cv-toast-close" type="button" title="${t('Dismiss')}" aria-label="${t('Dismiss notice')}">${icon('close', 12)}</button></div>`);
   node.dataset.text = text;
   if (key) node.dataset.key = key;
   node.firstElementChild!.textContent = text;

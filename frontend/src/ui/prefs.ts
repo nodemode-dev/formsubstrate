@@ -79,7 +79,7 @@ const flag = (v: unknown, d: boolean): boolean => (typeof v === 'boolean' ? v : 
 const plain = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const strings = (v: unknown, max: number, len: number): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && x.length > 0 && x.length <= len).slice(0, max) : []);
 
-const LANG_ALIASES: Record<string, Lang> = {};
+const LANG_ALIASES: Record<string, Lang> = { 'zh-hant': 'zh-TW', 'zh-hk': 'zh-TW', 'zh-mo': 'zh-TW', zh: 'zh-CN', pt: 'pt-BR', no: 'nb', nn: 'nb', sr: 'sr-Latn', 'es-419': 'es-MX', 'es-us': 'es-MX' };
 
 export function systemLang(): Lang {
   try {

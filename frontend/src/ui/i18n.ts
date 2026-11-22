@@ -4,7 +4,14 @@ import { LANG_NAMES, LANG_PARENT, RTL_LANGS, isLang as isLangCode, type Lang } f
 export type { Lang } from './i18n/langs';
 
 type Table = Record<string, string>;
-const LOADERS: Record<string, () => Promise<Table>> = {};
+type TableModule = Record<string, Table>;
+const PARTS = import.meta.glob<TableModule>(['./i18n/*.ts', './i18n/more/*.ts', './i18n/extra/*.ts', '!./i18n/langs.ts']);
+const exportName = (code: string): string => code.replace(/-([A-Za-z])/g, (_, c: string) => c.toUpperCase());
+const partOf = (code: string, dir: string): Promise<Table> => {
+  const loader = PARTS[`./i18n/${dir}${code}.ts`];
+  return loader ? loader().then((m) => m[exportName(code)] ?? {}) : Promise.resolve({});
+};
+const hasTable = (code: string): boolean => ['', 'more/', 'extra/'].some((dir) => `./i18n/${dir}${code}.ts` in PARTS);
 const tables = new Map<string, Table>([['en', {}]]);
 
 const saved: Lang = loadPrefs().language;
@@ -20,10 +27,9 @@ export const isLang = isLangCode;
 
 async function load(l: Lang): Promise<void> {
   for (const code of [LANG_PARENT[l], l]) {
-    if (!code || tables.has(code) || code === 'en') continue;
-    const loader = LOADERS[code];
-    if (!loader) continue;
-    tables.set(code, await loader());
+    if (!code || tables.has(code) || code === 'en' || !hasTable(code)) continue;
+    const [a, b, c] = await Promise.all([partOf(code, ''), partOf(code, 'more/'), partOf(code, 'extra/')]);
+    tables.set(code, { ...c, ...b, ...a });
   }
 }
 

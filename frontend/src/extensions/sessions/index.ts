@@ -248,7 +248,7 @@ class SessionsPanel {
       await sessionsClient.remove(s.id);
     } catch (err) {
       if (statusOf(err) !== 409) throw err;
-      if (!(await confirmAction('Uncommitted changes', `${detailOf(err)} ${t('Remove it anyway?')}`, 'Remove anyway', true))) return;
+      if (!(await confirmAction('Uncommitted changes', `${detailOf(err)} ${t('Remove it anyway?')}`, t('Remove anyway'), true))) return;
       await sessionsClient.remove(s.id, true);
     }
   }
