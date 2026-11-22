@@ -4,8 +4,8 @@
 
 ```text
 backend/
-  subform_engine.py      engine entry (uvicorn launcher, frozen-build friendly)
-  subform_ptyhost.py     separate PTY host process so terminals survive an engine restart; Screen (VT
+  formsubstrate_engine.py      engine entry (uvicorn launcher, frozen-build friendly)
+  formsubstrate_ptyhost.py     separate PTY host process so terminals survive an engine restart; Screen (VT
                                model), plain_text and Host.tail serve terminal_tail
   boot_backend, oc_install     venv and run scripts
   app/
@@ -21,7 +21,7 @@ backend/
                                gates.ensure_script writes to [data]/hooks/
     templates/                 common, python, rust: files the New Form app writes (bundled by
                                setup/freeze_backend as app/templates)
-  subform_mcp.py         stdio launcher behind ./subform mcp
+  formsubstrate_mcp.py         stdio launcher behind ./formsubstrate mcp
 frontend/
   index.html                   critical style and pre-paint theme boot
   public/                      splash.html and static files
@@ -38,7 +38,7 @@ src-tauri/                     Tauri 2 shell: main, close_guard, packaged, revea
 setup/                         install_all, boot_all, boot_backend, boot_frontend, serve, doctor, clean,
                                freeze_backend (PyInstaller engine folder), lib.sh
 build_app, build_app.bat       window, frozen engine and Tauri bundle in one run (see docs/RELEASE.md)
-subform                  root dispatcher (install, boot, backend, frontend, serve, doctor, mcp, clean, version)
+formsubstrate                  root dispatcher (install, boot, backend, frontend, serve, doctor, mcp, clean, version)
 ```
 
 ## Dependency direction
@@ -57,22 +57,22 @@ Window action, `io/[x].ts` request, router validates and translates, service doe
 | Item | Value |
 | --- | --- |
 | Window dev server | 5650 (preview 5651), `host: false`, strictPort |
-| Engine | 5655, 127.0.0.1 only; override `SUBFORM_PORT` |
-| Family block | 5650 to 5659 is subform's |
-| `SUBFORM_DATA_DIR` | data folder (registry, worktrees, identity, recent list, logs) |
-| `SUBFORM_DIST` | built window folder served at `/` |
-| `SUBFORM_CORS_ORIGINS` | replaces the default window origins |
-| `SUBFORM_BIN_DIR` | first place `find_bin` looks |
-| `SUBFORM_PORTABLE=1` | data beside the executable |
-| `SUBFORM_DESKTOP=1` | set by the Tauri shell |
-| `SUBFORM_WINDOW_TOKEN` | the window token, made by the Tauri shell and read once by the engine |
-| `SUBFORM_PORT` | engine port for the launcher and `serve` (the launcher falls back to `engine.port` in the data folder, then 5655) |
-| `SUBFORM_ENGINE`, `SUBFORM_SESSION`, `SUBFORM_WORKTREE`, `SUBFORM_REPO`, `SUBFORM_GATE_TOKEN` | given to an agent session by `gates.session_env`; the hook and the MCP launcher read them |
-| `SUBFORM_TERMINAL=1` | set in every terminal the engine starts |
-| `SUBFORM_PTYHOST_IDLE`, `SUBFORM_PTYHOST_REAP` | pty-host idle and reap seconds (defaults 600 and 300) |
+| Engine | 5655, 127.0.0.1 only; override `FORMSUBSTRATE_PORT` |
+| Family block | 5650 to 5659 is formsubstrate's |
+| `FORMSUBSTRATE_DATA_DIR` | data folder (registry, worktrees, identity, recent list, logs) |
+| `FORMSUBSTRATE_DIST` | built window folder served at `/` |
+| `FORMSUBSTRATE_CORS_ORIGINS` | replaces the default window origins |
+| `FORMSUBSTRATE_BIN_DIR` | first place `find_bin` looks |
+| `FORMSUBSTRATE_PORTABLE=1` | data beside the executable |
+| `FORMSUBSTRATE_DESKTOP=1` | set by the Tauri shell |
+| `FORMSUBSTRATE_WINDOW_TOKEN` | the window token, made by the Tauri shell and read once by the engine |
+| `FORMSUBSTRATE_PORT` | engine port for the launcher and `serve` (the launcher falls back to `engine.port` in the data folder, then 5655) |
+| `FORMSUBSTRATE_ENGINE`, `FORMSUBSTRATE_SESSION`, `FORMSUBSTRATE_WORKTREE`, `FORMSUBSTRATE_REPO`, `FORMSUBSTRATE_GATE_TOKEN` | given to an agent session by `gates.session_env`; the hook and the MCP launcher read them |
+| `FORMSUBSTRATE_TERMINAL=1` | set in every terminal the engine starts |
+| `FORMSUBSTRATE_PTYHOST_IDLE`, `FORMSUBSTRATE_PTYHOST_REAP` | pty-host idle and reap seconds (defaults 600 and 300) |
 | `FORMSLOT_BIN`, `FORMSLOT_DATA_DIR`, `FORMMCP_BIN` | external tool locations |
 
-There is no other prefix: every subform variable starts `SUBFORM_`, the window token header is `X-Subform-Window` and the session header `X-Subform-Session`.
+There is no other prefix: every formsubstrate variable starts `FORMSUBSTRATE_`, the window token header is `X-FormSubstrate-Window` and the session header `X-FormSubstrate-Session`.
 
 ## Phases
 

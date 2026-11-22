@@ -1,6 +1,6 @@
 ---
 name: rules-and-logs
-description: "Apply subform's repo rules: no source comments with HASHOUT_LOG routing, NOTICE.md rows for dependencies and ported code, no tests, no emoji or em dash, version format, commit identity with no trailers, hand-only edits. Use before writing or reviewing any change, and when adding a dependency, porting code or logging rationale."
+description: "Apply formsubstrate's repo rules: no source comments with HASHOUT_LOG routing, NOTICE.md rows for dependencies and ported code, no tests, no emoji or em dash, version format, commit identity with no trailers, hand-only edits. Use before writing or reviewing any change, and when adding a dependency, porting code or logging rationale."
 ---
 
 # rules-and-logs
@@ -21,7 +21,7 @@ Every new dependency, binary, font or data file gets a row in `NOTICE.md` before
 
 - No tests, test files, test scripts or test dependencies until the owner asks. Verification is by running the real thing.
 - No emoji anywhere. No U+2014 em dash in markdown; use a colon, a comma or the interpunct.
-- Versions are written vX.Y.Z. The current release is v0.13.0 (the README badge and status line, `backend/app/__init__.py`, `frontend/package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`). Do not bump versions in a build turn unless the brief owns it. The product is called subform, environment variables start `SUBFORM_`, and git remotes are `nodemode-dev/[repo]`; never write the earlier name.
+- Versions are written vX.Y.Z. The current release is v0.13.0 (the README badge and status line, `backend/app/__init__.py`, `frontend/package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`). Do not bump versions in a build turn unless the brief owns it. The product is called formsubstrate, environment variables start `FORMSUBSTRATE_`, and git remotes are `nodemode-dev/[repo]`; never write the earlier name.
 - Icons inline SVG with currentColor; never the three-star sparkle; strings through `t()`.
 - Repository licence is GPL-3.0-only, Copyright (C) 2026 NodeAgentc, Inc.
 

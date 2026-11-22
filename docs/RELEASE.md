@@ -7,7 +7,7 @@ This page is for the owner's Mac (and later a Windows machine). Nothing here is 
 1. `vite build` writes the window to `frontend/dist`.
 2. `setup/freeze_backend` freezes the engine with PyInstaller (6.22.3, one-folder, from `backend/requirements_build.txt`) into `src-tauri/engine/`. Six data folders go inside it (`--add-data` in `setup/freeze_backend` and its `.bat`): the window as `frontend_dist`, the New Form app templates and the Studio graph templates as `app/templates`, the graph presets as `presets/graphs`, the recipe presets as `app/services/recipes/presets`, the bundled plugins as `app/services/library/bundled` and the built-in skills as `skills`. Without them a packaged app cannot scaffold and its preset, plugin and skill lists are empty. `--selfcheck` prints a count for `graph_presets`, `graph_templates`, `recipe_presets`, `bundled_plugins` and `skills`, and fails when any group is missing. The gate hook script is a string constant in `app/services/gate_hook.py`, so it needs no data file.
 3. `tauri build` bundles that folder as the resource `engine` (`Contents/Resources/engine` on macOS) and compiles the shell. The shell finds it through `src-tauri/src/packaged.rs`.
-4. macOS: `SubForm.app` and a `.dmg` under `src-tauri/target/release/bundle/`. Linux: a `.deb` (set `SUBFORM_BUNDLES` for others). Windows: `build_app.bat`.
+4. macOS: `Substrate.app` and `formsubstrate-<version>-macos-<arch>.dmg` under `src-tauri/target/release/bundle/`. Linux: a `.deb` (set `FORMSUBSTRATE_BUNDLES` for others). Windows: `build_app.bat`.
 
 The resource entry is passed by `build_app` on the command line, not stored in `tauri.conf.json`, so a plain `cargo build` or `tauri dev` does not need a frozen engine. On macOS the same entry is also in `tauri.macos.conf.json`.
 
@@ -26,10 +26,10 @@ Without `APPLE_SIGNING_IDENTITY` the app is ad-hoc signed (`signingIdentity` `-`
 3. Store notary credentials once, using an app-specific password (appleid.apple.com, Sign-In and Security) or an App Store Connect API key:
 
    ```
-   xcrun notarytool store-credentials subform-notary --apple-id <apple id> --team-id <TEAMID>
+   xcrun notarytool store-credentials formsubstrate-notary --apple-id <apple id> --team-id <TEAMID>
    ```
 
-   It prompts for the password and keeps it in the keychain under the profile name `subform-notary`. Nothing is written to the repository.
+   It prompts for the password and keeps it in the keychain under the profile name `formsubstrate-notary`. Nothing is written to the repository.
 4. Xcode command line tools: `xcode-select --install`.
 
 ## Signing and notarizing, step by step
@@ -49,7 +49,7 @@ With the variable set:
 Then verify, and notarize the app by hand so the sequence is under your eye:
 
 ```
-APP=src-tauri/target/release/bundle/macos/SubForm.app
+APP=src-tauri/target/release/bundle/macos/Substrate.app
 codesign --verify --deep --strict --verbose=2 "$APP"
 codesign -dvv "$APP" 2>&1 | grep -E "Authority|flags|TeamIdentifier"
 ```
@@ -65,9 +65,9 @@ codesign --force --options runtime --timestamp --entitlements src-tauri/entitlem
 Submit and staple:
 
 ```
-ditto -c -k --keepParent "$APP" subform.zip
-xcrun notarytool submit subform.zip --keychain-profile subform-notary --wait
-xcrun notarytool log <submission id> --keychain-profile subform-notary
+ditto -c -k --keepParent "$APP" formsubstrate.zip
+xcrun notarytool submit formsubstrate.zip --keychain-profile formsubstrate-notary --wait
+xcrun notarytool log <submission id> --keychain-profile formsubstrate-notary
 xcrun stapler staple "$APP"
 xcrun stapler validate "$APP"
 spctl --assess --type execute --verbose "$APP"
@@ -76,9 +76,9 @@ spctl --assess --type execute --verbose "$APP"
 Rebuild the disk image from the stapled app (the last part of `build_app` does this with `hdiutil`; run it again, or repeat those lines by hand), then sign, notarize and staple the `.dmg` the same way:
 
 ```
-codesign --force --timestamp --sign "$APPLE_SIGNING_IDENTITY" subform_<version>_<arch>.dmg
-xcrun notarytool submit subform_<version>_<arch>.dmg --keychain-profile subform-notary --wait
-xcrun stapler staple subform_<version>_<arch>.dmg
+codesign --force --timestamp --sign "$APPLE_SIGNING_IDENTITY" formsubstrate-<version>-macos-<arch>.dmg
+xcrun notarytool submit formsubstrate-<version>-macos-<arch>.dmg --keychain-profile formsubstrate-notary --wait
+xcrun stapler staple formsubstrate-<version>-macos-<arch>.dmg
 ```
 
 Tauri can also notarize during `tauri build` when `APPLE_API_ISSUER`, `APPLE_API_KEY` and `APPLE_API_KEY_PATH` (App Store Connect API key) or `APPLE_ID`, `APPLE_PASSWORD` and `APPLE_TEAM_ID` are set in the environment. Use that only if you do not also re-sign by hand, because re-signing after notarization invalidates the ticket.
@@ -98,15 +98,15 @@ Apple's own pages were not readable when this was written, so the nested-signing
 
 - `./build_app` ran on the machine that signs, so the engine inside matches the host architecture. A universal build needs two frozen engines and is not set up.
 - Open the stapled app from the `.dmg` on a second Mac that has never seen the build, with the network off: Gatekeeper must accept the ticket without contacting Apple.
-- The app must reach the main window after the splash, and `Contents/Resources/engine/subform-engine --selfcheck` must print `"app": "ok"`.
+- The app must reach the main window after the splash, and `Contents/Resources/engine/formsubstrate-engine --selfcheck` must print `"app": "ok"`.
 
 ## Windows
 
-- Build on Windows with `build_app.bat` (Rust, Node and Python 3.13 installed). The frozen engine is `src-tauri/engine/subform-engine.exe`; the shell looks for an `engine` folder beside the executable.
+- Build on Windows with `build_app.bat` (Rust, Node and Python 3.13 installed). The frozen engine is `src-tauri/engine/formsubstrate-engine.exe`; the shell looks for an `engine` folder beside the executable.
 - Sign with an Authenticode certificate (an OV or EV code signing certificate from a CA, or Azure Trusted Signing). Keep the certificate in the Windows certificate store or in the signing service; set the thumbprint in the environment of the build, not in `tauri.conf.json` in the repository:
 
   ```
-  signtool sign /sha1 <thumbprint> /fd sha256 /tr http://timestamp.digicert.com /td sha256 subform.exe
+  signtool sign /sha1 <thumbprint> /fd sha256 /tr http://timestamp.digicert.com /td sha256 Substrate.exe
   ```
 
 - Sign the frozen engine's `.exe` and `.dll` files too, before bundling, so SmartScreen and antivirus tools see signed code throughout. Then sign the installer. An EV certificate builds SmartScreen reputation at once; an OV one builds it over time.
@@ -114,20 +114,23 @@ Apple's own pages were not readable when this was written, so the nested-signing
 
 ## Linux
 
-The `.deb` is unsigned. To publish through an apt repository sign the repository metadata with a GPG key that stays off the repository. `packaged.rs` already looks for the engine in `../lib/subform/engine` (the `.deb` layout, beside `../Resources/engine` and `engine`), so a `.deb` finds the frozen engine without further setup. An AppImage has not been built or checked.
+The `.deb` is unsigned. To publish through an apt repository sign the repository metadata with a GPG key that stays off the repository. `packaged.rs` already looks for the engine in `../lib/formsubstrate/engine` and `../lib/substrate/engine` (the `.deb` layout, which has not been built under the new name yet; beside `../Resources/engine` and `engine`), so a `.deb` finds the frozen engine without further setup. An AppImage has not been built or checked.
 
 ## Secrets rule
 
 No certificate, `.p8` key, app-specific password, keychain profile, thumbprint of a private certificate, or token goes in the repository, in `build_app.log` (which is ignored), in a commit message, or in a HASHOUT entry. `APPLE_SIGNING_IDENTITY` names a certificate; it is not a secret, but keep it in your shell, not in a script.
 
-## Upgrading from substrataform
+## Upgrading from SubForm
 
-The app was renamed from substrataform to subform and every name changed. The first start of the new build copies the old data across once; nothing old is moved or deleted, so the old install can be removed by hand later.
+From v0.17.0 the repository is FormSubstrate (`nodemode-dev/formsubstrate`), the application is Substrate (`Substrate.app`, bundle id `ai.nodemode.formsubstrate`) and every machine name is `formsubstrate`. The first start of the new build carries the old state across once; nothing old is deleted, so the old install (`SubForm.app`) can be removed by hand later.
 
-- Data folder: if the new folder does not exist and the old one does, your data (recent workspaces, identity, library, triggers, secrets index, Cogentics settings) is copied; sessions, worktrees and other runtime state are not. The old folder is `~/Substrataform`, the per-OS `substrataform` folder, or `SubstrataformData` in portable mode, and a marker `.migrated-from-substrataform.json` records where it came from. If both exist, nothing is copied and the engine log says the old one was left alone. `SUBFORM_DATA_DIR` is never migrated.
-- Keychain: each stored secret (API keys, Cogentics key, MCP server headers, webhook secrets) missing under service `subform` is copied from service `substrataform` once. The old entries stay. Plugin secrets must be entered again.
-- Environment: `SUBSTRATAFORM_*` names still work for this release as fallbacks (`SUBFORM_*` wins) and log a deprecation warning. Rename them before the next release.
-- Window: `substrataform.*` localStorage keys are copied to `subform.*` once, before first paint. On macOS the new bundle id gives the web view a new storage area, so these may be empty.
-- Desktop shell (macOS and Linux): window position and size are copied from the old bundle id's config folder when the new one is empty.
+- Data folder: if the new folder does not exist and the old one does, your data (recent workspaces, identity, library, triggers, secrets index, Cogentics settings) is copied; sessions, worktrees and other runtime state are not. The old folder is `~/Subform`, the per-OS `subform` folder, or `SubformData` in portable mode; the new one is `~/FormSubstrate`, the per-OS `formsubstrate` folder, or `FormSubstrateData`. A marker `.migrated-from-subform.json` records where it came from. If both exist, nothing is copied and the engine log says the old one was left alone. `FORMSUBSTRATE_DATA_DIR` is never migrated.
+- Keychain: each stored secret (API keys, Cogentics key, MCP server headers, webhook secrets) missing under service `formsubstrate` is copied from service `subform` once. The old entries stay. Plugin secrets must be entered again. On macOS the keychain may ask once whether the new app may read an old entry.
+- Environment: `SUBFORM_*` names still work for this release as fallbacks (`FORMSUBSTRATE_*` wins) and log a deprecation warning. Rename them before the next release.
+- Window: `subform.*` localStorage keys are copied to `formsubstrate.*` once, before first paint. On macOS the new bundle id gives the web view a new storage area, so in the desktop app these may be empty and the theme and preferences start from the defaults.
+- Desktop shell (macOS and Linux): window position and size are copied from the `ai.nodemode.subform` config folder when the new one is empty. Windows keeps no copy.
+- Workspaces: a workspace's `.subform` folder (graphs, recipes, skills, plugins, Cogentics ledgers) is renamed to `.formsubstrate` when the workspace is opened, if `.formsubstrate` does not exist yet. Snapshot refs under `refs/subform/snapshots/` move to `refs/formsubstrate/snapshots/` the first time their snapshot list is read.
+- Webhooks: senders may keep the `X-Subform-Signature`, `X-Subform-Timestamp` and `X-Subform-Nonce` headers for now; the new names are `X-FormSubstrate-*`.
+- Agent sessions: the session MCP server is now named `formsubstrate` (tools `mcp__formsubstrate__*`), and the gate variables are `FORMSUBSTRATE_*`. Sessions started by the old build keep the old names until they end.
 
 Settings that name absolute paths inside the old data folder are not rewritten.

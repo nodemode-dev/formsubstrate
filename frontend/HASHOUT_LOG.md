@@ -2243,3 +2243,11 @@ The run-visit select and every run-settings control had no accessible name: the 
 - logged: v0.16.0 · 2026-11-01
 
 Since xterm became a lazy chunk, a failed import rejected `showTab` silently and a missing view threw inside the animation frame. A failed load now shows the same "Could not start the terminal" toast as a failed start and returns, and the next show tries the import again; a tab with no view returns before the frame is scheduled.
+
+### frontend/index.html, src/ui/brand.ts · the window is Substrate; storage keys copied from subform.*
+
+- refers-to: frontend/index.html :: OLD_PREFIX, NEW_PREFIX, DONE; frontend/src/ui/brand.ts :: BRAND_NAME; frontend/src/app.ts :: APP; frontend/src/ui/tabs.ts :: APP; frontend/src/io/window-token.ts :: WINDOW_HEADER
+- kind: rationale
+- logged: v0.17.0 · 2026-11-21
+
+Every name a person reads is Substrate (title, About, the macOS app menu, Home, Welcome, notices); every key, event and header is `formsubstrate` (`formsubstrate.*` storage keys, `formsubstrate:*` events, `X-FormSubstrate-Window`). The pre-paint copy now copies `subform.*` keys to `formsubstrate.*` once (flag `nodemode.formsubstrate.migrated`); in a browser build at the same origin that keeps every preference, in the desktop app the new bundle id gives an empty storage, as recorded in src-tauri. `tsc --noEmit` and `vite build` pass.

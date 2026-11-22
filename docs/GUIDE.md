@@ -1,18 +1,18 @@
-# subform user guide
+# Substrate user guide
 
-## What subform is
+## What Substrate is
 
-subform is a code editor for your repositories that also runs Claude Code for you. Each Claude Code session works in its own copy of your project (a git worktree), so several agents can work at once without touching your files. When they finish you read their changes hunk by hunk, commit them under your own name and push. subform also shows what formslot already knows about your code, so an agent reuses it instead of writing it again. Nothing leaves your computer except what git and Claude Code themselves send.
+Substrate is a code editor for your repositories that also runs Claude Code for you. Each Claude Code session works in its own copy of your project (a git worktree), so several agents can work at once without touching your files. When they finish you read their changes hunk by hunk, commit them under your own name and push. Substrate also shows what formslot already knows about your code, so an agent reuses it instead of writing it again. Nothing leaves your computer except what git and Claude Code themselves send.
 
 ## Install
 
-You need [git](https://git-scm.com) and [Claude Code](https://claude.com/product/claude-code). Language servers are optional and are found on your computer; subform never installs programs for you and never bundles git, `claude` or a language server.
+You need [git](https://git-scm.com) and [Claude Code](https://claude.com/product/claude-code). Language servers are optional and are found on your computer; Substrate never installs programs for you and never bundles git, `claude` or a language server.
 
 Pick one way:
 
-- **macOS:** double-click `Install subform.command` in the subform folder. The first time, macOS may refuse because the file was downloaded. Right-click the file, choose Open, then choose Open again in the question that appears. You only do this once. When the install finishes the window offers to start subform and stays open until you press Enter.
-- **Windows:** double-click `Install subform.bat`. Windows SmartScreen may show a blue "Windows protected your PC" box. Click "More info", then "Run anyway". This appears because the file is new to Windows, not because anything is wrong. When it finishes, start subform with `subform.bat` in the same folder.
-- **One command, any system:** open a terminal in the subform folder and run `./subform_oc_install` (on Windows `subform_oc_install.bat`). Then start it with `./subform` (on Windows `subform.bat`). `./subform doctor` checks the toolchain, the installs and the ports and tells you what is missing.
+- **macOS:** double-click `Install formsubstrate.command` in the Substrate folder. The first time, macOS may refuse because the file was downloaded. Right-click the file, choose Open, then choose Open again in the question that appears. You only do this once. When the install finishes the window offers to start Substrate and stays open until you press Enter.
+- **Windows:** double-click `Install formsubstrate.bat`. Windows SmartScreen may show a blue "Windows protected your PC" box. Click "More info", then "Run anyway". This appears because the file is new to Windows, not because anything is wrong. When it finishes, start Substrate with `formsubstrate.bat` in the same folder.
+- **One command, any system:** open a terminal in the Substrate folder and run `./formsubstrate_oc_install` (on Windows `formsubstrate_oc_install.bat`). Then start it with `./formsubstrate` (on Windows `formsubstrate.bat`). `./formsubstrate doctor` checks the toolchain, the installs and the ports and tells you what is missing.
 
 If you were given a packaged app (a `.dmg`, an installer or a `.deb`), install it the usual way for your system. The same macOS and Windows warnings can appear for an app that is not signed for your machine.
 
@@ -20,7 +20,7 @@ If you were given a packaged app (a `.dmg`, an installer or a `.deb`), install i
 
 The first start shows a splash, then Home. If no folder is open, a Welcome dialog also opens once. It is a readiness check: it shows whether the engine, git and the `claude` command were found, whether an API key is saved in the keychain, and whether a folder is open. You can open it again any time from Help > Welcome.
 
-Home is the start page. Click the subform name at the top left to return to it, or use View > Home. It offers:
+Home is the start page. Click the Substrate name at the top left to return to it, or use View > Home. It offers:
 
 - Open a folder, open a file, clone a repo (File > Clone Repo...) or start a New Form app (File > New Form App). You can also drop a folder anywhere on the window.
 - Quick actions: New Claude session, Claude terminal, New Form app, Review changes, Start formslot, Language servers.
@@ -31,15 +31,15 @@ Home is the start page. Click the subform name at the top left to return to it, 
 
 Use File > Open Folder... (`Ctrl+O`, `Cmd+O` on macOS), pick a recent workspace, or drop a folder on the window. Agent sessions need a git repository with at least one commit.
 
-Some projects carry their own programs: a language server, a Python environment, plugins or tool nodes in a graph. subform does not run these until you say so. If the folder has such tools, a banner asks "Trust <folder name>?" and lists the tools, with Trust this workspace or Not now. You can also use File > Trust This Workspace at any time, and revoke trust under Preferences > Workspace > Trusted workspaces.
+Some projects carry their own programs: a language server, a Python environment, plugins or tool nodes in a graph. Substrate does not run these until you say so. If the folder has such tools, a banner asks "Trust <folder name>?" and lists the tools, with Trust this workspace or Not now. You can also use File > Trust This Workspace at any time, and revoke trust under Preferences > Workspace > Trusted workspaces.
 
-Trusting a workspace lets subform:
+Trusting a workspace lets Substrate:
 
 - start language servers and debug adapters that live inside the project;
 - run Studio graphs through Claude, and graphs that contain tool nodes (the simulator without tool nodes needs no trust);
 - let Cogentics channels run agent turns;
 - let triggers start recipes;
-- load plugins from the project's `.subform/plugins` folder (bundled plugins load without trust).
+- load plugins from the project's `.formsubstrate/plugins` folder (bundled plugins load without trust).
 
 Without trust you can still edit, search, review and commit.
 
@@ -62,7 +62,7 @@ For real agent work, use Agents > New Claude Code Session (`Shift+Ctrl+A`). Give
 - **Interactive** opens a Claude Code terminal in the dock.
 - **Headless** runs a prompt you type and streams the transcript. It has no person to approve each tool, so the permission mode you pick matters: the default is Accept edits, which lets it change files inside its own worktree only. Bash and other tools are denied. Change the default under Preferences > Agents.
 
-Either way the session gets its own git worktree and branch. Your own working copy is never touched. The Sessions section on the left and Agents > Agent Sessions list them, and Home groups them by state. Sessions get subform's MCP server, formMCP and formslot through a `.subform/mcp.json` in their worktree.
+Either way the session gets its own git worktree and branch. Your own working copy is never touched. The Sessions section on the left and Agents > Agent Sessions list them, and Home groups them by state. Sessions get Substrate's MCP server, formMCP and formslot through a `.formsubstrate/mcp.json` in their worktree.
 
 ## The review pane, commits and Sign and Push
 
@@ -70,17 +70,17 @@ Open Git > Review Changes (or the Review changes tile on Home). Pick the workspa
 
 The Source Control section (Git > Git Status) has the commit box (`Ctrl+Enter` commits), Commit All, snapshots (Git > Take Snapshot, with Rewind), and Push and Sign and Push.
 
-Commits made from subform, by you or by an agent, use the name and email you set under Preferences > Git and Identity. If no identity is set, commits use your global git identity (or are refused when none exists). If an agent adds a trailer such as a `Co-Authored-By:` line, or commits under another identity, or skips the commit hook, the commit is flagged. **Sign and Push** (Git > Sign and Push) re-signs and cleans the unpushed commits, checks them and then pushes. History is only rewritten when you click it. Signing uses an SSH public key at the path you set; the private key is never read or stored by subform.
+Commits made from Substrate, by you or by an agent, use the name and email you set under Preferences > Git and Identity. If no identity is set, commits use your global git identity (or are refused when none exists). If an agent adds a trailer such as a `Co-Authored-By:` line, or commits under another identity, or skips the commit hook, the commit is flagged. **Sign and Push** (Git > Sign and Push) re-signs and cleans the unpushed commits, checks them and then pushes. History is only rewritten when you click it. Signing uses an SSH public key at the path you set; the private key is never read or stored by Substrate.
 
 ## Permission gates and the slot card
 
-When an agent is about to write a file, subform asks formslot whether something like it already exists. The same check covers common shell writes (redirections, `cp`, `mv`, `tee`, `sed -i`, `curl -o`, `rsync`, archive extraction and more). The command is read, never run. If a match exists, the write waits for you and a card appears:
+When an agent is about to write a file, Substrate asks formslot whether something like it already exists. The same check covers common shell writes (redirections, `cp`, `mv`, `tee`, `sed -i`, `curl -o`, `rsync`, archive extraction and more). The command is read, never run. If a match exists, the write waits for you and a card appears:
 
 - **Use:** tell the agent to reuse the existing slot.
 - **Adapt:** tell the agent to adapt the existing slot instead of writing a parallel copy.
 - **Write new anyway:** let the write go ahead.
 
-If the session is an interactive terminal, the card shows as a bar at the bottom of that terminal's tab: "subform is waiting for your answer", with the slot name and the same three buttons. The tab also carries a small badge, and `+2` means two more are waiting. `Alt+Ctrl+G` (Answer Existing Slot Prompt) jumps to the first open card. Only the window can answer; the agent cannot answer its own gate. If the agent retries the same write after Use or Adapt, you are asked again.
+If the session is an interactive terminal, the card shows as a bar at the bottom of that terminal's tab: "Substrate is waiting for your answer", with the slot name and the same three buttons. The tab also carries a small badge, and `+2` means two more are waiting. `Alt+Ctrl+G` (Answer Existing Slot Prompt) jumps to the first open card. Only the window can answer; the agent cannot answer its own gate. If the agent retries the same write after Use or Adapt, you are asked again.
 
 The right panel has a **Slots** tab. It shows which slots or known code units cover the file you have open, or "No slot or unit covers this file". The formslot section on the left searches slots.
 
@@ -88,7 +88,7 @@ The right panel has a **Slots** tab. It shows which slots or known code units co
 
 ## Studio and graph runs
 
-View > Studio (`Alt+Shift+S`) opens a node canvas where you build agent graphs; View > New Graph creates one. Graphs are saved in `.subform/graphs` in the project. Build by dragging nodes from the palette and wiring them; the canvas can be edited with the keyboard too.
+View > Studio (`Alt+Shift+S`) opens a node canvas where you build agent graphs; View > New Graph creates one. Graphs are saved in `.formsubstrate/graphs` in the project. Build by dragging nodes from the palette and wiring them; the canvas can be edited with the keyboard too.
 
 Run a graph from the Runs tab on the right (or press `Alt+Ctrl+R`, Run Graph). Type a task, choose a mode and press Run:
 
@@ -110,9 +110,9 @@ A **trigger** starts a recipe or graph for you. The Triggers section on the left
 - when files matching a pattern change (for example `src/**`);
 - a signed webhook.
 
-The webhook gets a path on the engine, `/api/hooks/<id>`, and a secret of 24 or more characters (leave the field blank to generate one). Callers sign the body and send the `X-Subform-Signature`, `X-Subform-Timestamp` and `X-Subform-Nonce` headers; the webhook dialog shows the exact header and secret. A body larger than 256 KB is refused. The engine listens on this computer only, so a webhook is reachable by programs on this computer.
+The webhook gets a path on the engine, `/api/hooks/<id>`, and a secret of 24 or more characters (leave the field blank to generate one). Callers sign the body and send the `X-FormSubstrate-Signature`, `X-FormSubstrate-Timestamp` and `X-FormSubstrate-Nonce` headers; the webhook dialog shows the exact header and secret. A body larger than 256 KB is refused. The engine listens on this computer only, so a webhook is reachable by programs on this computer.
 
-**Triggers and webhooks run only while subform is open.** If a trigger was due while the app was closed, the panel says "missed while the app was closed"; it does not catch up. If a recipe changed after you made the trigger, you must confirm it again before it runs. The runs that triggers start show in the Automation tab on the right. The workspace must be trusted for triggers to run Claude or tool nodes.
+**Triggers and webhooks run only while Substrate is open.** If a trigger was due while the app was closed, the panel says "missed while the app was closed"; it does not catch up. If a recipe changed after you made the trigger, you must confirm it again before it runs. The runs that triggers start show in the Automation tab on the right. The workspace must be trusted for triggers to run Claude or tool nodes.
 
 ## Cogentics, insight and the console
 
@@ -123,8 +123,8 @@ The webhook gets a path on the engine, `/api/hooks/<id>`, and a secret of 24 or 
 ## Extensions, plugins, MCP servers, collections, blocks and activity
 
 - **Extensions** (left side, or the command palette: Extensions) lists the built-in extensions and lets you enable or disable them. It has three tabs: Extensions, Plugins and MCP.
-- **Plugins** are backend Python plugins and connectors with their own settings. Bundled ones load at once. Plugins in the project's `.subform/plugins` folder are held until you trust the workspace. Secret settings go to the system keyring. The command palette has Reload Plugins.
-- **MCP servers** (Extensions > MCP) are the tool servers you connect to subform's own engine. Their headers are kept in the keyring. This is separate from subform being an MCP server itself for agents, described in `docs/MCP.md`.
+- **Plugins** are backend Python plugins and connectors with their own settings. Bundled ones load at once. Plugins in the project's `.formsubstrate/plugins` folder are held until you trust the workspace. Secret settings go to the system keyring. The command palette has Reload Plugins.
+- **MCP servers** (Extensions > MCP) are the tool servers you connect to Substrate's own engine. Their headers are kept in the keyring. This is separate from Substrate being an MCP server itself for agents, described in `docs/MCP.md`.
 - **Collections** (right panel) are searchable knowledge collections of the workspace.
 - **Tools** (left side) lists the live tool registry with a call form, and the blocks (HTML snippets) used by the editor and the Studio palette.
 - **Activity** (right panel) is a live feed of tool calls, plugin and MCP changes, collection writes and Studio runs, with filters.
@@ -142,24 +142,24 @@ Open File > Preferences... (`Ctrl+,`). Pages: General, Interface, Workspace, Edi
 - **Keys:** the list of shortcuts. They cannot be changed yet.
 - **Updates:** the version.
 
-Preferences can also be reset, which returns every preference and the theme to how subform comes and keeps your files.
+Preferences can also be reset, which returns every preference and the theme to how Substrate comes and keeps your files.
 
 ## Upgrading from the earlier name
 
-subform used to have another name. On the first start of the new version, if the new data folder does not exist and the old one does, your recent workspaces, identity, library, triggers, secrets list and Cogentics settings are copied across once. Sessions and worktrees are not copied, and nothing old is moved or deleted, so you can remove the old install by hand later. Secrets stored in the keychain under the old name are copied to the new name once. Plugin secrets must be entered again. Old `SUBSTRATAFORM_*` environment variables still work for now (`SUBFORM_*` wins) and log a warning; rename them. Your theme and preferences in the window are copied once on first start; on macOS they may be empty because the new bundle has its own storage. Settings that name absolute paths inside the old folder are not rewritten.
+Substrate used to have another name. On the first start of the new version, if the new data folder does not exist and the old one does, your recent workspaces, identity, library, triggers, secrets list and Cogentics settings are copied across once. Sessions and worktrees are not copied, and nothing old is deleted, so you can remove the old install by hand later. Secrets stored in the keychain under the old name are copied to the new name once. Plugin secrets must be entered again. Old environment variables with the earlier prefix still work for now (`FORMSUBSTRATE_*` wins) and log a warning; rename them. A workspace's folder of graphs, recipes and plugins is renamed to `.formsubstrate` when you open it, and its snapshots move with it. Your theme and preferences in the window are copied once on first start; on macOS they may be empty because the new bundle has its own storage. Settings that name absolute paths inside the old folder are not rewritten.
 
 ## Troubleshooting
 
-- **The engine does not start.** The packaged app shows "The subform engine failed to start. Please relaunch the app." In a source checkout, run `./subform doctor`, then `./subform install` if packages are missing. The engine log is `Logs/subform-engine.log` in the data folder (see below). Home shows "Engine offline" when the window cannot reach it.
-- **A port is in use.** In a source checkout, subform uses 5650 for the window and 5655 for the engine; `./subform doctor` says which is taken. Set another engine port with `SUBFORM_PORT=5660 ./subform`. The desktop app picks a free port by itself.
+- **The engine does not start.** The packaged app shows "The Substrate engine failed to start. Please relaunch the app." In a source checkout, run `./formsubstrate doctor`, then `./formsubstrate install` if packages are missing. The engine log is `Logs/formsubstrate-engine.log` in the data folder (see below). Home shows "Engine offline" when the window cannot reach it.
+- **A port is in use.** In a source checkout, Substrate uses 5650 for the window and 5655 for the engine; `./formsubstrate doctor` says which is taken. Set another engine port with `FORMSUBSTRATE_PORT=5660 ./formsubstrate`. The desktop app picks a free port by itself.
 - **The keyring is missing.** Secrets (the API key, plugin secrets, webhook secrets, MCP headers) live only in the system keyring. Without one the engine answers "no system keyring" and the secret is not saved. On Linux install and unlock a keyring service (for example GNOME Keyring or KWallet), then try again.
 - **A language server is not found.** Open Go > Language Servers... to see what was found and the install commands for the rest. Servers are found on your computer, never bundled. A server inside the project only starts after you trust the workspace, then use Go > Restart Language Servers.
-- **formslot is not found.** Home shows "formslot is not installed". Use Install formslot, or point subform at your formslot folder under Preferences > formslot. When a New Form app is made without it, the plugin step reports "formslot not found, plugin skipped".
+- **formslot is not found.** Home shows "formslot is not installed". Use Install formslot, or point Substrate at your formslot folder under Preferences > formslot. When a New Form app is made without it, the plugin step reports "formslot not found, plugin skipped".
 - **The window token in development builds.** Changes only you may make (answering a gate, trusting, committing identity, imports) need a secret window token. In the desktop app the shell hands it to the window and nothing else can ask for it. In a browser development build (a source checkout opened at `http://localhost:5650`) the window asks the engine for it, which any program on this computer can do; this is a convenience for developers, not a security boundary. If actions fail with a 403 after the engine restarted, reload the window.
 
 ## Where data lives
 
-The data folder is, in order: `SUBFORM_DATA_DIR` if you set it; `SubformData` beside the app in portable mode; `~/Subform` if it exists; else `~/Library/Application Support/subform` on macOS, `%APPDATA%\subform` on Windows, and `~/.local/share/subform` on Linux. It holds `recent.json`, `identity.json`, the library, triggers, Cogentics settings, `worktrees/` (one folder per session), `run-worktrees.json`, `engine.port` and `Logs/subform-engine.log`. The Help > About subform window shows the folder in use. Secrets are never in these files: they live in the system keyring under the service name `subform`. Inside a project subform writes only to `.subform/` (graphs, recipes, plugins, MCP settings) and, for sessions, to their worktrees. Your own working copy is changed only when you accept a hunk or save a file.
+The data folder is, in order: `FORMSUBSTRATE_DATA_DIR` if you set it; `FormSubstrateData` beside the app in portable mode; `~/FormSubstrate` if it exists; else `~/Library/Application Support/formsubstrate` on macOS, `%APPDATA%\formsubstrate` on Windows, and `~/.local/share/formsubstrate` on Linux. It holds `recent.json`, `identity.json`, the library, triggers, Cogentics settings, `worktrees/` (one folder per session), `run-worktrees.json`, `engine.port` and `Logs/formsubstrate-engine.log`. The Help > About Substrate window shows the folder in use. Secrets are never in these files: they live in the system keyring under the service name `formsubstrate`. Inside a project Substrate writes only to `.formsubstrate/` (graphs, recipes, plugins, MCP settings) and, for sessions, to their worktrees. Your own working copy is changed only when you accept a hunk or save a file.
 
 ## Keyboard shortcuts
 
