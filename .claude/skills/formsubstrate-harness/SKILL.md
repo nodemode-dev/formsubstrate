@@ -20,7 +20,7 @@ Each sub-skill lives at `sub-skills/[name]/SUB-SKILL.md` beside this file.
 | --- | --- |
 | Run the engine or the window, build into a scratch folder, typecheck, Playwright at 4x throttle, measure layout shift | `run-and-verify` |
 | A new sidebar panel, command, menu entry, search provider or extension in the window; keyed lists; strings, icons, tokens, z-index | `window-extension` |
-| A new engine route or service, LocalGuard, the window token, the session token, config and data folder, the MCP route at /mcp and its nine tools | `engine-route` |
+| A new engine route or service, LocalGuard, the window token, the session token, config and data folder, the MCP route at /mcp and its tools (listed in `references/tools.md`) | `engine-route` |
 | formslot status, the bridge client, the existing-slot card, the PreToolUse and PostToolUse gate hook and its Bash write gates, engine-held waivers, loud fail-opens, the terminal gate banner and tab badge, tokens-saved meter | `formslot-bridge` |
 | Language servers, the LSP relay, the debug adapter relay, workspace trust | `lsp-and-debug` |
 | Sessions, worktrees, session environment, `terminal_tail` and the pty-host screen model, the review pane, hunks, snapshots, the commit wrapper, sign and push, git safety | `sessions-and-git` |
@@ -32,6 +32,7 @@ Each sub-skill lives at `sub-skills/[name]/SUB-SKILL.md` beside this file.
 | `references/security-model.md` | The three trust layers: LocalGuard, window token, session token; workspace trust; what is deliberately open |
 | `references/verification-recipes.md` | Copy-ready command lines for the engine, the build, typecheck, a throttled Playwright pass, the gate hook and `/mcp` |
 | `references/hashout-and-notice.md` | The entry format, the log locations, and the NOTICE table layout |
+| `references/tools.md` | Every MCP tool with its description, annotations and input schema, written by `./formsubstrate agents sync` from `TOOLS`; never edited by hand |
 
 `EVALS.json` holds four evaluations and trigger tests for this pack.
 

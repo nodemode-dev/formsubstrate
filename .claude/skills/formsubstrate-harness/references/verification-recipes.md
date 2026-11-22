@@ -34,7 +34,7 @@ curl -s -X POST http://127.0.0.1:[port]/mcp -H 'Authorization: Bearer [token]' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
-The first answers 401 (no token). The second lists nine tools with a window token or a session gate token. A session token sees only its own session. `terminal_tail` needs a terminal id from `terminal_list`; its `next_offset` goes back in as `since`.
+The first answers 401 (no token). The second lists every tool in `TOOLS` with a window token, a session gate token or an approved client token (`./formsubstrate agents sync --check` confirms the generated tool list matches the code). A session token sees only its own session. `terminal_tail` needs a terminal id from `terminal_list`; its `next_offset` goes back in as `since`.
 
 ## Gate hook, run for real
 
