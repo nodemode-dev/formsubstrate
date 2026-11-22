@@ -10,7 +10,7 @@ import { icon } from './icons';
 import { languages, onLanguage, setLanguage, t } from './i18n';
 import { colorRow, numberRow, selectRow, sliderRow, toggleRow, type Row } from './panels/controls';
 import { pickPath } from './path-picker';
-import { FORMSLOT_PATH_EVENT, HIDDEN_FOLDERS_EVENT, PERMISSION_MODES, loadPrefs, savePrefs, setUiScale, setUpdateAtStart, UI_FONT_SIZES, UI_SCALES, uiScaleChoice, updateAtStart, type AgentPermissionMode, type Prefs, type UiFontSize } from './prefs';
+import { FORMSLOT_PATH_EVENT, HIDDEN_FOLDERS_EVENT, PERMISSION_MODES, loadPrefs, savePrefs, setUiScale, UI_FONT_SIZES, UI_SCALES, uiScaleChoice, type AgentPermissionMode, type Prefs, type UiFontSize } from './prefs';
 import { readChoice, setAccent, setIntensity, setTheme, THEMES, themeSwatchesHtml } from './themes';
 import { toast } from './toast';
 
@@ -83,8 +83,6 @@ export class SettingsDialog {
   private readonly intensity: Row<number>;
 
   private readonly language: Row<string>;
-  private readonly updatesGeneral: Row<boolean>;
-  private readonly updatesPanel: Row<boolean>;
   private readonly notice: ReturnType<typeof numberRow>;
   private readonly scale: Row<string>;
   private readonly fontSize: Row<string>;
@@ -142,8 +140,6 @@ export class SettingsDialog {
 
     const pick = (p: Partial<Prefs>): void => this.change(p);
     this.language = selectRow('Language', languages().map(([c, n]) => [c, n]), (v) => { pick({ language: v as Prefs['language'] }); void setLanguage(v as Prefs['language']); });
-    this.updatesGeneral = toggleRow('Check for updates at start', (v) => { setUpdateAtStart(v); this.sync(); });
-    this.updatesPanel = toggleRow('Check for updates at start', (v) => { setUpdateAtStart(v); this.sync(); });
     this.notice = numberRow('Notice seconds (0 for the default)', 0, 60, 1, (v) => pick({ noticeSeconds: v }));
     this.scale = selectRow('Interface scale', UI_SCALES.map(([k, l]) => [k, l]), (v) => { setUiScale(v); });
     this.fontSize = selectRow('Interface text size', UI_FONT_SIZES.map(([k, l]) => [k, l]), (v) => pick({ uiFontSize: v as UiFontSize }));
@@ -230,7 +226,6 @@ export class SettingsDialog {
     const content: Record<(typeof SECTIONS)[number], HTMLElement[]> = {
       General: [
         grp('Language', this.language.el),
-        grp('Startup', this.updatesGeneral.el),
         grp('Notices', this.notice.el),
       ],
       Interface: [
@@ -261,7 +256,7 @@ export class SettingsDialog {
       ],
       'Language Servers': [grp('Servers', nt('Language servers are found on this system and used when they are installed.'))],
       Keys: [grp('Shortcuts', this.keyList, nt('Shortcuts can be changed in a later version.'))],
-      Updates: [grp('Version', versionRow.el, this.updatesPanel.el)],
+      Updates: [grp('Version', versionRow.el, nt('Updates come through FormPortal.'))],
     };
     for (const name of SECTIONS) this.add(name, ...content[name]);
 
@@ -492,9 +487,6 @@ export class SettingsDialog {
   private sync(): void {
     const p = this.prefs;
     this.language.set(p.language);
-    const upd = updateAtStart();
-    this.updatesGeneral.set(upd);
-    this.updatesPanel.set(upd);
     this.notice.set(p.noticeSeconds);
     this.scale.set(uiScaleChoice());
     this.fontSize.set(p.uiFontSize);
