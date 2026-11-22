@@ -234,6 +234,7 @@ export async function startApp(): Promise<void> {
   const settings = new SettingsDialog({ commands, onPrefs: (p) => { applyUiPrefs(p); followSystemTheme(p); editor?.setOptions({ fontSize: p.editorFontSize, tabSize: p.editorTabSize, wordWrap: p.editorWordWrap }); views.setOptions({ fontSize: p.editorFontSize, tabSize: p.editorTabSize, wordWrap: p.editorWordWrap }); dock.refreshFont(); home.syncPrefs(); } });
   const palette = new CommandPalette(commands, () => menus);
   palette.onOpenSymbol = (path, line, col) => { wb.revealLine(path, line, col); };
+  palette.onOpenFile = (path, line, col) => { if (line) wb.revealLine(path, line, col || 1); else wb.openEditorTab(path); };
   let cloneDialog: CloneDialog | null = null;
   let newAppDialog: NewAppDialog | null = null;
   let captionButtons: CaptionButtons;
@@ -283,7 +284,7 @@ export async function startApp(): Promise<void> {
     { id: 'zoom-in', label: 'Zoom In', keys: ['Mod+='], run: () => stepUiZoom(1) },
     { id: 'zoom-out', label: 'Zoom Out', keys: ['Mod+-'], run: () => stepUiZoom(-1) },
     { id: 'zoom-reset', label: 'Reset Zoom', keys: ['Mod+0'], enabled: () => uiZoom() !== 1, run: () => { setUiScale('1'); applyUiZoom(); } },
-    soon({ id: 'go-to-file', label: 'Go to File...', keys: ['Mod+P'], run: () => undefined }),
+    { id: 'go-to-file', label: 'Go to File...', keys: ['Mod+P'], run: () => palette.show('', true) },
     { id: 'go-to-symbol', label: 'Go to Symbol in File...', keys: ['Alt+Mod+O'], enabled: () => !!store.active, run: () => palette.show('@') },
     { id: 'go-to-symbol-workspace', label: 'Go to Symbol in Workspace...', keys: ['Mod+T'], enabled: () => !!store.workspace, run: () => palette.show('#') },
     { id: 'next-tab', label: 'Next Tab', keys: ['Alt+Mod+Right'], enabled: () => store.docs.length > 1, run: () => stepTab(1) },
