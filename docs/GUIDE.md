@@ -49,8 +49,9 @@ Without trust you can still edit, search, review and commit.
 
 ## Editing, search, palette, previews, split and panels
 
-- **Editing.** Open files from the Files section on the left. `Ctrl+S` saves, `Ctrl+W` closes the tab, `Ctrl+F` finds in the file, `Ctrl+D` adds the next occurrence. Language servers give hover, diagnostics, go to definition (`F12`), find all references (`Shift+F12`), rename (`F2`) and format (`Shift+Alt+F`). The Go menu also has Show Outline, Show Problems, Language Servers... and Restart Language Servers.
-- **Search.** Edit > Find in Files... (`Shift+Ctrl+F`) opens the Search section.
+- **Editing.** Open files from the Files section on the left. `Ctrl+S` saves, `Ctrl+W` closes the tab, `Ctrl+F` finds in the file, `Ctrl+D` adds the next occurrence. Language servers give hover, diagnostics, go to definition (`F12`), find all references (`Shift+F12`), rename (`F2`) and format (`Shift+Alt+F`). The Go menu also has Show Outline, Show Problems, Language Servers... and Restart Language Servers. Fold a block with the arrow in the gutter or `Shift+Ctrl+[` (unfold with `Shift+Ctrl+]`; fold and unfold all with `Alt+Ctrl+[` and `Alt+Ctrl+]`). `Alt+click` adds a cursor and `Alt+Shift+drag` selects a column. Brackets are coloured by depth, auto save writes a changed file after a short pause and when the window loses focus, and format on save asks the language server to format before saving; all three are under Preferences > Editor. Auto save is off until you turn it on, and it never saves over a file that changed on disk.
+- **Search.** Edit > Find in Files... (`Shift+Ctrl+F`) opens the Search section. Regular expressions work with or without ripgrep installed; a pattern that runs too long stops after a few seconds and says so. Type a replacement and choose Replace all to see every file with a checkbox and its diff before anything is written; `$1`, `${name}` and `$&` take the matched groups. Files with unsaved changes in a tab are left out, open tabs without changes show the new text at once, and a file that changed after the preview is refused.
+- **Go to File.** `Ctrl+P` finds a file of the workspace by part of its name. With nothing typed it lists the files you opened last; `name:120` opens at line 120, and `>` turns it into the command palette.
 - **Command palette.** `Shift+Ctrl+P` or `Ctrl+K`. Type to find a command. Type `@` to jump to a symbol in the current file (also Go > Go to Symbol in File..., `Alt+Ctrl+O`), or `#` to find a symbol anywhere in the workspace (Go > Go to Symbol in Workspace..., `Ctrl+T`). Start with `/` to search the text of every file.
 - **Previews.** Markdown, images, media and HTML open in a preview. `Shift+Ctrl+V` toggles the Markdown preview, and View > Open Preview to the Side shows it beside the source.
 - **Split and panels.** View > Toggle Editor Split (`Alt+Ctrl+\`) splits the editor. `Ctrl+B` hides the left side bar, `Alt+Ctrl+B` hides the right panel, `Ctrl+J` shows or hides the terminal dock. View > File Graph (`Alt+Shift+G`) draws how your files import each other. Panel borders can be dragged.
@@ -139,6 +140,7 @@ Open File > Preferences... (`Ctrl+,`). Pages: General, Interface, Workspace, Edi
 
 - **Interface:** theme, accent and intensity, text size, animations, and the custom title bar (changes at the next start).
 - **Workspace:** reopen what you had, the typed path field for Open Folder, trusted workspaces (Revoke), and folder names to hide from the file tree.
+- **Editor:** font size, tab size, word wrap, bracket pair colours, auto save and its delay (500 ms to 10 s), and format on save.
 - **Agents:** the Claude Code model, the default permission mode for headless sessions, and an Anthropic API key. The key is sent to the engine and kept in your system keychain; the page never reads it back.
 - **Git and Identity:** author name and email, signing, and the SSH signing key path.
 - **formslot:** whether the service is used and started for you, and the path to a formslot folder or program.
@@ -188,6 +190,7 @@ The data folder is, in order: `FORMSUBSTRATE_DATA_DIR` if you set it; `FormSubst
 | Action | Windows and Linux | macOS |
 | --- | --- | --- |
 | Command palette | `Shift+Ctrl+P` or `Ctrl+K` | `Shift+Cmd+P` or `Cmd+K` |
+| Go to File | `Ctrl+P` | `Cmd+P` |
 | Open Folder | `Ctrl+O` | `Cmd+O` |
 | Open File | `Shift+Ctrl+O` | `Shift+Cmd+O` |
 | Save | `Ctrl+S` | `Cmd+S` |
@@ -199,6 +202,9 @@ The data folder is, in order: `FORMSUBSTRATE_DATA_DIR` if you set it; `FormSubst
 | Add Next Occurrence | `Ctrl+D` | `Cmd+D` |
 | Select All Occurrences | `Shift+Ctrl+L` | `Shift+Cmd+L` |
 | Word Wrap | `Alt+Z` | `Option+Z` |
+| Fold, Unfold | `Shift+Ctrl+[`, `Shift+Ctrl+]` | `Option+Cmd+[`, `Option+Cmd+]` |
+| Fold All, Unfold All | `Alt+Ctrl+[`, `Alt+Ctrl+]` | `Ctrl+Option+[`, `Ctrl+Option+]` |
+| Add Cursor, Column Selection | `Alt+click`, `Alt+Shift+drag` | `Option+click`, `Option+Shift+drag` |
 | Go to Symbol in File (`@`) | `Alt+Ctrl+O` | `Option+Cmd+O` |
 | Go to Symbol in Workspace (`#`) | `Ctrl+T` | `Cmd+T` |
 | Next or Previous Tab | `Alt+Ctrl+Right` or `Left` | `Option+Cmd+Right` or `Left` |
@@ -227,4 +233,4 @@ The data folder is, in order: `FORMSUBSTRATE_DATA_DIR` if you set it; `FormSubst
 | Commit (in the commit box) | `Ctrl+Enter` | `Cmd+Enter` |
 | Back to the editor from Home | `Esc` | `Esc` |
 
-`Go to File` (`Ctrl+P`), `Run Task` and `Help` (`F1`) are in the menus but not available yet.
+`Run Task` and `Help` (`F1`) are in the menus but not available yet.
