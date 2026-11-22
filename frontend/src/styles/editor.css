@@ -5,3 +5,15 @@
 .cv-editor-mount .cm-scroller { overflow: auto; }
 .cv-editor-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-family: var(--font-ui); font-size: var(--fs-13); user-select: none; }
 .cv-editor .cm-editor, .cv-editor .cm-scroller, .cv-editor .cm-content { scrollbar-width: none; }
+.cv-editor .cm-line.cm-conflict-current { background-image: linear-gradient(var(--conflict-current), var(--conflict-current)); }
+.cv-editor .cm-line.cm-conflict-current-marker { background-image: linear-gradient(var(--conflict-current-strong), var(--conflict-current-strong)); }
+.cv-editor .cm-line.cm-conflict-incoming { background-image: linear-gradient(var(--conflict-incoming), var(--conflict-incoming)); }
+.cv-editor .cm-line.cm-conflict-incoming-marker { background-image: linear-gradient(var(--conflict-incoming-strong), var(--conflict-incoming-strong)); }
+.cv-editor .cm-line.cm-conflict-base { background-image: linear-gradient(var(--conflict-base), var(--conflict-base)); }
+.cv-editor .cm-line.cm-conflict-base-marker, .cv-editor .cm-line.cm-conflict-sep { background-image: linear-gradient(var(--conflict-base-strong), var(--conflict-base-strong)); }
+.cv-editor .cm-line.cm-conflict-marker { color: var(--text-secondary); }
+.cv-editor .cm-conflict-actions { display: flex; align-items: center; gap: var(--space-1h); box-sizing: border-box; height: var(--conflict-actions-h); padding: 0 var(--space-3) 0 var(--space-2); overflow: hidden; white-space: nowrap; font-family: var(--font-ui); color: var(--text-muted); user-select: none; }
+.cv-editor .cm-conflict-act { flex: none; margin: 0; padding: 0; border: 0; background: none; font: inherit; font-size: 0.85em; line-height: inherit; color: var(--conflict-action); cursor: pointer; }
+.cv-editor .cm-conflict-act:hover { color: var(--conflict-action-hover); text-decoration: underline; }
+.cv-editor .cm-conflict-act:focus-visible { outline: 1px solid var(--accent-color); outline-offset: 1px; border-radius: var(--radius-sm); }
+.cv-editor .cm-conflict-dot { flex: none; font-size: 0.85em; }

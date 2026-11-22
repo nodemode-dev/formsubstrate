@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="version 0.22.0" src="https://img.shields.io/badge/version-0.22.0-eef0f4?style=flat-square">
+  <img alt="version 0.23.0" src="https://img.shields.io/badge/version-0.23.0-eef0f4?style=flat-square">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-7-3178c6?style=flat-square&logo=typescript&logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-engine-009688?style=flat-square">
   <img alt="Tauri 2" src="https://img.shields.io/badge/Tauri-2-2f7bf5?style=flat-square">
@@ -74,7 +74,7 @@
       <img src="docs/images/formsubstrate-review.png" alt="Substrate Source Control panel beside a side-by-side diff of a changed file" width="100%">
       <br><sub>Source Control with a side-by-side diff of a working-tree change.</sub>
       <h3>Git and review</h3>
-      Stage, diff, snapshot and rewind, then commit with trailers stripped and every commit audited. Push and Sign and Push check each push.
+      Stage, diff, snapshot and rewind, then commit with trailers stripped and every commit audited. Branches, fetch, pull, stashes, tags, merge conflict resolution and file history are in Source Control. Push and Sign and Push check each push.
     </td>
   </tr>
   <tr>
@@ -131,7 +131,7 @@ Nothing leaves your computer unless you use a feature that needs it. Substrate c
 - **The web search plugin.** When an agent or recipe runs it, the search words go to DuckDuckGo (`html.duckduckgo.com`).
 - **The HTTP connector plugin.** Requests go to the address its settings name, only when it runs.
 - **MCP servers you add.** An HTTP server gets requests at the address you gave, with the headers you saved. A command server runs on your computer and does whatever that program does.
-- **git.** Clone repo fetches the address you enter (https and ssh only). Push runs `git push` to the remote you pick; Sign and Push runs `git fetch` and then `git push`. Nothing is fetched or pushed in the background.
+- **git.** Clone repo fetches the address you enter (https and ssh only). Push runs `git push` to the remote you pick; Sign and Push runs `git fetch` and then `git push`. Fetch, Pull and pushing a tag in Source Control reach the remotes your repository already names, when you click them. Nothing is fetched or pushed in the background.
 - **Claude Code.** Sessions run the `claude` command found on your computer. Its traffic to Anthropic is Claude Code's own, under its own settings; Substrate does not see or relay it.
 - **Language servers and debuggers** you installed run as your programs; what they download is up to them. The install commands Substrate shows are text for you to copy; it does not run them.
 - **formslot** is reached on this computer only (`127.0.0.1`).

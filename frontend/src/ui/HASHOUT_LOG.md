@@ -164,3 +164,21 @@ The empty row's placeholder button first hid itself with an inline `style="visib
 Four prefs were added with defaults: `editorAutoSave` false, `editorAutoSaveDelay` 1000 (only 500, 1000, 2000, 5000 or 10000 ms load; anything else falls back to 1000), `editorFormatOnSave` false, `editorBracketColors` true (VS Code has bracket pair colouring on by default). The Editor card keeps its Text group and gains "Bracket pair colours" there, plus a Saving group with Auto save, Auto save delay (a select, enhanced by the window's dropdown) and Format on save, with one note. The rows use the card's existing `toggleRow` and `selectRow` and English labels that the page translator renders, like every other row in the card.
 
 The new rows do not go through `ctx.onPrefs`, because that callback lives in `app.ts` and only forwards font size, tab size and word wrap to `EditorHost.setOptions`. Instead `pickEditor` saves through the same `change()` and then dispatches `EDITOR_PREFS_EVENT` on the document; `EditorHost` listens for it and rereads the prefs, so the settings apply at once to open editors (bracket colours through a Compartment reconfigure, saving behaviour as host state) and `app.ts` was not touched. Rows only toggle checkboxes or a select value; measured in headless Chrome at 4x CPU throttling, opening Preferences, switching each of the four settings and closing gave no layout-shift entry.
+
+### frontend/src/ui/commands.ts · Command.verbatim; frontend/src/ui/menu.ts · PopupMenu.refresh; frontend/src/ui/status.ts · the branch item
+
+- refers-to: frontend/src/ui/commands.ts :: Command; frontend/src/ui/menu.ts :: PopupMenu.refresh; frontend/src/ui/status.ts :: StatusBar constructor (cv-st-branch); frontend/src/extensions/git/index.ts :: activate (keydown on cv-st-branch); frontend/src/extensions/git/refs.ts :: GitRefs.dyn
+- kind: rationale
+- logged: v0.23.0 · 2026-11-22
+
+A menu row passed every label through `t()`, which is right for command names and wrong for names the person chose: the branch menu's Switch to Branch and Delete Branch rows are branch names, and a branch called `Fetch` or `Pull` would have shown in the interface language. A command with `verbatim: true` keeps its label as written; `GitRefs.dyn` sets it on every branch row. Nothing else sets it, so every other menu reads as before.
+
+The status bar's branch item opened the branch menu on a click but was a plain span, so a keyboard could not reach it and a screen reader did not announce it. It now has `role="button"`, `tabindex="0"` and `aria-haspopup="menu"`, Enter and Space open the menu as a click does, and the pointer shows it can be pressed. The span stays a span so the status bar's spacing and type are unchanged.
+
+### frontend/src/ui/tabs.ts · Tabs (context menu, tab-history)
+
+- refers-to: frontend/src/ui/tabs.ts :: Tabs constructor, menu, menuCommands, menuPath; frontend/src/extensions/git/index.ts :: OPEN_HISTORY listener
+- kind: rationale
+- logged: v0.23.0 · 2026-11-22
+
+The editor tabs had no context menu. They now have one standalone `PopupMenu` on a private `Commands`, built once, with a single entry, Open File History, shown only for a file tab (a doc whose id is its path; diff, review, graph and preview tabs have other ids) while a workspace is open; on other tabs the browser menu is suppressed and nothing opens. The entry sends `formsubstrate:open-history` ({path, session: null}) on `window`, so this shell module does not import the git extension. Escape closes it, as in the Files panel.

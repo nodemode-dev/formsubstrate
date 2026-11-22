@@ -1,4 +1,6 @@
+import { Commands } from './commands';
 import { el, patchList, q, setClass, setText, setTitle } from './dom';
+import { PopupMenu } from './menu';
 import { icon } from './icons';
 import { t } from './i18n';
 import type { OpenDoc, WorkspaceStore } from './workspace-store';
@@ -11,6 +13,9 @@ export class Tabs {
   private windowTitle: string | null = null;
   private rover: string | null = null;
   private closing: { id: string; next: string | null } | null = null;
+  private readonly menuCommands = new Commands();
+  private readonly menu = new PopupMenu(this.menuCommands, null, true);
+  private menuPath = '';
 
   constructor(private readonly strip: HTMLElement, private readonly store: WorkspaceStore, private readonly requestClose: (id: string) => void | Promise<unknown>, private readonly docTitle?: HTMLElement) {
     store.on('docs', () => this.queue());
@@ -32,6 +37,17 @@ export class Tabs {
       if (!(e.target instanceof Element) || !e.target.closest('.cv-tab-close')) return;
       const tab = tabOf(e);
       if (tab?.dataset.key) this.requestClose(tab.dataset.key);
+    });
+    this.menu.panel.classList.add('cv-wb-context');
+    this.menuCommands.add({ id: 'tab-history', label: 'Open File History', enabled: () => !!this.menuPath, run: () => { window.dispatchEvent(new CustomEvent('formsubstrate:open-history', { detail: { path: this.menuPath, session: null } })); } });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && this.menu.isOpen) this.menu.close(); });
+    strip.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const d = this.store.docs.find((x) => x.id === tabOf(e)?.dataset.key);
+      if (!d || d.id !== d.path || !this.store.workspace) return;
+      this.menuPath = d.path;
+      this.menu.setItems(['tab-history']);
+      this.menu.openAt(e.clientX, e.clientY);
     });
     strip.addEventListener('keydown', (e) => this.onKey(e, tabOf(e)));
     strip.addEventListener('focusin', (e) => {

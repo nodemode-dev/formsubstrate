@@ -4,6 +4,18 @@ Versions follow `v*.*.*` with dots. Dates are US Eastern. The newest version is 
 
 The app was renamed Substrate (family name FormSubstrate, machine name `formsubstrate`) at 0.17.0. The entries below read with the new name throughout; the git history keeps the former one.
 
+## 0.23.0 · 2026-11-22
+
+Routine git work without leaving Substrate.
+
+- Branches: the branch button in Source Control and the branch in the status bar open a menu to create a branch from any start point, switch to a local or remote branch, and delete one. A switch that would overwrite your changes is refused and offers to stash first.
+- Fetch and Pull. Pull fast-forwards; when your branch and its upstream have both moved it says so and changes nothing unless you choose Pull with a Merge Commit. A merge that conflicts is undone.
+- Stashes: stash changes with or without untracked files, then apply, pop or drop from the Stashes list.
+- Tags: create a lightweight or annotated tag and push it.
+- Merge conflicts: a conflicted file opens with Accept Current Change, Accept Incoming Change and Accept Both Changes above each conflict. Source Control lists conflicted files under Merge Changes with Accept All Current, Accept All Incoming and Mark Resolved, and Commit finishes the merge.
+- File History: from a tab, the Files panel, a Source Control row or the palette, see a file's commits across renames and open the diff of any of them.
+- An agent session's worktree stays on its own branch; switch and pull are for your workspace.
+
 ## 0.22.0 · 2026-11-22
 
 The everyday editing a code editor is expected to have.

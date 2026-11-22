@@ -1,6 +1,6 @@
 [package]
 name = "formsubstrate"
-version = "0.22.0"
+version = "0.23.0"
 description = "Substrate desktop shell (FormSubstrate)"
 authors = ["nodemode-ai"]
 license = "GPL-3.0-only"

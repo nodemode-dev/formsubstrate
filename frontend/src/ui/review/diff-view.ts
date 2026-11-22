@@ -5,11 +5,12 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { indentUnit, syntaxHighlighting } from '@codemirror/language';
 import { MergeView, unifiedMergeView } from '@codemirror/merge';
 import { formslotState } from '../../io/formslot';
-import { git, type FileDiff } from '../../io/git';
+import { git, type CommitDiff, type FileDiff } from '../../io/git';
 import { detailOf, readFile, statusOf, writeFile } from '../../io/workspace';
 import { sessionsClient } from '../../io/sessions';
 import { confirmAction } from '../dialogs';
 import { delayedIndicator, el, q, setClass, setDisabled, setHidden, setText, setTitle } from '../dom';
+import { conflicts } from '../editor/conflicts';
 import { baseName, languageFor } from '../editor/languages';
 import { editorHighlight, editorTheme } from '../editor/theme';
 import { wordWrap } from '../editor/wrap';
@@ -23,7 +24,7 @@ export const GIT_CHANGED = 'formsubstrate:git-changed';
 
 export type DiffMode = 'split' | 'unified';
 
-export interface DiffTarget { path: string; staged: boolean; session: string | null }
+export interface DiffTarget { path: string; staged: boolean; session: string | null; commit?: string; short?: string }
 
 let lastMode: DiffMode = 'split';
 
@@ -41,7 +42,7 @@ const statusIn = (err: unknown): number => {
   return typeof s === 'number' && s > 0 ? s : statusOf(err);
 };
 
-export const diffId = (x: DiffTarget): string => `diff:${x.session ?? 'workspace'}:${x.staged ? 'staged' : 'work'}:${x.path}`;
+export const diffId = (x: DiffTarget): string => (x.commit ? `diff:${x.session ?? 'workspace'}:commit:${x.commit}:${x.path}` : `diff:${x.session ?? 'workspace'}:${x.staged ? 'staged' : 'work'}:${x.path}`);
 
 export class DiffTab implements ViewDoc {
   readonly root = el<HTMLElement>(`<div class="cv-diff">
@@ -85,6 +86,7 @@ ${PROVENANCE_HTML}
   private langExt: Extension = [];
   private prefs: EditorPrefs;
   private diff: FileDiff | null = null;
+  private commit: CommitDiff | null = null;
   private mode: DiffMode = lastMode;
   private split: MergeView | null = null;
   private uni: EditorView | null = null;
@@ -121,7 +123,7 @@ ${PROVENANCE_HTML}
   }
 
   get editable(): boolean {
-    return !this.target.staged && !!this.diff && !this.diff.binary && !this.diff.tooLarge && (!this.target.session || this.diff.mtime !== null);
+    return !this.target.commit && !this.target.staged && !!this.diff && !this.diff.binary && !this.diff.tooLarge && (!this.target.session || this.diff.mtime !== null);
   }
 
   activate(): void {
@@ -230,6 +232,7 @@ ${PROVENANCE_HTML}
   private editExt(): Extension[] {
     return [
       ...this.base(),
+      conflicts,
       history(),
       keymap.of([{ key: 'Mod-s', preventDefault: true, run: () => { void this.save(); return true; } }, ...historyKeymap, ...defaultKeymap]),
       EditorView.updateListener.of((u) => { if (u.docChanged) this.syncDirty(u.state.doc); }),
@@ -305,7 +308,7 @@ ${PROVENANCE_HTML}
   }
 
   private queueReload(): void {
-    if (this.disposed) return;
+    if (this.disposed || this.target.commit) return;
     if (this.root.hidden) { this.pending = true; return; }
     window.clearTimeout(this.timer);
     this.timer = window.setTimeout(() => { void this.load(); }, RELOAD_MS);
@@ -315,6 +318,13 @@ ${PROVENANCE_HTML}
     const mine = ++this.seq;
     const stop = delayedIndicator(() => { setText(this.loading, t('Loading diff')); setHidden(this.loading, false); }, () => setHidden(this.loading, true));
     try {
+      if (this.target.commit) {
+        const c = await git.show(this.target.commit, this.target.path, this.target.session);
+        if (mine !== this.seq || this.disposed) return;
+        this.commit = c;
+        this.apply(c, null);
+        return;
+      }
       const d = await git.diff(this.target.path, this.target.staged, this.target.session);
       if (mine !== this.seq || this.disposed) return;
       const wantsMtime = !this.target.staged && !this.target.session && !d.binary && !d.tooLarge && d.modified !== '';
@@ -385,12 +395,20 @@ ${PROVENANCE_HTML}
 
   private paint(): void {
     const d = this.diff;
-    setText(this.fileEl, this.target.path);
-    setTitle(this.fileEl, this.target.path);
+    const c = this.target.commit ? this.commit : null;
+    const short = c?.short ?? this.target.short ?? this.target.commit?.slice(0, 7) ?? '';
+    setText(this.fileEl, this.target.commit ? `${this.target.path} (${short})` : this.target.path);
+    setTitle(this.fileEl, this.target.commit ? `${this.target.path} (${this.target.commit})` : this.target.path);
     const where = this.target.session ? (sessionsClient.get(this.target.session)?.title ?? this.target.session) : t('Workspace');
-    const state = this.target.staged ? t('Staged against HEAD') : t('Working tree against the index');
-    const edit = !this.target.staged && !!d && !d.binary && !d.tooLarge && !this.editable ? ` · ${t('read only here')}` : '';
-    setText(this.badge, `${where} · ${state}${edit}`);
+    if (this.target.commit) {
+      const how = !c ? '' : c.status === 'A' ? t('Added in this commit') : c.status === 'D' ? t('Deleted in this commit') : c.status === 'R' && c.oldPath ? `${t('Renamed from')} ${c.oldPath}` : t('Against the first parent');
+      setText(this.badge, [where, short, how, t('read only')].filter(Boolean).join(' · '));
+      setTitle(this.badge, c ? `${c.short} ${c.subject}` : '');
+    } else {
+      const state = this.target.staged ? t('Staged against HEAD') : t('Working tree against the index');
+      const edit = !this.target.staged && !!d && !d.binary && !d.tooLarge && !this.editable ? ` · ${t('read only here')}` : '';
+      setText(this.badge, `${where} · ${state}${edit}`);
+    }
     paintProvenance(this.prov, this.target.path);
     setText(this.stale, t('Changed since opened: save or undo your edits to refresh.'));
     setText(q(this.root, '.cv-diff-split-t'), t('Side by side'));

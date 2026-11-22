@@ -37,7 +37,7 @@ export class StatusBar {
 
   constructor(root: HTMLElement, private readonly store: WorkspaceStore) {
     mountOnce(root,
-      `<span class="cv-st-branch" hidden>${icon('branch', 12)}<span class="cv-st-branch-name"></span><span class="cv-st-sync"></span></span>` +
+      `<span class="cv-st-branch" role="button" tabindex="0" aria-haspopup="menu" hidden>${icon('branch', 12)}<span class="cv-st-branch-name"></span><span class="cv-st-sync"></span></span>` +
       '<span class="cv-st-ws" hidden></span>' +
       '<span class="cv-st-problems" hidden></span>' +
       `<button class="cv-st-lsp is-idle" type="button" tabindex="-1"><span class="cv-st-lsp-text"></span><span class="cv-st-lsp-e">${icon('error', 12)}<b>0</b></span><span class="cv-st-lsp-w">${icon('warning', 12)}<b>0</b></span></button>` +

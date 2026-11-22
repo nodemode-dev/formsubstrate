@@ -75,6 +75,12 @@ Open Git > Review Changes (or the Review changes tile on Home). Pick the workspa
 
 The Source Control section (Git > Git Status) has the commit box (`Ctrl+Enter` commits), Commit All, snapshots (Git > Take Snapshot, with Rewind), and Push and Sign and Push.
 
+- **Branches.** Click the branch name at the top of Source Control or in the status bar. The menu creates a branch (from the current branch or any other), switches to a local or remote branch, and deletes one. A switch that would overwrite your changes is refused, names the files and offers to stash them first. An agent session's worktree stays on its own branch.
+- **Fetch and Pull.** Fetch updates what Substrate knows of the remote. Pull fast-forwards your branch. When your branch and its upstream have both moved, Pull changes nothing and says so; Pull with a Merge Commit merges them, and is undone if it conflicts. Substrate never rebases.
+- **Stashes and tags.** Stash Changes... sets your changes aside (with untracked files if you choose); the Stashes list applies, pops or drops one. Create Tag... makes a tag, annotated when you give a message, and the Tags list pushes one.
+- **Merge conflicts.** Conflicted files are listed under Merge Changes. Open one: each conflict has Accept Current Change, Accept Incoming Change and Accept Both Changes above it. Accept All Current and Accept All Incoming take one side for the whole file (a snapshot is kept first), and Mark Resolved stages the file; if conflict markers are still in it, Substrate asks first. Commit then finishes the merge.
+- **File History.** Right-click a tab, a file in Files or a row in Source Control and choose Open File History (also in the palette). The list follows renames; click a commit to see what it changed in that file.
+
 Commits made from Substrate, by you or by an agent, use the name and email you set under Preferences > Git and Identity. If no identity is set, commits use your global git identity (or are refused when none exists). If an agent adds a trailer such as a `Co-Authored-By:` line, or commits under another identity, or skips the commit hook, the commit is flagged. **Sign and Push** (Git > Sign and Push) re-signs and cleans the unpushed commits, checks them and then pushes. History is only rewritten when you click it. Signing uses an SSH public key at the path you set; the private key is never read or stored by Substrate.
 
 ## Permission gates and the slot card
@@ -172,7 +178,7 @@ Nothing leaves your computer unless you use a feature that needs it. Substrate c
 - **The web search plugin.** When an agent or recipe runs it, the search words go to DuckDuckGo (`html.duckduckgo.com`) with the user agent `formsubstrate/0.17`.
 - **The HTTP connector plugin.** Requests go to the address its settings name, only when it runs.
 - **MCP servers you add.** An HTTP server gets requests at the address you gave, with the headers you saved, when Substrate connects to it to list or call its tools. A command server runs as a program on your computer and does whatever that program does.
-- **git.** Clone repo runs `git clone` on the address you enter (https and ssh only). Push runs `git push` to the remote you pick; Sign and Push runs `git fetch` and then `git push`. Nothing is fetched or pushed in the background.
+- **git.** Clone repo runs `git clone` on the address you enter (https and ssh only). Push runs `git push` to the remote you pick; Sign and Push runs `git fetch` and then `git push`. Fetch, Pull and pushing a tag in Source Control reach the remotes your repository already names, when you click them. Nothing is fetched or pushed in the background.
 - **Claude Code.** Sessions run the `claude` command found on your computer. Its traffic to Anthropic is Claude Code's own, under its own settings; Substrate does not see or relay it.
 - **Language servers and debuggers** you installed run as your programs; what they download is up to them. The install commands Substrate shows (for Claude Code, other agents and language servers) are text for you to copy; Substrate does not run them.
 - **formslot** is reached on this computer only (`127.0.0.1`).

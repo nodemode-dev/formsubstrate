@@ -9,7 +9,9 @@ import { Views } from './views';
 
 const OPEN_DIFF = 'formsubstrate:open-diff';
 const OPEN_REVIEW = 'formsubstrate:open-review';
-const diffId = (x: DiffTarget): string => `diff:${x.session ?? 'workspace'}:${x.staged ? 'staged' : 'work'}:${x.path}`;
+const diffId = (x: DiffTarget): string => (x.commit ? `diff:${x.session ?? 'workspace'}:commit:${x.commit}:${x.path}` : `diff:${x.session ?? 'workspace'}:${x.staged ? 'staged' : 'work'}:${x.path}`);
+
+const COMMIT_RE = /^[0-9a-f]{4,64}$/i;
 
 const reviewId = (session: string | null): string => `review:${session ?? 'workspace'}`;
 
@@ -25,9 +27,9 @@ export function installReview(store: WorkspaceStore, commands: Commands, area: H
 
   const openDiff = (x: DiffTarget): void => {
     const id = diffId(x);
-    const where = x.staged ? t('staged') : x.session ? t('session') : t('working tree');
+    const where = x.commit ? (x.short ?? x.commit.slice(0, 7)) : x.staged ? t('staged') : x.session ? t('session') : t('working tree');
     void import('./diff-view').then(({ DiffTab }) => {
-      views.open(id, { name: `${baseName(x.path)} (${where})`, path: `${t('Diff')}: ${x.path}` }, () => new DiffTab(x, views.prefs, (dirty) => views.setModified(id, dirty)));
+      views.open(id, { name: `${baseName(x.path)} (${where})`, path: x.commit ? `${t('Diff')}: ${x.path} (${x.commit})` : `${t('Diff')}: ${x.path}` }, () => new DiffTab(x, views.prefs, (dirty) => views.setModified(id, dirty)));
       views.show(id);
     });
   };
@@ -43,7 +45,10 @@ export function installReview(store: WorkspaceStore, commands: Commands, area: H
 
   window.addEventListener(OPEN_DIFF, (e) => {
     const d = (e as CustomEvent<unknown>).detail;
-    if (isTarget(d)) openDiff({ path: d.path, staged: d.staged, session: d.session ?? null });
+    if (!isTarget(d)) return;
+    const commit = typeof d.commit === 'string' && COMMIT_RE.test(d.commit) ? d.commit : undefined;
+    const short = commit && typeof d.short === 'string' && COMMIT_RE.test(d.short) ? d.short : undefined;
+    openDiff(commit ? { path: d.path, staged: false, session: d.session ?? null, commit, short } : { path: d.path, staged: d.staged, session: d.session ?? null });
   });
 
   window.addEventListener(OPEN_REVIEW, (e) => {
