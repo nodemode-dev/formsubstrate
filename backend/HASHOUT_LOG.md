@@ -410,3 +410,35 @@ Recipes (`/api/recipes`) and triggers (`/api/triggers`, the signed webhook `/api
 - logged: v0.15.0 · 2026-10-30
 
 Four more `--add-data` folders, each placed where its reader looks under `_MEIPASS`: `presets/graphs` (runs/presets.py reads `_MEIPASS/presets/graphs`), `app/services/recipes/presets` and `app/services/library/bundled` (both found through `Path(__file__)`, which sits under `_MEIPASS/app` when frozen) and `skills` (built-in skills). The graph templates already ride along with `app/templates`. New Python modules under services/runs, recipes, triggers, library and cogentics need no hidden imports: `--collect-submodules app` finds them and the selfcheck imports `app.main`. `selfcheck` counts the files of each group and reports `missing: <folder>` (exit 1) for an empty one. Checked on a frozen Linux engine: 4 graph presets, 5 graph templates, 5 recipe presets, 1 bundled plugin, 1 skill; the engine answered `/api/graphs/presets`, `/api/presets/graphs`, `/api/recipes` (its `presets` list) and `/api/plugins` from the frozen folder. `/api/skills` lists project and user skills only (`sessions.list_skills`); nothing reads the bundled `skills` folder yet, so that route lists it only if a copy sits in `~/.claude/skills`.
+
+### setup/freeze_backend.bat · skill and recipe presets as two arguments
+
+- refers-to: setup/freeze_backend.bat :: pyinstaller
+- kind: rationale
+- logged: v0.17.1 · 2026-11-22
+
+The Windows freeze line had no space between `"...presets\skills;presets/skills"` and the next `--add-data` (since v0.15.0), so PyInstaller read one argument with a wrong destination and took the recipe presets path as a stray script argument. The space is back; the line now passes the same eight `--add-data` folders as `setup/freeze_backend`. Read only: no Windows freeze ran here.
+
+### build_app.bat, backend/oc_install.bat · a failed install stops the build
+
+- refers-to: build_app.bat :: oc_install.bat, npm ci; backend/oc_install.bat :: venv, pip
+- kind: rationale
+- logged: v0.17.1 · 2026-11-22
+
+`build_app.bat` used to go on after a failed engine or window install and fail later at the freeze or at `tauri build`, far from the cause. Now `backend/oc_install.bat` exits 1 with a `[formsubstrate] error:` line when the venv is not made, when pip cannot be upgraded or when `requirements.txt` does not install; `build_app.bat` checks the install's exit code, installs the window with `npm ci` (the lock file is tracked), checks its exit code, and then checks that `frontend\node_modules\.bin\tauri.cmd` exists, because the script runs that file next. The install is skipped when `backend\venv\Scripts\activate.bat` and `tauri.cmd` are already there, as before. The script writes no log file; the messages go to the console the build runs in. The same shape as FormPublisher's 0.3.4 `build_app.bat`. Read only: no Windows here, none of it ran.
+
+### backend/requirements_macos.txt · pinned
+
+- refers-to: backend/requirements_macos.txt :: all; backend/requirements.txt :: all
+- kind: rationale
+- logged: v0.17.1 · 2026-11-22
+
+Replaces the v0.1.0 unpinned list. The seven packages are the same as in `requirements.txt` and now carry the same pins (fastapi 0.141.1, uvicorn[standard] 0.53.0, python-multipart 0.0.32, httpx 0.28.1, keyring 25.7.0, ptyprocess 0.7.0, and pywinpty 3.0.5 behind its win32 marker), so a Mac engine is the same engine Linux, Windows and CI install. Nothing was left unpinned. The packages these pull in (uvloop, httptools, watchfiles, websockets, pydantic and others) are unpinned in both files alike. A pip dry run for `macosx_11_0_arm64` and `macosx_11_0_x86_64` with Python 3.13 and binary wheels only resolved every package. Keep the two files in step by hand.
+
+### .github/workflows/ci.yml · the check workflow
+
+- refers-to: .github/workflows/ci.yml :: frontend, engine
+- kind: explainer
+- logged: v0.17.1 · 2026-11-22
+
+The check formcompiler's gate waits for (`checks: ["ci.yml"]` in its registry entry). On pushes to main, pull requests and by hand. `frontend`: Node 22, `npm ci`, `npm run build` (`tsc --noEmit` and `vite build`). `engine`: Python 3.13, `pip install -r backend/requirements.txt`, `formsubstrate_engine.py --selfcheck` (unfrozen: imports, version, templates and the five data groups), `compileall` over the engine, and `bash -n` on every shell script. It builds no desktop app, freezes no engine and runs no `cargo check`; the family build does those.
