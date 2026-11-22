@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+source "$(dirname "$0")/lib.sh"
+command -v node >/dev/null 2>&1 || sf_die "node is required, install Node 20.19+ or 22.12+"
+sf_say "i18n · $(sf_os)"
+cd "$FORMSUBSTRATE_ROOT/frontend" || sf_die "frontend folder missing"
+if node scripts/i18n-check.mjs "$@"; then sf_say "ready"; else status=$?; sf_say "fix the FAIL lines above"; exit "$status"; fi

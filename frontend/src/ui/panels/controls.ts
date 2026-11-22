@@ -1,5 +1,6 @@
 import { el, escapeHtml, q, setChecked, setText, setValue } from '../dom';
 import { enhanceSelect } from '../dropdown';
+import { t } from '../i18n';
 
 export interface Row<T> { el: HTMLElement; set(v: T): void }
 
@@ -39,7 +40,7 @@ export function sliderRow(label: string, min: number, max: number, step: number,
     const reset = (): void => { range.value = String(toPos(def)); fill(); box.value = fmt(def); onInput(def); };
     q(root, 'span').addEventListener('dblclick', reset);
     range.addEventListener('dblclick', reset);
-    q(root, 'span').title = 'Double-click to reset';
+    q(root, 'span').title = t('Double-click to reset');
   }
   const lab = q(root, 'span');
   let scrub: { x: number; v: number; id: number; on: boolean } | null = null;

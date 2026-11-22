@@ -251,14 +251,19 @@ export class Dialog {
 export type SaveChoice = { choice: 'save' | 'discard' | 'cancel'; all: boolean };
 
 class SaveChanges extends Dialog {
-  private readonly question = el('<p class="cv-save-q">Save changes to <strong></strong>?</p>');
-  private readonly all = el('<label class="cv-field cv-check" hidden><span>Apply to All</span><input type="checkbox"></label>');
+  private readonly question = el('<p class="cv-save-q" data-no-i18n><span></span><strong></strong><span></span></p>');
+  private readonly note = el('<p class="cv-note"></p>');
+  private readonly all = el('<label class="cv-field cv-check" hidden><span></span><input type="checkbox"></label>');
   private readonly saveBtn: HTMLButtonElement;
   private resolve: ((v: SaveChoice) => void) | null = null;
   constructor() {
     super('Unsaved Changes', 460);
     q<HTMLElement>(this.scrim, '.cv-dialog').classList.add('cv-savechanges');
-    this.body.append(this.question, el('<p class="cv-note">Your changes will be lost if you don’t save them.</p>'), this.all);
+    const allLabel = q<HTMLElement>(this.all, 'span');
+    setText(allLabel, t('Apply to All'));
+    allLabel.dataset.en = 'Apply to All';
+    allLabel.dataset.shown = allLabel.textContent ?? '';
+    this.body.append(this.question, this.note, this.all);
     this.button('Don’t Save', 'ghost', () => this.finish('discard')).classList.add('cv-btn-apart');
     this.button('Cancel', 'ghost', () => this.finish('cancel'));
     this.saveBtn = this.button('Save', 'primary', () => this.finish('save'));
@@ -268,7 +273,12 @@ class SaveChanges extends Dialog {
     const previous = this.resolve;
     this.resolve = null;
     previous?.({ choice: 'cancel', all: false });
-    setText(this.question.querySelector('strong') as HTMLElement, name);
+    const [before, after = ''] = t('Save changes to {name}?').split('{name}');
+    const parts = this.question.children;
+    setText(parts[0], before);
+    setText(parts[1], name);
+    setText(parts[2], after);
+    setText(this.note, t('Your changes will be lost if you don’t save them.'));
     this.all.hidden = !many;
     q<HTMLInputElement>(this.all, 'input').checked = false;
     this.open(this.saveBtn);

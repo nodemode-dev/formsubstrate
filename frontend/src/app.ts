@@ -81,7 +81,7 @@ function keep(key: string, value: string): void {
 
 const SHELL = `<div class="cv-app">
 <header class="cv-titlebar">
-<nav class="cv-menubar" aria-label="Main menu"></nav>
+<nav class="cv-menubar" aria-label="${t('Main menu')}"></nav>
 <div class="cv-tb-doc"></div>
 <div class="cv-tb-app">${APP} 2026</div>
 <div class="cv-zoom">

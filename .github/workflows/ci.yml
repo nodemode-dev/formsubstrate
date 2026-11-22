@@ -30,6 +30,8 @@ jobs:
       - name: Type check and build
         working-directory: frontend
         run: npm run build
+      - name: Interface languages
+        run: ./formsubstrate i18n
 
   engine:
     runs-on: ubuntu-latest
@@ -49,7 +51,7 @@ jobs:
         run: python -m compileall -q backend/app backend/presets backend/formsubstrate_engine.py backend/formsubstrate_mcp.py backend/formsubstrate_ptyhost.py
       - name: Shell syntax
         run: |
-          for f in formsubstrate formsubstrate_oc_install build_app "Install formsubstrate.command" backend/oc_install backend/boot_backend frontend/oc_install frontend/boot_frontend setup/lib.sh setup/boot_all setup/boot_backend setup/boot_frontend setup/clean setup/doctor setup/freeze_backend setup/install_all setup/serve; do
+          for f in formsubstrate formsubstrate_oc_install build_app "Install formsubstrate.command" backend/oc_install backend/boot_backend frontend/oc_install frontend/boot_frontend setup/lib.sh setup/boot_all setup/boot_backend setup/boot_frontend setup/clean setup/doctor setup/freeze_backend setup/i18n_check setup/install_all setup/serve; do
             bash -n "$f"
           done
 

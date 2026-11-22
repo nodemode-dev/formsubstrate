@@ -1,9 +1,9 @@
-# HASHOUT_LOG · frontend/src/io (engine clients) · subform
+# HASHOUT_LOG · frontend/src/io (engine clients) · formsubstrate
 
 Living log for the window's engine clients added or changed in F6 to F8: io/formslot.ts, io/sessions.ts (gates), io/debug.ts and io/git.ts. Source files stay comment-free; what they would have said lives here. The window-wide log is frontend/HASHOUT_LOG.md.
 
-Current build version: v0.7.0
-Last updated: 2026-10-30 · Phases F6 carries, F7 and F8
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ### frontend/src/io/formslot.ts · formslotState
 

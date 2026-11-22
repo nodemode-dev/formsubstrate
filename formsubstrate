@@ -14,6 +14,7 @@ usage: ./formsubstrate [command] [options]
   frontend            boot the frontend only
   serve               serve the built frontend from the backend on 127.0.0.1:5655
   doctor              check the toolchain, installs and ports
+  i18n                check the interface language tables
   mcp                 the stdio MCP server for agents (forwards to the running engine)
   clean [--all]       remove build output (--all also venv and node_modules)
   version             the version and build (also --version)
@@ -29,6 +30,7 @@ case "$cmd" in
   frontend) exec setup/boot_frontend "$@" ;;
   serve) exec setup/serve "$@" ;;
   doctor) exec setup/doctor "$@" ;;
+  i18n) exec setup/i18n_check "$@" ;;
   mcp)
     py=backend/venv/bin/python
     [ -x "$py" ] || py="$(command -v python3 || command -v python)"

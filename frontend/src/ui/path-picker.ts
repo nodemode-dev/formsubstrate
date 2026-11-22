@@ -29,7 +29,7 @@ class PathPicker extends Dialog {
   private readonly up = el<HTMLButtonElement>(`<button class="cv-icon-btn" type="button" data-pp="up">${icon('chevronLeft', 16)}</button>`);
   private readonly homeBtn = el<HTMLButtonElement>(`<button class="cv-icon-btn" type="button" data-pp="home">${icon('home', 16)}</button>`);
   private readonly crumbs = el('<div class="cv-pp-crumbs" role="navigation"></div>');
-  private readonly hiddenToggle = el<HTMLInputElement>('<input type="checkbox" aria-label="Show hidden files">');
+  private readonly hiddenToggle = el<HTMLInputElement>(`<input type="checkbox" aria-label="${t('Show hidden files')}">`);
   private readonly typed = el('<div class="cv-pp-typed" hidden><input class="cv-input" type="text" spellcheck="false" autocomplete="off" aria-label="Absolute path"><button class="cv-btn cv-btn-ghost" type="button" data-pp="go"></button></div>');
   private readonly typedInput = q<HTMLInputElement>(this.typed, 'input');
   private readonly list = el('<div class="cv-pp-list" role="listbox" tabindex="0"></div>');

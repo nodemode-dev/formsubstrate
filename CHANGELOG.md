@@ -4,6 +4,20 @@ Versions follow `v*.*.*` with dots. Dates are US Eastern. The newest version is 
 
 The app was renamed Substrate (family name FormSubstrate, machine name `formsubstrate`) at 0.17.0. The entries below read with the new name throughout; the git history keeps the former one.
 
+## 0.20.0 · 2026-11-22
+
+Substrate wears the suite's look and speaks the family's 30 languages.
+
+- Studio Dark, the suite's theme, is the default for new installs, and Substrate's accent is purple (`#a077e0`) everywhere. If you were on Substrata without choosing it, you stay on Substrata; a theme you chose is kept. An accent that Substrate had set for you (the old orange or violet) becomes the new purple; one you chose is kept.
+- A new AMOLED theme with a pure black background.
+- With Auto on, the window opens in the system's light or dark choice from the first frame. With no dark theme chosen, dark is Studio Dark.
+- The splash is dark with a purple bar. If the window cannot be built, or the engine does not answer within 90 seconds, a dialog says so instead of leaving the splash up or the app running with no window. A light theme no longer shows a dark frame behind the page as the window appears.
+- Side panel heads and lists follow the suite's style: a strip with the panel name as a chip, and rounded rows where the chosen one glows.
+- The recipe list in Triggers, the visit list in the Inspector and the model list in Cogentics change in place without flicker.
+- Welcome's Preferences button opens Preferences at the API key.
+- Every interface language the family ships: English, Spanish (Spain and Mexico), Portuguese (Brazil), French (France and Canada), German, Italian, Dutch, Danish, Finnish, Norwegian, Swedish, Russian, Polish, Czech, Hungarian, Ukrainian, Turkish, Greek, Serbian (Latin), Chinese (Simplified and Traditional), Japanese, Korean, Indonesian, Thai, Vietnamese, Arabic (right to left) and Hindi. Choose one in Preferences > General > Language; the window opens in it from the first frame.
+- The skill source chip in Sessions reads workspace or personal.
+
 ## 0.19.0 · 2026-11-22
 
 Owner-only changes need the window's key, keys are handled without waking the keychain, and Substrate says what it sends over the network.

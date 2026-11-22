@@ -23,6 +23,30 @@ interface Refs {
 
 const pretty = (id: string): string => id.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
+const NAMES = new Map<string, () => string>([
+  ['Activity', () => t('Activity')],
+  ['Agent sessions', () => t('Agent sessions')],
+  ['Approvals', () => t('Approvals')],
+  ['Automation', () => t('Automation')],
+  ['Blocks', () => t('Blocks')],
+  ['Collections', () => t('Collections')],
+  ['Console', () => t('Console')],
+  ['Extensions', () => t('Extensions')],
+  ['Files', () => t('Files')],
+  ['Language intelligence', () => t('Language intelligence')],
+  ['Plugins', () => t('Plugins')],
+  ['Recipes', () => t('Recipes')],
+  ['Run and Debug', () => t('Run and Debug')],
+  ['Runs', () => t('Runs')],
+  ['Search', () => t('Search')],
+  ['Source control', () => t('Source control')],
+  ['System', () => t('System')],
+  ['Tools and blocks', () => t('Tools and blocks')],
+  ['Triggers', () => t('Triggers')],
+  ['Welcome', () => t('Welcome')],
+]);
+const shownName = (name: string): string => NAMES.get(name)?.() ?? name;
+
 export class ExtensionsView {
   private readonly search: HTMLInputElement;
   private readonly count: HTMLElement;
@@ -83,8 +107,8 @@ export class ExtensionsView {
     tg.input.addEventListener('change', () => {
       const want = tg.input.checked;
       const outcome = setEnabled(refs.item.id, want);
-      if (outcome === 'reload') toast(`${refs.item.name}: ${t('disabled; reload the window to unload its panels')}`);
-      else if (outcome === 'active') toast(`${refs.item.name}: ${t('enabled')}`);
+      if (outcome === 'reload') toast(`${shownName(refs.item.name)}: ${t('disabled; reload the window to unload its panels')}`);
+      else if (outcome === 'active') toast(`${shownName(refs.item.name)}: ${t('enabled')}`);
       this.render();
     });
     this.update(node, item);
@@ -95,13 +119,13 @@ export class ExtensionsView {
     const refs = this.refs.get(node);
     if (!refs) return;
     refs.item = item;
-    setText(refs.name, t(item.name));
+    setText(refs.name, shownName(item.name));
     setText(refs.desc, t(item.description));
     setTitle(refs.desc, t(item.description));
     const state = item.required ? 'Core' : !item.enabled ? 'Off' : item.active ? 'On' : 'Reload';
     setText(refs.state, t(state));
     refs.state.dataset.state = state.toLowerCase();
     setClass(node, 'is-off', !item.enabled);
-    setToggle(refs.tg, item.enabled, item.required, item.required ? t('Core extensions stay on') : `${t(item.enabled ? 'Disable' : 'Enable')} ${t(item.name)}`);
+    setToggle(refs.tg, item.enabled, item.required, item.required ? t('Core extensions stay on') : `${t(item.enabled ? 'Disable' : 'Enable')} ${shownName(item.name)}`);
   }
 }

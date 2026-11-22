@@ -254,7 +254,7 @@ class SearchPanel {
     else if (this.ran) {
       const files = new Set(this.hits.map((h) => h.path)).size;
       text = this.hits.length
-        ? `${tn(this.hits.length, '1 result', `${this.hits.length} results`)} ${t('in')} ${tn(files, '1 file', `${files} files`)}${this.engine ? ` · ${this.engine}` : ''}`
+        ? `${tn(this.hits.length, '{n} result', '{n} results')} ${t('in')} ${tn(files, '{n} file', '{n} files')}${this.engine ? ` · ${this.engine}` : ''}`
         : `${t('No results')}${this.engine ? ` · ${this.engine}` : ''}`;
     }
     setText(this.count, text);

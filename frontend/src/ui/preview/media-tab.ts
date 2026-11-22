@@ -8,7 +8,7 @@ type ImageFit = 'fit' | 'actual';
 
 let lastFit: ImageFit = 'fit';
 
-const DASH = '—';
+const DASH = '-';
 
 export class MediaTab implements ViewDoc {
   readonly root = el<HTMLElement>(`<div class="cv-media">

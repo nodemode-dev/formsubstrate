@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+
 export type Cfg = Record<string, unknown>;
 export type Value = string | boolean;
 
@@ -38,7 +40,7 @@ export const FIELDS: readonly Field[] = [
     get: (c) => (typeof c.timeout_s === 'number' ? String(c.timeout_s) : '600'),
     set: (c, v) => {
       const n = Number(String(v).trim());
-      if (!Number.isFinite(n) || n < 10) return 'Timeout must be at least 10 seconds';
+      if (!Number.isFinite(n) || n < 10) return t('Timeout must be at least 10 seconds');
       c.timeout_s = n;
       return null;
     },

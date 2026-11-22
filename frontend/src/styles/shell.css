@@ -218,9 +218,9 @@ body.large-tabs .cv-tab-name { font-size: var(--fs-14); }
 .cv-toast-close { pointer-events: auto; flex: none; display: grid; place-items: center; width: var(--size-row-sm); height: var(--size-row-sm); padding: 0; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); cursor: pointer; }
 .cv-toast-close:hover { background: var(--bg-hover); color: var(--text-primary); }
 
-.cv-list-row { display: grid; grid-template-columns: var(--size-row-sm) minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-2); height: var(--ctl); padding: 0 var(--space-2); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary); font-size: var(--fs-12); text-align: left; cursor: pointer; }
-.cv-list-row:hover { background: var(--bg-hover); color: var(--text-primary); }
-.cv-list-row.is-selected { background: var(--accent-color-dim); color: var(--text-primary); }
+.cv-list-row { display: grid; grid-template-columns: var(--size-row-sm) minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-2); height: var(--ctl); padding: 0 var(--space-2); border: 0; border-radius: var(--radius-md); background: transparent; color: var(--text-secondary); font-size: var(--fs-12); text-align: left; cursor: pointer; }
+.cv-list-row:hover { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-2); color: var(--text-primary); }
+.cv-list-row.is-selected { background: linear-gradient(90deg, var(--surface-raised) 0%, var(--accent-glow) 55%, var(--accent-glow) 100%); box-shadow: inset 0 0 0 1px var(--accent-line); color: var(--text-primary); }
 .cv-list-meta { color: var(--text-muted); font-size: var(--fs-11); font-variant-numeric: tabular-nums; }
 .cv-palette-box { position: relative; height: calc(12 * var(--ctl) + 11 * var(--space-0) + 2 * var(--space-1) + 2px); }
 .cv-palette-list { display: grid; align-content: start; gap: var(--space-0); height: 100%; overflow: hidden; padding: var(--space-1); border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-primary); }

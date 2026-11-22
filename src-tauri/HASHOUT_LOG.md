@@ -1,7 +1,7 @@
-# HASHOUT_LOG · src-tauri · subform
+# HASHOUT_LOG · src-tauri · formsubstrate
 
-Current build version: v0.1.0
-Last updated: 2026-10-30 · Phase F1
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ## Org-navi-map
 
@@ -392,3 +392,11 @@ Closes the double mapping. Tauri merges `tauri.macos.conf.json` over `tauri.conf
 - logged: v0.18.0 · 2026-11-22
 
 The Windows engine stays a console program. It is started through `tauri-plugin-shell`, whose 2.6.0 source sets `CREATE_NO_WINDOW` on every command it spawns (`src/process/mod.rs`, lines 228 and 406), so the engine gets a console with no window and the programs it starts (git, rg, the pty-host) inherit that console and show none either. FormVis and FormDeck freeze a windowless engine (`--noconsole`) instead; that was not taken, because a windowless parent gives each console child a new visible window unless every start passes its own flag, and this engine starts many. Read from source, not seen on Windows: the first Windows build is the check (`TEST_PLAN.md`).
+
+### src/main.rs, src/reveal.rs, frontend/public/splash.html · boot window checked against FormVis and FormDeck
+
+- refers-to: src/main.rs :: engine_failed, FAILED, ADDRESS_WAIT, setup (window build); src/reveal.rs :: BACKGROUND, app_ready; frontend/public/splash.html :: style
+- kind: removed-code
+- logged: v0.20.0 · 2026-11-22
+
+Checked against FormVis `tauri.conf.json` (the windows block), `splash.html` and `reveal.rs`, and FormDeck's fuller `main.rs`, `engine_start.rs` and `reveal.rs`. Already matching: only the splash is declared, the main window is built after the engine prints its address, the splash stays at least `SPLASH_MIN` (2600 ms) from launch, and on macOS the main window is built hidden, put on screen at alpha 0 and shown when the page calls `app_ready` (or after the 20 s fallback). Changed: the window background was `Color(10, 10, 10, 255)` and the splash card `#0a0a0a` with the four-colour bar `linear-gradient(90deg, #3A7BFF, #9A5CFF 30%, #FF4F7A 62%, #FFAE2B)`, text `#a8a8b8` and track `#1f1f26`. Both now use the Studio Dark boot values of FormVis `index.html`: background `#111111`, text `#a4a4a4`, track `#222127`, and the bar is the accent `#a077e0` with a soft glow of the same colour. `app_ready` takes an optional `bg: [u8; 3]` as in FormDeck and sets the main window's background to it before the reveal, so a light or other theme never shows the dark default at a resize edge; until `dom.ts` sends it (a file this worker could not edit) the argument is absent and nothing changes. A failed start always ends in the native dialog now: a main window that failed to build used to close the splash and leave the app running with no window (`close_splash(&handle);`), and an engine that never printed its address left the splash up for ever. The first now calls `engine_failed`; for the second a thread waits `ADDRESS_WAIT` (90 s, FormDeck's) and calls it when no main window exists yet. `FAILED` makes `engine_failed` run once when both paths meet. The dialog has the title Substrate and the error kind. Not closed, because it needs a new dependency: on Linux the main window is still built visible before the page is ready (FormDeck uses the `gtk` crate to hold it at opacity 0), and on Windows it is built visible as in both references; in both cases the window carries the dark background, so no white frame shows.

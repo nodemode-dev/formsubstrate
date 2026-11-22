@@ -1,9 +1,9 @@
-# HASHOUT_LOG · backend/app/core (engine address, debug relay, language servers) · subform
+# HASHOUT_LOG · backend/app/core (engine address, debug relay, language servers) · formsubstrate
 
 Living log for the F7 and F8 engine helpers: core/engine_addr.py, core/debug.py and core/lsp.py. Source files stay comment-free; what they would have said lives here. The engine-wide log is backend/HASHOUT_LOG.md; workspace_root.py and binres.py are logged in backend/app/routers/HASHOUT_LOG.md.
 
-Current build version: v0.7.0
-Last updated: 2026-10-30 · Phases F7 and F8
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ### backend/app/core/engine_addr.py · remember
 

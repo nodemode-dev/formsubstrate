@@ -168,7 +168,7 @@ class SessionsPanel {
     setText(q(n, '.cv-ss-elapsed'), elapsedLabel(s));
     setText(q(n, '.cv-ss-branch'), s.branch);
     setTitle(q(n, '.cv-ss-meta'), s.worktree);
-    setText(q(n, '.cv-ss-mode'), t(s.mode));
+    setText(q(n, '.cv-ss-mode'), t(s.mode === 'headless' ? 'headless' : 'interactive'));
     const saved = s.tokensSaved ?? 0;
     setText(q(n, '.cv-ss-saved'), saved > 0 ? `${compact(saved)} ${t('saved')}` : '');
     setTitle(q(n, '.cv-ss-saved'), saved > 0 ? `${saved.toLocaleString()} ${t('tokens saved by reusing slots')}` : '');
@@ -248,7 +248,7 @@ class SessionsPanel {
       await sessionsClient.remove(s.id);
     } catch (err) {
       if (statusOf(err) !== 409) throw err;
-      if (!(await confirmAction('Uncommitted changes', `${detailOf(err)} ${t('Remove it anyway?')}`, 'Remove anyway', true))) return;
+      if (!(await confirmAction('Uncommitted changes', `${detailOf(err)} ${t('Remove it anyway?')}`, t('Remove anyway'), true))) return;
       await sessionsClient.remove(s.id, true);
     }
   }
@@ -321,7 +321,7 @@ class SkillsPanel {
 
   private fill(n: HTMLElement, s: Skill): void {
     setText(q(n, '.cv-sk-name'), s.name);
-    setText(q(n, '.cv-sk-src'), t(s.source));
+    setText(q(n, '.cv-sk-src'), t(s.source === 'user' ? 'personal' : 'workspace'));
     if (q(n, '.cv-sk-src').dataset.source !== s.source) q(n, '.cv-sk-src').dataset.source = s.source;
     setText(q(n, '.cv-sk-desc'), s.description);
     setTitle(n, s.path);

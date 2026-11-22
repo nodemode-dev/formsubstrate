@@ -223,7 +223,7 @@ export class NodeInspector {
       const value = this.read(c);
       if (this.initial.get(c.field.id) === value) continue;
       const bad = c.field.set(cfg, value);
-      if (bad) { toast(t(bad), 'error'); return; }
+      if (bad) { toast(bad, 'error'); return; }
     }
     this.deps.engine.dispatch({ type: 'update_node_config', id: node.id, config: cfg }, 'canvas');
     this.show(node.id);
@@ -267,12 +267,17 @@ export class NodeInspector {
     }
     const want = Math.min(this.selectedVisit, Math.max(0, visits.length - 1));
     if (this.visitSel.options.length !== visits.length) {
-      this.visitSel.replaceChildren(...visits.map((v, i) => new Option(`${t('Visit')} ${v.n}`, String(i))));
       this.selectedVisit = visits.length ? visits.length - 1 : 0;
-      this.visitSel.value = String(this.selectedVisit);
     } else if (this.selectedVisit !== want) {
       this.selectedVisit = want;
     }
+    const visitLabel = (v: Visit): string => `${t('Visit')} ${v.n}`;
+    patchList(this.visitSel, visits.map((v, i) => ({ v, i })), {
+      key: ({ i }) => String(i),
+      create: ({ v, i }) => new Option(visitLabel(v), String(i)),
+      update: (node, { v }) => setText(node, visitLabel(v)),
+    });
+    if (this.visitSel.value !== String(this.selectedVisit)) this.visitSel.value = String(this.selectedVisit);
     setHidden(this.visitSel, visits.length < 2);
     const v = visits[this.selectedVisit];
     const usage = fmtUsage(detail.usage);

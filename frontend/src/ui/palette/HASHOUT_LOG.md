@@ -1,9 +1,9 @@
-# HASHOUT_LOG · frontend/src/ui/palette · subform
+# HASHOUT_LOG · frontend/src/ui/palette · formsubstrate
 
 Living log for the command palette's symbol search (fuzzy.ts, symbols.ts). Source files stay comment-free; what they would have said lives here. The shell-wide log is frontend/HASHOUT_LOG.md; the palette dialog itself is frontend/src/ui/command-palette.ts.
 
-Current build version: v0.12.0
-Last updated: 2026-10-30 · symbol search
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ### frontend/src/ui/palette/fuzzy.ts · fuzzyScore
 

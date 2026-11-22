@@ -1,9 +1,9 @@
-# HASHOUT_LOG · frontend/src/extensions and the workbench · subform
+# HASHOUT_LOG · frontend/src/extensions and the workbench · formsubstrate
 
 Living log for the extension registry, the files and search extensions, ui/workbench.ts, io/workspace.ts and styles/workbench.css. Source files stay comment-free; what they would have said lives here. The shell-wide log is frontend/HASHOUT_LOG.md.
 
-Current build version: v0.4.0
-Last updated: 2026-10-30 · Phase F4
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ### frontend/src/io/workspace.ts · writeFile and RecentWorkspace
 
@@ -266,3 +266,27 @@ The engine answers a secret's status from its index and never reads the keychain
 - logged: v0.19.0 · 2026-11-22
 
 The Media block inserted `<img src="https://<placeholder image service>/560x360" alt="" style="width:100%;border-radius:12px" />`, the service being the public placeholder image site named "placehold" on the `.co` domain (its address is not written out here so a search of the tree for it stays empty), so every preview of a page using it fetched an image from that site. It is now an SVG data URI (a tinted 560 by 360 frame, a circle and a hill line, all `fill="currentColor"` with low `fill-opacity`, no tokens and no text), with `width="560" height="360"` so the space is reserved before paint, and `height:auto` so it keeps its ratio at `width:100%`. A file under `frontend/public` would not work: the snippet is pasted into the person's own HTML file, where that path does not exist. Inside an `img` an SVG does not inherit the page colour, so `currentColor` resolves to black and the low opacity gives a neutral grey on light and dark pages. A `git grep` for that address finds nothing.
+
+### frontend/src/extensions/triggers/index.ts · TriggersPanel.syncRecipes patches the recipe options
+
+- refers-to: frontend/src/extensions/triggers/index.ts :: TriggersPanel.syncRecipes; frontend/src/ui/dom.ts :: patchList
+- kind: removed-code
+- logged: v0.20.0 · 2026-11-22
+
+The recipe select was rebuilt when the list of names changed: `this.recipe.replaceChildren(...names.map((n) => { const o = document.createElement('option'); o.value = n; o.textContent = n; return o; }));` and then `if (names.includes(current)) this.recipe.value = current;`. The options are now patched with `patchList`, keyed by the recipe name: a new recipe adds one option, a removed one takes its option away, the rest stay where they are. The select, its focus and its enhanced dropdown stay; the chosen recipe is written back only when it is still listed and the value differs.
+
+### frontend/src/extensions/cogentics/members.ts · fillModels patches options and groups by key
+
+- refers-to: frontend/src/extensions/cogentics/members.ts :: fillModels; frontend/src/extensions/cogentics/rich.ts :: patchFilled
+- kind: removed-code
+- logged: v0.20.0 · 2026-11-22
+
+The model select was emptied and refilled whenever the catalogue, the CLI list or the member kind changed: a `nodes` array of new options and optgroups, `select.replaceChildren(...nodes);` and `select.value = '';`. It is now patched with `patchFilled` at two levels: top-level entries keyed `o:<id>` for an option (the default model, or each CLI model) and `g:<vendor>` for an optgroup, and each optgroup's models patched inside it keyed `o:<id>`. Labels, values and group labels are rewritten in place only when they differ. The `data-filled` check that skips an unchanged fill stays. The value is kept when the same model is still listed and set to the empty default otherwise, which is what the old code always did.
+
+### frontend/src/extensions/welcome/index.ts · Preferences opens at the key's card
+
+- refers-to: frontend/src/extensions/welcome/index.ts :: WelcomeDialog constructor (Preferences button); frontend/src/ui/settings.ts :: formsubstrate:open-settings
+- kind: removed-code
+- logged: v0.20.0 · 2026-11-22
+
+Welcome's only setting is the Anthropic API key row, and its Preferences button opened Preferences wherever it was last left: `document.dispatchEvent(new CustomEvent('formsubstrate:open-settings'))`. It now sends `{ detail: { section: 'Agents' } }`, so Preferences opens scrolled to the Agents card that holds the key, with its rail tab chosen and the wire on it.

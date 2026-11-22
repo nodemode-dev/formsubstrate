@@ -1,9 +1,9 @@
-# HASHOUT_LOG · approvals extension · subform
+# HASHOUT_LOG · approvals extension · formsubstrate
 
 Living log for frontend/src/extensions/approvals/.
 
-Current build version: v0.14.0
-Last updated: 2026-10-31
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ### frontend/src/extensions/approvals/index.ts · ApprovalsPanel
 

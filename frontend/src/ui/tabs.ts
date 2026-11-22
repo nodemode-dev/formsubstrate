@@ -1,5 +1,6 @@
 import { el, patchList, q, setClass, setText, setTitle } from './dom';
 import { icon } from './icons';
+import { t } from './i18n';
 import type { OpenDoc, WorkspaceStore } from './workspace-store';
 
 const APP = 'Substrate';
@@ -93,7 +94,7 @@ export class Tabs {
     patchList<OpenDoc>(this.strip, [...this.store.docs], {
       key: (d) => d.id,
       create: (d) => {
-        const n = el(`<div class="cv-tab" role="tab" tabindex="-1"><span class="cv-tab-dot"></span><span class="cv-tab-name"></span><button class="cv-tab-close" type="button" tabindex="-1" aria-label="Close tab">${icon('close', 12)}</button></div>`);
+        const n = el(`<div class="cv-tab" role="tab" tabindex="-1"><span class="cv-tab-dot"></span><span class="cv-tab-name"></span><button class="cv-tab-close" type="button" tabindex="-1" aria-label="${t('Close tab')}">${icon('close', 12)}</button></div>`);
         this.update(n, d, current);
         return n;
       },

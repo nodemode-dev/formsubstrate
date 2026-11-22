@@ -1,9 +1,9 @@
-# HASHOUT_LOG · backend/app/routers (workspace and secrets) · subform
+# HASHOUT_LOG · backend/app/routers (workspace and secrets) · formsubstrate
 
 Living log for the F3 and F4 engine routes and their helpers: routers/workspace.py, routers/secrets.py, core/workspace_root.py, core/binres.py. Source files stay comment-free; what they would have said lives here. The engine-wide log is backend/HASHOUT_LOG.md.
 
-Current build version: v0.4.0
-Last updated: 2026-10-30 · Phases F3 and F4
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ### backend/app/routers/workspace.py · search flags
 

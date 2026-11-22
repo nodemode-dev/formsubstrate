@@ -11,6 +11,7 @@ if /i "%CMD%"=="backend" ( call setup\boot_backend.bat & exit /b )
 if /i "%CMD%"=="frontend" ( call setup\boot_frontend.bat & exit /b )
 if /i "%CMD%"=="serve" ( call setup\serve.bat & exit /b )
 if /i "%CMD%"=="doctor" ( call setup\doctor.bat & exit /b )
+if /i "%CMD%"=="i18n" ( call setup\i18n_check.bat & exit /b )
 if /i "%CMD%"=="mcp" (
   if exist "backend\venv\Scripts\python.exe" ( "backend\venv\Scripts\python.exe" backend\formsubstrate_mcp.py ) else ( python backend\formsubstrate_mcp.py )
   exit /b

@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use tauri::{Manager, Runtime, WebviewWindow};
 
 pub const SPLASH_MIN: Duration = Duration::from_millis(2600);
-pub const BACKGROUND: tauri::window::Color = tauri::window::Color(10, 10, 10, 255);
+pub const BACKGROUND: tauri::window::Color = tauri::window::Color(17, 17, 17, 255);
 const BAR_FINISH: Duration = Duration::from_millis(220);
 const FALLBACK: Duration = Duration::from_secs(20);
 
@@ -31,7 +31,10 @@ pub fn conceal<R: Runtime>(window: &WebviewWindow<R>) {
 }
 
 #[tauri::command(async)]
-pub fn app_ready<R: Runtime>(app: tauri::AppHandle<R>) {
+pub fn app_ready<R: Runtime>(app: tauri::AppHandle<R>, bg: Option<[u8; 3]>) {
+    if let (Some([r, g, b]), Some(main)) = (bg, app.get_webview_window("main")) {
+        let _ = main.set_background_color(Some(tauri::window::Color(r, g, b, 255)));
+    }
     show_main(&app);
 }
 

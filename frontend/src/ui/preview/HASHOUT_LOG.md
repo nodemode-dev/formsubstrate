@@ -1,9 +1,9 @@
-# HASHOUT_LOG · frontend/src/ui/preview (Markdown preview, media tabs) · subform
+# HASHOUT_LOG · frontend/src/ui/preview (Markdown preview, media tabs) · formsubstrate
 
 Living log for the Markdown preview and the image, video, audio and PDF tabs: sanitize.ts, markdown.ts, md-preview.ts, media.ts, media-tab.ts, index.ts and styles/preview.css. Source files stay comment-free; what they would have said lives here.
 
-Current build version: v0.8.0
-Last updated: 2026-10-30 · preview port from substrata
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ### frontend/src/ui/preview/sanitize.ts · sanitizeHtml
 
@@ -68,3 +68,11 @@ External links in the preview now do something and never navigate the window. On
 - logged: v0.11.0 · 2026-10-30
 
 review L5. The link is parsed with `new URL()`; anything with whitespace or a control character, any scheme other than http, https and mailto, and an http link without a host are refused, and the normalised `href` is what is handed to the shell and shown. The toast shows the destination (cut at 200 characters) as text through `textContent` via `toast`. `src-tauri/tauri.conf.json` pins `plugins.shell.open` to `^(https?://[^\s]+|mailto:[^\s]+)$`, which drops `tel:` that the plugin default allowed.
+
+### frontend/src/ui/preview/media-tab.ts · DASH
+
+- refers-to: frontend/src/ui/preview/media-tab.ts :: DASH
+- kind: removed-code
+- logged: v0.20.0 · 2026-11-22
+
+The placeholder for a missing dimension or size was an em dash: `const DASH = '<U+2014>';`, the character itself between the quotes (named here by its code point, since Markdown in this repository carries no em dash). The family writes no em dash and no en dash in UI text, and its own readouts show a missing value as a hyphen-minus (FormVis's ruler readouts, Substrate's console cards), so DASH is now `'-'`. After the change `git grep` finds no U+2014 anywhere in the repository.

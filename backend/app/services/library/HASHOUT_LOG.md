@@ -1,9 +1,9 @@
-# HASHOUT_LOG · backend/app/services/library and its routers · subform
+# HASHOUT_LOG · backend/app/services/library and its routers · formsubstrate
 
 Living log for the substrata library port: collections, tools, plugins, MCP servers and the activity feed. Source files stay comment-free; what they would have said lives here. Routers: routers/collections.py, tools.py (also `/activity`), plugins.py, mcp_servers.py.
 
-Current build version: v0.14.0
-Last updated: 2026-10-31
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ### backend/app/services/library · port map
 
