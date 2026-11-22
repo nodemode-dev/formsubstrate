@@ -1,6 +1,6 @@
 ---
 name: surgical-edits
-description: The surgical edit doctrine for agents working in this workspace.
+description: Rules for changing existing files with the smallest edit that solves the task. Use whenever editing code or documents in this workspace, fixing a bug, adding a feature to existing files, or tempted to rewrite or reformat a file. Covers reading the region first, verifying with the repository's own checks, putting new capabilities in new files, and fixing forward when a check fails.
 ---
 
 # surgical-edits

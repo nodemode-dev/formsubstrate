@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: A reviewer's checklist for critic and evaluator agents.
+description: Checklist for reviewing a change before it is accepted. Use when acting as a critic, evaluator or reviewer node in a graph run, when asked to review a diff, a pull request or a session's worktree, or before giving an accept or revise verdict. Covers running the project's own checks, scope, contracts, failure paths and how to word a verdict.
 ---
 
 # code-review
