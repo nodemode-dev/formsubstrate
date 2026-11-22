@@ -4,8 +4,19 @@ cd /d "%~dp0"
 set "ROOT=%cd%"
 where node >nul 2>nul || ( echo [formsubstrate] Node 20.19 or newer is required & exit /b 1 )
 where cargo >nul 2>nul || ( echo [formsubstrate] Rust is missing, install it from https://rustup.rs & exit /b 1 )
-if not exist backend\venv\Scripts\activate.bat ( pushd backend & call oc_install.bat & popd )
-if not exist frontend\node_modules ( pushd frontend & call npm install & popd )
+if not exist backend\venv\Scripts\activate.bat (
+  pushd backend
+  call oc_install.bat
+  if errorlevel 1 ( popd & echo [formsubstrate] error: the engine install failed, see the output above & exit /b 1 )
+  popd
+)
+if not exist frontend\node_modules\.bin\tauri.cmd (
+  pushd frontend
+  call npm ci
+  if errorlevel 1 ( popd & echo [formsubstrate] error: the window packages could not be installed with npm ci, see the output above & exit /b 1 )
+  popd
+)
+if not exist frontend\node_modules\.bin\tauri.cmd ( echo [formsubstrate] error: frontend\node_modules\.bin\tauri.cmd is missing after the install & exit /b 1 )
 call backend\venv\Scripts\activate.bat
 pip install -q -r backend\requirements_build.txt || exit /b 1
 set "DIST=%ROOT%\frontend\dist"
