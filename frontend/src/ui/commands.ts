@@ -55,12 +55,16 @@ export class Commands {
   private readonly map = new Map<string, Command>();
   private readonly byKey = new Map<string, Command>();
   private readonly defaults = new Map<string, string[]>();
+  private saved: Record<string, string[]> = {};
 
   add(...cmds: Command[]): void {
     for (const cmd of cmds) {
       if (this.map.has(cmd.id)) throw new Error(`duplicate command: ${cmd.id}`);
       this.map.set(cmd.id, cmd);
       this.defaults.set(cmd.id, [...(cmd.keys ?? [])]);
+      const kept = this.saved[cmd.id];
+      if (kept) { cmd.keys = []; this.setKeys(cmd.id, kept); continue; }
+      if (cmd.keys) cmd.keys = cmd.keys.filter((k) => { const had = this.byKey.get(k); return !had || !this.saved[had.id]?.includes(k); });
       for (const k of cmd.keys ?? []) this.byKey.set(k, cmd);
     }
     this.onChange?.();
@@ -88,10 +92,22 @@ export class Commands {
       const d = this.defaults.get(id) ?? [], k = cmd.keys ?? [];
       if (d.length !== k.length || d.some((x, i) => x !== k[i])) out[id] = [...k];
     }
+    for (const [id, keys] of Object.entries(this.saved)) if (!this.map.has(id)) out[id] = [...keys];
     return out;
   }
 
+  adopt(saved: Record<string, string[]>): void {
+    this.resetKeys();
+    this.saved = saved;
+    for (const [id, keys] of Object.entries(saved)) this.setKeys(id, keys);
+  }
+
+  remember(saved: Record<string, string[]>): void { this.saved = saved; }
+
+  resetKey(id: string): void { this.setKeys(id, this.defaultKeys(id)); }
+
   resetKeys(): void {
+    this.saved = {};
     this.byKey.clear();
     for (const [id, cmd] of this.map) {
       cmd.keys = [...(this.defaults.get(id) ?? [])];

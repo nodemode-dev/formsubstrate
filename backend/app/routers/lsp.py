@@ -120,6 +120,9 @@ async def announce_trust(body: TrustBody) -> dict:
     root = _root()
     if root is not None and not trust.is_trusted(root):
         await lsp.stop_trusted_only(root)
+        from app.services import tasks
+        with contextlib.suppress(Exception):
+            await tasks.stop(None)
     return answer
 
 

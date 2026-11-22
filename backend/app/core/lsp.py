@@ -107,7 +107,7 @@ def _diagnostic(item: object) -> dict | None:
     }
 
 
-def record_diagnostics(root: str, params: object, owner: object = None) -> None:
+def record_diagnostics(root: str, params: object, owner: object = None, slot: str = "") -> None:
     global _problems_seq
     if not isinstance(root, str) or not root or not isinstance(params, dict):
         return
@@ -126,11 +126,12 @@ def record_diagnostics(root: str, params: object, owner: object = None) -> None:
         _problems.move_to_end(root)
         entry["servers"].add(owner)
         docs = entry["docs"]
-        docs.pop(uri, None)
+        key = f"{uri}\0{slot}" if slot else uri
+        docs.pop(key, None)
         if not rows:
             return
         _problems_seq += 1
-        docs[uri] = {"uri": uri, "version": _whole(params.get("version")), "at": time.time(), "seq": _problems_seq, "sent": len(raw), "items": rows, "owner": owner}
+        docs[key] = {"uri": uri, "version": _whole(params.get("version")), "at": time.time(), "seq": _problems_seq, "sent": len(raw), "items": rows, "owner": owner}
         while len(docs) > PROBLEM_DOCS:
             docs.popitem(last=False)
 
@@ -151,7 +152,16 @@ def diagnostics_of(root: str) -> list[dict] | None:
         entry = _problems.get(root)
         if entry is None:
             return None
-        return [{k: v for k, v in doc.items() if k != "owner"} for doc in reversed(entry["docs"].values())]
+        merged: dict[str, dict] = {}
+        for doc in reversed(entry["docs"].values()):
+            row = {k: v for k, v in doc.items() if k != "owner"}
+            first = merged.get(row["uri"])
+            if first is None:
+                merged[row["uri"]] = row
+            else:
+                first["items"] = (first["items"] + row["items"])[:PROBLEM_ITEMS]
+                first["sent"] += row["sent"]
+        return list(merged.values())
 
 
 @dataclass
