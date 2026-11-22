@@ -846,3 +846,11 @@ The read-only tool `problems` replaces the last sentence of the entry above: the
 - logged: v0.21.0 · 2026-11-22
 
 The `formsubstrate` entry of a session's `mcp.json` was written only when `./formsubstrate` (or `formsubstrate.bat`) sat in the repository folder above the engine, so every session of a packaged app ran without Substrate's own MCP server, and the session note said so. A frozen engine (`sys.frozen`) now names itself: `command` is `sys.executable` (the `formsubstrate-engine` program) with `args` `["--mcp"]`; from a checkout it is the launcher with `["mcp"]` as before. The `env` is the same in both (`FORMSUBSTRATE_GATE_TOKEN` and `FORMSUBSTRATE_ENGINE` expanded by Claude Code, and the data folder), so the frozen `--mcp` mode finds the running engine the way the launcher does. Removed: `if launcher.is_file():` and `"command": str(launcher), "args": ["mcp"],`. Checked by calling `_mcp_config` with and without `sys.frozen` set in a throwaway script; not run in a built app.
+
+### backend/app/services/mcp_tools.py · gate_notes (the refusal a client reads)
+
+- refers-to: backend/app/services/mcp_tools.py :: gate_notes
+- kind: rationale
+- logged: v0.21.0 · 2026-11-22
+
+A client added in Preferences may not name a session (the rule at the top of `call_tool`), so `gate_notes` always refused it with the window's message, "session is required for the app window". A client now reads "gate notes belong to one agent session; an MCP client added in Preferences cannot read them". The window and session tokens get the same answers as before.

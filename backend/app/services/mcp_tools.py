@@ -803,6 +803,8 @@ async def run_status(who: dict, args: dict) -> dict:
 
 async def gate_notes(who: dict, args: dict) -> dict:
     session_id = _session_of(who, args)
+    if session_id is None and who["kind"] == "client":
+        raise ToolError("gate notes belong to one agent session; an MCP client added in Preferences cannot read them")
     if session_id is None:
         raise ToolError("session is required for the app window; call session_list for the ids")
     if session_id not in sv._sessions:
