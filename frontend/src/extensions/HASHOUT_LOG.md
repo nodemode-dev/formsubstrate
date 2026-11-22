@@ -1,9 +1,9 @@
-# HASHOUT_LOG · frontend/src/extensions and the workbench · subform
+# HASHOUT_LOG · frontend/src/extensions and the workbench · formsubstrate
 
 Living log for the extension registry, the files and search extensions, ui/workbench.ts, io/workspace.ts and styles/workbench.css. Source files stay comment-free; what they would have said lives here. The shell-wide log is frontend/HASHOUT_LOG.md.
 
-Current build version: v0.4.0
-Last updated: 2026-10-30 · Phase F4
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ### frontend/src/io/workspace.ts · writeFile and RecentWorkspace
 

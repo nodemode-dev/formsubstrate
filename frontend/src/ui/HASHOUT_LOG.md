@@ -1,7 +1,7 @@
-# HASHOUT_LOG · frontend/src/ui (pickers, trust, Home) · subform
+# HASHOUT_LOG · frontend/src/ui (pickers, trust, Home) · formsubstrate
 
-Current build version: v0.8.0
-Last updated: 2026-10-30
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ### frontend/src/ui/path-picker.ts · pickPath, PathPicker
 

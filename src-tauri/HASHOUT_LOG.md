@@ -1,7 +1,7 @@
-# HASHOUT_LOG · src-tauri · subform
+# HASHOUT_LOG · src-tauri · formsubstrate
 
-Current build version: v0.1.0
-Last updated: 2026-10-30 · Phase F1
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ## Org-navi-map
 

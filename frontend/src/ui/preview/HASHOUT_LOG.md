@@ -1,9 +1,9 @@
-# HASHOUT_LOG · frontend/src/ui/preview (Markdown preview, media tabs) · subform
+# HASHOUT_LOG · frontend/src/ui/preview (Markdown preview, media tabs) · formsubstrate
 
 Living log for the Markdown preview and the image, video, audio and PDF tabs: sanitize.ts, markdown.ts, md-preview.ts, media.ts, media-tab.ts, index.ts and styles/preview.css. Source files stay comment-free; what they would have said lives here.
 
-Current build version: v0.8.0
-Last updated: 2026-10-30 · preview port from substrata
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ### frontend/src/ui/preview/sanitize.ts · sanitizeHtml
 

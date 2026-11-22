@@ -1,9 +1,9 @@
-# HASHOUT_LOG · frontend/src/ui/review (review pane, diff tabs) · subform
+# HASHOUT_LOG · frontend/src/ui/review (review pane, diff tabs) · formsubstrate
 
 Living log for the review pane and diff tabs as changed in F6 carries and F7: provenance.ts, review-pane.ts, diff-view.ts and views.ts. Source files stay comment-free; what they would have said lives here. The F6 entries that introduced these files are in frontend/HASHOUT_LOG.md.
 
-Current build version: v0.7.0
-Last updated: 2026-10-30 · Phases F6 carries and F7
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ### frontend/src/ui/review/provenance.ts · paintProvenance
 

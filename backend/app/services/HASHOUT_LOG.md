@@ -1,9 +1,9 @@
-# HASHOUT_LOG · terminals and sessions (pty-host, services, routers) · subform
+# HASHOUT_LOG · terminals and sessions (pty-host, services, routers) · formsubstrate
 
-Living log for Phase F5's engine side: backend/subform_ptyhost.py, backend/app/services/ptyhost_client.py, backend/app/services/sessions.py, backend/app/routers/terminal.py, sessions.py and skills.py. The protocol they implement is the F5 contract kept in the planning sidecar. Source files stay comment-free; what they would have said lives here. The engine-wide log is backend/HASHOUT_LOG.md.
+Living log for Phase F5's engine side: backend/formsubstrate_ptyhost.py, backend/app/services/ptyhost_client.py, backend/app/services/sessions.py, backend/app/routers/terminal.py, sessions.py and skills.py. The protocol they implement is the F5 contract kept in the planning sidecar. Source files stay comment-free; what they would have said lives here. The engine-wide log is backend/HASHOUT_LOG.md.
 
-Current build version: v0.5.0
-Last updated: 2026-10-30 · Phase F5
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ### backend/subform_ptyhost.py · module
 

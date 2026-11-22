@@ -1,9 +1,9 @@
-# HASHOUT_LOG · cogentics and insight (engine) · subform
+# HASHOUT_LOG · cogentics and insight (engine) · formsubstrate
 
 Living log for backend/app/services/cogentics/ and backend/app/routers/cogentics.py and insight.py. Source files stay comment-free; what they would have said lives here. The engine-wide log is backend/HASHOUT_LOG.md.
 
-Current build version: v0.14.0
-Last updated: 2026-10-31
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ### backend/app/services/cogentics/ · module map
 

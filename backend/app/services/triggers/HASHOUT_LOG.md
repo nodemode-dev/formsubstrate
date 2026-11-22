@@ -1,9 +1,9 @@
-# HASHOUT_LOG · triggers (services, router) · subform
+# HASHOUT_LOG · triggers (services, router) · formsubstrate
 
 Living log for backend/app/services/triggers/ and backend/app/routers/triggers.py. Source files stay comment-free.
 
-Current build version: v0.14.0
-Last updated: 2026-10-31
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ### backend/app/services/triggers/manager.py · Triggers
 

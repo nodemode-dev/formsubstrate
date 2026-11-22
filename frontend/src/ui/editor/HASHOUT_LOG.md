@@ -1,9 +1,9 @@
-# HASHOUT_LOG · frontend/src/ui/editor · subform
+# HASHOUT_LOG · frontend/src/ui/editor · formsubstrate
 
 Living log for the code editor (editor.ts, languages.ts, theme.ts) and styles/editor.css. Source files stay comment-free; what they would have said lives here. The shell-wide log is frontend/HASHOUT_LOG.md.
 
-Current build version: v0.5.0
-Last updated: 2026-10-30 · word wrap (turn 4)
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ### frontend/src/ui/editor/theme.ts · gutters
 
