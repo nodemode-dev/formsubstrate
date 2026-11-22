@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import signal
 import subprocess
@@ -231,7 +232,7 @@ def end(pid: int) -> bool:
         if not WINDOWS:
             os.kill(pid, signal.SIGKILL)
     except (OSError, subprocess.SubprocessError):
-        pass
+        logging.getLogger("formsubstrate").warning("could not stop the engine process %s", pid, exc_info=True)
     return gone_by(pid, END_WAIT)
 
 

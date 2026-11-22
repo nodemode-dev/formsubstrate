@@ -2,6 +2,7 @@ import asyncio
 import base64
 import fnmatch
 import json
+import logging
 import os
 import re
 import secrets
@@ -182,7 +183,7 @@ class Sub:
                         try:
                             await ptyhost_client.get_client().send({"op": "ack", "id": tid, "bytes": size})
                         except PtyHostError:
-                            pass
+                            logging.getLogger("formsubstrate").debug("an output acknowledgement for terminal %s was not delivered", tid, exc_info=True)
                 else:
                     await self.ws.send_text(item)
         except (WebSocketDisconnect, RuntimeError, OSError):

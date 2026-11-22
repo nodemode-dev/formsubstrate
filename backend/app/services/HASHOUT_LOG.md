@@ -755,3 +755,70 @@ Live check (Claude Code 2.1.316, port 5653): a worktree holding a committed `.cl
 
 Review found, and a `claude -p` probe confirmed, that `--setting-sources user` also drops the project's CLAUDE.md and `.claude/skills` (the probe answered NONE for both; with `user,project` it found the codeword and the skill). Sessions now record `trusted` at creation and pass `user,project` only for a workspace trusted in Preferences, matching how language servers, debug venvs and run tools treat programs found in a workspace; an untrusted workspace keeps `user` only, so its committed hooks do not run and its CLAUDE.md and skills are not loaded. The window sends `trusted` with its token, and the router honours the flag only when the window token is valid, so a local process without the token cannot ask for project sources. A session restored from the registry without the key is untrusted.
 - todo: graph runs (`runs/agent.py`) still pass `user` only, so graph agents never see the project's CLAUDE.md or skills.
+
+### backend/app/services/secret_store.py · status from the index, keychain only on use
+
+- refers-to: backend/app/services/secret_store.py :: system_store, status, names, get, put, delete, settle_many, _index, _state, _mark, _write_private, _file_values; backend/app/routers/secrets.py :: present, list_names, put_secret, delete_secret, _names, migrate_keyring, TRACKED_RESERVED
+- kind: rationale
+- logged: v0.19.0 · 2026-11-22
+
+On a Mac the new bundle id `ai.nodemode.formsubstrate` is a different keychain client, so every `keyring.get_password` made just to answer "is a key saved" opened a keychain prompt when Welcome or Preferences opened. Status is now answered from `secrets-index.json` in the data folder and nothing else; the keychain is read only by `get` (a feature about to use the value, today the Cogentics provider call), and written or deleted only by `put` and `delete`. Ported in idea from formvis `backend/app/services/secrets.py` (Apache-2.0, `summary` answers from `keys.json`, `_store` treats keyring's fail and null backends as no store); the code is new.
+
+Index shape, version 2: `{"version": 2, "secrets": {name: {"store": "keychain" | "file"}}, "unknown": [names] | "*", "absent": [names]}`. It names secrets and their store, never a value or part of one. A name in `secrets` is saved; with `unknown` a list, a name in it is not known yet and any other name is absent; with `unknown` `"*"` every name is not known yet except those in `absent`. `status(name)` returns `{"present": true | false | null, "state": "saved" | "absent" | "unknown", "store": "keychain" | "file" | null}`. When the state is unknown and there is no system store, status looks only in the user-only file and otherwise answers absent without writing that down, so a keychain that comes back later (a Linux Secret Service that starts after login) is still asked on first use.
+
+Which names: the router's own names (`anthropic-api-key` and any other non-reserved name) and `cogentics-api-key`. MCP headers, webhook secrets and plugin secrets keep their own keyring calls in `library/mcp_client.py`, `triggers/hooks.py` and `library/plugins.py`; those read only on use already (connecting, verifying a delivery, running a plugin), are not in the index, and still need a system keyring.
+
+No system store: `system_store()` is false when `keyring.get_keyring()` fails, is keyring's `fail.Keyring` or `null.Keyring`, or has priority 0 or less; `put` also falls back when `set_password` raises `NoKeyringError`. The value then goes to `secrets-local.json` in the data folder as `{"formsubstrate": {name: value}}`. Both that file and the index are written to a temporary sibling opened with `os.open(O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0o600)` (plus `O_BINARY` on Windows), fsynced and moved into place with `os.replace`, so neither is ever readable by other users, not even between create and chmod; the umask can only narrow the mode. On Windows the mode bits do not apply: the file sits in `%APPDATA%\formsubstrate`, whose ACL from the user profile grants only that user, SYSTEM and administrators, and that is the protection. Saving to the keychain later removes the file copy; removing a key deletes it from both stores, and the file is deleted when its last value goes. Any other `KeyringError` (a locked or refusing keychain) is `StoreError`, which the router answers with 503 `the system keychain refused: <ErrorClass>`; no message, log line or error body carries a value.
+
+Upgrade from 0.18.x, decided for the person: keyring has no call that tells whether an entry exists without reading it (`get_password` and `get_credential` both read, and on macOS both can prompt), so the index is never rebuilt from the keychain. (1) A 0.18.x index `{"names": [...]}` is converted on first read, without any keychain call, into version 2 with each listed name saved in the keychain. That list is reliable: since v0.4.0 it was written after every successful save and on every delete through this router. `cogentics-api-key` was saved by Cogentics without the index, so it is put in `unknown`; every other name is absent. (2) No index at all with the migration marker already present (a 0.18.x install that never saved a key through Preferences, or a lost index): every name is unknown. An unknown name is settled on first use (`get` reads once and records saved or absent), on save and on remove. Welcome shows "Not checked yet" and Preferences shows "Not checked yet. Save the key again or remove it to settle this." with Remove enabled; this is honest, costs no prompt, and one save fixes it. For the Cogentics key, unknown counts as configured, so its first real provider call reads the key once and settles it; if nothing is there the call goes without a key and the provider answers with its own error, after which the key is absent and Cogentics shows not configured.
+
+Migration: `migrate_keyring` still reads the old and new keychain entries once, as before, then calls `settle_many(found, complete=True)`: every tracked name it saw in the new service or copied from the old one is saved in the keychain, every tracked name with nothing in either is absent, an existing file entry is kept, and `unknown` becomes empty. A fresh install therefore has a complete index after its first start. If the migration stops on a keychain error it returns before writing, as before, and the next start tries again. When no system keyring exists at all the loop stops at its first read, no marker is written, the index stays as it was, and status answers from the file.
+
+Shapes. Before: `GET /api/secrets/{name}` `{"present": bool}` from `keyring.get_password`, 503 `no system keyring` without a keyring; `PUT` 204 with no body, 503 without a keyring; `DELETE` 204. After: `GET` returns the status above and never 503; `PUT` 200 with the status after saving (so the window can say which store holds it); `DELETE` 204; `GET /api/secrets` `{"names": [...]}` from the index, reserved names left out. Checked from /tmp with TestClient and a made-up data folder: with a test keychain whose `get_password` raises, GET status, list and PUT made no read; a 0.18.x index converted without a read; with the fail backend PUT answered `store: file`, `secrets-local.json` and the index were mode 0600, DELETE removed the file; the migration copied an old-service value and wrote a complete index. Nothing was run against a real system keychain.
+
+### backend/app/routers/secrets.py · removed code (index helpers, keychain status read)
+
+- refers-to: backend/app/routers/secrets.py :: present, _names, _save, _lock, _index_file, put_secret, delete_secret
+- kind: removed-code
+- logged: v0.19.0 · 2026-11-22
+
+Logged here because `backend/app/routers/HASHOUT_LOG.md` belongs to another worker this turn. The status read that touched the keychain:
+
+```python
+@router.get("/secrets/{name}")
+def present(name: str) -> dict:
+    _check(name)
+    try:
+        return {"present": keyring.get_password(SERVICE, name) is not None}
+    except KeyringError:
+        raise _unavailable()
+```
+
+The version 1 index helpers, now `secret_store._index` and `_write_private`:
+
+```python
+def _save(names: list[str]) -> None:
+    target = _index_file()
+    temp = target.with_name(target.name + ".tmp")
+    temp.write_text(json.dumps({"names": sorted(set(names))}), encoding="utf-8")
+    os.replace(temp, target)
+```
+
+`_names` read `{"names": [...]}` directly; it now asks `secret_store.names()` and drops reserved names. `put_secret` and `delete_secret` called `keyring.set_password` and `keyring.delete_password` and then `_save` under a module `_lock`; they now call `secret_store.put` and `delete`, which hold the store's own lock. In `migrate_keyring` the block that indexed copied names (`indexed = [...]; _save([*_names(), *indexed])`) is replaced by `settle_many`. `NO_KEYRING` changed from `no system keyring` to `the system keychain refused`, because a missing keyring is no longer an error.
+
+### backend/app/services/cogentics/llm.py · key read on use
+
+- refers-to: backend/app/services/cogentics/llm.py :: Client._load, Client.api_key, Client._key_saved, Client.configured, Client.apply, Client.forget_key, Client.snapshot, Client.headers
+- kind: removed-code
+- logged: v0.19.0 · 2026-11-22
+
+`_load` ran on every `snapshot`, `configured` and status call (the Cogentics panel and console call them on open) and read the key from the keychain each time a client loaded:
+
+```python
+        try:
+            self._key = keyring.get_password(KEY_SERVICE, KEY_NAME)
+        except KeyringError:
+            self._key = None
+```
+
+It is gone, with `KEY_SERVICE` and the `keyring` imports. `api_key` now calls `secret_store.get(KEY_NAME)` the first time it is needed and keeps the value in the client; `headers()` uses `api_key`, so the read happens only when a request to the provider is built. `configured` and `snapshot()["has_key"]` come from `secret_store.status`: configured is true unless the index says absent, `has_key` only when it says saved. `apply` saves through `secret_store.put` (so it falls back to the user-only file and keeps the index in step) and `forget_key` through `secret_store.delete`, returning quietly on `StoreError` as it did on `KeyringError`. The provider file `cogentics-provider.json` is unchanged.

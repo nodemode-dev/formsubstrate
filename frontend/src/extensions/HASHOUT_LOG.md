@@ -250,3 +250,19 @@ Replaces substrata's runner (a task input and Run button in the graph toolbar, p
 - logged: v0.14.0 · 2026-10-30
 
 Security review changes: start and rerun send `workspaceTrusted()` as `trusted` (the engine refuses claude mode and tool nodes otherwise, and the panel shows its message as a toast). The parked banner now reads `parks[0]` and names its park id on Approve, Deny and Resume, shows the full arguments or full diff in the banner, and a count when more than one park waits, so each decision applies to the command displayed. `interrupted` runs (engine stopped while running or parked) use the failed colours and can be rerun or deleted. The node `approve` hint now says every tool except list_files and read_file always waits.
+
+### frontend/src/extensions/welcome/index.ts · key row reads the index status
+
+- refers-to: frontend/src/extensions/welcome/index.ts :: WelcomeDialog.refresh, STEPS; frontend/src/io/secrets.ts :: secretStatus, secretStatusText
+- kind: rationale
+- logged: v0.19.0 · 2026-11-22
+
+The engine answers a secret's status from its index and never reads the keychain for it (see `backend/app/services/HASHOUT_LOG.md`, secret_store entry of v0.19.0), so opening Welcome causes no keychain prompt. The row used `hasSecret` and showed "Saved in the system keychain" or "Not set"; it now calls `secretStatus` and shows `secretStatusText`: "Saved in the system keychain", "Saved in a file only you can read" (a computer with no keychain), "Not set", or "Not checked yet" for a key the engine has not confirmed since an update. The row's hint says what that last state means and that saving the key again settles it. Removed: `const present = await hasSecret(KEY_NAME);` and `present ? t('Saved in the system keychain') : t('Not set')`.
+
+### frontend/src/extensions/blocks/snippets.ts · Media block image is inline
+
+- refers-to: frontend/src/extensions/blocks/snippets.ts :: SNIPPETS (media)
+- kind: removed-code
+- logged: v0.19.0 · 2026-11-22
+
+The Media block inserted `<img src="https://<placeholder image service>/560x360" alt="" style="width:100%;border-radius:12px" />`, the service being the public placeholder image site named "placehold" on the `.co` domain (its address is not written out here so a search of the tree for it stays empty), so every preview of a page using it fetched an image from that site. It is now an SVG data URI (a tinted 560 by 360 frame, a circle and a hill line, all `fill="currentColor"` with low `fill-opacity`, no tokens and no text), with `width="560" height="360"` so the space is reserved before paint, and `height:auto` so it keeps its ratio at `width:100%`. A file under `frontend/public` would not work: the snippet is pasted into the person's own HTML file, where that path does not exist. Inside an `img` an SVG does not inherit the page colour, so `currentColor` resolves to black and the low opacity gives a neutral grey on light and dark pages. A `git grep` for that address finds nothing.

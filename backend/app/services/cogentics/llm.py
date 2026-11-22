@@ -2,10 +2,9 @@ import json
 from typing import Any, Awaitable, Callable, Optional
 
 import httpx
-import keyring
-from keyring.errors import KeyringError
 
 from app.core import config
+from app.services import secret_store
 
 PROVIDER_BASES = {
     "openrouter": "https://openrouter.ai/api/v1",
@@ -13,7 +12,6 @@ PROVIDER_BASES = {
     "lmstudio": "http://localhost:1234/v1",
 }
 LOCAL_PROVIDERS = {"ollama", "lmstudio"}
-KEY_SERVICE = "formsubstrate"
 KEY_NAME = "cogentics-api-key"
 OnDelta = Callable[[str], Awaitable[None]]
 
@@ -46,15 +44,16 @@ class Client:
             self.provider = d.get("provider") or self.provider
             self.base_url = (d.get("base_url") or self.base_url).rstrip("/")
             self.model = d.get("model") or self.model
-        try:
-            self._key = keyring.get_password(KEY_SERVICE, KEY_NAME)
-        except KeyringError:
-            self._key = None
 
     @property
     def api_key(self) -> Optional[str]:
         self._load()
+        if self._key is None:
+            self._key = secret_store.get(KEY_NAME)
         return self._key
+
+    def _key_saved(self) -> bool:
+        return self._key is not None or secret_store.status(KEY_NAME)["state"] != "absent"
 
     @property
     def configured(self) -> bool:
@@ -63,7 +62,7 @@ class Client:
             return True
         if self.provider == "custom":
             return bool(self.base_url)
-        return bool(self._key)
+        return self._key_saved()
 
     def apply(self, *, provider: str = "", base_url: str = "", model: str = "", api_key: str = "") -> None:
         self._load()
@@ -77,28 +76,29 @@ class Client:
         if model:
             self.model = model
         if api_key:
-            keyring.set_password(KEY_SERVICE, KEY_NAME, api_key)
+            secret_store.put(KEY_NAME, api_key)
             self._key = api_key
         _file().write_text(json.dumps({"provider": self.provider, "base_url": self.base_url, "model": self.model}), encoding="utf-8")
 
     def forget_key(self) -> None:
         self._load()
         try:
-            keyring.delete_password(KEY_SERVICE, KEY_NAME)
-        except KeyringError:
+            secret_store.delete(KEY_NAME)
+        except secret_store.StoreError:
             return
         self._key = None
 
     def snapshot(self) -> dict:
         self._load()
         return {"provider": self.provider, "base_url": self.base_url, "model": self.model,
-                "configured": self.configured, "has_key": bool(self._key)}
+                "configured": self.configured, "has_key": self._key is not None or secret_store.status(KEY_NAME)["state"] == "saved"}
 
     def headers(self) -> dict:
         self._load()
         h = {"Content-Type": "application/json"}
-        if self._key:
-            h["Authorization"] = f"Bearer {self._key}"
+        key = self.api_key
+        if key:
+            h["Authorization"] = f"Bearer {key}"
         if self.provider == "openrouter":
             h["HTTP-Referer"] = "http://localhost:5650"
             h["X-Title"] = "Substrate"

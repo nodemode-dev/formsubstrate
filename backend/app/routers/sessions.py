@@ -1,12 +1,11 @@
 import asyncio
 import json
-import secrets
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
-from app.core.local_guard import WINDOW_HEADER, WINDOW_TOKEN
+from app.core.local_guard import require_window
 from app.services import gates
 from app.services import sessions as svc
 
@@ -63,16 +62,15 @@ async def events() -> StreamingResponse:
     return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
-@router.post("/sessions")
-async def create(body: NewSession, window: str | None = Header(default=None, alias=WINDOW_HEADER)) -> dict:
-    trusted = body.trusted and bool(window) and secrets.compare_digest(window.encode("utf-8"), WINDOW_TOKEN.encode("utf-8"))
+@router.post("/sessions", dependencies=[Depends(require_window)])
+async def create(body: NewSession) -> dict:
     try:
-        return await svc.create(body.title, body.mode, body.prompt, body.base, body.permissionMode, trusted)
+        return await svc.create(body.title, body.mode, body.prompt, body.base, body.permissionMode, body.trusted)
     except svc.Refused as err:
         raise _fail(err)
 
 
-@router.post("/sessions/{session_id}/resume")
+@router.post("/sessions/{session_id}/resume", dependencies=[Depends(require_window)])
 async def resume(session_id: str) -> dict:
     try:
         return await svc.resume(session_id)
@@ -80,7 +78,7 @@ async def resume(session_id: str) -> dict:
         raise _fail(err)
 
 
-@router.post("/sessions/{session_id}/stop")
+@router.post("/sessions/{session_id}/stop", dependencies=[Depends(require_window)])
 async def stop(session_id: str) -> dict:
     try:
         return await svc.stop(session_id)
@@ -88,7 +86,7 @@ async def stop(session_id: str) -> dict:
         raise _fail(err)
 
 
-@router.delete("/sessions/{session_id}", status_code=204)
+@router.delete("/sessions/{session_id}", status_code=204, dependencies=[Depends(require_window)])
 async def delete(session_id: str, removeWorktree: int = 0, force: int = 0) -> Response:
     try:
         await svc.delete(session_id, bool(removeWorktree), bool(force))

@@ -460,3 +460,101 @@ The entry script now imports `os` and `sys`, replaces a missing `stdin`, `stdout
 - logged: v0.18.1 · 2026-11-22
 
 The workflow ran no Rust check, so a shell change that did not compile for Windows or macOS was first seen in the family build. The `shell` job runs `cargo check --locked` in `src-tauri` on `windows-latest` and `macos-latest`, each natively, so the Objective-C that two macOS crates compile gets Apple's headers (a Linux machine cannot check the macOS targets for that reason). It writes stand-ins for `frontend/dist` (an `index.html` and the splash page) and `src-tauri/engine`, because `tauri-build` refuses a missing window folder and the build maps the engine folder. It uses the Rust the runner image ships; `Cargo.toml` asks for 1.90 or newer. No Linux leg: that needs the WebKitGTK development packages and the family build covers Linux. Not run on GitHub yet.
+
+### swallowed errors · logged or silent on purpose
+
+- refers-to: backend/app/core/startup.py :: end; backend/app/routers/graphs.py :: _listing; backend/app/routers/lsp.py :: lsp_ws; backend/app/routers/terminal.py :: Sub.writer; backend/app/services/gates.py :: ensure_script; backend/app/services/gitops.py :: ensure_hooks; backend/app/services/ptyhost_client.py :: PtyHostClient._read_loop; backend/app/services/runs/manager.py :: RunManager.tally, RunManager.persist; backend/app/services/runs/worktree.py :: _write, _loop; backend/app/services/sessions.py :: _set_aside, _mcp_arg, _consume, _snapshot, _kill_terminal; backend/app/services/gate_hook.py :: flush_notes, pre_bash, module end; backend/formsubstrate_ptyhost.py :: WinPty.force
+- kind: rationale
+- logged: v0.19.0 · 2026-11-22
+
+Every `except` in `backend/` whose whole body was `pass` was read in context: 79 of them (72 in the engine code and 7 inside the text of the gate-hook script in `gate_hook.py`, which is Python held in a string and so is not seen by a search of the module). 21 now say what failed and 53 stay silent on purpose; the 5 in `routers/workspace.py` and `routers/secrets.py` (files another change held at the time) are not in this table. Handlers that only `continue` or `return` are not in scope and were not touched.
+
+A logged site is one line through `logging.getLogger("formsubstrate")` with the traceback attached (`exc_info=True`), the same logger `formsubstrate_engine.py` and `runtime.py` already use, so it lands in the engine log at the level the person set with `FORMSUBSTRATE_LOG_LEVEL` (info by default, so a debug line only appears when asked for). `debug` means expected, frequent and harmless; `warning` means something did not happen. Only identifiers are written (a path, a session or run or terminal id, a label), never a value, a header, a token, file content or an environment. The gate hook and the pty-host run as separate programs and do not use that logger. The hook's standard output is the protocol Claude Code reads, so its three lines go through its own `trail()` (the `sf_gate.log` file beside the script, and standard error); the pty-host's standard error is already its log file (`ptyhost.log`, opened by `ptyhost_client._start_host`), so its one line is a `formsubstrate-ptyhost:` line on standard error like the one in `data_dir`. Where a site has no `as` name the traceback carries the exception; where the hook and the pty-host need the text they name it as `exc`.
+
+`agent_lookup.py` is the family's finder, version 1.0.1, kept unchanged (see `NOTICE.md`), so its three silent sites are left as they are.
+
+| File | Function | Caught | Decision | Reason |
+| --- | --- | --- | --- | --- |
+| app/core/startup.py | end | OSError, SubprocessError ending a leftover engine | logged, warning | the stop did not happen and the caller only says it could not stop |
+| app/routers/graphs.py | _listing | OSError, ValueError, AttributeError, TypeError reading a graph file | logged, debug | the row shows valid false with no cause; repeats on every listing |
+| app/routers/lsp.py | lsp_ws | Exception in a language server session | logged, warning | any bridge or server failure ended the session with no trace |
+| app/routers/terminal.py | Sub.writer | PtyHostError sending an output acknowledgement | logged, debug | a lost acknowledgement can stall a terminal; frequent while the host is down |
+| app/services/gates.py | ensure_script | OSError writing the hook script | logged, warning | no script means writes are not gated |
+| app/services/gitops.py | ensure_hooks | OSError making the commit-msg hook executable | logged, warning | git skips a hook that is not executable |
+| app/services/ptyhost_client.py | PtyHostClient._read_loop | connection to the pty-host ended | logged, debug | normal at shutdown and at host idle exit; the cause (bad frame, reset) was lost |
+| app/services/runs/manager.py | RunManager.tally | ValueError, TypeError on a usage note | logged, debug | only the usage figures are off; rare |
+| app/services/runs/manager.py | RunManager.persist | OSError saving a run record | logged, warning | the run is missing from history |
+| app/services/runs/worktree.py | _write | OSError writing the worktree registry | logged, warning | a run worktree can be left behind with no record |
+| app/services/runs/worktree.py | _loop | Exception in a sweep | logged, debug | runs every 3 seconds; a lasting fault would flood the log at warning |
+| app/services/sessions.py | _set_aside | OSError setting a damaged registry aside | logged, warning | the damaged file is not kept for inspection |
+| app/services/sessions.py | _mcp_arg | OSError writing the session settings | logged, warning | the agent starts without them |
+| app/services/sessions.py | _consume | Exception in _on_event | logged, warning | a session event was dropped; a bug would be invisible |
+| app/services/sessions.py | _consume | Exception sending an output acknowledgement | logged, debug | lost when the host drops; frequent then |
+| app/services/sessions.py | _snapshot | Exception taking a snapshot | logged, warning | the snapshot is missing from review |
+| app/services/sessions.py | _kill_terminal | Exception on the kill request | logged, debug | usually the terminal is already gone; a hung host is the rare case |
+| app/services/gate_hook.py (script text) | flush_notes | OSError, ValueError, URLError posting a note | logged through trail | the owner is not told a write was not gated |
+| app/services/gate_hook.py (script text) | pre_bash | OSError, ValueError saving the Bash snapshot | logged through trail | the check after the Bash command cannot run |
+| app/services/gate_hook.py (script text) | module end | Exception flushing the notes | logged through trail | same as flush_notes |
+| formsubstrate_ptyhost.py | WinPty.force | Exception ending a terminal process | logged to stderr | the process may still run while the terminal is marked ended |
+| app/__init__.py | module | ImportError loading ctypes.util | silent | feature probe at import, before any logging exists |
+| app/core/runtime.py | release | OSError, ValueError, AttributeError removing the lock | silent | cleanup of a file that may be gone; logging is already stopped |
+| app/core/startup.py | _created_posix | OSError, IndexError, ValueError, StopIteration reading /proc | silent | probe; the `ps` fallback follows at once |
+| app/main.py | lifespan | ValueError, TypeError restoring a signal handler | silent | only the main thread can set one; shutdown cleanup |
+| app/routers/debug.py | relay | WebSocketDisconnect | silent | the client closed the socket, the normal end |
+| app/routers/graphs.py | _atomic | OSError removing the temp file | silent | best-effort unlink; the original error is raised |
+| app/routers/lsp.py | lsp_ws | WebSocketDisconnect | silent | the client closed the socket, the normal end |
+| app/routers/terminal.py | terminals_ws | PtyHostError on ensure | silent | no pty-host yet is the normal first state; attach reports it |
+| app/routers/terminal.py | terminals_ws | WebSocketDisconnect | silent | the client closed the socket, the normal end |
+| app/routers/terminal.py | Hub.drop | RuntimeError, OSError closing the socket | silent | already closed |
+| app/routers/terminal.py | Hub.detach | PtyHostError returning owed acknowledgements | silent | releasing a subscriber that is leaving; an unreachable host shows on the next terminal request |
+| app/routers/terminal.py | Hub.detach | PtyHostError sending detach | silent | same |
+| app/services/agent_lookup.py | _stop | OSError, AttributeError on killpg | silent | probe shell that may be gone; file held unchanged |
+| app/services/agent_lookup.py | _stop | OSError on kill | silent | same |
+| app/services/agent_lookup.py | _stop | OSError, ValueError, SubprocessError on communicate | silent | same |
+| app/services/gate_hook.py (script text) | trail | OSError writing sf_gate.log | silent | it is the reporter; standard error is tried next |
+| app/services/gate_hook.py (script text) | trail | OSError writing standard error | silent | it is the reporter; nowhere left to report to |
+| app/services/gate_hook.py (script text) | tar_items | Exception reading an archive | silent | the read budget ends by raising on purpose; a damaged archive gives no member names |
+| app/services/gate_hook.py (script text) | snapshot_save | OSError removing an expired snapshot | silent | best-effort cleanup of an old file |
+| app/services/gitops.py | identity_put | OSError on chmod 0600 | silent | the file is created with mode 0600; some file systems refuse chmod |
+| app/services/gitops.py | _reap | ProcessLookupError | silent | process already exited |
+| app/services/gitops.py | _write_atomic | OSError removing the temp file | silent | best-effort unlink; the original error is raised |
+| app/services/library/builtin.py | _search_capabilities | Refused listing collections | silent | no workspace open: no collections is the answer |
+| app/services/library/mcp_client.py | McpClientManager.add | Exception deleting old stored headers | silent | there may be nothing stored |
+| app/services/library/mcp_client.py | McpClientManager.remove | Exception deleting stored headers | silent | there may be nothing stored |
+| app/services/library/mcp_client.py | McpClientManager.stop_now | ProcessLookupError | silent | process already exited at exit |
+| app/services/ptyhost_client.py | PtyHostClient._read_loop | OSError closing the writer | silent | already closed |
+| app/services/ptyhost_client.py | PtyHostClient.events | PtyHostError on reconnect | silent | a retry loop with backoff; a restarting host is expected |
+| app/services/ptyhost_client.py | PtyHostClient.close | OSError closing the writer | silent | already closed |
+| app/services/ptyhost_client.py | PtyHostClient.close | CancelledError, Exception awaiting the cancelled read task | silent | the cancel is the point; the loop handles its own failures |
+| app/services/runs/agent.py | _run_claude.feed | BrokenPipeError, ConnectionResetError writing the prompt | silent | the agent exited first; the run reports its exit and standard error |
+| app/services/runs/manager.py | RunManager.cancel | ProcessLookupError | silent | process already exited |
+| app/services/runs/manager.py | RunManager.shutdown | ProcessLookupError | silent | process already exited |
+| app/services/runs/manager.py | RunManager.prune | OSError removing an old run file | silent | best-effort; tried again at the next prune |
+| app/services/sessions.py | _release | Exception on kill or detach | silent | the terminal already exited or the host is gone |
+| app/services/sessions.py | _on_exit | RuntimeError scheduling the release | silent | no running loop, nothing to schedule on |
+| app/services/sessions.py | _on_exit | RuntimeError scheduling the snapshot | silent | same |
+| app/services/sessions.py | shutdown | CancelledError, Exception awaiting the cancelled consumer | silent | the cancel is the point |
+| app/services/triggers/manager.py | Triggers.stop | CancelledError | silent | the cancel is the point |
+| formsubstrate_engine.py | main | OSError, ValueError, AttributeError removing its own port file | silent | cleanup at exit of a file that may be gone |
+| formsubstrate_ptyhost.py | PosixPty.resize | OSError | silent | the child exited; nothing to resize |
+| formsubstrate_ptyhost.py | PosixPty.signal_group | ProcessLookupError, PermissionError on the single-process kill | silent | the process is already gone |
+| formsubstrate_ptyhost.py | PosixPty.sweep | ProcessLookupError, PermissionError | silent | the group is already gone |
+| formsubstrate_ptyhost.py | PosixPty.close | OSError closing the pty file | silent | already closed |
+| formsubstrate_ptyhost.py | WinPty.write | OSError | silent | the child exited; the POSIX write drops the input the same way |
+| formsubstrate_ptyhost.py | WinPty.resize | OSError | silent | the child exited; nothing to resize |
+| formsubstrate_ptyhost.py | WinPty.terminate | Exception | silent | force follows when the process is still alive, and force logs its failure |
+| formsubstrate_ptyhost.py | WinPty.close | Exception | silent | best-effort close |
+| formsubstrate_ptyhost.py | Host.client | IncompleteReadError, ConnectionError, OSError reading a frame | silent | a client going away is the normal end |
+| formsubstrate_ptyhost.py | Host.client | OSError closing the writer | silent | already closed |
+| formsubstrate_ptyhost.py | Host.listen | FileNotFoundError removing a stale socket | silent | no stale socket is the usual case |
+| formsubstrate_ptyhost.py | Host.cleanup | OSError removing a socket, port or token file | silent | cleanup of files that may be gone |
+| formsubstrate_ptyhost.py | Host.cleanup | OSError, ValueError reading the pid file | silent | cleanup; a missing or foreign pid file is left alone |
+| app/routers/workspace.py | _is_form_repo (two sites) | OSError, ValueError reading package.json or Cargo.toml | silent | a probe: an unreadable file means the folder is not a Form app |
+| app/routers/workspace.py | _atomic_write | OSError removing the temp file before the error is raised again | silent | best-effort cleanup; the real error is raised |
+| app/routers/secrets.py | migrate_keyring | OSError writing the carry-over marker | logged, warning | without the marker the carry-over repeats at every start |
+| app/services/secret_store.py | _write_private (two sites) | FileNotFoundError on a stale temp; OSError removing the temp before re-raise | silent | cleanup; the real error is raised |
+| app/services/secret_store.py | delete | PasswordDeleteError, NoKeyringError | silent | removing an entry that is not there is the expected case |
+| app/services/secret_store.py | _index | OSError writing the converted index | logged, warning | it retries at the next read, but a lasting failure would be invisible |
+| app/services/secret_store.py | _quiet_settle | OSError updating the index | logged, warning | a stale index gives a wrong status later |
+
+The window's three sites in `frontend/src/io` landed with these: `io/runs.ts` (a run event that could not be parsed or handled now warns, it was an empty `catch { }`), and `io/sessions.ts` (the session list and the gate list refresh after the event stream connects now warn; a gate card that never shows blocks an agent). `io/lsp.ts` keeps two silent handlers: one only marks a promise handled, the other is a best-effort warm-up. No logged line carries a secret's name or value.

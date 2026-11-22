@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import tempfile
@@ -142,7 +143,7 @@ def _listing() -> list[dict]:
             row["docName"] = raw.get("name", "")
             row["valid"] = not check_doc(raw)[1]
         except (OSError, ValueError, AttributeError, TypeError):
-            pass
+            logging.getLogger("formsubstrate").debug("graph file %s could not be read", entry.name, exc_info=True)
         rows.append(row)
     return rows
 

@@ -270,7 +270,7 @@ register({
   setup(ctx: ExtensionContext, shell: Shell): void {
     const announce = (): void => {
       const path = ctx.store.workspace?.path;
-      if (path) void triggersApi.trust(path, workspaceTrusted()).catch(() => undefined);
+      if (path) void triggersApi.trust(path, workspaceTrusted()).catch((err: unknown) => console.warn('trigger trust update failed', err));
     };
     ctx.store.on('workspace', announce);
     window.addEventListener(TRUST_EVENT, announce);

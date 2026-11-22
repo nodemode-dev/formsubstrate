@@ -401,8 +401,8 @@ export async function startApp(): Promise<void> {
   let native: NativeMenus | null = null;
   if (wantsNativeMenus()) {
     native = new NativeMenus(commands, () => menus);
-    void native.build().catch(() => undefined);
-    onLanguage(() => { void native?.build().catch(() => undefined); });
+    void native.build().catch((err: unknown) => console.warn('native menu build failed', err));
+    onLanguage(() => { void native?.build().catch((err: unknown) => console.warn('native menu rebuild failed', err)); });
   }
 
   let chromeFrame = 0;

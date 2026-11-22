@@ -332,7 +332,7 @@ export class CogenticsPanel {
         this.members = d.members;
         this.rail.set(d.members);
         void this.loadSpend();
-      }).catch(() => undefined);
+      }).catch((err: unknown) => console.warn('member list refresh failed', err));
     }
   }
 

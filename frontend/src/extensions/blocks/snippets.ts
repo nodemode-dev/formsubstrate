@@ -60,7 +60,7 @@ export const SNIPPETS: Block[] = [
 </footer>
 `),
   make('media', 'Media block', 'Image and text split', 'previewSide', `<section style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center;padding:48px 24px">
-  <img src="https://placehold.co/560x360" alt="" style="width:100%;border-radius:12px" />
+  <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 560 360'%3E%3Crect width='560' height='360' fill='currentColor' fill-opacity='.12'/%3E%3Ccircle cx='190' cy='130' r='40' fill='currentColor' fill-opacity='.28'/%3E%3Cpath d='M0 360 200 200 320 300 420 230 560 330V360Z' fill='currentColor' fill-opacity='.28'/%3E%3C/svg%3E" width="560" height="360" alt="" style="width:100%;height:auto;border-radius:12px" />
   <div>
     <h2 style="margin:0 0 10px">Side-by-side</h2>
     <p style="opacity:.75">Pair an image with supporting copy.</p>

@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import json
+import logging
 import os
 import re
 import time
@@ -157,7 +158,7 @@ class RunManager(Engine):
                 run.usage["cost"] += float(u["cost"])
             run.usage["calls"] += 1
         except (ValueError, TypeError):
-            pass
+            logging.getLogger("formsubstrate").debug("a usage note of run %s was not counted", run.id, exc_info=True)
 
     def emit(self, run: Run, node: Any, phase: str, note: Optional[str] = None) -> None:
         if phase == "usage" and note:
@@ -204,7 +205,7 @@ class RunManager(Engine):
                 json.dump(body, fh, default=str)
             os.replace(temp, target)
         except OSError:
-            pass
+            logging.getLogger("formsubstrate").warning("run %s could not be saved", run.id, exc_info=True)
 
     def read_disk(self, root: str, run_id: str) -> Optional[dict]:
         if not ID_RE.match(run_id):

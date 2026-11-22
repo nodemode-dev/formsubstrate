@@ -370,7 +370,7 @@ register({
       const next = ws?.path ?? '';
       if (next === root) return;
       root = next;
-      void sessionsClient.refresh().catch(() => undefined);
+      void sessionsClient.refresh().catch((err: unknown) => console.warn('session list refresh after a workspace change failed', err));
       void skills.panel?.load();
     });
     sessionsClient.start();

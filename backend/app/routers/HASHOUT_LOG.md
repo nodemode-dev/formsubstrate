@@ -343,3 +343,17 @@ The entry above left three routes in `runs.py` to delete at its next edit. The p
 - `POST /presets/graphs/{name}/install` (window token) → `_root()`, `presets.install(name)`, `ws.Refused` to its status, `rt.GraphError` to 403, 404 when missing, `{"installed": rel}`
 
 `app/services/runs/presets.py` stays: the presets service reads through it. Run after the removal with a made-up data folder: `GET /api/presets/graphs` answers 200 with the list, and `POST /api/presets/graphs/<name>/install` without the window token answers 403.
+
+### backend/app/routers/sessions.py, git.py, workspace.py · window token on every owner change
+
+- refers-to: backend/app/routers/sessions.py :: create, resume, stop, delete; backend/app/routers/git.py :: OWNER, worktree_file, hunks, stage, unstage, discard, commit, set_identity, snapshot, rewind, comments, push, sign_and_push; backend/app/routers/workspace.py :: OWNER, open_workspace, delete_recent, write_file, mkdir, rename, delete
+- kind: warning-context
+- logged: v0.19.0 · 2026-11-22
+
+Owner decision Q7: every owner-only change needs the window key. Before this entry none of these 22 routes carried `require_window`; LocalGuard admits a request with no Origin, so an agent session (or any local program) holding nothing could commit, push, rewrite the git identity, rewind, discard, write or delete files in the main workspace, open another folder, or stop and delete sessions. Each now carries `require_window` (`dependencies=OWNER` in `git.py` and `workspace.py`, `Depends(require_window)` inline in `sessions.py`). Reads (GET) stay open.
+
+Session scope was considered and not built. An agent session reaches the engine only through `/api/gates`, `/api/gates/notes`, `/api/gates/waived` and `/api/gates/{id}/wait` (`services/gate_hook.py`) and through `POST /mcp` with its bearer (`formsubstrate_mcp.py`); the MCP tools in `services/mcp_tools.py` call `gitops` and helper functions of `routers/workspace.py` in process and never these routes over HTTP. No session calls any route listed above, so no session token is accepted on them. Review comments are written by the window into a session, not by the session.
+
+Removed from `sessions.py :: create`, now redundant because the route needs the token: the parameter `window: str | None = Header(default=None, alias=WINDOW_HEADER)` and the line `trusted = body.trusted and bool(window) and secrets.compare_digest(window.encode("utf-8"), WINDOW_TOKEN.encode("utf-8"))`; `body.trusted` is passed as is. With them went the imports `secrets`, `Header` and `WINDOW_HEADER, WINDOW_TOKEN`.
+
+Run with a made-up data folder and TestClient: each of the 22 routes answers 403 without `X-FormSubstrate-Window` and a non-403 status (200, 400, 404 or 409 for the made-up bodies) with it; an opened made-up folder took a file write, mkdir, rename and delete with the token and refused the write without it.

@@ -91,7 +91,7 @@ export async function tailRun(id: string, onEvent: (ev: RunEvent & { phase: stri
       const line = buffer.slice(0, cut).trim();
       buffer = buffer.slice(cut + 1);
       if (line) {
-        try { onEvent(JSON.parse(line) as RunEvent); } catch { }
+        try { onEvent(JSON.parse(line) as RunEvent); } catch (err) { console.warn('run event dropped', err); }
       }
       cut = buffer.indexOf('\n');
     }

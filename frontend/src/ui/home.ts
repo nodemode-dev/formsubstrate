@@ -322,6 +322,6 @@ export class Home {
         const path = ev.payload.paths[0];
         if (this.open && path) void this.openPath(path);
       });
-    }).catch(() => undefined);
+    }).catch((err: unknown) => console.warn('folder drop listeners failed to register', err));
   }
 }

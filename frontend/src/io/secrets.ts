@@ -8,13 +8,27 @@ export async function listSecrets(): Promise<string[]> {
   return r.names;
 }
 
-export async function hasSecret(name: string): Promise<boolean> {
-  const r = await request<{ present: boolean }>(path(name));
-  return r.present === true;
+export type SecretState = 'saved' | 'absent' | 'unknown';
+export type SecretStore = 'keychain' | 'file';
+
+export interface SecretStatus {
+  present: boolean | null;
+  state: SecretState;
+  store: SecretStore | null;
 }
 
-export async function saveSecret(name: string, value: string): Promise<void> {
-  await owner<void>(path(name), { method: 'PUT', body: JSON.stringify({ value }) });
+export function secretStatus(name: string): Promise<SecretStatus> {
+  return request<SecretStatus>(path(name));
+}
+
+export function saveSecret(name: string, value: string): Promise<SecretStatus> {
+  return owner<SecretStatus>(path(name), { method: 'PUT', body: JSON.stringify({ value }) });
+}
+
+export function secretStatusText(s: SecretStatus): string {
+  if (s.state === 'unknown') return 'Not checked yet';
+  if (s.state === 'absent') return 'Not set';
+  return s.store === 'file' ? 'Saved in a file only you can read' : 'Saved in the system keychain';
 }
 
 export async function removeSecret(name: string): Promise<void> {

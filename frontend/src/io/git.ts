@@ -1,4 +1,5 @@
 import { ApiError, request } from './api';
+import { owner } from './window-token';
 
 export interface GitFile { path: string; oldPath: string | null; index: string; worktree: string; staged: boolean; unstaged: boolean; kind: 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked' | 'conflicted' }
 export interface GitStatus { root: string; session: string | null; branch: string | null; head: string | null; upstream: string | null; ahead: number; behind: number; files: GitFile[]; conflicted: boolean }
@@ -38,6 +39,14 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   }
 }
 
+async function held<T>(path: string, init: RequestInit): Promise<T> {
+  try {
+    return await owner<T>(path, init);
+  } catch (err) {
+    throw asGitError(err);
+  }
+}
+
 const query = (params: Record<string, string | number | boolean | null | undefined>): string => {
   const sp = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
@@ -54,7 +63,7 @@ const withSession = <T extends object>(body: T, session?: string | null): T & { 
 
 async function refusable(path: string, payload: object): Promise<{ ok: boolean; check: string; output: string }> {
   try {
-    const data = await request<Record<string, unknown>>(path, post(payload));
+    const data = await owner<Record<string, unknown>>(path, post(payload));
     return { ok: data.ok !== false, check: typeof data.check === 'string' ? data.check : '', output: typeof data.output === 'string' ? data.output : '' };
   } catch (err) {
     if (err instanceof ApiError && err.status === 409 && err.body && typeof err.body === 'object') {
@@ -76,19 +85,19 @@ export const git = {
     return call<Review>(`/api/git/review${query({ session })}`);
   },
   hunks(path: string, hunks: string[], action: 'accept' | 'reject', session?: string | null): Promise<{ ok: boolean; applied: number; review: FileReview | null }> {
-    return call('/api/git/hunks', post(withSession({ path, hunks, action }, session)));
+    return held('/api/git/hunks', post(withSession({ path, hunks, action }, session)));
   },
   stage(paths: string[], session?: string | null): Promise<GitStatus> {
-    return call<GitStatus>('/api/git/stage', post(withSession({ paths }, session)));
+    return held<GitStatus>('/api/git/stage', post(withSession({ paths }, session)));
   },
   unstage(paths: string[], session?: string | null): Promise<GitStatus> {
-    return call<GitStatus>('/api/git/unstage', post(withSession({ paths }, session)));
+    return held<GitStatus>('/api/git/unstage', post(withSession({ paths }, session)));
   },
   discard(paths: string[], untracked: boolean, session?: string | null): Promise<GitStatus> {
-    return call<GitStatus>('/api/git/discard', post(withSession({ paths, untracked }, session)));
+    return held<GitStatus>('/api/git/discard', post(withSession({ paths, untracked }, session)));
   },
   commit(message: string, opts: { amend?: boolean; all?: boolean; session?: string | null } = {}): Promise<{ commit: string; summary: string; audit: Audit; identitySource?: 'formsubstrate' | 'git' | 'none' }> {
-    return call('/api/git/commit', post(withSession({ message, amend: opts.amend === true, all: opts.all === true }, opts.session)));
+    return held('/api/git/commit', post(withSession({ message, amend: opts.amend === true, all: opts.all === true }, opts.session)));
   },
   async log(opts: { session?: string | null; limit?: number; ref?: string } = {}): Promise<Commit[]> {
     const r = await call<{ commits: Commit[] }>(`/api/git/log${query({ session: opts.session, limit: opts.limit, ref: opts.ref })}`);
@@ -98,20 +107,20 @@ export const git = {
     return call<Identity>('/api/git/identity');
   },
   setIdentity(v: Omit<Identity, 'source'>): Promise<Identity> {
-    return call<Identity>('/api/git/identity', put(v));
+    return held<Identity>('/api/git/identity', put(v));
   },
   async snapshots(session?: string | null): Promise<Snapshot[]> {
     const r = await call<{ snapshots: Snapshot[] }>(`/api/git/snapshots${query({ session })}`);
     return r.snapshots;
   },
   snapshot(label?: string, session?: string | null): Promise<Snapshot> {
-    return call<Snapshot>('/api/git/snapshots', post(withSession(label ? { label } : {}, session)));
+    return held<Snapshot>('/api/git/snapshots', post(withSession(label ? { label } : {}, session)));
   },
   rewind(n: number, session?: string | null): Promise<{ restored: Snapshot; safety: Snapshot; status: GitStatus }> {
-    return call('/api/git/rewind', post(withSession({ n }, session)));
+    return held('/api/git/rewind', post(withSession({ n }, session)));
   },
   comment(session: string, path: string, line: number | null, hunk: string | null, text: string): Promise<{ sent: 'terminal' | 'headless' | 'stored'; comment: ReviewComment }> {
-    return call('/api/git/comments', post({ session, path, line, hunk, text }));
+    return held('/api/git/comments', post({ session, path, line, hunk, text }));
   },
   async push(opts: { session?: string | null; remote?: string; branch?: string } = {}): Promise<{ ok: boolean; check: string; output: string }> {
     return refusable('/api/git/push', withSession({ remote: opts.remote ?? 'origin', ...(opts.branch ? { branch: opts.branch } : {}) }, opts.session));
@@ -121,7 +130,7 @@ export const git = {
     return r.commits;
   },
   writeWorktreeFile(session: string, path: string, text: string, expectedMtime: number | null): Promise<{ path: string; size: number; mtime: number }> {
-    return call('/api/git/worktree-file', put({ session, path, text, expectedMtime }));
+    return held('/api/git/worktree-file', put({ session, path, text, expectedMtime }));
   },
   signAndPush(opts: { session?: string | null; remote?: string; branch?: string } = {}): Promise<{ ok: boolean; check: string; output: string }> {
     return refusable('/api/git/sign-and-push', withSession({ remote: opts.remote ?? 'origin', ...(opts.branch ? { branch: opts.branch } : {}) }, opts.session));

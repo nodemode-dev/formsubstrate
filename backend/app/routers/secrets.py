@@ -1,14 +1,13 @@
 import json
-import os
+import logging
 import re
-import threading
 
 import keyring
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from keyring.errors import KeyringError, PasswordDeleteError
 
 from app.core import config
 from app.core.local_guard import require_window
+from app.services import secret_store
 
 router = APIRouter()
 
@@ -19,31 +18,12 @@ RESERVED = ("mcp.", "plugin.", "cogentics-", "webhook-")
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_.-]{0,63}$")
 INDEX_NAME = "secrets-index.json"
 VALUE_MAX = 65536
-NO_KEYRING = "no system keyring"
-
-_lock = threading.Lock()
-
-
-def _index_file():
-    return config.data_dir() / INDEX_NAME
+NO_KEYRING = "the system keychain refused"
+TRACKED_RESERVED = ("cogentics-api-key",)
 
 
 def _names() -> list[str]:
-    try:
-        data = json.loads(_index_file().read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return []
-    items = data.get("names") if isinstance(data, dict) else None
-    if not isinstance(items, list):
-        return []
-    return sorted({item for item in items if isinstance(item, str) and NAME_RE.fullmatch(item)})
-
-
-def _save(names: list[str]) -> None:
-    target = _index_file()
-    temp = target.with_name(target.name + ".tmp")
-    temp.write_text(json.dumps({"names": sorted(set(names))}), encoding="utf-8")
-    os.replace(temp, target)
+    return [name for name in secret_store.names() if not name.startswith(RESERVED)]
 
 
 def _old_names() -> list[str]:
@@ -102,30 +82,38 @@ def migrate_keyring() -> list[str]:
         return []
     notes: list[str] = []
     copied: list[str] = []
+    found: dict[str, bool] = {}
     for service, name in _candidates():
+        tracked = service == SERVICE and bool(NAME_RE.fullmatch(name)) and (not name.startswith(RESERVED) or name in TRACKED_RESERVED)
         try:
             if keyring.get_password(service, name) is not None:
+                if tracked:
+                    found[name] = True
                 continue
             value = keyring.get_password(service.replace(SERVICE, OLD_SERVICE, 1), name)
             if value is None:
+                if tracked:
+                    found[name] = False
                 continue
             keyring.set_password(service, name, value)
             copied.append(name)
+            if tracked:
+                found[name] = True
         except Exception as error:
             notes.append(f"keychain migration stopped at secret '{name}': {error.__class__.__name__}; it will be tried again at the next start")
             return notes
+    try:
+        secret_store.settle_many(found, complete=True)
+    except OSError as error:
+        notes.append(f"keychain migration could not write the secrets index: {error.__class__.__name__}; it will be rebuilt as secrets are used")
     if copied:
-        indexed = [name for name in copied if NAME_RE.fullmatch(name) and not name.startswith(RESERVED)]
-        if indexed:
-            with _lock:
-                _save([*_names(), *indexed])
         notes.append(f"copied {len(copied)} secret(s) from the old keychain service to the new one: {', '.join(copied)}; the old entries were left in place")
     else:
         notes.append("keychain migration: nothing to copy from the old service")
     try:
         marker.write_text(json.dumps({"from": OLD_SERVICE, "copied": copied}), encoding="utf-8")
     except OSError:
-        pass
+        logging.getLogger("formsubstrate").warning("the keychain carry-over marker could not be written; the carry-over runs again at the next start", exc_info=True)
     return notes
 
 
@@ -136,8 +124,8 @@ def _check(name: str) -> None:
         raise HTTPException(status_code=400, detail="this secret name belongs to another part of the app")
 
 
-def _unavailable() -> HTTPException:
-    return HTTPException(status_code=503, detail=NO_KEYRING)
+def _unavailable(error: secret_store.StoreError) -> HTTPException:
+    return HTTPException(status_code=503, detail=f"{NO_KEYRING}: {error}")
 
 
 @router.get("/secrets")
@@ -148,14 +136,11 @@ def list_names() -> dict:
 @router.get("/secrets/{name}")
 def present(name: str) -> dict:
     _check(name)
-    try:
-        return {"present": keyring.get_password(SERVICE, name) is not None}
-    except KeyringError:
-        raise _unavailable()
+    return secret_store.status(name)
 
 
-@router.put("/secrets/{name}", status_code=204, dependencies=[Depends(require_window)])
-async def put_secret(name: str, request: Request) -> Response:
+@router.put("/secrets/{name}", dependencies=[Depends(require_window)])
+async def put_secret(name: str, request: Request) -> dict:
     _check(name)
     try:
         body = await request.json()
@@ -165,23 +150,17 @@ async def put_secret(name: str, request: Request) -> Response:
     if not isinstance(value, str) or not value or len(value) > VALUE_MAX:
         raise HTTPException(status_code=400, detail="value must be a non-empty string")
     try:
-        keyring.set_password(SERVICE, name, value)
-    except KeyringError:
-        raise _unavailable()
-    with _lock:
-        _save([*_names(), name])
-    return Response(status_code=204)
+        secret_store.put(name, value)
+    except secret_store.StoreError as error:
+        raise _unavailable(error)
+    return secret_store.status(name)
 
 
 @router.delete("/secrets/{name}", status_code=204, dependencies=[Depends(require_window)])
 def delete_secret(name: str) -> Response:
     _check(name)
     try:
-        keyring.delete_password(SERVICE, name)
-    except PasswordDeleteError:
-        pass
-    except KeyringError:
-        raise _unavailable()
-    with _lock:
-        _save([item for item in _names() if item != name])
+        secret_store.delete(name)
+    except secret_store.StoreError as error:
+        raise _unavailable(error)
     return Response(status_code=204)

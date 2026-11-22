@@ -467,8 +467,8 @@ class WinPty:
     def force(self):
         try:
             self.proc.terminate(force=True)
-        except Exception:
-            pass
+        except Exception as exc:
+            sys.stderr.write("formsubstrate-ptyhost: could not force-end terminal process %s: %s: %s\n" % (self.pid, type(exc).__name__, exc))
 
     def close(self):
         self.closed = True
