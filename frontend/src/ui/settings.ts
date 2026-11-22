@@ -1,6 +1,6 @@
 import { formslot } from '../io/formslot';
 import { git, type Identity } from '../io/git';
-import { hasSecret, removeSecret, saveSecret } from '../io/secrets';
+import { removeSecret, saveSecret, secretStatus, secretStatusText, type SecretStatus } from '../io/secrets';
 import { systemStatus } from '../io/api';
 import { setTrusted } from '../io/trust';
 import { formatKeys, type Commands } from './commands';
@@ -110,7 +110,7 @@ export class SettingsDialog {
   private readonly keyStatus = el('<p class="cv-note cv-prefs-status" role="status"></p>');
   private readonly keySave: HTMLButtonElement;
   private readonly keyRemove: HTMLButtonElement;
-  private keyPresent: boolean | null = null;
+  private keyState: SecretStatus | null = null;
   private keyBusy = false;
   private readonly sign: Row<boolean>;
   private readonly gitName = el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" autocomplete="off" maxlength="200" aria-label="Author name">');
@@ -245,7 +245,7 @@ export class SettingsDialog {
       Terminal: [grp('Text', this.terminalFont.el)],
       Agents: [
         grp('Claude Code', this.model.el, this.permission.el, nt('Headless sessions run without a person to approve tools. Accept edits lets them change files inside their own worktree only; Bash and other tools are denied. Interactive terminal sessions are not affected.')),
-        grp('Anthropic API key', this.keyRow(), this.keyStatus, nt('The key goes to the engine and is kept in the system keychain. This page never reads it back.')),
+        grp('Anthropic API key', this.keyRow(), this.keyStatus, nt('The key goes to the engine and is kept in the system keychain, or in a file only you can read when this computer has no keychain. This page never reads it back, and opening it does not touch the keychain.')),
       ],
       'Git and Identity': [
         grp('Commits', this.fieldRow('Author name', this.gitName), this.fieldRow('Author email', this.gitEmail), this.sign.el, this.fieldRow('Signing key path', this.gitKey), this.gitActions(), this.gitStatus, nt('Every commit made from Substrate, by you or by an agent session, uses this name and email. Signing uses the SSH public key at the path; the private key is never read or stored here.')),
@@ -632,10 +632,10 @@ export class SettingsDialog {
       setText(this.version, t('Engine offline'));
     }
     try {
-      this.keyPresent = await hasSecret(API_KEY_SECRET);
+      this.keyState = await secretStatus(API_KEY_SECRET);
       this.keyNote = '';
     } catch (e) {
-      this.keyPresent = null;
+      this.keyState = null;
       this.keyNote = /^503/.test(e instanceof Error ? e.message : '') ? 'The system keychain is not available.' : 'The engine is not answering.';
     }
     this.paintKey();
@@ -645,11 +645,13 @@ export class SettingsDialog {
 
   private paintKey(): void {
     const typed = this.keyInput.value.length > 0;
-    setText(this.keyStatus, this.keyNote ? t(this.keyNote) : this.keyPresent === null ? '' : t(this.keyPresent ? 'Saved in the system keychain' : 'Not set'));
+    const s = this.keyState;
+    const unknownNote = s?.state === 'unknown' ? `. ${t('Save the key again or remove it to settle this.')}` : '';
+    setText(this.keyStatus, this.keyNote ? t(this.keyNote) : s === null ? '' : `${t(secretStatusText(s))}${unknownNote}`);
     const save = this.keySave, remove = this.keyRemove;
     const off = (b: HTMLButtonElement, v: boolean): void => { if (b.disabled !== v) b.disabled = v; };
-    off(save, !typed || this.keyBusy || this.keyPresent === null && !!this.keyNote);
-    off(remove, this.keyPresent !== true || this.keyBusy);
+    off(save, !typed || this.keyBusy || s === null && !!this.keyNote);
+    off(remove, s === null || s.state === 'absent' || this.keyBusy);
   }
 
   private async storeKey(): Promise<void> {
@@ -658,9 +660,8 @@ export class SettingsDialog {
     this.keyBusy = true;
     this.paintKey();
     try {
-      await saveSecret(API_KEY_SECRET, value);
+      this.keyState = await saveSecret(API_KEY_SECRET, value);
       this.keyInput.value = '';
-      this.keyPresent = true;
       this.keyNote = '';
     } catch (e) {
       toast(`${t('The key was not saved')}: ${e instanceof Error ? e.message : ''}`, 'error');
@@ -676,7 +677,7 @@ export class SettingsDialog {
     this.paintKey();
     try {
       await removeSecret(API_KEY_SECRET);
-      this.keyPresent = false;
+      this.keyState = { present: false, state: 'absent', store: null };
       this.keyNote = '';
     } catch (e) {
       toast(`${t('The key was not removed')}: ${e instanceof Error ? e.message : ''}`, 'error');

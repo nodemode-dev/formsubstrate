@@ -1,5 +1,5 @@
 import { systemStatus } from '../../io/api';
-import { hasSecret } from '../../io/secrets';
+import { secretStatus, secretStatusText } from '../../io/secrets';
 import { Dialog } from '../../ui/dialogs';
 import { el, q, setText } from '../../ui/dom';
 import { t } from '../../ui/i18n';
@@ -15,7 +15,7 @@ const STEPS: ReadonlyArray<{ id: Check; title: string; hint: string }> = [
   { id: 'engine', title: 'Engine', hint: 'The local engine answers this computer only.' },
   { id: 'git', title: 'git', hint: 'Needed for worktrees, review and commits. Install it from git-scm.com if it is missing.' },
   { id: 'claude', title: 'Claude Code', hint: 'Sessions run the claude command found on this system. Install it, then reopen this page.' },
-  { id: 'key', title: 'Anthropic API key', hint: 'Optional. Headless sessions can use a key kept in the system keychain; set it in Preferences.' },
+  { id: 'key', title: 'Anthropic API key', hint: 'Optional. Headless sessions can use a key kept in the system keychain, or in a file only you can read where there is no keychain; set it in Preferences. Not checked yet means Substrate has not looked in the keychain since an update; saving the key again settles it.' },
   { id: 'workspace', title: 'Workspace', hint: 'Open a folder or a Form repository to begin.' },
 ];
 
@@ -67,8 +67,8 @@ class WelcomeDialog extends Dialog {
       this.put('engine', false, t('Engine offline'));
     }
     try {
-      const present = await hasSecret(KEY_NAME);
-      if (run === this.run) this.put('key', null, present ? t('Saved in the system keychain') : t('Not set'));
+      const status = await secretStatus(KEY_NAME);
+      if (run === this.run) this.put('key', null, t(secretStatusText(status)));
     } catch {
       if (run === this.run) this.put('key', null, t('Not set'));
     }
