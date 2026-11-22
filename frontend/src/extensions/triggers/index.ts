@@ -145,13 +145,12 @@ class TriggersPanel {
     if (names.join('\n') === this.known.join('\n')) return;
     const current = this.recipe.value;
     this.known = names;
-    this.recipe.replaceChildren(...names.map((n) => {
-      const o = document.createElement('option');
-      o.value = n;
-      o.textContent = n;
-      return o;
-    }));
-    if (names.includes(current)) this.recipe.value = current;
+    patchList(this.recipe, names, {
+      key: (n) => n,
+      create: (n) => { const o = document.createElement('option'); o.value = n; o.textContent = n; return o; },
+      update: (node, n) => { const o = node as HTMLOptionElement; if (o.value !== n) o.value = n; setText(o, n); },
+    });
+    if (names.includes(current) && this.recipe.value !== current) this.recipe.value = current;
   }
 
   private async create(): Promise<void> {

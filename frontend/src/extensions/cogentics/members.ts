@@ -111,24 +111,23 @@ export function fillModels(select: HTMLSelectElement, groups: CatalogGroup[] | n
   const want = kind === 'claude' ? 'cli' : 'api';
   if (select.dataset.filled === `${want}:${groups ? groups.length : 0}:${cli ? cli.length : 0}`) return;
   select.dataset.filled = `${want}:${groups ? groups.length : 0}:${cli ? cli.length : 0}`;
-  const nodes: Node[] = [];
-  const opt = (v: string, label: string): HTMLOptionElement => {
-    const o = document.createElement('option');
-    o.value = v;
-    o.textContent = label;
-    return o;
-  };
-  if (want === 'cli') {
-    for (const m of cli ?? [{ id: '', label: t('CLI default model') }]) nodes.push(opt(m.id, m.label));
-  } else {
-    nodes.push(opt('', t('Provider default model')));
-    for (const g of groups ?? []) {
-      const og = document.createElement('optgroup');
-      og.label = g.vendor;
-      for (const m of g.models) og.append(opt(m.id, m.label));
-      nodes.push(og);
-    }
-  }
-  select.replaceChildren(...nodes);
-  select.value = '';
+  type Entry = { id: string; label: string; models?: Array<{ id: string; label: string }> };
+  const was = select.value;
+  const relabel = (node: HTMLElement, e: Entry): void => { const o = node as HTMLOptionElement; if (o.value !== e.id) o.value = e.id; setText(o, e.label); };
+  const optOpts = { key: (e: Entry) => `o:${e.id}`, create: () => document.createElement('option'), update: relabel };
+  const entries: Entry[] = want === 'cli'
+    ? (cli ?? [{ id: '', label: t('CLI default model') }]).map((m) => ({ id: m.id, label: m.label }))
+    : [{ id: '', label: t('Provider default model') }, ...(groups ?? []).map((g) => ({ id: g.vendor, label: g.vendor, models: g.models.map((m) => ({ id: m.id, label: m.label })) }))];
+  patchFilled(select, entries, {
+    key: (e) => (e.models ? `g:${e.id}` : `o:${e.id}`),
+    create: (e) => document.createElement(e.models ? 'optgroup' : 'option'),
+    update: (node, e) => {
+      if (!e.models) { relabel(node, e); return; }
+      const og = node as HTMLOptGroupElement;
+      if (og.label !== e.label) og.label = e.label;
+      patchFilled(og, e.models, optOpts);
+    },
+  });
+  const keep = Array.from(select.options).some((o) => o.value === was) ? was : '';
+  if (select.value !== keep) select.value = keep;
 }

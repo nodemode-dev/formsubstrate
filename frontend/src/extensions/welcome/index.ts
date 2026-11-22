@@ -36,7 +36,7 @@ class WelcomeDialog extends Dialog {
       this.rows.set(s.id, row);
       this.body.appendChild(row);
     }
-    this.button('Preferences', 'ghost', () => { this.close(); document.dispatchEvent(new CustomEvent('formsubstrate:open-settings')); });
+    this.button('Preferences', 'ghost', () => { this.close(); document.dispatchEvent(new CustomEvent('formsubstrate:open-settings', { detail: { section: 'Agents' } })); });
     this.button('Open folder', '', () => { this.close(); ctx.commands.run('open-folder'); });
     this.button('Start', 'primary', () => this.close());
     this.onClose = markSeen;

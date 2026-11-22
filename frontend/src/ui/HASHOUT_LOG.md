@@ -98,3 +98,35 @@ Preferences showed a switch "Check for updates at start" on General (group Start
 - logged: v0.19.0 · 2026-11-22
 
 `GET /api/secrets/{name}` now returns `{present: boolean | null, state: 'saved' | 'absent' | 'unknown', store: 'keychain' | 'file' | null}` from the engine's index, with no keychain read, and `PUT` returns the same status after saving (see `backend/app/services/HASHOUT_LOG.md`, secret_store entry of v0.19.0). `io/secrets.ts` replaces `hasSecret(name): Promise<boolean>` (`r.present === true`) with `secretStatus`, makes `saveSecret` return the status, and adds `secretStatusText`, shared with Welcome. The key row keeps `keyState: SecretStatus | null` in place of `keyPresent: boolean | null`. Status text: the store-aware text, and for unknown "Not checked yet. Save the key again or remove it to settle this."; Remove is enabled for saved and unknown (removing an absent key is harmless and settles the state), disabled for absent, null or busy. After Save the row shows the store the engine reports; after Remove it is absent. The note under the row now says the key may be kept in a user-only file where there is no keychain, and that opening the page does not touch the keychain. The 503 note "The system keychain is not available." stays for the engine's 503 on a refusing keychain, which a status read no longer returns. Removed: `this.keyPresent = await hasSecret(API_KEY_SECRET);`, `t(this.keyPresent ? 'Saved in the system keychain' : 'Not set')`, `off(remove, this.keyPresent !== true || this.keyBusy);`, `this.keyPresent = true;` and `this.keyPresent = false;`. Text only changes in place, so the row does not reflow beyond the length of the status line.
+
+### frontend/src/ui/inspector/index.ts · NodeInspector.paintRun visit options patched by key
+
+- refers-to: frontend/src/ui/inspector/index.ts :: NodeInspector.paintRun (visitSel); frontend/src/ui/dom.ts :: patchList
+- kind: removed-code
+- logged: v0.20.0 · 2026-11-22
+
+The Run tab's visit select was rebuilt whenever the number of visits changed: `this.visitSel.replaceChildren(...visits.map((v, i) => new Option(\`${t('Visit')} ${v.n}\`, String(i))));` followed by `this.visitSel.value = String(this.selectedVisit);`. Its options are now patched with `patchList`, keyed by the visit index: a new visit adds one option at the end, a shorter run removes the extra ones, and every kept option has its label rewritten in place only when the text differs. The select element, its focus and the enhanced dropdown button beside it stay; the value is written only when it differs from the chosen visit. The choice of the newest visit when the count changes is kept as before.
+
+### frontend/src/ui/settings.ts · Preferences checked against the FormVis node-wire dialog
+
+- refers-to: frontend/src/ui/settings.ts :: SettingsDialog (constructor, add, markSection, scrollToSection, foldSection, queueSpy, drawWire); frontend/src/styles/dialogs.css :: .cv-prefs-*
+- kind: rationale
+- logged: v0.20.0 · 2026-11-22
+
+Compared line by line with FormVis `app-dialogs.ts` (the constructor's rail, wire and port, and `showSection` to `drawWire`) and `dialogs.css` (`.cv-prefs-rail` to `.cv-prefs-port::after`): the class names, the constants (rail key, 700 ms spy mute, 12 px scroll pad, 24 px spy edge, 10 px wire radius, the 0.45 trunk, the `H -7` end), the order of open (mark, open, scroll, wire) and the rules match, with the FormVis literals replaced by the tokens of the same value. Nothing was changed. The key and every other setting live in a Preferences card: the Anthropic API key in Agents, the identity in Git and Identity, the formslot folder in formslot. Buttons elsewhere that need one open Preferences at that card through `formsubstrate:open-settings` with `detail.section` (Source Control at Git and Identity, the Home formslot card at formslot, and from v0.20.0 Welcome at Agents). Checked under a 4x CPU and slow network in headless Chrome: after each tab choice and each scroll position the wire starts on the chosen tab's right edge at its middle and ends on the port, and no layout shift is recorded.
+
+### frontend/src/styles/workbench.css, shell.css · group chips and card rows from the FormVis recipe
+
+- refers-to: frontend/src/styles/workbench.css :: .cv-wb-side-head, .cv-wb-side-title, .cv-wb-right-head, .cv-wb-right-title; frontend/src/styles/shell.css :: .cv-list-row
+- kind: removed-code
+- logged: v0.20.0 · 2026-11-22
+
+Logged here because this worker could not write the styles log. The side and right panel heads were small uppercase muted labels (`color: var(--text-muted); font-size: var(--fs-11); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;`). They now follow FormVis `panels.css` (the group header as a dark strip, the panel's name as a raised chip): the head takes `--group-head`, and the title is a chip with a `--line-3` hairline, `--radius-md` and `--surface-raised`, at the same head height, so nothing below moves; an empty title is hidden by visibility, keeping its space. List rows (the command palette) were flat (`border-radius: var(--radius-sm)`, selected `background: var(--accent-color-dim)`); they are now rounded cards on the layer-row recipe: `--radius-md`, a hairline on hover and, when selected, the gradient from `--surface-raised` to `--accent-glow` with an `--accent-line` hairline, drawn as an inset shadow so the row keeps its size. Checked and already matching FormVis: document tabs with rounded tops and the raised active tab, the dialog recipe (blurred scrim, `--radius-2xl` of 14 px, the white primary button), the numeric field and the slider (`.cv-num`, `.cv-slider-ctl`, the Preferences range recipe), and the segmented bar in `review.css`, which is FormVis `shell.css`'s hairline version. Left out on purpose, as an editor differs: no tool rail and no dot grid (there is no canvas; the activity rail is the editor's), the options row stays as it is, the file tree and search rows stay dense flat rows like an editor's, and there is no row splitter because the side and right columns show one panel at a time and never stack groups.
+
+### frontend/src/ui/dom.ts · revealApp sends the page's background; frontend/index.html · the icon link
+
+- refers-to: frontend/src/ui/dom.ts :: revealApp; frontend/index.html :: head; src-tauri/src/reveal.rs :: app_ready
+- kind: rationale
+- logged: v0.20.0 · 2026-11-22
+
+`revealApp` called `invoke('app_ready')` with nothing. It now reads the body's computed background and sends it as `bg` (three numbers, or null when it cannot be read), as FormDeck's page does, and the shell sets the main window's own background to it before showing the window. With a light theme the window behind the page was the dark default until the page covered it; now the two match from the first shown frame. `index.html` gains `<link rel="icon" type="image/png" href="/icon.png">`: the browser asked for `/favicon.ico` on every load and logged a 404. Type-checked; not seen in the desktop app.
