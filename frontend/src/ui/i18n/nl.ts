@@ -216,7 +216,6 @@ export const nl: Record<string, string> = {
   'Problems': 'Problemen', 'Provider': 'Provider', 'Provider default model': 'Standaardmodel van de provider',
   'Provider saved. Add an API key to leave simulator mode.': 'Provider opgeslagen. Voeg een API-sleutel toe om de simulatormodus te verlaten.', 'Providers': 'Providers',
   'Push': 'Pushen', 'Push refused': 'Push geweigerd', 'Push the current branch': 'De huidige branch pushen', 'Pushed': 'Gepusht', 'Pushing': 'Bezig met pushen', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'Python-foutopsporing via debugpy: onderbrekingspunten, stapsgewijs uitvoeren, aanroepstack, variabelen en een console.',
   'Python engine and Tauri (like formvis)': 'Python-engine en Tauri (zoals formvis)', 'Quick actions': 'Snelle acties',
   'Quiet wire: add an agent member, then @mention it.': 'Stil kanaal: voeg een agentlid toe en vermeld het daarna met @.', 'Quit': 'Afsluiten', 'Quit without saving': 'Afsluiten zonder opslaan',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'Niet-gepushte commits opnieuw ondertekenen en opschonen, daarna pushen. De geschiedenis wordt pas herschreven als u klikt.',

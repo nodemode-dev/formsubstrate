@@ -12,7 +12,7 @@ backend/
     main.py                    FastAPI app, LocalGuard, routers under /api (the MCP router at /mcp, no
                                prefix), static window at /
     core/                      config, runtime (log, pid), local_guard, engine_addr, workspace_root,
-                               binres, lsp, debug
+                               binres, lsp, lsp_custom, debug, debug_launch, trust
     routers/                   system, workspace, secrets, terminal, sessions, formslot (+ gates),
                                skills, git, debug, lsp, media, graph, create, mcp
     services/                  sessions, gitops, formslot, gates, gate_hook, graph, ptyhost_client,

@@ -210,7 +210,6 @@ export const uk: Record<string, string> = {
   'Provider default model': 'Модель постачальника за замовчуванням', 'Provider saved. Add an API key to leave simulator mode.': 'Постачальника збережено. Щоб вийти з режиму симулятора, додайте ключ API.',
   'Providers': 'Постачальники', 'Push': 'Надіслати', 'Push refused': 'Надсилання відхилено', 'Push the current branch': 'Надіслати поточну гілку', 'Pushed': 'Надіслано',
   'Pushing': 'Надсилання', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'Налагодження Python через debugpy: точки зупину, покрокове виконання, стек викликів, змінні та консоль.',
   'Python engine and Tauri (like formvis)': 'Рушій на Python і Tauri (як formvis)', 'Quick actions': 'Швидкі дії',
   'Quiet wire: add an agent member, then @mention it.': 'Тиха лінія: додайте учасника-агента, а потім згадайте його через @.', 'Quit': 'Вийти', 'Quit without saving': 'Вийти без збереження',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'Повторно підписати й очистити ненадіслані коміти, а потім надіслати. Історія переписується лише після вашого клацання.',

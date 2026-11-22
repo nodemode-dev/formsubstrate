@@ -44,6 +44,7 @@ From a source checkout the window is 5650 and the engine 5655 (`FORMSUBSTRATE_PO
 - A port is in use: `./formsubstrate doctor` names it; start with another `FORMSUBSTRATE_PORT`.
 - Actions fail with 403 after the engine restarted in a browser development build: reload the window to fetch a new window token.
 - A session cannot start: the folder must be a git repository with at least one commit, and `claude` must be found (set `FORMSUBSTRATE_CLAUDE_BIN` if it is not).
-- A project's language server does not start: trust the workspace, then Go > Restart Language Servers.
+- A project's language server or a custom language server does not start (the status bar says it needs trust): trust the workspace, then Go > Restart Language Servers if it still does not start. Substrate never installs a server; Go > Language Servers... shows the install line.
+- Node.js debugging says js-debug was not found: download js-debug-dap from the vscode-js-debug releases page on GitHub, unpack it, and set the folder under Preferences > Language Servers > Run and Debug. Substrate never downloads it. Python debugging needs debugpy in the Python it runs.
 - An outside MCP client says Substrate is not running or did not accept it: see `connect-mcp-client`.
 - formslot is not found: Home shows "formslot is not installed"; use Install formslot or set its folder under Preferences > formslot. `formslot_slot` needs the formslot service running and does not start it.

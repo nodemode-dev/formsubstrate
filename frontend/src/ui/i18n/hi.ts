@@ -216,7 +216,6 @@ export const hi: Record<string, string> = {
   'Problems': 'समस्याएँ', 'Provider': 'प्रदाता', 'Provider default model': 'प्रदाता का डिफ़ॉल्ट मॉडल',
   'Provider saved. Add an API key to leave simulator mode.': 'प्रदाता सहेजा गया। सिम्युलेटर मोड से बाहर निकलने के लिए API कुंजी जोड़ें।', 'Providers': 'प्रदाता',
   'Push': 'पुश करें', 'Push refused': 'पुश अस्वीकार किया गया', 'Push the current branch': 'वर्तमान ब्रांच पुश करें', 'Pushed': 'पुश किया गया', 'Pushing': 'पुश किया जा रहा है', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'debugpy के ज़रिए Python डीबगिंग: ब्रेकपॉइंट, स्टेप-दर-स्टेप निष्पादन, कॉल स्टैक, वेरिएबल और एक कंसोल।',
   'Python engine and Tauri (like formvis)': 'Python इंजन और Tauri (formvis की तरह)', 'Quick actions': 'त्वरित क्रियाएँ',
   'Quiet wire: add an agent member, then @mention it.': 'शांत चैनल: एक एजेंट सदस्य जोड़ें, फिर @ से उसका उल्लेख करें।', 'Quit': 'बंद करें', 'Quit without saving': 'सहेजे बिना बंद करें',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'बिना पुश किए गए कमिट को फिर से हस्ताक्षरित और साफ़ करें, फिर पुश करें। इतिहास तभी फिर से लिखा जाता है जब आप क्लिक करते हैं।',

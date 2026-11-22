@@ -216,7 +216,6 @@ export const de: Record<string, string> = {
   'Problems': 'Probleme', 'Provider': 'Anbieter', 'Provider default model': 'Standardmodell des Anbieters',
   'Provider saved. Add an API key to leave simulator mode.': 'Anbieter gespeichert. Fügen Sie einen API-Schlüssel hinzu, um den Simulatormodus zu verlassen.', 'Providers': 'Anbieter',
   'Push': 'Pushen', 'Push refused': 'Push abgelehnt', 'Push the current branch': 'Aktuellen Branch pushen', 'Pushed': 'Gepusht', 'Pushing': 'Wird gepusht', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'Python-Debugging über debugpy: Haltepunkte, schrittweise Ausführung, Aufrufliste, Variablen und eine Konsole.',
   'Python engine and Tauri (like formvis)': 'Python-Engine und Tauri (wie formvis)', 'Quick actions': 'Schnellaktionen',
   'Quiet wire: add an agent member, then @mention it.': 'Stiller Kanal: Fügen Sie ein Agentenmitglied hinzu und erwähnen Sie es dann mit @.', 'Quit': 'Beenden', 'Quit without saving': 'Ohne Speichern beenden',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'Nicht gepushte Commits neu signieren und bereinigen, dann pushen. Der Verlauf wird erst beim Klicken neu geschrieben.',

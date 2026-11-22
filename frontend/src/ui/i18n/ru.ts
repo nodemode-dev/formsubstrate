@@ -216,7 +216,6 @@ export const ru: Record<string, string> = {
   'Problems': 'Проблемы', 'Provider': 'Провайдер', 'Provider default model': 'Модель провайдера по умолчанию',
   'Provider saved. Add an API key to leave simulator mode.': 'Провайдер сохранён. Добавьте ключ API, чтобы выйти из режима симулятора.', 'Providers': 'Провайдеры',
   'Push': 'Отправить', 'Push refused': 'Отправка отклонена', 'Push the current branch': 'Отправить текущую ветку', 'Pushed': 'Отправлено', 'Pushing': 'Отправка', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'Отладка Python через debugpy: точки останова, пошаговое выполнение, стек вызовов, переменные и консоль.',
   'Python engine and Tauri (like formvis)': 'Движок на Python и Tauri (как formvis)', 'Quick actions': 'Быстрые действия',
   'Quiet wire: add an agent member, then @mention it.': 'Тихий канал: добавьте участника-агента, а затем упомяните его через @.', 'Quit': 'Выйти', 'Quit without saving': 'Выйти без сохранения',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'Заново подписать и очистить неотправленные коммиты, затем отправить. История переписывается только после вашего щелчка.',

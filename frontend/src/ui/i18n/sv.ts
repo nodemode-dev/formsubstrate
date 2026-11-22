@@ -216,7 +216,6 @@ export const sv: Record<string, string> = {
   'Problems': 'Problem', 'Provider': 'Leverantör', 'Provider default model': 'Leverantörens standardmodell',
   'Provider saved. Add an API key to leave simulator mode.': 'Leverantören sparades. Lägg till en API-nyckel för att lämna simulatorläget.', 'Providers': 'Leverantörer',
   'Push': 'Pusha', 'Push refused': 'Push avvisades', 'Push the current branch': 'Pusha den aktuella grenen', 'Pushed': 'Pushad', 'Pushing': 'Pushar', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'Python-felsökning via debugpy: brytpunkter, stegvis körning, anropsstack, variabler och en konsol.',
   'Python engine and Tauri (like formvis)': 'Python-motor och Tauri (som formvis)', 'Quick actions': 'Snabbåtgärder',
   'Quiet wire: add an agent member, then @mention it.': 'Tyst kanal: lägg till en agentmedlem och @nämn den sedan.', 'Quit': 'Avsluta', 'Quit without saving': 'Avsluta utan att spara',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'Signera om och rensa de commits som inte har pushats och pusha sedan. Historiken skrivs om först när du klickar.',

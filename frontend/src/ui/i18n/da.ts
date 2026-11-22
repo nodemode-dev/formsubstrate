@@ -216,7 +216,6 @@ export const da: Record<string, string> = {
   'Problems': 'Problemer', 'Provider': 'Udbyder', 'Provider default model': 'Udbyderens standardmodel',
   'Provider saved. Add an API key to leave simulator mode.': 'Udbyder gemt. Tilføj en API-nøgle for at forlade simulatortilstand.', 'Providers': 'Udbydere',
   'Push': 'Push', 'Push refused': 'Push afvist', 'Push the current branch': 'Push den aktuelle gren', 'Pushed': 'Pushet', 'Pushing': 'Pusher', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'Python-fejlfinding via debugpy: pausepunkter, trinvis kørsel, kaldstak, variabler og en konsol.',
   'Python engine and Tauri (like formvis)': 'Python-motor og Tauri (som formvis)', 'Quick actions': 'Hurtige handlinger',
   'Quiet wire: add an agent member, then @mention it.': 'Stille kanal: tilføj et agentmedlem, og @nævn det derefter.', 'Quit': 'Afslut', 'Quit without saving': 'Afslut uden at gemme',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'Signér og ryd op i de commits, der ikke er pushet, og push derefter. Historikken omskrives først, når du klikker.',

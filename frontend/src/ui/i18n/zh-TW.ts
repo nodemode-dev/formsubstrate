@@ -216,7 +216,6 @@ export const zhTW: Record<string, string> = {
   'Problems': '問題', 'Provider': '提供者', 'Provider default model': '提供者預設模型',
   'Provider saved. Add an API key to leave simulator mode.': '已儲存提供者。新增 API 金鑰即可離開模擬器模式。', 'Providers': '提供者',
   'Push': '推送', 'Push refused': '推送遭拒', 'Push the current branch': '推送目前的分支', 'Pushed': '已推送', 'Pushing': '正在推送', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': '透過 debugpy 進行 Python 偵錯：中斷點、逐步執行、呼叫堆疊、變數和主控台。',
   'Python engine and Tauri (like formvis)': 'Python 引擎和 Tauri（與 formvis 相同）', 'Quick actions': '快速動作',
   'Quiet wire: add an agent member, then @mention it.': '頻道很安靜：請新增代理程式成員，然後 @ 提及它。', 'Quit': '結束', 'Quit without saving': '結束但不儲存',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': '重新簽署並清理尚未推送的認可，然後推送。只有在您按一下後才會重寫歷程記錄。',

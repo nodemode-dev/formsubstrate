@@ -1,7 +1,72 @@
 import { request } from './api';
-import { TRUST_EVENT, trustQuery } from './trust';
+import { TRUST_EVENT, workspaceTrusted } from './trust';
+import { owner } from './window-token';
+import { workspace } from '../ui/workspace-store';
 
-export type LspLang = 'typescript' | 'python';
+export type LspLang = 'typescript' | 'python' | `custom:${string}`;
+
+export const CUSTOM_LSP_EVENT = 'formsubstrate:lsp-custom-changed';
+
+export interface CustomServerFields {
+  label: string;
+  program: string;
+  args: string[];
+  exts: string[];
+  languageId: string;
+  initializationOptions: unknown;
+  preset: string | null;
+}
+
+export interface CustomServer extends CustomServerFields {
+  id: string;
+  lang: LspLang;
+  found: boolean;
+  path: string | null;
+  install: string[];
+}
+
+export interface CustomPreset extends CustomServerFields { install: string[] }
+
+export interface CustomListing { root: string | null; trusted: boolean; servers: CustomServer[]; presets: CustomPreset[] }
+
+const jsonBody = (body: unknown): RequestInit => ({ body: JSON.stringify(body) });
+const changed = <T>(p: Promise<T>): Promise<T> => p.then((v) => { window.dispatchEvent(new Event(CUSTOM_LSP_EVENT)); return v; });
+
+export const customLsp = {
+  list: (): Promise<CustomListing> => request<CustomListing>('/api/lsp/custom'),
+  add: (body: CustomServerFields): Promise<{ server: CustomServer }> => changed(owner('/api/lsp/custom', { method: 'POST', ...jsonBody(body) })),
+  change: (id: string, body: CustomServerFields): Promise<{ server: CustomServer }> => changed(owner(`/api/lsp/custom/${encodeURIComponent(id)}`, { method: 'PUT', ...jsonBody(body) })),
+  remove: (id: string): Promise<unknown> => changed(owner(`/api/lsp/custom/${encodeURIComponent(id)}`, { method: 'DELETE' })),
+};
+
+let told: { key: string; done: boolean; value: Promise<void> } | null = null;
+
+const trustKey = (): string => {
+  const path = workspace.workspace?.path ?? '';
+  return path ? `${workspaceTrusted() ? '1' : '0'}|${path}` : '';
+};
+
+export function trustSynced(): boolean {
+  const key = trustKey();
+  return !key || (told?.key === key && told.done);
+}
+
+export function forgetTrustSync(): void {
+  told = null;
+}
+
+export function syncTrust(): Promise<void> {
+  const key = trustKey();
+  const path = workspace.workspace?.path;
+  if (!key || !path) return Promise.resolve();
+  if (told?.key === key) return told.value;
+  const entry = { key, done: false, value: Promise.resolve() };
+  entry.value = owner('/api/lsp/trust', { method: 'POST', ...jsonBody({ workspace: path, trusted: workspaceTrusted() }) })
+    .then(() => undefined, (e: unknown) => { console.warn('language server trust update failed', e); })
+    .finally(() => { entry.done = true; });
+  told = entry;
+  return entry.value;
+}
 
 export interface LspCandidate {
   name: string;
@@ -26,8 +91,10 @@ export interface LspServerInfo {
 
 export interface LspServers {
   root: string | null;
+  trusted: boolean;
   running: number;
   servers: LspServerInfo[];
+  custom: CustomServer[];
 }
 
 export function lspServers(): Promise<LspServers> {
@@ -36,7 +103,7 @@ export function lspServers(): Promise<LspServers> {
 
 export function lspSocketUrl(lang: LspLang): string {
   const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${scheme}://${location.host}/api/lsp/ws?lang=${lang}${trustQuery('&')}`;
+  return `${scheme}://${location.host}/api/lsp/ws?lang=${encodeURIComponent(lang)}`;
 }
 
 export interface WorkspaceSymbolHit { name: string; kind: number; container: string; path: string; line: number; col: number }
@@ -253,6 +320,7 @@ class SymbolHub {
 
   async search(text: string, ctx: SymbolSearch): Promise<SymbolOutcome[]> {
     if (this.root !== ctx.root) { this.reset(); this.root = ctx.root; }
+    await until(syncTrust(), ctx.signal);
     let found: LspServers | null = null;
     try { found = await until(this.servers(ctx.root), ctx.signal); } catch (e) { if (isAbort(e)) throw e; }
     return Promise.all(LANG_LIST.map((lang) => this.one(lang, text, ctx, !found || found.servers.some((s) => s.lang === lang && s.found))));

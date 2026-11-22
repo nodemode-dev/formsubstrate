@@ -363,6 +363,7 @@ export async function startApp(): Promise<void> {
     open: async (path, line, col) => { await openInEditor(path, line, col); return store.docs.some((d) => d.id === path); },
     transact: (path, spec) => editor?.transact(path, spec),
     read: async (path) => { try { return (await readFile(path)).text; } catch { return null; } },
+    text: (path) => editor?.textOf(path) ?? null,
     refresh: (path) => editor?.refreshExtensions(path),
     status: (text) => status.flashError(text),
     run: (command) => editor?.runCommand(command) ?? false,

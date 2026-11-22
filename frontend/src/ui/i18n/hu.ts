@@ -210,7 +210,6 @@ export const hu: Record<string, string> = {
   'Provider default model': 'Szolgáltató alapértelmezett modellje', 'Provider saved. Add an API key to leave simulator mode.': 'Szolgáltató mentve. A szimulátormódból való kilépéshez adjon meg egy API-kulcsot.',
   'Providers': 'Szolgáltatók', 'Push': 'Push', 'Push refused': 'A push elutasítva', 'Push the current branch': 'Az aktuális ág pusholása', 'Pushed': 'Push kész',
   'Pushing': 'Push folyamatban', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'Python-hibakeresés a debugpy segítségével: töréspontok, léptetés, hívási verem, változók és konzol.',
   'Python engine and Tauri (like formvis)': 'Python-motor és Tauri (mint a formvis)', 'Quick actions': 'Gyorsműveletek',
   'Quiet wire: add an agent member, then @mention it.': 'Csendes vonal: adjon hozzá egy ügynöktagot, majd említse meg @ jellel.', 'Quit': 'Kilépés', 'Quit without saving': 'Kilépés mentés nélkül',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'A még nem pusholt commitok újbóli aláírása és megtisztítása, majd push. Az előzmények csak az Ön kattintására íródnak át.',

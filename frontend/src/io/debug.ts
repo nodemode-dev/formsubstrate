@@ -1,5 +1,8 @@
 import { request } from './api';
-import { trustQuery } from './trust';
+import { syncTrust } from './lsp';
+import { owner } from './window-token';
+
+export type AdapterKind = 'python' | 'node';
 
 export interface DebugCandidate { python: string; source: string; debugpy: string | null }
 
@@ -14,6 +17,12 @@ export interface DebugAdapter {
   candidates: DebugCandidate[];
   install: string | null;
   note: string;
+  reason?: string;
+  node?: string | null;
+  nodeVersion?: string | null;
+  server?: string | null;
+  configured?: string;
+  configuredFound?: boolean;
 }
 
 export interface DebugAdapters { root: string | null; adapters: DebugAdapter[] }
@@ -21,11 +30,62 @@ export interface DebugAdapters { root: string | null; adapters: DebugAdapter[] }
 export interface DapEvent { event: string; body: Record<string, unknown> }
 
 export interface LaunchConfig {
-  program: string;
+  program?: string;
   args?: string[];
   cwd?: string;
   stopOnEntry?: boolean;
   justMyCode?: boolean;
+  configuration?: { index: number; name: string };
+  file?: string;
+}
+
+export interface LaunchEntry {
+  index: number;
+  name: string;
+  type: string;
+  kind: AdapterKind | null;
+  runnable: boolean;
+  problem: string;
+  program: string;
+  needsFile: boolean;
+  ignored: string[];
+}
+
+export interface LaunchListing {
+  root: string | null;
+  trusted: boolean;
+  source: string | null;
+  exists: boolean;
+  fallback: boolean;
+  configurations: LaunchEntry[];
+  problem: string;
+}
+
+export interface DebugSettings { jsDebugPath: string }
+
+export interface DapCapabilities { condition: boolean; hit: boolean; log: boolean }
+
+export const capabilitiesOf = (raw: Record<string, unknown>): DapCapabilities => ({
+  condition: raw.supportsConditionalBreakpoints === true,
+  hit: raw.supportsHitConditionalBreakpoints === true,
+  log: raw.supportsLogPoints === true,
+});
+
+export async function launchFile(): Promise<LaunchListing> {
+  await syncTrust();
+  return request<LaunchListing>('/api/debug/launch');
+}
+
+export function createLaunchFile(): Promise<{ path: string }> {
+  return owner<{ path: string }>('/api/debug/launch', { method: 'POST' });
+}
+
+export function debugSettings(): Promise<DebugSettings> {
+  return request<DebugSettings>('/api/debug/settings');
+}
+
+export function saveDebugSettings(body: DebugSettings): Promise<DebugSettings> {
+  return owner<DebugSettings>('/api/debug/settings', { method: 'PUT', body: JSON.stringify(body) });
 }
 
 export interface DapStackFrame { id: number; name: string; line: number; column: number; path: string }
@@ -37,7 +97,8 @@ const REQUEST_TIMEOUT_MS = 20000;
 const OPEN_TIMEOUT_MS = 8000;
 const CLOSE_CODES: Record<number, string> = { 4409: 'busy', 4404: 'unavailable' };
 
-export function debugAdapters(): Promise<DebugAdapters> {
+export async function debugAdapters(): Promise<DebugAdapters> {
+  await syncTrust();
   return request<DebugAdapters>('/api/debug/adapters');
 }
 
@@ -65,11 +126,12 @@ export class DapConnection {
 
   get isOpen(): boolean { return !this.closed && this.ws?.readyState === WebSocket.OPEN; }
 
-  open(): Promise<void> {
+  async open(adapter: AdapterKind = 'python'): Promise<void> {
+    await syncTrust();
     const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
     return new Promise((resolve, reject) => {
       let ws: WebSocket;
-      try { ws = new WebSocket(`${scheme}://${location.host}${WS_PATH}${trustQuery('?')}`); } catch (err) { reject(err instanceof Error ? err : new Error(String(err))); return; }
+      try { ws = new WebSocket(`${scheme}://${location.host}${WS_PATH}?adapter=${adapter}`); } catch (err) { reject(err instanceof Error ? err : new Error(String(err))); return; }
       this.ws = ws;
       const timer = window.setTimeout(() => { reject(new Error('The engine did not answer')); this.close(); }, OPEN_TIMEOUT_MS);
       ws.onopen = () => { window.clearTimeout(timer); resolve(); };
@@ -89,7 +151,10 @@ export class DapConnection {
       this.pending.delete(seq);
       window.clearTimeout(p.timer);
       if (msg.success === true) p.ok(msg.body ?? {});
-      else p.fail(new Error(typeof msg.message === 'string' ? msg.message : 'The request failed'));
+      else {
+        const detail = asRecord(asRecord(msg.body).error).format;
+        p.fail(new Error(typeof detail === 'string' && detail ? detail : typeof msg.message === 'string' && msg.message ? msg.message : 'The request failed'));
+      }
       return;
     }
     if (msg.type === 'event' && typeof msg.event === 'string') {

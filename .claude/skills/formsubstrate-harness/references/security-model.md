@@ -32,7 +32,15 @@ Terminal output read through the MCP tool `terminal_tail` is redacted with a con
 
 ## Workspace trust
 
-Separate from the engine tokens. The window keeps a list of trusted folders in preferences. Language servers and debug adapters installed inside a workspace run only when the window sends `trust=1`. The engine otherwise falls back to system programs and reports a note.
+The person decides in the window, which keeps the list of trusted folders in preferences (`trustedWorkspaces`). For language servers, the debugger and triggers the engine keeps its own record of that decision in `backend/app/core/trust.py`: real paths, at most 200, in memory only, so after an engine restart nothing is trusted until the window speaks again.
+
+- The record is set only through window-token routes: `POST /api/lsp/trust` (the window calls it through `syncTrust` in `frontend/src/io/lsp.ts`, once per pair of workspace path and trust) and `POST /api/triggers/trust`. `set_trust` changes the record only for the workspace that is open now.
+- `WS /api/lsp/ws` and `WS /api/debug/ws` call `trust.is_trusted(root)`. Neither reads a `trust` query flag any more, so another local program that opens a socket cannot claim trust.
+- What the record gates: a language server found inside the workspace (`node_modules/.bin`, a venv), every custom language server (`core/lsp_custom.py`; refused with reason `untrusted` before any lookup, so no process starts), the workspace venv for debugpy, and reading `.formsubstrate/launch.json` or `.vscode/launch.json` (`core/debug_launch.py`, checked again before every launch). Without trust the engine falls back to system programs for the built-in languages and reports a note.
+- When trust is withdrawn, `POST /api/lsp/trust` stops every custom server and every server started from inside the workspace (`lsp.stop_trusted_only`).
+- The custom server list (`lsp-servers.json` in the data folder) and the js-debug path (`debug.json`) are changed only through window-token routes (`POST`, `PUT`, `DELETE /api/lsp/custom`, `PUT /api/debug/settings`, `POST /api/debug/launch`); the matching `GET` routes take no key.
+- A launch never passes the window's fields on: the engine rebuilds the `launch` request (`debug.launch_arguments`), reads a chosen configuration from the file again, and confines a Current File launch to the workspace.
+- Other routes still take trust as a statement from the window in the request: the `trust` query on `/api/plugins`, `/api/presets` and the harness import, and the `trusted` body field on runs, sessions and Cogentics. They do not read the engine record.
 
 ## Other fixed rules
 

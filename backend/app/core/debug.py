@@ -2,15 +2,31 @@ import asyncio
 import contextlib
 import json
 import os
+import re
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import tempfile
+import threading
+from pathlib import Path
 
-from app.core import workspace_root as ws
+from app.core import config, debug_launch, workspace_root as ws
 
-PROBE = "import debugpy;print(debugpy.__version__)"
+SETTINGS_NAME = "debug.json"
+SETTINGS_PATH_MAX = 1024
+JS_DEBUG_ENTRY = "dapDebugServer.js"
+JS_DEBUG_INSIDE = ((), ("src",), ("js-debug", "src"), ("js-debug",))
+JS_DEBUG_ENV = "FORMSUBSTRATE_JS_DEBUG"
+JS_DEBUG_HOST = "127.0.0.1"
+CONNECT_WAIT = 15.0
+CHILD_WAIT = 20.0
+CONTROL = re.compile(r"[\x00-\x1f\x7f]")
+ROOT_ONLY = frozenset({"initialize", "launch", "configurationDone", "disconnect", "terminate"})
+BROADCAST = frozenset({"setBreakpoints", "setExceptionBreakpoints", "setFunctionBreakpoints"})
+RESUMES = frozenset({"continue", "next", "stepIn", "stepOut"})
+PROBE ="import debugpy;print(debugpy.__version__)"
 PROBE_TIMEOUT = 12
 MESSAGE_MAX = 16 * 1024 * 1024
 ARGS_MAX = 256
@@ -106,8 +122,124 @@ def resolve_python(root: str | None, trust: bool = False) -> dict:
     return {"candidates": candidates, "debuggee": debuggee, "adapter": adapter}
 
 
-def describe(root: str | None, found: dict | None = None) -> dict:
-    found = found if found is not None else resolve_python(root)
+_settings_lock = threading.Lock()
+
+
+def _settings_file() -> Path:
+    return config.data_dir() / SETTINGS_NAME
+
+
+def settings() -> dict:
+    try:
+        with open(_settings_file(), "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError):
+        data = None
+    path = data.get("jsDebugPath") if isinstance(data, dict) else None
+    return {"jsDebugPath": path if isinstance(path, str) and len(path) <= SETTINGS_PATH_MAX and not CONTROL.search(path) else ""}
+
+
+def save_settings(body: object) -> dict:
+    path = body.get("jsDebugPath") if isinstance(body, dict) else None
+    if not isinstance(path, str):
+        raise ws.Refused(400, "jsDebugPath must be text")
+    path = path.strip()
+    if len(path) > SETTINGS_PATH_MAX or CONTROL.search(path):
+        raise ws.Refused(400, "the path is too long or has a control character")
+    if path and not os.path.isabs(os.path.expanduser(path)):
+        raise ws.Refused(400, "give an absolute path to the js-debug folder or to dapDebugServer.js")
+    with _settings_lock:
+        target = _settings_file()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        holding = target.with_name(target.name + ".tmp")
+        with open(holding, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(json.dumps({"version": 1, "jsDebugPath": path}, indent=1) + "\n")
+        os.replace(holding, target)
+    return {"jsDebugPath": path}
+
+
+def js_debug_entry(path: str) -> str | None:
+    if not path:
+        return None
+    full = os.path.expanduser(path)
+    if os.path.isfile(full):
+        return os.path.realpath(full) if os.path.basename(full) == JS_DEBUG_ENTRY else None
+    for inner in JS_DEBUG_INSIDE:
+        candidate = os.path.join(full, *inner, JS_DEBUG_ENTRY)
+        if os.path.isfile(candidate):
+            return os.path.realpath(candidate)
+    return None
+
+
+def js_debug_places() -> list[str]:
+    home = os.path.expanduser("~")
+    places = [
+        os.path.join(home, ".local", "share", "js-debug"),
+        os.path.join(home, "js-debug"),
+        os.path.join(home, ".local", "share", "nvim", "mason", "packages", "js-debug-adapter"),
+        os.path.join(home, "Library", "Application Support", "js-debug"),
+        "/usr/local/lib/js-debug",
+        "/usr/local/share/js-debug",
+        "/opt/js-debug",
+    ]
+    for key in ("LOCALAPPDATA", "PROGRAMFILES"):
+        base = os.environ.get(key)
+        if base:
+            places.append(os.path.join(base, "js-debug"))
+    local = os.environ.get("LOCALAPPDATA")
+    if local:
+        places.append(os.path.join(local, "nvim-data", "mason", "packages", "js-debug-adapter"))
+    return places
+
+
+def node_version(node: str) -> str | None:
+    try:
+        done = subprocess.run([node, "--version"], capture_output=True, text=True, timeout=PROBE_TIMEOUT, cwd=tempfile.gettempdir(), env=minimal_env(), stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return done.stdout.strip().lstrip("v") or None if done.returncode == 0 else None
+
+
+def resolve_node() -> dict:
+    configured = settings()["jsDebugPath"]
+    server = js_debug_entry(configured)
+    source = "configured" if server else None
+    if server is None:
+        for place in (os.environ.get(JS_DEBUG_ENV, ""), *js_debug_places()):
+            server = js_debug_entry(place)
+            if server:
+                source = "known place"
+                break
+    node = shutil.which("node")
+    return {"node": node, "server": server, "source": source, "configured": configured, "configuredFound": bool(configured) and source == "configured"}
+
+
+def describe_node(found: dict | None = None) -> dict:
+    found = found if found is not None else resolve_node()
+    ready = bool(found["node"] and found["server"])
+    reason = "" if ready else ("no-node" if not found["node"] else "no-js-debug")
+    return {
+        "id": "node",
+        "label": "Node.js (js-debug)",
+        "available": ready,
+        "python": None,
+        "adapterPython": None,
+        "debugpy": None,
+        "source": found["source"],
+        "candidates": [],
+        "install": None,
+        "note": "" if ready else ("node was not found on this computer" if not found["node"] else "js-debug was not found; set its folder in Preferences"),
+        "reason": reason,
+        "node": found["node"],
+        "nodeVersion": node_version(found["node"]) if found["node"] else None,
+        "server": found["server"],
+        "configured": found["configured"],
+        "configuredFound": found["configuredFound"],
+    }
+
+
+def describe(root: str | None, found: dict | None = None, trusted: bool = False) -> dict:
+    found = found if found is not None else resolve_python(root, trusted)
     adapter = found["adapter"]
     held = any(not c["runnable"] for c in found["candidates"])
     target = found["debuggee"] or "python3"
@@ -123,6 +255,7 @@ def describe(root: str | None, found: dict | None = None) -> dict:
         "install": None if adapter else INSTALL_HINT.format(python=target),
         "note": ("" if adapter else ("no python was found on this computer" if not found["candidates"] else "debugpy is not installed for any python that was found")) + (("; " if not adapter else "") + TRUSTED_NOTE if held else ""),
     }
+    entry["reason"] = "" if adapter else "no-debugpy"
     return {"root": root, "adapters": [entry]}
 
 
@@ -141,9 +274,55 @@ def confine(value: object, root: str, *, must_be_file: bool = False) -> str:
     return real
 
 
-def launch_arguments(raw: object, root: str, python: str) -> dict:
+def launch_fields(raw: object, root: str, kind: str) -> dict:
     if not isinstance(raw, dict):
         raise ws.Refused(400, "launch needs arguments")
+    picked = raw.get("configuration")
+    if picked is None:
+        return {**window_fields(raw, root), "kind": kind}
+    if not isinstance(picked, dict):
+        raise ws.Refused(400, "bad configuration")
+    fields = debug_launch.resolve(root, picked.get("index"), picked.get("name"), raw.get("file"))
+    if fields["kind"] != kind:
+        raise ws.Refused(400, "the configuration is for another debugger")
+    return fields
+
+
+def launch_arguments(raw: object, root: str, kind: str, runtime: str) -> dict:
+    fields = launch_fields(raw, root, kind)
+    if kind == "node":
+        return {
+            "name": "formsubstrate",
+            "type": "pwa-node",
+            "request": "launch",
+            "program": fields["program"],
+            "args": fields["args"],
+            "cwd": fields["cwd"],
+            "runtimeExecutable": runtime,
+            "console": "internalConsole",
+            "outputCapture": "std",
+            "stopOnEntry": fields["stopOnEntry"],
+            "skipFiles": ["<node_internals>/**"] if fields["justMyCode"] else [],
+            "env": dict(fields["env"]),
+            "__workspaceFolder": root,
+        }
+    return {
+        "name": "formsubstrate",
+        "type": "python",
+        "request": "launch",
+        "program": fields["program"],
+        "args": fields["args"],
+        "cwd": fields["cwd"],
+        "python": [runtime],
+        "console": "internalConsole",
+        "redirectOutput": True,
+        "justMyCode": fields["justMyCode"],
+        "stopOnEntry": fields["stopOnEntry"],
+        "env": {"PYTHONUNBUFFERED": "1", **fields["env"]},
+    }
+
+
+def window_fields(raw: dict, root: str) -> dict:
     program = confine(raw.get("program"), root, must_be_file=True)
     cwd_in = raw.get("cwd")
     cwd = confine(cwd_in, root) if cwd_in else root
@@ -158,18 +337,12 @@ def launch_arguments(raw: object, root: str, python: str) -> dict:
             raise ws.Refused(400, "bad arguments")
         args.append(item)
     return {
-        "name": "formsubstrate",
-        "type": "python",
-        "request": "launch",
         "program": program,
         "args": args,
         "cwd": cwd,
-        "python": [python],
-        "console": "internalConsole",
-        "redirectOutput": True,
+        "env": {},
         "justMyCode": raw.get("justMyCode") is not False,
         "stopOnEntry": raw.get("stopOnEntry") is True,
-        "env": {"PYTHONUNBUFFERED": "1"},
     }
 
 
@@ -336,6 +509,279 @@ async def spawn(adapter_python: str, root: str) -> Adapter:
         **kwargs,
     )
     return Adapter(proc)
+
+
+class Link:
+    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        self.reader = reader
+        self.writer = writer
+        self.seq = 0
+        self.waiting: dict[int, asyncio.Future] = {}
+        self.routes: dict[int, int] = {}
+        self.ready = asyncio.Event()
+        self.stopped: dict | None = None
+        self.task: asyncio.Task | None = None
+
+    async def send(self, message: dict) -> None:
+        if self.writer.is_closing():
+            return
+        self.writer.write(encode(message))
+        await self.writer.drain()
+
+    async def call(self, command: str, arguments: object) -> dict:
+        self.seq += 1
+        seq = self.seq
+        answer: asyncio.Future = asyncio.get_running_loop().create_future()
+        self.waiting[seq] = answer
+        try:
+            await self.send({"seq": seq, "type": "request", "command": command, "arguments": arguments})
+            reply = await asyncio.wait_for(answer, CHILD_WAIT)
+        finally:
+            self.waiting.pop(seq, None)
+        if reply.get("success") is not True:
+            raise RuntimeError(str(reply.get("message") or f"{command} failed"))
+        return reply
+
+    def close(self) -> None:
+        for answer in self.waiting.values():
+            if not answer.done():
+                answer.set_exception(ConnectionError("the debug session closed"))
+        self.waiting.clear()
+        with contextlib.suppress(Exception):
+            self.writer.close()
+
+
+class NodeAdapter(Adapter):
+    def __init__(self, proc: asyncio.subprocess.Process, port: int) -> None:
+        super().__init__(proc)
+        self.port = port
+        self.out: asyncio.Queue = asyncio.Queue()
+        self.root: Link | None = None
+        self.children: list[Link] = []
+        self.focus: Link | None = None
+        self.init_args: dict = {}
+        self.breakpoints: dict[str, dict] = {}
+        self.broadcasts: dict[str, object] = {}
+        self.jobs: set[asyncio.Task] = set()
+        self.quiet = asyncio.create_task(self._quiet())
+
+    async def _quiet(self) -> None:
+        out = self.proc.stdout
+        if out is None:
+            return
+        while True:
+            chunk = await out.read(1024)
+            if not chunk:
+                return
+
+    async def connect(self) -> None:
+        loop = asyncio.get_running_loop()
+        until = loop.time() + CONNECT_WAIT
+        while True:
+            if self.proc.returncode is not None:
+                raise OSError(self.tail.decode("utf-8", "replace").strip() or "js-debug stopped before it listened")
+            try:
+                reader, writer = await asyncio.open_connection(JS_DEBUG_HOST, self.port, limit=HEADER_MAX)
+                break
+            except OSError:
+                if loop.time() > until:
+                    raise OSError("js-debug did not start listening") from None
+                await asyncio.sleep(0.1)
+        self.root = Link(reader, writer)
+        self.root.task = asyncio.create_task(self._pump(self.root))
+
+    def _target(self) -> Link | None:
+        if self.focus is not None:
+            return self.focus
+        return self.children[0] if self.children else self.root
+
+    async def _forward(self, link: Link, message: dict, answer: bool = True) -> None:
+        link.seq += 1
+        if answer:
+            link.routes[link.seq] = message.get("seq", 0)
+        await link.send({**message, "seq": link.seq})
+
+    async def send(self, message: dict) -> None:
+        root = self.root
+        if root is None:
+            return
+        command = message.get("command")
+        arguments = message.get("arguments")
+        if command == "initialize":
+            arguments = {**(arguments if isinstance(arguments, dict) else {}), "supportsStartDebuggingRequest": True}
+            self.init_args = arguments
+            message = {**message, "arguments": arguments}
+        if command in ROOT_ONLY:
+            await self._forward(root, message)
+            return
+        if command in BROADCAST:
+            if command == "setBreakpoints":
+                source = arguments.get("source") if isinstance(arguments, dict) else None
+                path = source.get("path") if isinstance(source, dict) else None
+                if isinstance(path, str):
+                    self.breakpoints[path] = arguments
+            else:
+                self.broadcasts[command] = arguments
+            first = self._target() or root
+            for link in (root, *self.children):
+                await self._forward(link, message, link is first)
+            return
+        link = self._target() or root
+        if command in RESUMES:
+            link.stopped = None
+        await self._forward(link, message)
+        if command == "continue":
+            await self._refocus(link)
+
+    async def _refocus(self, left: Link) -> None:
+        if self.focus is not left and self.focus is not None:
+            return
+        other = next((child for child in self.children if child is not left and child.stopped is not None), None)
+        if other is None:
+            if left not in self.children:
+                self.focus = None
+            return
+        self.focus = other
+        await self.out.put(other.stopped)
+
+    async def receive(self) -> dict | None:
+        return await self.out.get()
+
+    async def _pump(self, link: Link) -> None:
+        try:
+            while True:
+                message = await read_message(link.reader)
+                if message is None:
+                    break
+                kind = message.get("type")
+                if kind == "response":
+                    seq = message.get("request_seq")
+                    answer = link.waiting.pop(seq, None)
+                    if answer is not None:
+                        if not answer.done():
+                            answer.set_result(message)
+                        continue
+                    wanted = link.routes.pop(seq, None)
+                    if wanted is not None:
+                        await self.out.put({**message, "request_seq": wanted})
+                elif kind == "request":
+                    if message.get("command") == "startDebugging":
+                        job = asyncio.create_task(self._start_child(link, message))
+                        self.jobs.add(job)
+                        job.add_done_callback(self.jobs.discard)
+                    else:
+                        await self._reply(link, message, False, "this request is not supported")
+                elif kind == "event":
+                    await self._event(link, message)
+        except (HeaderTooLong, OSError, asyncio.IncompleteReadError):
+            pass
+        finally:
+            link.close()
+            if link is self.root:
+                await self.out.put(None)
+            elif link in self.children:
+                self.children.remove(link)
+                await self._refocus(link)
+
+    async def _event(self, link: Link, message: dict) -> None:
+        event = message.get("event")
+        if link is not self.root:
+            if event == "initialized":
+                link.ready.set()
+                return
+            if event == "terminated":
+                return
+            if event == "stopped":
+                link.stopped = message
+                self.focus = link
+            elif event == "continued":
+                link.stopped = None
+        await self.out.put(message)
+
+    async def _reply(self, link: Link, request: dict, success: bool, text: str = "") -> None:
+        link.seq += 1
+        reply = {"seq": link.seq, "type": "response", "request_seq": request.get("seq", 0), "success": success, "command": request.get("command", "")}
+        if text:
+            reply["message"] = text
+        with contextlib.suppress(OSError):
+            await link.send(reply)
+
+    async def _start_child(self, parent: Link, request: dict) -> None:
+        arguments = request.get("arguments")
+        arguments = arguments if isinstance(arguments, dict) else {}
+        configuration = arguments.get("configuration")
+        child: Link | None = None
+        try:
+            if not isinstance(configuration, dict):
+                raise RuntimeError("the child session has no configuration")
+            reader, writer = await asyncio.open_connection(JS_DEBUG_HOST, self.port, limit=HEADER_MAX)
+            child = Link(reader, writer)
+            self.children.append(child)
+            child.task = asyncio.create_task(self._pump(child))
+            await child.call("initialize", self.init_args)
+            starting = asyncio.create_task(child.call("attach" if arguments.get("request") == "attach" else "launch", configuration))
+            try:
+                await asyncio.wait_for(child.ready.wait(), CHILD_WAIT)
+                for held in list(self.breakpoints.values()):
+                    await child.call("setBreakpoints", held)
+                for command, held in list(self.broadcasts.items()):
+                    await child.call(command, held)
+                await child.call("configurationDone", {})
+                await starting
+            finally:
+                if not starting.done():
+                    starting.cancel()
+        except (RuntimeError, OSError, asyncio.TimeoutError) as err:
+            if child is not None:
+                child.close()
+            text = str(err) or "timed out"
+            await self.out.put({"type": "event", "seq": 0, "event": "output", "body": {"category": "stderr", "output": f"A child debug session could not start: {text}\n"}})
+            await self._reply(parent, request, False, text)
+            return
+        await self._reply(parent, request, True)
+
+    async def stop(self) -> None:
+        for job in list(self.jobs):
+            job.cancel()
+        await super().stop()
+        for link in (self.root, *self.children):
+            if link is None:
+                continue
+            link.close()
+            if link.task is not None:
+                link.task.cancel()
+        self.quiet.cancel()
+        for task in [self.quiet, *self.jobs, *[link.task for link in (self.root, *self.children) if link is not None and link.task is not None]]:
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await task
+
+
+def free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe_socket:
+        probe_socket.bind((JS_DEBUG_HOST, 0))
+        return int(probe_socket.getsockname()[1])
+
+
+async def spawn_node(node: str, server: str, root: str) -> NodeAdapter:
+    kwargs: dict = {}
+    if sys.platform == "win32":
+        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        kwargs["start_new_session"] = True
+    port = free_port()
+    proc = await asyncio.create_subprocess_exec(
+        node, server, str(port), JS_DEBUG_HOST,
+        cwd=root, env=minimal_env(),
+        stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        **kwargs,
+    )
+    adapter = NodeAdapter(proc, port)
+    try:
+        await adapter.connect()
+    except OSError:
+        await adapter.stop()
+        raise
+    return adapter
 
 
 class Slot:

@@ -216,7 +216,6 @@ export const fi: Record<string, string> = {
   'Problems': 'Ongelmat', 'Provider': 'Palveluntarjoaja', 'Provider default model': 'Palveluntarjoajan oletusmalli',
   'Provider saved. Add an API key to leave simulator mode.': 'Palveluntarjoaja tallennettu. Lisää API-avain, niin simulaattoritila päättyy.', 'Providers': 'Palveluntarjoajat',
   'Push': 'Lähetä', 'Push refused': 'Lähetys hylättiin', 'Push the current branch': 'Lähetä nykyinen haara', 'Pushed': 'Lähetetty', 'Pushing': 'Lähetetään', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'Pythonin virheenkorjaus debugpy-ohjelmalla: keskeytyskohdat, askellus, kutsupino, muuttujat ja konsoli.',
   'Python engine and Tauri (like formvis)': 'Python-moottori ja Tauri (kuten formvis)', 'Quick actions': 'Pikatoiminnot',
   'Quiet wire: add an agent member, then @mention it.': 'Hiljainen kanava: lisää agenttijäsen ja mainitse se sitten @-merkillä.', 'Quit': 'Lopeta', 'Quit without saving': 'Lopeta tallentamatta',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'Allekirjoita ja siisti lähettämättömät commitit uudelleen ja lähetä ne. Historiaa kirjoitetaan uudelleen vasta, kun napsautat.',

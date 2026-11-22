@@ -216,7 +216,6 @@ export const pl: Record<string, string> = {
   'Problems': 'Problemy', 'Provider': 'Dostawca', 'Provider default model': 'Domyślny model dostawcy',
   'Provider saved. Add an API key to leave simulator mode.': 'Zapisano dostawcę. Dodaj klucz API, aby opuścić tryb symulatora.', 'Providers': 'Dostawcy',
   'Push': 'Wypchnij', 'Push refused': 'Wypchnięcie odrzucone', 'Push the current branch': 'Wypchnij bieżącą gałąź', 'Pushed': 'Wypchnięto', 'Pushing': 'Wypychanie', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'Debugowanie Python za pomocą debugpy: punkty przerwania, wykonywanie krokowe, stos wywołań, zmienne i konsola.',
   'Python engine and Tauri (like formvis)': 'Silnik w Python i Tauri (jak formvis)', 'Quick actions': 'Szybkie akcje',
   'Quiet wire: add an agent member, then @mention it.': 'Cichy kanał: dodaj agenta jako członka, a następnie wspomnij go przez @.', 'Quit': 'Zakończ', 'Quit without saving': 'Zakończ bez zapisywania',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'Ponownie podpisz i oczyść niewypchnięte commity, a następnie je wypchnij. Historia jest przepisywana dopiero po kliknięciu.',

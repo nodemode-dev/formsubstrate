@@ -182,3 +182,19 @@ The status bar's branch item opened the branch menu on a click but was a plain s
 - logged: v0.23.0 · 2026-11-22
 
 The editor tabs had no context menu. They now have one standalone `PopupMenu` on a private `Commands`, built once, with a single entry, Open File History, shown only for a file tab (a doc whose id is its path; diff, review, graph and preview tabs have other ids) while a workspace is open; on other tabs the browser menu is suppressed and nothing opens. The entry sends `formsubstrate:open-history` ({path, session: null}) on `window`, so this shell module does not import the git extension. Escape closes it, as in the Files panel.
+
+### frontend/src/ui/settings.ts · lspCard, paintLsp, loadLsp, lspWrite, addLspPreset, saveLsp, removeLsp, openLspForm, closeLspForm, lspFields
+- refers-to: frontend/src/ui/settings.ts :: SettingsDialog.lspList, lspNone, lspPresets, lspForm, lspLabel, lspProgram, lspArgs, lspExts, lspLang, lspOptions, lspSave, lspCancel, lspNew, lspStatus, lspCard, lspFields, openLspForm, closeLspForm, paintLsp, loadLsp, lspWrite, addLspPreset, saveLsp, removeLsp, refreshRemote; frontend/src/styles/lsp.css :: .cv-prefs-lsp-row, .cv-prefs-lsp-head, .cv-prefs-lsp-name, .cv-prefs-lsp-sub, .cv-prefs-lsp-form, .cv-prefs-lsp-presets, .cv-lsp-custom-row, .cv-lsp-custom-trust
+- kind: rationale
+- logged: v0.24.0 · 2026-11-22
+
+Preferences > Language Servers gains a Custom servers card in the Preferences recipe, read on every open with the other remote state. Rows are keyed by id and patched in place (label, Edit, Remove; extensions, language id and command; the install line under a server that was not found). One button per preset adds it at once and is disabled while its extensions are taken; Add custom server and Edit open one form below (Label, Program, Arguments separated by spaces, File extensions separated by spaces or commas with the dot added when missing, Language id, initializationOptions as JSON, parsed before sending). Remove asks with `confirmAction`. The engine's refusal shows in the status line as "The server was not saved: <detail>". Arguments split on whitespace, so an argument with a space cannot be entered from this form; the engine accepts it. Styles in `lsp.css` use tokens only.
+
+Ran in headless Chrome (CPU 4x): add the rust-analyzer preset, edit its label to "Rust", remove it through the confirmation, add it again; cumulative layout shift outside input 0.0000 over the whole run (boot, Preferences, add, edit, remove, re-add, opening main.rs, trusting, hover, definition, completion), no console errors.
+
+### frontend/src/ui/settings.ts · debugCard, loadDebug, saveDebug, paintDebug (Run and Debug card)
+- refers-to: frontend/src/ui/settings.ts :: SettingsDialog.debugCard, paintDebug, loadDebug, saveDebug, dbgPath, dbgFound, dbgNode, dbgStatus; frontend/src/io/debug.ts :: debugSettings, saveDebugSettings, debugAdapters
+- kind: rationale
+- logged: v0.24.0 · 2026-11-22
+
+A Run and Debug card in the Language Servers section, after Custom servers, in the same recipe: one field for the js-debug folder (or its `dapDebugServer.js`), Save, two value rows (the server file that was found, the `node` that was found with its version), a status line and the install note. An empty field means "look in the usual places". A saved path that holds no `dapDebugServer.js` is kept and the status says so, and the found row then shows what the known places gave, if anything. Checked in headless Chrome: a wrong path showed the status and Not found, the right one showed Saved and the server path; layout shift 0, no console errors.

@@ -216,7 +216,6 @@ export const th: Record<string, string> = {
   'Problems': 'ปัญหา', 'Provider': 'ผู้ให้บริการ', 'Provider default model': 'โมเดลเริ่มต้นของผู้ให้บริการ',
   'Provider saved. Add an API key to leave simulator mode.': 'บันทึกผู้ให้บริการแล้ว เพิ่มคีย์ API เพื่อออกจากโหมดตัวจำลอง', 'Providers': 'ผู้ให้บริการ',
   'Push': 'พุช', 'Push refused': 'การพุชถูกปฏิเสธ', 'Push the current branch': 'พุชสาขาปัจจุบัน', 'Pushed': 'พุชแล้ว', 'Pushing': 'กำลังพุช', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'การดีบัก Python ผ่าน debugpy: จุดพัก การรันทีละขั้น สแต็กการเรียก ตัวแปร และคอนโซล',
   'Python engine and Tauri (like formvis)': 'เอนจิน Python และ Tauri (เหมือน formvis)', 'Quick actions': 'การดำเนินการด่วน',
   'Quiet wire: add an agent member, then @mention it.': 'แชนเนลยังเงียบอยู่: เพิ่มสมาชิกเอเจนต์ แล้ว @กล่าวถึง',
   'Quit': 'ออก', 'Quit without saving': 'ออกโดยไม่บันทึก',
