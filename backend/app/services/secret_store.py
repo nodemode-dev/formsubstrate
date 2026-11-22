@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import threading
@@ -103,7 +104,7 @@ def _index() -> dict:
         try:
             _write_private(_index_file(), converted)
         except OSError:
-            pass
+            logging.getLogger("formsubstrate").warning("the converted secrets index could not be written; it is converted again at the next read", exc_info=True)
         return converted
     return _empty()
 
@@ -141,7 +142,7 @@ def _quiet_settle(index: dict, name: str, where: Optional[str]) -> None:
     try:
         _settle(index, name, where)
     except OSError:
-        pass
+        logging.getLogger("formsubstrate").warning("the secrets index could not be updated; a key's status may be out of date until the next save", exc_info=True)
 
 
 def _file_values() -> dict:

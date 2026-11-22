@@ -808,10 +808,10 @@ register({
       const s = formslotState.status;
       if (autoStarted || !s || !s.installed || s.running || !hasWs() || !formslotState.isEnabled || !loadPrefs().formslotAutoStart) return;
       autoStarted = true;
-      void formslotState.start().catch(() => undefined);
+      void formslotState.start().catch((err: unknown) => console.warn('formslot auto-start failed', err));
     });
     formslotState.begin();
     if (hasWs()) onWorkspace();
-    void sessionsClient.refreshGates().catch(() => undefined);
+    void sessionsClient.refreshGates().catch((err: unknown) => console.warn('gate list refresh failed', err));
   },
 });

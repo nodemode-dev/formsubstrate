@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Any, Optional
@@ -63,7 +64,7 @@ def _write(data: dict) -> None:
         temp.write_text(json.dumps(data, indent=2), encoding="utf-8")
         os.replace(temp, target)
     except OSError:
-        pass
+        logging.getLogger("formsubstrate").warning("the run worktree registry %s could not be written", target, exc_info=True)
 
 
 def _find_run(procs: object) -> Any:
@@ -242,7 +243,7 @@ async def _loop() -> None:
         try:
             await sweep()
         except Exception:
-            pass
+            logging.getLogger("formsubstrate").debug("a sweep of the run worktrees failed", exc_info=True)
         await asyncio.sleep(SWEEP_SECONDS)
 
 

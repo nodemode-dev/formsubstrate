@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 
 import keyring
@@ -112,7 +113,7 @@ def migrate_keyring() -> list[str]:
     try:
         marker.write_text(json.dumps({"from": OLD_SERVICE, "copied": copied}), encoding="utf-8")
     except OSError:
-        pass
+        logging.getLogger("formsubstrate").warning("the keychain carry-over marker could not be written; the carry-over runs again at the next start", exc_info=True)
     return notes
 
 

@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import json
+import logging
 import os
 import re
 import shutil
@@ -306,7 +307,7 @@ def ensure_hooks() -> Path:
     try:
         target.chmod(target.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     except OSError:
-        pass
+        logging.getLogger("formsubstrate").warning("the commit-msg hook %s could not be made executable", target, exc_info=True)
     return folder
 
 

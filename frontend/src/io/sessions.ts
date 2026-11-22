@@ -251,8 +251,8 @@ export class SessionsClient {
     source.addEventListener('open', () => {
       this.retryMs = RETRY_MIN_MS;
       this.setOnline(true);
-      void this.refresh().catch(() => undefined);
-      void this.refreshGates().catch(() => undefined);
+      void this.refresh().catch((err: unknown) => console.warn('session list refresh after connect failed', err));
+      void this.refreshGates().catch((err: unknown) => console.warn('gate list refresh after connect failed', err));
     });
     source.addEventListener('gate', (e) => {
       try {

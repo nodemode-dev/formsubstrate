@@ -61,7 +61,7 @@ class PathField {
 
 export async function followCloneJob(job: CloneJob, onUpdate: (j: CloneJob) => void): Promise<CloneJob> {
   const label = `${t('Clone')} ${job.name}`;
-  store.upsertJob({ id: job.id, label, progress: job.progress, done: false, cancel: () => { void create.cancel(job.id).catch(() => undefined); } });
+  store.upsertJob({ id: job.id, label, progress: job.progress, done: false, cancel: () => { void create.cancel(job.id).catch((err: unknown) => console.warn('clone cancel request failed', err)); } });
   let current = job;
   let failed = 0;
   let lost = false;
@@ -85,7 +85,7 @@ export async function followCloneJob(job: CloneJob, onUpdate: (j: CloneJob) => v
         throw e;
       }
       onUpdate(current);
-      store.upsertJob({ id: job.id, label, progress: current.progress, done: false, cancel: () => { void create.cancel(job.id).catch(() => undefined); } });
+      store.upsertJob({ id: job.id, label, progress: current.progress, done: false, cancel: () => { void create.cancel(job.id).catch((err: unknown) => console.warn('clone cancel request failed', err)); } });
     }
   } finally {
     if (!lost) store.finishJob(job.id);
@@ -161,7 +161,7 @@ export class CloneDialog extends Dialog {
 
   private stopJob(): void {
     this.stopAsked = true;
-    if (this.job) void create.cancel(this.job.id).catch(() => undefined);
+    if (this.job) void create.cancel(this.job.id).catch((err: unknown) => console.warn('clone cancel request failed', err));
   }
 
   private say(text: string, error = false): void {
@@ -222,7 +222,7 @@ export class CloneDialog extends Dialog {
       this.job = started;
       name = started.name || name;
       lastDest = this.dest.value;
-      if (this.stopAsked) void create.cancel(started.id).catch(() => undefined);
+      if (this.stopAsked) void create.cancel(started.id).catch((err: unknown) => console.warn('clone cancel request failed', err));
       const done = await followCloneJob(started, (j) => {
         this.progress(j.progress);
         this.say(j.message);

@@ -173,8 +173,8 @@ def flush_notes():
         rel = os.path.relpath(shown, root) if root != "." and os.path.normpath(shown).startswith(root + os.sep) else shown
         try:
             call("POST", base + "/api/gates/notes", {"session": session, "tool": tool_name, "path": rel, "kind": "skipped", "reason": short[:200], "slot": "", "message": ("Substrate could not ask for this write: " + why)[:3000]}, timeout=min(2, left - 1))
-        except (OSError, ValueError, urllib.error.URLError):
-            pass
+        except (OSError, ValueError, urllib.error.URLError) as exc:
+            trail("gate note not delivered: %s: %s" % (type(exc).__name__, exc))
 
 
 def digest(payload):
@@ -1848,8 +1848,8 @@ def pre_bash(event, binary):
     start = time.monotonic()
     try:
         snapshot_save(event)
-    except (OSError, ValueError):
-        pass
+    except (OSError, ValueError) as exc:
+        trail("bash snapshot not saved: %s: %s" % (type(exc).__name__, exc))
     tool_input = event.get("tool_input") if isinstance(event.get("tool_input"), dict) else {}
     command = tool_input.get("command")
     if not isinstance(command, str) or not command.strip():
@@ -1977,7 +1977,7 @@ except Exception as exc:
     trail("gate skipped: hook error %s: %s" % (type(exc).__name__, exc))
 try:
     flush_notes()
-except Exception:
-    pass
+except Exception as exc:
+    trail("gate notes not flushed: %s: %s" % (type(exc).__name__, exc))
 sys.exit(0)
 '''

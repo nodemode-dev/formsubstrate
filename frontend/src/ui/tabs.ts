@@ -57,7 +57,7 @@ export class Tabs {
       const ids = this.store.docs.map((d) => d.id), at = ids.indexOf(id);
       const left = ids.filter((d) => d !== id);
       this.closing = { id, next: left[Math.min(at, left.length - 1)] ?? null };
-      void Promise.resolve(this.requestClose(id)).catch(() => undefined).then(() => {
+      void Promise.resolve(this.requestClose(id)).catch((err: unknown) => console.warn('closing the tab failed', err)).then(() => {
         if (this.closing?.id === id && this.store.docs.some((d) => d.id === id)) this.closing = null;
       });
       return;

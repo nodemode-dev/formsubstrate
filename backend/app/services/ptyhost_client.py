@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import struct
 import subprocess
@@ -121,7 +122,7 @@ class PtyHostClient:
                 if not self._deliver(msg):
                     self._events.put_nowait(msg)
         except (asyncio.IncompleteReadError, ConnectionError, OSError, ValueError):
-            pass
+            logging.getLogger("formsubstrate").debug("the connection to the pty-host ended", exc_info=True)
         finally:
             if self._writer is writer:
                 self._writer = None

@@ -2259,3 +2259,43 @@ Every name a person reads is Substrate (title, About, the macOS app menu, Home, 
 - logged: v0.17.1 · 2026-11-22
 
 `oc_install` (and the window install in `build_app.bat`) runs `npm ci` instead of `npm install`: `package-lock.json` is tracked, and `npm ci` installs exactly what it lists, fails when it disagrees with `package.json`, and never rewrites it, so every install and every build gets the same packages, including the pinned `@tauri-apps/cli` that `build_app` runs. `npm ci` removes an existing `node_modules` first. `npm ci --ignore-scripts`, `tsc --noEmit` and `npm run build` pass.
+
+### swallowed errors · logged or silent on purpose
+
+- refers-to: frontend/src/app.ts :: startApp; frontend/src/extensions/cogentics/panel.ts :: onEvent; frontend/src/extensions/formslot/index.ts :: setup; frontend/src/extensions/sessions/index.ts :: setup; frontend/src/extensions/triggers/index.ts :: setup; frontend/src/ui/dom.ts :: revealApp; frontend/src/ui/home.ts :: drop listeners; frontend/src/ui/new-app-dialog.ts :: followCloneJob, stopJob; frontend/src/ui/tabs.ts :: key handler
+- kind: rationale
+- logged: v0.19.0 · 2026-11-22
+
+Every promise `.catch(() => undefined)` and every empty `catch { }` in `frontend/src` was read in context: 34 of them (33 empty promise handlers and one empty `catch` block). 14 now call `console.warn('<what failed>', err)` and 15 stay silent on purpose; the other 5 are in `src/io/`, which another change held at the time, and are not in this table. The window has no logger, so a warning in the console is the whole report; it is used only where the failure leaves something visibly missing or stale with no other trace, and it names the caught value as `err`. Handlers that return a fallback value (`() => null`, `() => []`) and `catch { return; }` blocks are a different kind and were not touched.
+
+| File | Where | Caught | Decision | Reason |
+| --- | --- | --- | --- | --- |
+| src/app.ts | startApp, native menus | build() rejects | warn | the menu bar would be missing with no cause |
+| src/app.ts | startApp, onLanguage | rebuild rejects | warn | the menus keep the old language with no cause |
+| src/extensions/cogentics/panel.ts | onEvent, member event | channel refresh rejects | warn | the member list stays stale |
+| src/extensions/formslot/index.ts | setup, status handler | start() rejects | warn | formslot stays off with no cause; the manual command shows a toast |
+| src/extensions/formslot/index.ts | setup | refreshGates() rejects | warn | an open gate card would be missing |
+| src/extensions/sessions/index.ts | setup, workspace handler | refresh() rejects | warn | the session list stays from the old workspace |
+| src/extensions/triggers/index.ts | setup, announce | trust() rejects | warn | the engine does not learn the workspace trust, so triggers do not start |
+| src/ui/dom.ts | revealApp | app_ready call rejects | warn | the shell shows the main window on this call |
+| src/ui/home.ts | drop listeners | listen() rejects | warn | dropping a folder on Home does nothing |
+| src/ui/new-app-dialog.ts | followCloneJob, running job | cancel() rejects | warn | the clone keeps running after a stop |
+| src/ui/new-app-dialog.ts | followCloneJob, running job (after an update) | cancel() rejects | warn | same |
+| src/ui/new-app-dialog.ts | stopJob | cancel() rejects | warn | same |
+| src/ui/new-app-dialog.ts | clone start, stop asked early | cancel() rejects | warn | same |
+| src/ui/tabs.ts | key handler, close | requestClose rejects | warn | a close that fails is a bug that would otherwise leave no trace |
+| src/extensions/debug/index.ts | start | initialized rejects | silent | this only marks the promise handled; the race on the next line awaits it and reports |
+| src/extensions/debug/index.ts | end | disconnect request rejects | silent | best-effort, bounded by STOP_WAIT_MS, and the connection is closed right after |
+| src/extensions/git/index.ts | refresh | second status read for the broadcast rejects | silent | the awaited read above sets `problem`; the next refresh repeats this one |
+| src/extensions/recipes/dialogs.ts | show | env() probe rejects | silent | feature probe for Claude Code; the dialog works without it |
+| src/extensions/registry.ts | drainIdle | idle chunk rejects | silent | a warm-up; the real mount logs 'panel failed to load' and a real import reports its own |
+| src/extensions/runs/index.ts | constructor | env() probe rejects | silent | feature probe for Claude Code |
+| src/extensions/runs/index.ts | startTail | tailRun rejects | silent | stopTail aborts the stream on purpose; finally re-reads the list and detail |
+| src/ui/desktop-notify.ts | primeDesktopNotifications | requestPermission rejects | silent | optional; the notify path checks the permission before use |
+| src/ui/dom.ts | swapMedia | decode() rejects | silent | decode is an optimization; the source is assigned either way |
+| src/ui/native-menu.ts | refresh | setEnabled rejects | silent | per item on every 150 ms refresh; the next refresh repeats it |
+| src/ui/native-menu.ts | refresh | setChecked rejects | silent | same |
+| src/ui/new-app-dialog.ts | followCloneJob, connection lost | cancel() rejects | silent | the engine is already unreachable, which the label says |
+| src/ui/preview/md-preview.ts | settle | image decode rejects | silent | a broken image is normal; a timer reveals the page anyway |
+| src/ui/tabs.ts | title update | set_window_title rejects | silent | cosmetic; document.title is set before it |
+| src/ui/terminal-dock.ts | close | deleteTerminal rejects | silent | the terminal may already be gone; the tab is torn down either way |

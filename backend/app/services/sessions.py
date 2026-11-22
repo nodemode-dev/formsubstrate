@@ -2,6 +2,7 @@ import asyncio
 import base64
 import hashlib
 import json
+import logging
 import os
 import random
 import re
@@ -118,7 +119,7 @@ def _set_aside(path: Path, copy: bool = False) -> None:
         else:
             os.replace(path, target)
     except OSError:
-        pass
+        logging.getLogger("formsubstrate").warning("the damaged sessions registry %s could not be set aside", path, exc_info=True)
 
 
 def _save() -> None:
@@ -416,7 +417,7 @@ def _mcp_arg(item: dict) -> list[str]:
     try:
         _write_settings(worktree)
     except OSError:
-        pass
+        logging.getLogger("formsubstrate").warning("the session settings for %s could not be written", worktree, exc_info=True)
     return ["--mcp-config", str(worktree / MCP_DIR / MCP_NAME), "--settings", str(settings)]
 
 
@@ -455,13 +456,13 @@ async def _consume() -> None:
         try:
             _on_event(event)
         except Exception:
-            pass
+            logging.getLogger("formsubstrate").warning("a session event (%s) could not be handled", op, exc_info=True)
         if op == "output" and isinstance(event.get("id"), str) and event["id"] in _terminal_owner:
             try:
                 size = len(base64.b64decode(event.get("data") or ""))
                 await host.send({"op": "ack", "id": event["id"], "bytes": size})
             except Exception:
-                pass
+                logging.getLogger("formsubstrate").debug("an output acknowledgement for terminal %s was not delivered", event["id"], exc_info=True)
 
 
 async def _reattach() -> None:
@@ -751,7 +752,7 @@ async def _snapshot(item: dict, label: str) -> None:
     try:
         await gitops.snapshot_for_item(item, label)
     except Exception:
-        pass
+        logging.getLogger("formsubstrate").warning("the snapshot '%s' of session %s could not be taken", label, item.get("id"), exc_info=True)
 
 
 def note_snapshots(session_id: str, count: int) -> None:
@@ -814,7 +815,7 @@ async def _kill_terminal(item: dict) -> None:
     try:
         await _host().request({"op": "kill", "id": terminal_id}, ("killed",))
     except Exception:
-        pass
+        logging.getLogger("formsubstrate").debug("the kill request for terminal %s failed", terminal_id, exc_info=True)
 
 
 async def stop(session_id: str) -> dict:

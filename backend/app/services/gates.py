@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import secrets
 import shlex
@@ -61,7 +62,7 @@ def ensure_script() -> str:
         os.chmod(temp, 0o755)
         os.replace(temp, target)
     except OSError:
-        pass
+        logging.getLogger("formsubstrate").warning("the gate hook script %s could not be written", target, exc_info=True)
     return str(target)
 
 

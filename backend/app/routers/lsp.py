@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import json
+import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -106,7 +107,7 @@ async def lsp_ws(ws: WebSocket) -> None:
     except WebSocketDisconnect:
         pass
     except Exception:
-        pass
+        logging.getLogger("formsubstrate").warning("a language server session for %s ended with an error", lang, exc_info=True)
     finally:
         for task in tasks:
             task.cancel()
