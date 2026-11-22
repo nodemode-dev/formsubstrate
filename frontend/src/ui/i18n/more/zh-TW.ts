@@ -195,4 +195,12 @@ export const zhTW: Record<string, string> = {
   'interactive': '互動式', 'personal': '個人', 'outside .formsubstrate': '在 .formsubstrate 之外',
   'run records and agent logs are never imported': '執行記錄和代理程式記錄永遠不會匯入',
   'plugins run code: trust this workspace first': '外掛程式會執行程式碼：請先信任此工作區', 'Timeout must be at least 10 seconds': '逾時必須至少為 10 秒',
+  'Add client': '新增用戶端', 'Claude Code and Cursor (JSON)': 'Claude Code 和 Cursor (JSON)', 'Client name': '用戶端名稱', 'Codex (TOML)': 'Codex (TOML)', 'Config for': '設定目標',
+  'Config snippet': '設定片段', 'Copy config': '複製設定', 'Copy the token now: Substrate shows it only this once.': '請立即複製權杖：Substrate 只會顯示這一次。',
+  'Copy token': '複製權杖', 'For example Claude Code in my terminal': '例如我終端機中的 Claude Code', 'Last used': '上次使用', 'MCP clients': 'MCP 用戶端',
+  'No client is approved yet.': '尚未核准任何用戶端。', 'Not used yet': '尚未使用',
+  'Programs outside Substrate, such as Claude Code, Codex or Cursor, reach its MCP server with a token you approve here. A client may read the open workspace, the session list and the status of a session; it cannot write, comment, answer gates or read terminals. The token is shown once and leaves this page when you move away from this card. From a source checkout the command is ./formsubstrate with the argument mcp; in the built app it is the formsubstrate-engine program, by its full path, with --mcp.': 'Substrate 以外的程式（例如 Claude Code、Codex 或 Cursor）會使用您在此核准的權杖連線至 Substrate 的 MCP 伺服器。用戶端可以讀取開啟的工作區、工作階段清單和工作階段的狀態；但無法寫入、註解、回應檢查或讀取終端機。權杖只會顯示一次，當您離開此卡片時就會從此頁面移除。從原始碼簽出目錄執行時，命令是 ./formsubstrate，引數為 mcp；在建置好的應用程式中，則是 formsubstrate-engine 程式（使用其完整路徑），引數為 --mcp。',
+  'Remove this MCP client?': '要移除此 MCP 用戶端嗎？', 'Removed. Its token no longer works.': '已移除。其權杖已失效。', 'The client list was not read': '未讀取用戶端清單',
+  'The client was not added': '未新增用戶端', 'The client was not removed': '未移除用戶端', 'The token appears here once, after Add client.': '按下「新增用戶端」後，權杖會在此顯示一次。', 'Token': '權杖',
+  'its token stops working at once. Add the client again to give it a new token.': '其權杖會立即失效。重新新增此用戶端即可為其取得新權杖。',
 };

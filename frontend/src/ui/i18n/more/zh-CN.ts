@@ -195,4 +195,12 @@ export const zhCN: Record<string, string> = {
   'interactive': '交互式', 'personal': '个人', 'outside .formsubstrate': '在 .formsubstrate 之外',
   'run records and agent logs are never imported': '运行记录和智能体日志永远不会导入',
   'plugins run code: trust this workspace first': '插件会运行代码：请先信任此工作区', 'Timeout must be at least 10 seconds': '超时必须至少为 10 秒',
+  'Add client': '添加客户端', 'Claude Code and Cursor (JSON)': 'Claude Code 和 Cursor (JSON)', 'Client name': '客户端名称', 'Codex (TOML)': 'Codex (TOML)', 'Config for': '配置目标',
+  'Config snippet': '配置片段', 'Copy config': '复制配置', 'Copy the token now: Substrate shows it only this once.': '请立即复制令牌：Substrate 只显示这一次。',
+  'Copy token': '复制令牌', 'For example Claude Code in my terminal': '例如我终端中的 Claude Code', 'Last used': '上次使用', 'MCP clients': 'MCP 客户端',
+  'No client is approved yet.': '尚未批准任何客户端。', 'Not used yet': '尚未使用',
+  'Programs outside Substrate, such as Claude Code, Codex or Cursor, reach its MCP server with a token you approve here. A client may read the open workspace, the session list and the status of a session; it cannot write, comment, answer gates or read terminals. The token is shown once and leaves this page when you move away from this card. From a source checkout the command is ./formsubstrate with the argument mcp; in the built app it is the formsubstrate-engine program, by its full path, with --mcp.': 'Substrate 之外的程序（如 Claude Code、Codex 或 Cursor）使用你在此批准的令牌访问 Substrate 的 MCP 服务器。客户端可以读取打开的工作区、会话列表和会话的状态；但不能写入、评论、回应检查或读取终端。令牌只显示一次，当你离开此卡片时会从此页面移除。在源代码检出目录中，命令是 ./formsubstrate，参数为 mcp；在构建好的应用中，则是 formsubstrate-engine 程序（使用其完整路径），参数为 --mcp。',
+  'Remove this MCP client?': '要移除此 MCP 客户端吗？', 'Removed. Its token no longer works.': '已移除。其令牌已失效。', 'The client list was not read': '未能读取客户端列表',
+  'The client was not added': '未添加客户端', 'The client was not removed': '未移除客户端', 'The token appears here once, after Add client.': '点击“添加客户端”后，令牌会在此显示一次。', 'Token': '令牌',
+  'its token stops working at once. Add the client again to give it a new token.': '其令牌会立即失效。重新添加该客户端即可为其获取新令牌。',
 };
