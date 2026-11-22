@@ -10,7 +10,6 @@ src-tauri/
   Cargo.toml              crate manifest: tauri 2, shell and dialog plugins, macOS objc2 bindings
   build.rs                generates allow-<command> permissions for the app commands
   tauri.conf.json         product, identifier, splash window block, bundle icons, macOS bundle settings
-  tauri.macos.conf.json   macOS override: ships the one-folder engine as a resource
   entitlements.plist      hardened runtime entitlements for the frozen engine
   capabilities/
     default.json          remote capability for the main window at 127.0.0.1
@@ -367,3 +366,11 @@ The bundle id changed from `ai.nodemode.substrataform` to `ai.nodemode.subform`,
 - logged: v0.17.0 · 2026-11-21
 
 Names only. `productName` and the window titles are Substrate, the identifier is `ai.nodemode.formsubstrate`, the crate is `formsubstrate`, the engine binary is `formsubstrate-engine`, the env names are `FORMSUBSTRATE_PORT` and `FORMSUBSTRATE_WINDOW_TOKEN`, the close event is `formsubstrate://close-requested` and the splash hook `window.formsubstrateSplashDone`. `OLD_ID` now names `ai.nodemode.subform`, so window position and size come across once on macOS and Linux. The new identifier is a new app to the operating system: the web view's storage (theme, layout, per-viewer flags) starts empty in the desktop app, and the keychain may ask once before the new binary reads an old entry. `packaged.rs` looks in both `../lib/formsubstrate/engine` and `../lib/substrate/engine` because the `.deb` folder name for the new product name has not been seen in a build. The shell was not compiled for this change.
+
+### tauri.macos.conf.json · removed, the engine folder is mapped once
+
+- refers-to: src-tauri/tauri.macos.conf.json :: bundle.resources (removed); build_app :: tauri_config; docs/RELEASE.md :: What ./build_app makes
+- kind: removed-code
+- logged: v0.17.1 · 2026-11-22
+
+Closes the double mapping. Tauri merges `tauri.macos.conf.json` over `tauri.conf.json` and then the `--config` JSON over both, each as a JSON merge patch (tauri-utils 2.10.2 `config/parse.rs` line 185, tauri-build 2.7.4 `lib.rs` lines 681 to 683), so object keys add up. On a Mac, `build_app` passed `{"<root>/src-tauri/engine": "engine"}` while the file held `{"engine": "engine"}`: the same folder under two spellings, both listed for `Resources/engine`, and with `FORMSUBSTRATE_ENGINE_OUT` set a second, stale folder was still required. The file also made tauri-build refuse a plain `cargo build` or `tauri dev` on a Mac without a frozen engine (`ResourcePathNotFound`), which the v0.10.0 entry above says the `--config` route exists to avoid. The file held nothing else, so it is removed and `build_app` is the one place that maps the engine, on every platform. A direct `tauri build` on a Mac now ships no engine, as on Linux and Windows; `build_app` is the release path (docs/RELEASE.md). formcompiler writes its own `tauri.macos.conf.json` before a build and creates it when it is missing. The debug shell still starts `../backend/formsubstrate_engine.py` with the venv's Python (`main.rs`), so `tauri dev` needs no engine folder. Read only: no Mac build ran here.

@@ -2251,3 +2251,11 @@ Since xterm became a lazy chunk, a failed import rejected `showTab` silently and
 - logged: v0.17.0 · 2026-11-21
 
 Every name a person reads is Substrate (title, About, the macOS app menu, Home, Welcome, notices); every key, event and header is `formsubstrate` (`formsubstrate.*` storage keys, `formsubstrate:*` events, `X-FormSubstrate-Window`). The pre-paint copy now copies `subform.*` keys to `formsubstrate.*` once (flag `nodemode.formsubstrate.migrated`); in a browser build at the same origin that keeps every preference, in the desktop app the new bundle id gives an empty storage, as recorded in src-tauri. `tsc --noEmit` and `vite build` pass.
+
+### oc_install · npm ci
+
+- refers-to: frontend/oc_install :: npm ci; build_app.bat :: npm ci
+- kind: rationale
+- logged: v0.17.1 · 2026-11-22
+
+`oc_install` (and the window install in `build_app.bat`) runs `npm ci` instead of `npm install`: `package-lock.json` is tracked, and `npm ci` installs exactly what it lists, fails when it disagrees with `package.json`, and never rewrites it, so every install and every build gets the same packages, including the pinned `@tauri-apps/cli` that `build_app` runs. `npm ci` removes an existing `node_modules` first. `npm ci --ignore-scripts`, `tsc --noEmit` and `npm run build` pass.
