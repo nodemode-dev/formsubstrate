@@ -10,14 +10,16 @@ import threading
 import tomllib
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
 from app.core import workspace_root as ws
 from app.core.binres import find_bin
+from app.core.local_guard import require_window
 
 router = APIRouter()
+OWNER = [Depends(require_window)]
 
 READ_MAX = 4 * 1024 * 1024
 WRITE_MAX = 8 * 1024 * 1024
@@ -130,7 +132,7 @@ def get_workspace() -> dict:
     return _state()
 
 
-@router.post("/workspace/open")
+@router.post("/workspace/open", dependencies=OWNER)
 async def open_workspace(request: Request) -> dict:
     body = await _json(request)
     path = body.get("path")
@@ -218,7 +220,7 @@ def browse(path: str = "", files: bool = False, hidden: bool = False) -> dict:
     return {"path": real, "parent": parent if parent != real else None, "home": home, "roots": _browse_roots(), "entries": entries, "truncated": truncated}
 
 
-@router.delete("/workspace/recent")
+@router.delete("/workspace/recent", dependencies=OWNER)
 async def delete_recent(request: Request) -> dict:
     body = await _json(request)
     path = body.get("path")
@@ -319,7 +321,7 @@ def _atomic_write(target: str, data: bytes) -> None:
         raise
 
 
-@router.put("/workspace/file")
+@router.put("/workspace/file", dependencies=OWNER)
 async def write_file(request: Request) -> dict:
     declared = request.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > WRITE_MAX:
@@ -380,7 +382,7 @@ def _need(body: dict, key: str) -> str:
     return value
 
 
-@router.post("/workspace/mkdir")
+@router.post("/workspace/mkdir", dependencies=OWNER)
 async def mkdir(request: Request) -> dict:
     body = await _json(request)
     real, rel = _guard(_need(body, "path"), write=True)
@@ -395,7 +397,7 @@ async def mkdir(request: Request) -> dict:
     return {"path": rel}
 
 
-@router.post("/workspace/rename")
+@router.post("/workspace/rename", dependencies=OWNER)
 async def rename(request: Request) -> dict:
     body = await _json(request)
     src, src_rel = _guard(_need(body, "from"), write=True, follow=False)
@@ -419,7 +421,7 @@ async def rename(request: Request) -> dict:
     return {"from": src_rel, "to": dst_rel}
 
 
-@router.post("/workspace/delete")
+@router.post("/workspace/delete", dependencies=OWNER)
 async def delete(request: Request) -> dict:
     body = await _json(request)
     real, rel = _guard(_need(body, "path"), write=True, follow=False)

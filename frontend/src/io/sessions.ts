@@ -177,21 +177,21 @@ export class SessionsClient {
   }
 
   async resume(id: string): Promise<Session> {
-    const s = await request<Session>(`/api/sessions/${encodeURIComponent(id)}/resume`, json('POST'));
+    const s = await owner<Session>(`/api/sessions/${encodeURIComponent(id)}/resume`, json('POST'));
     this.merge(s, true);
     this.publish();
     return s;
   }
 
   async stopSession(id: string): Promise<Session> {
-    const s = await request<Session>(`/api/sessions/${encodeURIComponent(id)}/stop`, json('POST'));
+    const s = await owner<Session>(`/api/sessions/${encodeURIComponent(id)}/stop`, json('POST'));
     this.merge(s, true);
     this.publish();
     return s;
   }
 
   async remove(id: string, force = false): Promise<void> {
-    await request<void>(`/api/sessions/${encodeURIComponent(id)}?removeWorktree=1${force ? '&force=1' : ''}`, json('DELETE'));
+    await owner<void>(`/api/sessions/${encodeURIComponent(id)}?removeWorktree=1${force ? '&force=1' : ''}`, json('DELETE'));
     this.byId.delete(id);
     this.lines.delete(id);
     this.publish();

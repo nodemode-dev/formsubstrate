@@ -1,10 +1,12 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from app.core.local_guard import require_window
 from app.services import gitops, sessions as sv
 
 router = APIRouter()
+OWNER = [Depends(require_window)]
 
 TEXT_MAX = 4000
 COMMENTS_MAX = 200
@@ -104,7 +106,7 @@ async def audit(session: str | None = None) -> dict:
         raise _fail(err)
 
 
-@router.put("/git/worktree-file")
+@router.put("/git/worktree-file", dependencies=OWNER)
 async def worktree_file(body: WorktreeFileBody) -> dict:
     try:
         if not body.session:
@@ -116,7 +118,7 @@ async def worktree_file(body: WorktreeFileBody) -> dict:
         raise _fail(err)
 
 
-@router.post("/git/hunks")
+@router.post("/git/hunks", dependencies=OWNER)
 async def hunks(body: HunksBody) -> dict:
     try:
         t = await gitops.resolve_target(body.session)
@@ -126,7 +128,7 @@ async def hunks(body: HunksBody) -> dict:
         raise _fail(err)
 
 
-@router.post("/git/stage")
+@router.post("/git/stage", dependencies=OWNER)
 async def stage(body: PathsBody) -> dict:
     try:
         t = await gitops.resolve_target(body.session)
@@ -136,7 +138,7 @@ async def stage(body: PathsBody) -> dict:
         raise _fail(err)
 
 
-@router.post("/git/unstage")
+@router.post("/git/unstage", dependencies=OWNER)
 async def unstage(body: PathsBody) -> dict:
     try:
         t = await gitops.resolve_target(body.session)
@@ -146,7 +148,7 @@ async def unstage(body: PathsBody) -> dict:
         raise _fail(err)
 
 
-@router.post("/git/discard")
+@router.post("/git/discard", dependencies=OWNER)
 async def discard(body: PathsBody) -> dict:
     try:
         t = await gitops.resolve_target(body.session)
@@ -156,7 +158,7 @@ async def discard(body: PathsBody) -> dict:
         raise _fail(err)
 
 
-@router.post("/git/commit")
+@router.post("/git/commit", dependencies=OWNER)
 async def commit(body: CommitBody) -> dict:
     try:
         t = await gitops.resolve_target(body.session)
@@ -179,7 +181,7 @@ async def identity() -> dict:
     return await gitops.identity_get()
 
 
-@router.put("/git/identity")
+@router.put("/git/identity", dependencies=OWNER)
 async def set_identity(body: IdentityBody) -> dict:
     try:
         return await gitops.identity_put(body.name, body.email, body.sign, body.signingKey)
@@ -195,7 +197,7 @@ async def snapshots(session: str | None = None) -> dict:
         raise _fail(err)
 
 
-@router.post("/git/snapshots")
+@router.post("/git/snapshots", dependencies=OWNER)
 async def snapshot(body: SnapshotBody) -> dict:
     try:
         t = await gitops.resolve_target(body.session)
@@ -205,7 +207,7 @@ async def snapshot(body: SnapshotBody) -> dict:
         raise _fail(err)
 
 
-@router.post("/git/rewind")
+@router.post("/git/rewind", dependencies=OWNER)
 async def rewind(body: RewindBody) -> dict:
     try:
         t = await gitops.resolve_target(body.session)
@@ -215,7 +217,7 @@ async def rewind(body: RewindBody) -> dict:
         raise _fail(err)
 
 
-@router.post("/git/comments")
+@router.post("/git/comments", dependencies=OWNER)
 async def comments(body: CommentBody) -> dict:
     try:
         target = await gitops.resolve_target(body.session or None)
@@ -236,7 +238,7 @@ async def comments(body: CommentBody) -> dict:
         raise HTTPException(status_code=err.status, detail=err.detail)
 
 
-@router.post("/git/push")
+@router.post("/git/push", dependencies=OWNER)
 async def push(body: PushBody) -> dict:
     try:
         t = await gitops.resolve_target(body.session)
@@ -248,7 +250,7 @@ async def push(body: PushBody) -> dict:
         raise _fail(err)
 
 
-@router.post("/git/sign-and-push")
+@router.post("/git/sign-and-push", dependencies=OWNER)
 async def sign_and_push(body: PushBody):
     try:
         t = await gitops.resolve_target(body.session)

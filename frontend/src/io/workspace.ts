@@ -1,4 +1,5 @@
 import { request } from './api';
+import { owner } from './window-token';
 import type { WorkspaceInfo } from '../ui/workspace-store';
 
 interface WorkspaceReply { root: string; name: string; isFormRepo: boolean; branch: string; localTools?: string[] }
@@ -44,7 +45,7 @@ export async function currentWorkspace(): Promise<WorkspaceInfo | null> {
 }
 
 export async function openWorkspace(path: string): Promise<WorkspaceInfo> {
-  return info(await request<WorkspaceReply>('/api/workspace/open', json({ path })));
+  return info(await owner<WorkspaceReply>('/api/workspace/open', json({ path })));
 }
 
 export async function recentWorkspaces(): Promise<RecentWorkspace[]> {
@@ -52,7 +53,7 @@ export async function recentWorkspaces(): Promise<RecentWorkspace[]> {
 }
 
 export async function forgetRecent(path: string): Promise<void> {
-  await request<unknown>('/api/workspace/recent', { method: 'DELETE', body: JSON.stringify({ path }) });
+  await owner<unknown>('/api/workspace/recent', { method: 'DELETE', body: JSON.stringify({ path }) });
 }
 
 export function listDir(path: string): Promise<DirListing> {
@@ -64,19 +65,19 @@ export function readFile(path: string): Promise<FileContent> {
 }
 
 export function writeFile(path: string, text: string, expectedMtime: number | null, create = false): Promise<FileSaved> {
-  return request<FileSaved>('/api/workspace/file', { method: 'PUT', body: JSON.stringify({ path, text, expectedMtime, create }) });
+  return owner<FileSaved>('/api/workspace/file', { method: 'PUT', body: JSON.stringify({ path, text, expectedMtime, create }) });
 }
 
 export async function makeDir(path: string): Promise<void> {
-  await request<unknown>('/api/workspace/mkdir', json({ path }));
+  await owner<unknown>('/api/workspace/mkdir', json({ path }));
 }
 
 export async function renamePath(from: string, to: string): Promise<void> {
-  await request<unknown>('/api/workspace/rename', json({ from, to }));
+  await owner<unknown>('/api/workspace/rename', json({ from, to }));
 }
 
 export async function deletePath(path: string): Promise<void> {
-  await request<unknown>('/api/workspace/delete', json({ path }));
+  await owner<unknown>('/api/workspace/delete', json({ path }));
 }
 
 export function searchWorkspace(opts: SearchOptions): Promise<SearchResult> {

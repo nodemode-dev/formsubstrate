@@ -84,3 +84,11 @@ review LOW 12: a repeated `gate` event for an id already open updates the stored
 - logged: v0.10.0 · 2026-10-30
 
 review M3. One token helper replaces the two copies in `formslot.ts` and `create.ts`. `windowToken()` asks the Tauri shell (`invoke('window_token')`) first and falls back to `POST /api/window-token`, which only the browser development build answers; the promise is cached and a failed fetch clears it. `owner()` sets `X-Subform-Window` and, on an `ApiError` whose status is 403, drops the cache and retries once. `formslot.ts` wraps it to keep its `FormslotError` mapping; `create.ts` uses it directly.
+
+### frontend/src/io/git.ts, workspace.ts, sessions.ts · owner on guarded routes
+
+- refers-to: frontend/src/io/git.ts :: held, refusable, git.hunks, git.stage, git.unstage, git.discard, git.commit, git.setIdentity, git.snapshot, git.rewind, git.comment, git.writeWorktreeFile; frontend/src/io/workspace.ts :: openWorkspace, forgetRecent, writeFile, makeDir, renamePath, deletePath; frontend/src/io/sessions.ts :: SessionsClient.resume, SessionsClient.stopSession, SessionsClient.remove
+- kind: rationale
+- logged: v0.19.0 · 2026-11-22
+
+The engine now asks for the window token on every git, workspace and session change (see `backend/app/routers/HASHOUT_LOG.md`, entry of v0.19.0). These callers send through `owner()` from `window-token.ts` instead of `request()`. In `git.ts` the helper `held` wraps `owner` the way `call` wraps `request`, so callers still get a `GitError`; `refusable` (push and sign-and-push) calls `owner` and keeps its 409 mapping. `SessionsClient.create` already used `owner`. No other file in `frontend/src` calls these routes.
