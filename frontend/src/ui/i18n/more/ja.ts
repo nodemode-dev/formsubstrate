@@ -195,4 +195,12 @@ export const ja: Record<string, string> = {
   'interactive': '対話型', 'personal': '個人', 'outside .formsubstrate': '.formsubstrate の外',
   'run records and agent logs are never imported': '実行記録とエージェントのログはインポートされません',
   'plugins run code: trust this workspace first': 'プラグインはコードを実行します: 先にこのワークスペースを信頼してください', 'Timeout must be at least 10 seconds': 'タイムアウトは 10 秒以上にしてください',
+  'Add client': 'クライアントを追加', 'Claude Code and Cursor (JSON)': 'Claude Code と Cursor (JSON)', 'Client name': 'クライアント名', 'Codex (TOML)': 'Codex (TOML)', 'Config for': '設定の対象',
+  'Config snippet': '設定スニペット', 'Copy config': '設定をコピー', 'Copy the token now: Substrate shows it only this once.': '今すぐトークンをコピーしてください: Substrate がトークンを表示するのはこの 1 回だけです。',
+  'Copy token': 'トークンをコピー', 'For example Claude Code in my terminal': '例: ターミナルで使う Claude Code', 'Last used': '最終使用', 'MCP clients': 'MCP クライアント',
+  'No client is approved yet.': '承認済みのクライアントはまだありません。', 'Not used yet': '未使用',
+  'Programs outside Substrate, such as Claude Code, Codex or Cursor, reach its MCP server with a token you approve here. A client may read the open workspace, the session list and the status of a session; it cannot write, comment, answer gates or read terminals. The token is shown once and leaves this page when you move away from this card. From a source checkout the command is ./formsubstrate with the argument mcp; in the built app it is the formsubstrate-engine program, by its full path, with --mcp.': 'Claude Code、Codex、Cursor など Substrate の外部のプログラムは、ここで承認したトークンを使って Substrate の MCP サーバーに接続します。クライアントは開いているワークスペース、セッションの一覧、セッションの状態を読み取れますが、書き込み、コメント、チェックへの応答、ターミナルの読み取りはできません。トークンは 1 回だけ表示され、このカードから移動するとこのページから消えます。ソースのチェックアウトからは、コマンドは ./formsubstrate で引数は mcp です。ビルド済みアプリでは、フル パスで指定した formsubstrate-engine プログラムに --mcp を付けます。',
+  'Remove this MCP client?': 'この MCP クライアントを削除しますか?', 'Removed. Its token no longer works.': '削除しました。そのトークンは使えなくなりました。', 'The client list was not read': 'クライアントの一覧は読み取られませんでした',
+  'The client was not added': 'クライアントは追加されませんでした', 'The client was not removed': 'クライアントは削除されませんでした', 'The token appears here once, after Add client.': 'トークンは [クライアントを追加] の後に、ここに 1 回だけ表示されます。', 'Token': 'トークン',
+  'its token stops working at once. Add the client again to give it a new token.': 'そのトークンはすぐに使えなくなります。新しいトークンを発行するには、クライアントを追加し直してください。',
 };

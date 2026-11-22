@@ -58,4 +58,7 @@ export const esMX: Record<string, string> = {
   'right-click to add to favourites': 'clic derecho para agregar a favoritos', 'settings saved and plugin reloaded': 'configuración guardada y plugin recargado',
   'slot has changed': 'el slot cambió', '{n} file was not changed because it is not open': '{n} archivo no se cambió porque no está abierto',
   '{n} files were not changed because they are not open': '{n} archivos no se cambiaron porque no están abiertos',
+  'Add client': 'Agregar cliente', 'The client list was not read': 'No se leyó la lista de clientes', 'The client was not added': 'No se agregó el cliente', 'The client was not removed': 'No se quitó el cliente',
+  'The token appears here once, after Add client.': 'El token aparece aquí una sola vez, después de Agregar cliente.',
+  'its token stops working at once. Add the client again to give it a new token.': 'su token deja de funcionar de inmediato. Vuelva a agregar el cliente para darle un token nuevo.',
 };

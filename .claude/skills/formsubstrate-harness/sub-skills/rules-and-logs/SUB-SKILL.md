@@ -21,7 +21,7 @@ Every new dependency, binary, font or data file gets a row in `NOTICE.md` before
 
 - No tests, test files, test scripts or test dependencies until the owner asks. Verification is by running the real thing.
 - No emoji anywhere. No U+2014 em dash in markdown; use a colon, a comma or the interpunct.
-- Versions are written vX.Y.Z. The current release is v0.13.0 (the README badge and status line, `backend/app/__init__.py`, `frontend/package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`). Do not bump versions in a build turn unless the brief owns it. The product is called formsubstrate, environment variables start `FORMSUBSTRATE_`, and git remotes are `nodemode-dev/[repo]`; never write the earlier name.
+- Versions are written vX.Y.Z. The current release is the one `./formsubstrate version` prints (`__version__` in `backend/app/__init__.py`); the same number stands in the README badge and status line, `frontend/package.json` and its lock file, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml` with its lock file. Do not bump versions in a build turn unless the brief owns it. The product is called formsubstrate, environment variables start `FORMSUBSTRATE_`, and git remotes are `nodemode-dev/[repo]`; never write the earlier name.
 - Icons inline SVG with currentColor; never the three-star sparkle; strings through `t()`.
 - Repository licence is GPL-3.0-only, Copyright (C) 2026 NodeAgentc, Inc.
 

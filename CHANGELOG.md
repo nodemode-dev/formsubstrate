@@ -4,6 +4,18 @@ Versions follow `v*.*.*` with dots. Dates are US Eastern. The newest version is 
 
 The app was renamed Substrate (family name FormSubstrate, machine name `formsubstrate`) at 0.17.0. The entries below read with the new name throughout; the git history keeps the former one.
 
+## 0.21.0 · 2026-11-22
+
+Substrate's MCP server works from the installed app and for outside clients you approve, and agents can read more of what the window shows.
+
+- Preferences > Agents > MCP clients: add Claude Code, Codex or Cursor running outside Substrate. The token is shown once with a ready config snippet; Substrate keeps only a hash of it. A client can read the open workspace, the session list and session status, graph runs, FormSlot slots and language-server problems; it cannot write, comment, read terminals or answer gates. Remove a client and its token stops at once.
+- The installed app's engine takes `--mcp`, so outside clients need no source checkout, and agent sessions of the installed app now get Substrate's own MCP server too.
+- Five new read-only tools: `run_list` and `run_status` for graph runs, `gate_notes`, `formslot_slot` for the slots a file belongs to, and `problems` for what language servers report. 14 tools in all, 13 read-only.
+- The server follows MCP 2025-11-25 and 2025-06-18. A request naming a protocol version it does not follow gets a clear 400 instead of being served.
+- `./formsubstrate agents sync` writes the tool reference agents read, and the check workflow fails when it is out of date.
+- A second skill pack, `formsubstrate-use`, helps people and agents use Substrate: sessions, review, gate cards, MCP clients and graph runs.
+- The two preset skills say when an agent should use them.
+
 ## 0.20.0 · 2026-11-22
 
 Substrate wears the suite's look and speaks the family's 30 languages.

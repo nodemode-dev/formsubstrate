@@ -28,3 +28,11 @@ Every install is a window-token route. A plugin preset is code that runs in the 
 - logged: v0.16.0 · 2026-11-01
 
 `_write` used a fixed `<target>.tmp` name opened with `open`, which follows a symbolic link, so a cloned repository that committed `.subform/graphs/<name>.json.tmp` as a link could have the install write through it. The temp file is now made by `tempfile.mkstemp` in the target folder (a new name, created exclusively), set to 0644, replaced over the target and removed on any failure. A preset graph with no `doc` object is a 404 instead of a 500. The http connector sent the bearer token and the extra headers to any absolute URL the agent passed; they now go only to the base URL's origin (scheme, host and port), as unredirected headers, so a redirect to another host does not carry them either.
+
+### backend/presets/skills/code-review, surgical-edits · descriptions say when to use each skill
+
+- refers-to: backend/presets/skills/code-review/SKILL.md :: description; backend/presets/skills/surgical-edits/SKILL.md :: description
+- kind: rationale
+- logged: v0.21.0 · 2026-11-22
+
+The two descriptions were 55 and 64 characters ("A reviewer's checklist for critic and evaluator agents." and "The surgical edit doctrine for agents working in this workspace."), which name the skill but not the situations that should load it, so an agent rarely picked them. Each now opens with what the skill is, then the situations (a critic, evaluator or reviewer node, a diff or pull request to review, an accept or revise verdict; any edit to existing files, a bug fix, the urge to rewrite), then what it covers: 342 and 383 characters. Both folders pass the god-tier-skill-creator validator with 0 FAIL and 0 WARN, and its description linter scores each 10 of 11 (the one note is the 200-character guidance for claude.ai; the first sentence stands alone). Copies already installed into a workspace's `.claude/skills` keep their old text until installed again with replace.

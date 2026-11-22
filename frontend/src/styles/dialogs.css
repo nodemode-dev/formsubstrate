@@ -157,5 +157,6 @@
 .cv-prefs-keys { display: flex; flex-direction: column; }
 .cv-prefs-keyrow { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding: var(--space-1) 0; border-bottom: 1px solid var(--border-soft); font-size: var(--fs-12); }
 .cv-prefs-keyrow:last-child { border-bottom: 0; }
+.cv-prefs-keyrow .cv-btn.is-spacer { visibility: hidden; }
 .cv-prefs-keyname { color: var(--text-secondary); }
 .cv-prefs-keycombo { flex: none; color: var(--text-primary); font-variant-numeric: tabular-nums; }

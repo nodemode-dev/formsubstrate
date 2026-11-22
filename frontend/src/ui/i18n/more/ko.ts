@@ -195,4 +195,12 @@ export const ko: Record<string, string> = {
   'interactive': '대화형', 'personal': '개인', 'outside .formsubstrate': '.formsubstrate 외부',
   'run records and agent logs are never imported': '실행 기록과 에이전트 로그는 가져오지 않습니다',
   'plugins run code: trust this workspace first': '플러그인은 코드를 실행합니다: 먼저 이 작업 영역을 신뢰하세요', 'Timeout must be at least 10 seconds': '시간 제한은 10초 이상이어야 합니다',
+  'Add client': '클라이언트 추가', 'Claude Code and Cursor (JSON)': 'Claude Code 및 Cursor (JSON)', 'Client name': '클라이언트 이름', 'Codex (TOML)': 'Codex (TOML)', 'Config for': '구성 대상',
+  'Config snippet': '구성 코드 조각', 'Copy config': '구성 복사', 'Copy the token now: Substrate shows it only this once.': '지금 토큰을 복사하세요: Substrate는 토큰을 이번 한 번만 표시합니다.',
+  'Copy token': '토큰 복사', 'For example Claude Code in my terminal': '예: 내 터미널의 Claude Code', 'Last used': '마지막 사용', 'MCP clients': 'MCP 클라이언트',
+  'No client is approved yet.': '아직 승인된 클라이언트가 없습니다.', 'Not used yet': '아직 사용 안 함',
+  'Programs outside Substrate, such as Claude Code, Codex or Cursor, reach its MCP server with a token you approve here. A client may read the open workspace, the session list and the status of a session; it cannot write, comment, answer gates or read terminals. The token is shown once and leaves this page when you move away from this card. From a source checkout the command is ./formsubstrate with the argument mcp; in the built app it is the formsubstrate-engine program, by its full path, with --mcp.': 'Claude Code, Codex, Cursor 같은 Substrate 외부 프로그램은 여기서 승인한 토큰으로 Substrate의 MCP 서버에 연결합니다. 클라이언트는 열린 작업 영역, 세션 목록, 세션 상태를 읽을 수 있지만 쓰기, 댓글 달기, 검사 응답, 터미널 읽기는 할 수 없습니다. 토큰은 한 번만 표시되며 이 카드에서 벗어나면 이 페이지에서 사라집니다. 소스 체크아웃에서는 명령이 ./formsubstrate이고 인수는 mcp입니다. 빌드된 앱에서는 전체 경로로 지정한 formsubstrate-engine 프로그램에 --mcp를 붙입니다.',
+  'Remove this MCP client?': '이 MCP 클라이언트를 제거할까요?', 'Removed. Its token no longer works.': '제거했습니다. 해당 토큰은 더 이상 작동하지 않습니다.', 'The client list was not read': '클라이언트 목록을 읽지 못했습니다',
+  'The client was not added': '클라이언트를 추가하지 못했습니다', 'The client was not removed': '클라이언트를 제거하지 못했습니다', 'The token appears here once, after Add client.': '토큰은 클라이언트 추가 후 여기에 한 번 표시됩니다.', 'Token': '토큰',
+  'its token stops working at once. Add the client again to give it a new token.': '해당 토큰은 즉시 작동을 멈춥니다. 새 토큰을 받으려면 클라이언트를 다시 추가하세요.',
 };

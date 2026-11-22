@@ -18,6 +18,7 @@ from app.routers import graphs as graphs_router
 from app.routers import media as media_router
 from app.routers import create as create_router
 from app.routers import mcp as mcp_router
+from app.routers import mcp_clients as mcp_clients_router
 from app.routers import cogentics as cogentics_router
 from app.routers import insight as insight_router
 from app.services.cogentics.hub import hub as cogentics_hub
@@ -122,6 +123,7 @@ app.include_router(triggers_router.router, prefix="/api")
 app.include_router(runs_router.router, prefix="/api")
 app.include_router(cogentics_router.router, prefix="/api")
 app.include_router(insight_router.router, prefix="/api")
+app.include_router(mcp_clients_router.router, prefix="/api")
 app.include_router(mcp_router.router)
 
 _dist = config.dist_dir()

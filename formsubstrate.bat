@@ -16,6 +16,7 @@ if /i "%CMD%"=="mcp" (
   if exist "backend\venv\Scripts\python.exe" ( "backend\venv\Scripts\python.exe" backend\formsubstrate_mcp.py ) else ( python backend\formsubstrate_mcp.py )
   exit /b
 )
+if /i "%CMD%"=="agents" ( call setup\agents.bat %2 %3 %4 %5 & exit /b )
 if /i "%CMD%"=="clean" ( call setup\clean.bat %ARG% & exit /b )
 if /i "%CMD%"=="help" (
   echo formsubstrate.bat [command]

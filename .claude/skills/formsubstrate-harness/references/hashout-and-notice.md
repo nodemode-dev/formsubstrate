@@ -16,7 +16,7 @@ Source files carry no comments. Each folder that holds code has a HASHOUT_LOG.md
 
 Kinds: explainer says what a thing does; rationale says why it is this way; warning-context says what breaks if changed; removed-code keeps what was deleted and why; todo records what is left.
 
-Log locations (each is `[folder]/HASHOUT_LOG.md`): `frontend`, `frontend/src/extensions`, `frontend/src/extensions/sessions`, `frontend/src/ui` with `editor`, `graph`, `palette`, `review`, `preview`, `frontend/src/io`, `backend`, `backend/app/core`, `backend/app/routers`, `backend/app/services`, `backend/app/templates` (and its `common`, `python`, `rust` subfolders), `src-tauri`. The `logged:` value is the version the brief names for the build in progress (v0.14.0 for the turn after v0.13.0), with the date the brief gives. A new code folder gets its own log, created whole with a header: title, current build version, last updated. Entries about ported code name the formvis or substrata source file.
+Log locations (each is `[folder]/HASHOUT_LOG.md`): `frontend`, `frontend/src/extensions`, `frontend/src/extensions/sessions`, `frontend/src/ui` with `editor`, `graph`, `palette`, `review`, `preview`, `frontend/src/io`, `backend`, `backend/app/core`, `backend/app/routers`, `backend/app/services`, `backend/app/templates` (and its `common`, `python`, `rust` subfolders), `src-tauri`. The `logged:` value is the version the brief names for the build in progress (for example v0.21.0 for the turn after v0.20.0), with the date the brief gives. A new code folder gets its own log, created whole with a header: title, current build version, last updated. Entries about ported code name the formvis or substrata source file.
 
 ## NOTICE.md
 

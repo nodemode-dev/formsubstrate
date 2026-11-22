@@ -1,6 +1,7 @@
 import { formslot } from '../io/formslot';
 import { git, type Identity } from '../io/git';
 import { removeSecret, saveSecret, secretStatus, secretStatusText, type SecretStatus } from '../io/secrets';
+import { addMcpClient, listMcpClients, removeMcpClient, type McpClient } from '../io/mcp-clients';
 import { systemStatus } from '../io/api';
 import { setTrusted } from '../io/trust';
 import { formatKeys, type Commands } from './commands';
@@ -131,6 +132,22 @@ export class SettingsDialog {
   private readonly slotBrowse = el<HTMLButtonElement>('<button class="cv-btn" type="button"></button>');
   private readonly slotFound: { el: HTMLElement; value: HTMLElement };
   private readonly keyList = el('<div class="cv-prefs-keys"></div>');
+  private readonly mcpList = el('<div class="cv-prefs-keys"></div>');
+  private readonly mcpNone = el('<div class="cv-prefs-keys"><div class="cv-prefs-keyrow"><span class="cv-prefs-keyname"></span><button class="cv-btn is-spacer" type="button" disabled tabindex="-1" aria-hidden="true">&nbsp;</button></div></div>');
+  private readonly mcpName = el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" autocomplete="off" maxlength="80">');
+  private readonly mcpAdd = el<HTMLButtonElement>('<button class="cv-btn cv-btn-primary" type="button"></button>');
+  private readonly mcpStatus = el('<p class="cv-note cv-prefs-status" role="status"></p>');
+  private readonly mcpToken = el<HTMLInputElement>('<input class="cv-input" type="text" readonly spellcheck="false" autocomplete="off">');
+  private readonly mcpFormatPick = el<HTMLSelectElement>('<select class="cv-input"><option value="json"></option><option value="toml"></option></select>');
+  private readonly mcpSnippet = el<HTMLTextAreaElement>('<textarea class="cv-input cv-st-ta" wrap="off" readonly spellcheck="false"></textarea>');
+  private readonly mcpCopy = el<HTMLButtonElement>('<button class="cv-btn" type="button"></button>');
+  private readonly mcpCopyConfig = el<HTMLButtonElement>('<button class="cv-btn" type="button"></button>');
+  private mcpClients: McpClient[] = [];
+  private mcpShown = '';
+  private mcpShownId = '';
+  private mcpNote = '';
+  private mcpBad = false;
+  private mcpBusy = false;
   private readonly version: HTMLElement;
 
   constructor(ctx: SettingsContext) {
@@ -246,6 +263,7 @@ export class SettingsDialog {
       Agents: [
         grp('Claude Code', this.model.el, this.permission.el, nt('Headless sessions run without a person to approve tools. Accept edits lets them change files inside their own worktree only; Bash and other tools are denied. Interactive terminal sessions are not affected.')),
         grp('Anthropic API key', this.keyRow(), this.keyStatus, nt('The key goes to the engine and is kept in the system keychain, or in a file only you can read when this computer has no keychain. This page never reads it back, and opening it does not touch the keychain.')),
+        this.mcpCard(),
       ],
       'Git and Identity': [
         grp('Commits', this.fieldRow('Author name', this.gitName), this.fieldRow('Author email', this.gitEmail), this.sign.el, this.fieldRow('Signing key path', this.gitKey), this.gitActions(), this.gitStatus, nt('Every commit made from Substrate, by you or by an agent session, uses this name and email. Signing uses the SSH public key at the path; the private key is never read or stored here.')),
@@ -622,6 +640,8 @@ export class SettingsDialog {
   }
 
   private async refreshRemote(): Promise<void> {
+    this.forgetMcpToken();
+    void this.loadMcp();
     this.gitTouched = false;
     void this.loadGit();
     void this.paintFound();
@@ -684,6 +704,152 @@ export class SettingsDialog {
     } finally {
       this.keyBusy = false;
       this.paintKey();
+    }
+  }
+
+  private mcpCard(): HTMLElement {
+    const labelled = (label: string, control: HTMLElement): HTMLElement => {
+      const row = el('<label class="cv-field"><span></span></label>');
+      setText(q(row, 'span'), t(label));
+      onLanguage(() => setText(q(row, 'span'), t(label)));
+      row.appendChild(control);
+      return row;
+    };
+    const labels = (): void => {
+      setText(q(this.mcpNone, '.cv-prefs-keyname'), t('No client is approved yet.'));
+      this.mcpName.setAttribute('aria-label', t('Client name'));
+      this.mcpName.placeholder = t('For example Claude Code in my terminal');
+      setText(this.mcpAdd, t('Add client'));
+      this.mcpToken.setAttribute('aria-label', t('Token'));
+      this.mcpToken.placeholder = t('The token appears here once, after Add client.');
+      setText(this.mcpFormatPick.options[0], t('Claude Code and Cursor (JSON)'));
+      setText(this.mcpFormatPick.options[1], t('Codex (TOML)'));
+      this.mcpSnippet.setAttribute('aria-label', t('Config snippet'));
+      setText(this.mcpCopy, t('Copy token'));
+      setText(this.mcpCopyConfig, t('Copy config'));
+      this.paintMcp();
+    };
+    this.mcpAdd.addEventListener('click', () => { void this.addMcp(); });
+    this.mcpName.addEventListener('input', () => this.paintMcp());
+    this.mcpName.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); this.mcpAdd.click(); } });
+    this.mcpFormatPick.addEventListener('change', () => this.paintMcp());
+    this.mcpCopy.addEventListener('click', () => this.copyMcp(this.mcpShown));
+    this.mcpCopyConfig.addEventListener('click', () => this.copyMcp(this.mcpSnippet.value));
+    this.mcpList.addEventListener('click', (e) => {
+      const b = e.target instanceof Element ? e.target.closest<HTMLElement>('[data-remove]') : null;
+      if (b?.dataset.remove) void this.removeMcp(b.dataset.remove);
+    });
+    const addActions = el('<div class="cv-prefs-actions"></div>');
+    addActions.append(this.mcpAdd);
+    const copyActions = el('<div class="cv-prefs-actions"></div>');
+    copyActions.append(this.mcpCopy, this.mcpCopyConfig);
+    const card = grp('MCP clients', this.mcpList, this.mcpNone, this.fieldRow('Client name', this.mcpName), addActions, this.mcpStatus, this.fieldRow('Token', this.mcpToken), labelled('Config for', this.mcpFormatPick), labelled('Config snippet', this.mcpSnippet), copyActions,
+      nt('Programs outside Substrate, such as Claude Code, Codex or Cursor, reach its MCP server with a token you approve here. A client may read the open workspace, the session list and the status of a session; it cannot write, comment, answer gates or read terminals. The token is shown once and leaves this page when you move away from this card. From a source checkout the command is ./formsubstrate with the argument mcp; in the built app it is the formsubstrate-engine program, by its full path, with --mcp.'));
+    labels();
+    onLanguage(labels);
+    new IntersectionObserver((entries) => { if (entries.some((x) => !x.isIntersecting)) this.forgetMcpToken(); }, { root: this.pages }).observe(card);
+    return card;
+  }
+
+  private mcpConfig(): string {
+    const token = this.mcpShown || '<token>';
+    const desktop = !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    const [command, arg] = desktop ? ['formsubstrate-engine', '--mcp'] : ['./formsubstrate', 'mcp'];
+    if (this.mcpFormatPick.value === 'toml') return `[mcp_servers.formsubstrate]\ncommand = "${command}"\nargs = ["${arg}"]\nenv = { FORMSUBSTRATE_MCP_TOKEN = "${token}" }`;
+    return `{"mcpServers": {"formsubstrate": {\n  "command": "${command}",\n  "args": ["${arg}"],\n  "env": {"FORMSUBSTRATE_MCP_TOKEN": "${token}"}\n}}}`;
+  }
+
+  private paintMcp(): void {
+    const when = (iso: string | null): string => (iso ? new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
+    const paintRow = (node: HTMLElement, c: McpClient): void => {
+      setText(q(node, '.cv-prefs-keyname'), c.name);
+      setText(q(node, '.cv-prefs-keycombo'), `${t('Added')} ${when(c.created)}  ·  ${c.lastUsed ? `${t('Last used')} ${when(c.lastUsed)}` : t('Not used yet')}`);
+      const b = q(node, '[data-remove]');
+      setText(b, t('Remove'));
+      if (b.dataset.remove !== c.id) b.dataset.remove = c.id;
+    };
+    patchList(this.mcpList, this.mcpClients, {
+      key: (c) => c.id,
+      create: (c) => { const node = el('<div class="cv-prefs-keyrow"><span class="cv-prefs-keyname"></span><span class="cv-prefs-keycombo"></span><button class="cv-btn cv-btn-danger" type="button" data-remove=""></button></div>'); paintRow(node, c); return node; },
+      update: paintRow,
+    });
+    setHidden(this.mcpNone, this.mcpClients.length > 0);
+    setHidden(this.mcpList, this.mcpClients.length === 0);
+    setText(this.mcpStatus, this.mcpNote || ' ');
+    setClass(this.mcpStatus, 'is-error', this.mcpBad);
+    if (this.mcpToken.value !== this.mcpShown) this.mcpToken.value = this.mcpShown;
+    const config = this.mcpConfig();
+    if (this.mcpSnippet.value !== config) this.mcpSnippet.value = config;
+    const off = (b: HTMLButtonElement, v: boolean): void => { if (b.disabled !== v) b.disabled = v; };
+    off(this.mcpAdd, this.mcpBusy || !this.mcpName.value.trim());
+    off(this.mcpCopy, !this.mcpShown);
+  }
+
+  private forgetMcpToken(): void {
+    if (!this.mcpShown) return;
+    this.mcpShown = '';
+    this.mcpShownId = '';
+    if (!this.mcpBad) this.mcpNote = '';
+    this.paintMcp();
+  }
+
+  private copyMcp(text: string): void {
+    void navigator.clipboard.writeText(text).then(() => toast(t('Copied')), () => toast(t('Copy failed'), 'error'));
+  }
+
+  private async loadMcp(): Promise<void> {
+    try {
+      this.mcpClients = await listMcpClients();
+      if (this.mcpBad) { this.mcpNote = ''; this.mcpBad = false; }
+    } catch (e) {
+      this.mcpNote = `${t('The client list was not read')}: ${e instanceof Error ? e.message : ''}`;
+      this.mcpBad = true;
+    }
+    this.paintMcp();
+  }
+
+  private async addMcp(): Promise<void> {
+    const name = this.mcpName.value.trim();
+    if (!name || this.mcpBusy) return;
+    this.forgetMcpToken();
+    this.mcpBusy = true;
+    this.paintMcp();
+    try {
+      const made = await addMcpClient(name);
+      this.mcpClients = [...this.mcpClients.filter((c) => c.id !== made.client.id), made.client];
+      this.mcpShown = made.token;
+      this.mcpShownId = made.client.id;
+      this.mcpName.value = '';
+      this.mcpNote = t('Copy the token now: Substrate shows it only this once.');
+      this.mcpBad = false;
+    } catch (e) {
+      this.mcpNote = `${t('The client was not added')}: ${e instanceof Error ? e.message : ''}`;
+      this.mcpBad = true;
+    } finally {
+      this.mcpBusy = false;
+      this.paintMcp();
+    }
+  }
+
+  private async removeMcp(id: string): Promise<void> {
+    const item = this.mcpClients.find((c) => c.id === id);
+    if (!item || this.mcpBusy) return;
+    const ok = await confirmAction(t('Remove this MCP client?'), `${item.name}: ${t('its token stops working at once. Add the client again to give it a new token.')}`, t('Remove'), true);
+    if (!ok) return;
+    this.mcpBusy = true;
+    this.paintMcp();
+    try {
+      await removeMcpClient(id);
+      this.mcpClients = this.mcpClients.filter((c) => c.id !== id);
+      if (this.mcpShownId === id) { this.mcpShown = ''; this.mcpShownId = ''; }
+      this.mcpNote = t('Removed. Its token no longer works.');
+      this.mcpBad = false;
+    } catch (e) {
+      this.mcpNote = `${t('The client was not removed')}: ${e instanceof Error ? e.message : ''}`;
+      this.mcpBad = true;
+    } finally {
+      this.mcpBusy = false;
+      this.paintMcp();
     }
   }
 

@@ -16,7 +16,7 @@ backend/
     routers/                   system, workspace, secrets, terminal, sessions, formslot (+ gates),
                                skills, git, debug, lsp, media, graph, create, mcp
     services/                  sessions, gitops, formslot, gates, gate_hook, graph, ptyhost_client,
-                               create (clone jobs, New Form app), mcp_tools (the nine MCP tools);
+                               create (clone jobs, New Form app), mcp_tools (the MCP tools; `./formsubstrate agents sync` lists them), mcp_clients (approved outside clients);
                                gate_hook.py holds SCRIPT, the source of the hook sf_gate.py that
                                gates.ensure_script writes to [data]/hooks/
     templates/                 common, python, rust: files the New Form app writes (bundled by
@@ -76,4 +76,4 @@ There is no other prefix: every formsubstrate variable starts `FORMSUBSTRATE_`, 
 
 ## Phases
 
-F1 scaffold, engine skeleton and desktop boot; F2 shell (tokens, title bar, menus, status bar); F3 Home and Preferences; F4 workspace, files, editor, search; F5 terminals, Claude Code tabs, sessions and worktrees; F6 git, review, rewind and the commit wrapper; F7 formslot inside the workbench; F8 language servers and the debugger (with the graph, previews and substrata ports); F9 MCP surface, this kit and packaging. Releases since: v0.11.0 Bash write gates, the PostToolUse after-check, read-only `terminal_tail`; v0.12.0 palette symbol search (`@`, `#`), the quit guard, more Bash forms, the VT screen model and 256 KiB tail window; v0.13.0 gate banner and tab badge, engine-held waivers keyed on content, loud fail-opens, parent session markers dropped from terminals. The plan itself is in the sidecar.
+F1 scaffold, engine skeleton and desktop boot; F2 shell (tokens, title bar, menus, status bar); F3 Home and Preferences; F4 workspace, files, editor, search; F5 terminals, Claude Code tabs, sessions and worktrees; F6 git, review, rewind and the commit wrapper; F7 formslot inside the workbench; F8 language servers and the debugger (with the graph, previews and substrata ports); F9 MCP surface, this kit and packaging. Releases since: v0.11.0 Bash write gates, the PostToolUse after-check, read-only `terminal_tail`; v0.12.0 palette symbol search (`@`, `#`), the quit guard, more Bash forms, the VT screen model and 256 KiB tail window; then the gate banner and tab badge, engine-held waivers keyed on content, loud fail-opens, parent session markers dropped from terminals. Every release from 0.17.0 on is in `CHANGELOG.md`. The plan itself is in the sidecar.

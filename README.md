@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="version 0.20.0" src="https://img.shields.io/badge/version-0.20.0-eef0f4?style=flat-square">
+  <img alt="version 0.21.0" src="https://img.shields.io/badge/version-0.21.0-eef0f4?style=flat-square">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-7-3178c6?style=flat-square&logo=typescript&logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-engine-009688?style=flat-square">
   <img alt="Tauri 2" src="https://img.shields.io/badge/Tauri-2-2f7bf5?style=flat-square">
@@ -55,7 +55,7 @@
     </td>
     <td width="25%" valign="top">
       <h3>Agent-ready</h3>
-      An MCP server with nine tools lets an agent read the workbench's sessions, review and terminals.
+      An MCP server with 14 tools lets an agent read the workbench's sessions, review, terminals, graph runs, gate notes, FormSlot slots and language-server problems.
     </td>
   </tr>
 </table>
@@ -108,14 +108,14 @@
 
 ## Built for agents
 
-Substrate's engine is an MCP server with nine read-mostly tools. Only `review_comment` changes state, and no tool writes files, commits or answers a gate.
+Substrate's engine is an MCP server with 14 tools, 13 of them read-only. Only `review_comment` changes state, and no tool writes files, commits or answers a gate.
 
 ```sh
 ./formsubstrate mcp        # MCP server on stdio for Claude Code, Codex and Cursor
 ./formsubstrate doctor     # toolchain, installs and ports
 ```
 
-The HTTP endpoint is `POST /mcp`, behind a local guard and a bearer token. A routing skill pack for agents is in [`.claude/skills/formsubstrate-harness/`](.claude/skills/formsubstrate-harness/SKILL.md). See [`docs/MCP.md`](docs/MCP.md) and [`AGENTS.md`](AGENTS.md).
+The HTTP endpoint is `POST /mcp`, behind a local guard and a bearer token. It works inside Substrate sessions automatically, and for an outside client (Claude Code, Codex or Cursor) after you add the client in Preferences, Agents, MCP clients, which shows its token once. An outside client may read the open workspace, the session list and each session's status; it cannot write, comment, answer gates or read terminals. A routing skill pack for agents is in [`.claude/skills/formsubstrate-harness/`](.claude/skills/formsubstrate-harness/SKILL.md). See [`docs/MCP.md`](docs/MCP.md) and [`AGENTS.md`](AGENTS.md).
 
 ## Under the hood
 

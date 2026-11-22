@@ -7,6 +7,7 @@ import os
 import random
 import re
 import string
+import sys
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
@@ -321,10 +322,11 @@ async def _mcp_config() -> tuple[dict, list[str]]:
     else:
         notes.append("formslot was not found; the session runs without it")
     launcher = config.REPO_DIR / ("formsubstrate.bat" if os.name == "nt" else "formsubstrate")
-    if launcher.is_file():
+    frozen = getattr(sys, "frozen", False)
+    if frozen or launcher.is_file():
         servers["formsubstrate"] = {
-            "command": str(launcher),
-            "args": ["mcp"],
+            "command": os.path.abspath(sys.executable) if frozen else str(launcher),
+            "args": ["--mcp"] if frozen else ["mcp"],
             "env": {
                 "FORMSUBSTRATE_GATE_TOKEN": "${FORMSUBSTRATE_GATE_TOKEN}",
                 "FORMSUBSTRATE_ENGINE": "${FORMSUBSTRATE_ENGINE}",
