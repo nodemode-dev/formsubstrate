@@ -1,7 +1,7 @@
 import { loadPrefs, updatePrefs } from '../ui/prefs';
 import { workspace } from '../ui/workspace-store';
 
-export const TRUST_EVENT = 'subform:trust-changed';
+export const TRUST_EVENT = 'formsubstrate:trust-changed';
 
 const same = (a: string, b: string): boolean => a === b;
 

@@ -52,7 +52,7 @@ fn on_screen(handle: &tauri::AppHandle, place: &Place) -> bool {
     })
 }
 
-const OLD_ID: &str = "ai.nodemode.substrataform";
+const OLD_ID: &str = "ai.nodemode.subform";
 
 fn is_empty_dir(dir: &std::path::Path) -> bool {
     match std::fs::read_dir(dir) {

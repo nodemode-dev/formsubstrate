@@ -20,7 +20,7 @@ def strip(text):
 
 def search(query, max_results=5):
     url = "https://html.duckduckgo.com/html/?q=" + urllib.parse.quote(query)
-    req = urllib.request.Request(url, headers={"User-Agent": "subform/0.16"})
+    req = urllib.request.Request(url, headers={"User-Agent": "formsubstrate/0.17"})
     try:
         with urllib.request.urlopen(req, timeout=12) as res:
             html = res.read().decode("utf-8", "ignore")

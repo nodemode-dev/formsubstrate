@@ -8,14 +8,14 @@ import { CtxMenu, type CtxItem } from './context-menu';
 import { KIND_LIST, kindMeta, NODE_H, NODE_W } from './kinds';
 import { patchKeyed, setAttr, svgEl } from './keyed';
 
-export const DRAG_TYPE = 'application/x-subform-node';
+export const DRAG_TYPE = 'application/x-formsubstrate-node';
 
 const GRID = 10;
 const MIN_K = 0.25;
 const MAX_K = 2.5;
 const MINI_W = 148;
 const MINI_H = 92;
-const MM_KEY = 'subform.studio.minimap';
+const MM_KEY = 'formsubstrate.studio.minimap';
 
 interface View { x: number; y: number; k: number }
 interface NodeView { el: HTMLElement; kind: string; label: string; x: number; y: number; status: string }

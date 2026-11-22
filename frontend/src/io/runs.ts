@@ -57,9 +57,9 @@ export interface RunsEnv { claude: boolean; path: string | null }
 
 export interface ToolInfo { name: string; description: string; args: Record<string, string> }
 
-export const RUN_STARTED = 'subform:run-started';
-export const RUN_SELECTED = 'subform:run-selected';
-export const RUNS_CHANGED = 'subform:runs-changed';
+export const RUN_STARTED = 'formsubstrate:run-started';
+export const RUN_SELECTED = 'formsubstrate:run-selected';
+export const RUNS_CHANGED = 'formsubstrate:runs-changed';
 
 export const runsApi = {
   env: (): Promise<RunsEnv> => request<RunsEnv>('/api/runs/env'),

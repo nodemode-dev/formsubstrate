@@ -11,10 +11,10 @@ READ_MAX = 200_000
 WRITE_MAX = 2_000_000
 SHELL_TIMEOUT = 60
 SHELL_OUT = 20_000
-SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", "target", "dist", ".subform"}
+SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", "target", "dist", ".formsubstrate"}
 READ_ONLY = {"list_files", "read_file"}
 ALWAYS_APPROVE = {"write_file", "run_shell"}
-PROTECTED = {".git", ".subform", ".claude", ".mcp.json", "package.json", ".husky", ".gitmodules", ".envrc"}
+PROTECTED = {".git", ".formsubstrate", ".claude", ".mcp.json", "package.json", ".husky", ".gitmodules", ".envrc"}
 DIFF_MAX = 200_000
 ARGS_MAX = 8_000
 

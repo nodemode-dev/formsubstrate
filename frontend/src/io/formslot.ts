@@ -189,8 +189,8 @@ type StateEvent = 'status' | 'drift' | 'active';
 
 const POLL_MS = 5000;
 const DRIFT_MAX_AGE_MS = 20000;
-export const FORMSLOT_OPEN = 'subform:formslot-open';
-export const SESSION_SELECTED = 'subform:session-selected';
+export const FORMSLOT_OPEN = 'formsubstrate:formslot-open';
+export const SESSION_SELECTED = 'formsubstrate:session-selected';
 
 class FormslotState {
   private current: FormslotStatus | null = null;

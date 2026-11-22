@@ -9,7 +9,7 @@ from typing import AsyncIterator
 
 from app.core import config
 
-HOST_SCRIPT = config.BACKEND_DIR / "subform_ptyhost.py"
+HOST_SCRIPT = config.BACKEND_DIR / "formsubstrate_ptyhost.py"
 START_WAIT = 10.0
 REQUEST_WAIT = 15.0
 MAX_FRAME = 16 * 1024 * 1024
@@ -76,7 +76,7 @@ class PtyHostClient:
         data = config.data_dir()
         log = open(data / "ptyhost.log", "ab")
         env = dict(os.environ)
-        env["SUBFORM_DATA_DIR"] = str(data)
+        env["FORMSUBSTRATE_DATA_DIR"] = str(data)
         kwargs: dict = {"stdin": subprocess.DEVNULL, "stdout": log, "stderr": log, "env": env, "close_fds": True}
         if WINDOWS:
             kwargs["creationflags"] = 0x00000008 | 0x00000200 | 0x08000000

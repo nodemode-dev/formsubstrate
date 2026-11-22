@@ -119,7 +119,7 @@ async def drift() -> dict:
 
 
 @router.post("/gates")
-async def open_gate(body: GateBody, session_token: str | None = Header(default=None, alias="X-Subform-Session")) -> dict:
+async def open_gate(body: GateBody, session_token: str | None = Header(default=None, alias="X-FormSubstrate-Session")) -> dict:
     try:
         gates.verify(body.session, session_token)
         return gates.create(body.model_dump())
@@ -133,7 +133,7 @@ def list_gates() -> dict:
 
 
 @router.post("/gates/notes")
-def add_gate_note(body: NoteBody, session_token: str | None = Header(default=None, alias="X-Subform-Session")) -> dict:
+def add_gate_note(body: NoteBody, session_token: str | None = Header(default=None, alias="X-FormSubstrate-Session")) -> dict:
     try:
         gates.verify(body.session, session_token)
         return gates.add_note(body.model_dump())
@@ -142,7 +142,7 @@ def add_gate_note(body: NoteBody, session_token: str | None = Header(default=Non
 
 
 @router.get("/gates/waived")
-def gate_waived(session: str, path: str, slot: str, digest: str, session_token: str | None = Header(default=None, alias="X-Subform-Session")) -> dict:
+def gate_waived(session: str, path: str, slot: str, digest: str, session_token: str | None = Header(default=None, alias="X-FormSubstrate-Session")) -> dict:
     try:
         return gates.is_waived(session, session_token, path, slot, digest)
     except session_svc.Refused as err:
@@ -163,7 +163,7 @@ def answer_gate(gate_id: str, body: AnswerBody) -> dict:
 
 
 @router.get("/gates/{gate_id}/wait")
-async def wait_gate(gate_id: str, request: Request, timeout: float = 120, session_token: str | None = Header(default=None, alias="X-Subform-Session")) -> dict:
+async def wait_gate(gate_id: str, request: Request, timeout: float = 120, session_token: str | None = Header(default=None, alias="X-FormSubstrate-Session")) -> dict:
     try:
         gates.verify_gate(gate_id, session_token)
         return await gates.wait(gate_id, timeout, request)

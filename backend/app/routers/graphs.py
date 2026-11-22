@@ -14,7 +14,7 @@ from app.services.presets import store as preset_store
 
 router = APIRouter()
 
-FOLDER = ".subform/graphs"
+FOLDER = ".formsubstrate/graphs"
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$")
 BODY_MAX = 2 * 1024 * 1024
 

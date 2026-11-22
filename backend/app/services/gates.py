@@ -29,7 +29,7 @@ OPEN_PER_SESSION = 5
 OPEN_TOTAL = 50
 ABANDON_MARGIN = 30
 MESSAGE_BODY_MAX = 8000
-TOKEN_ENV = "SUBFORM_GATE_TOKEN"
+TOKEN_ENV = "FORMSUBSTRATE_GATE_TOKEN"
 WAIVERS_PER_SESSION = 200
 DIGEST_MAX = 128
 
@@ -173,10 +173,10 @@ def verify_gate(gate_id: str, token: str | None) -> None:
 
 def session_env(item: dict) -> dict[str, str]:
     env = {
-        "SUBFORM_ENGINE": engine_addr.base(),
-        "SUBFORM_SESSION": item["id"],
-        "SUBFORM_WORKTREE": item["worktree"],
-        "SUBFORM_REPO": item["repo"],
+        "FORMSUBSTRATE_ENGINE": engine_addr.base(),
+        "FORMSUBSTRATE_SESSION": item["id"],
+        "FORMSUBSTRATE_WORKTREE": item["worktree"],
+        "FORMSUBSTRATE_REPO": item["repo"],
         TOKEN_ENV: _mint(item["id"]),
     }
     found = formslot.binary()

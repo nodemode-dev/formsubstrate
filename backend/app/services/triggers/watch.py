@@ -2,7 +2,7 @@ import os
 import stat
 from pathlib import PurePosixPath
 
-SKIP = frozenset({".git", "node_modules", "__pycache__", ".venv", "venv", "target", "dist", ".subform"})
+SKIP = frozenset({".git", "node_modules", "__pycache__", ".venv", "venv", "target", "dist", ".formsubstrate", ".subform"})
 MAX_FILES = 6000
 
 

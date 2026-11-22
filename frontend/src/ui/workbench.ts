@@ -24,7 +24,7 @@ export const SIDEBAR_MAX = 600;
 export const SIDEBAR_DEFAULT = 280;
 export const FOCUS_EVENT = 'wb-focus';
 
-const STATE_KEY = 'subform.workbench';
+const STATE_KEY = 'formsubstrate.workbench';
 const KEY_STEP = 16;
 
 interface Panel {

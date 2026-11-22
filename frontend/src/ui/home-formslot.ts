@@ -62,7 +62,7 @@ export class HomeFormslot {
   constructor(private readonly store: WorkspaceStore, _commands: Commands, _d: HomeFormslotDeps) {
     this.field.addEventListener('submit', (e) => {
       e.preventDefault();
-      document.dispatchEvent(new CustomEvent('subform:open-settings', { detail: { section: 'formslot' } }));
+      document.dispatchEvent(new CustomEvent('formsubstrate:open-settings', { detail: { section: 'formslot' } }));
     });
     document.addEventListener(FORMSLOT_PATH_EVENT, () => this.schedule());
     this.go.addEventListener('click', () => { void this.launch(); });

@@ -19,7 +19,7 @@ export interface Block {
   data?: Record<string, unknown>;
 }
 
-export const BLOCKS_EVENT = 'subform:blocks-changed';
+export const BLOCKS_EVENT = 'formsubstrate:blocks-changed';
 
 const blocks = new Map<string, Block>();
 const listeners = new Set<() => void>();

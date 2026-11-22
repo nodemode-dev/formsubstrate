@@ -1,11 +1,11 @@
 import { emptyDoc, Engine, type ChangeEvent, type GraphDoc, type NodeStatus, type Origin, type ParseResult, type StatusEvent } from '../../engine';
 
-export const RUN_EVENT = 'subform:run-event';
-export const RUN_FINISHED = 'subform:run-finished';
-export const STUDIO_SELECT = 'subform:studio-select';
-export const STUDIO_GRAPHS_CHANGED = 'subform:studio-graphs-changed';
-export const STUDIO_OPEN = 'subform:studio-open';
-export const STUDIO_FILE = 'subform:studio-file';
+export const RUN_EVENT = 'formsubstrate:run-event';
+export const RUN_FINISHED = 'formsubstrate:run-finished';
+export const STUDIO_SELECT = 'formsubstrate:studio-select';
+export const STUDIO_GRAPHS_CHANGED = 'formsubstrate:studio-graphs-changed';
+export const STUDIO_OPEN = 'formsubstrate:studio-open';
+export const STUDIO_FILE = 'formsubstrate:studio-file';
 
 export interface RunEventDetail {
   node_id?: string;

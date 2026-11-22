@@ -81,7 +81,7 @@ const SYNC_MS = 300;
 const PULL_RETRY_MS = 1600;
 const IDLE_MS = 4000;
 const RETRY_MS = 5000;
-const TAG = /"method":\s*"subform\//;
+const TAG = /"method":\s*"formsubstrate\//;
 
 const extOf = (path: string): string => {
   const base = path.slice(path.lastIndexOf('/') + 1);
@@ -254,11 +254,11 @@ class Session {
     let msg: { method?: string; params?: Record<string, unknown> };
     try { msg = JSON.parse(data) as typeof msg; } catch { return; }
     const p = msg.params ?? {};
-    if (msg.method === 'subform/serverStarted') {
+    if (msg.method === 'formsubstrate/serverStarted') {
       this.name = String(p.name ?? '');
       this.version = typeof p.version === 'string' ? p.version : null;
       this.mgr.emit('state');
-    } else if (msg.method === 'subform/serverUnavailable') {
+    } else if (msg.method === 'formsubstrate/serverUnavailable') {
       this.error = String(p.error ?? '');
       this.install = Array.isArray(p.install) ? p.install.map(String) : [];
       this.set('unavailable');

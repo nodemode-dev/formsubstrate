@@ -10,7 +10,7 @@ export interface Approval {
   task: string;
 }
 
-export const APPROVALS_CHANGED = 'subform:approvals-changed';
+export const APPROVALS_CHANGED = 'formsubstrate:approvals-changed';
 
 export const approvalsApi = {
   list: (): Promise<{ approvals: Approval[] }> => request<{ approvals: Approval[] }>('/api/runs/approvals'),

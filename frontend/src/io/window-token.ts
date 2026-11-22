@@ -1,6 +1,6 @@
 import { ApiError, request } from './api';
 
-export const WINDOW_HEADER = 'X-Subform-Window';
+export const WINDOW_HEADER = 'X-FormSubstrate-Window';
 
 type Invoke = (command: string, args?: Record<string, unknown>) => Promise<unknown>;
 

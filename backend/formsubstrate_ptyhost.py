@@ -18,8 +18,8 @@ REPLAY_CHUNK = 65536
 MAX_FRAME = 16 * 1024 * 1024
 MIN_COLS, MIN_ROWS = 10, 4
 MAX_COLS, MAX_ROWS = 1000, 500
-IDLE_SECONDS = float(os.environ.get("SUBFORM_PTYHOST_IDLE", "600"))
-REAP_SECONDS = float(os.environ.get("SUBFORM_PTYHOST_REAP", "300"))
+IDLE_SECONDS = float(os.environ.get("FORMSUBSTRATE_PTYHOST_IDLE", "600"))
+REAP_SECONDS = float(os.environ.get("FORMSUBSTRATE_PTYHOST_REAP", "300"))
 ID_RE = re.compile(r"^[a-z0-9]{16}$")
 TAIL_LINES = 2000
 TAIL_BYTES = 256 * 1024
@@ -257,9 +257,9 @@ def data_dir() -> Path:
     args = sys.argv[1:]
     if "--data-dir" in args and args.index("--data-dir") + 1 < len(args):
         return Path(args[args.index("--data-dir") + 1])
-    raw = os.environ.get("SUBFORM_DATA_DIR")
+    raw = os.environ.get("FORMSUBSTRATE_DATA_DIR")
     if not raw:
-        sys.stderr.write("subform-ptyhost: no data folder (pass --data-dir)\n")
+        sys.stderr.write("formsubstrate-ptyhost: no data folder (pass --data-dir)\n")
         sys.exit(2)
     return Path(raw)
 

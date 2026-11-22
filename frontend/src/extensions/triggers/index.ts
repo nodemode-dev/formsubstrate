@@ -171,7 +171,7 @@ class TriggersPanel {
       this.inputs.value = '';
       this.problem = '';
       window.dispatchEvent(new Event(TRIGGERS_CHANGED));
-      if (made.secret && made.trigger.path) this.webhookDialog.show(made.trigger.path, 'X-Subform-Signature', made.secret);
+      if (made.secret && made.trigger.path) this.webhookDialog.show(made.trigger.path, 'X-FormSubstrate-Signature', made.secret);
       else toast(t('Trigger created'));
     } catch (err) {
       this.problem = detailOf(err);
@@ -253,7 +253,7 @@ class TriggersPanel {
     this.mode.setAttribute('aria-label', t('Run with'));
     setDisabled(this.add, !ws || this.busy || !this.recipe.value);
     patchList(this.list, this.rows, { key: (r) => r.id, create: (r) => { const n = this.makeRow(); this.update(n, r); return n; }, update: (n, r) => this.update(n, r) });
-    const msg = !ws ? t('Open a folder to use triggers.') : this.loaded && !this.rows.length ? t('No triggers. They run only while subform is open.') : '';
+    const msg = !ws ? t('Open a folder to use triggers.') : this.loaded && !this.rows.length ? t('No triggers. They run only while Substrate is open.') : '';
     setText(this.empty, msg);
     setHidden(this.empty, !msg);
     setText(this.note, this.problem || (ws && !this.known.length && this.loaded ? t('Install a recipe first; a trigger starts one.') : ''));
@@ -266,7 +266,7 @@ class TriggersPanel {
 register({
   id: 'triggers',
   name: 'Triggers',
-  description: 'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while subform is open.',
+  description: 'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while Substrate is open.',
   setup(ctx: ExtensionContext, shell: Shell): void {
     const announce = (): void => {
       const path = ctx.store.workspace?.path;

@@ -88,7 +88,7 @@ class SystemDialog extends Dialog {
       this.values.set(key, q(row, '.cv-note'));
       this.body.appendChild(row);
     }
-    this.body.appendChild(el(`<p class="cv-note">${t('The harness is the .subform folder of the workspace (graphs, recipes, skills, plugins, collections) as one JSON file you can share.')}</p>`));
+    this.body.appendChild(el(`<p class="cv-note">${t('The harness is the .formsubstrate folder of the workspace (graphs, recipes, skills, plugins, collections) as one JSON file you can share.')}</p>`));
     this.body.appendChild(this.file);
     this.button('Close', 'ghost', () => this.close());
     this.importBtn = this.button('Import harness', '', () => this.file.click());
@@ -129,7 +129,7 @@ class SystemDialog extends Dialog {
       const blob = new Blob([JSON.stringify(data.harness, null, 1)], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'subform-harness.json';
+      a.download = 'formsubstrate-harness.json';
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
       toast(`${t('Harness exported')}: ${Object.keys(data.harness.files).length}${data.skipped.length ? `, ${data.skipped.length} ${t('skipped')}` : ''}`);
@@ -153,7 +153,7 @@ class SystemDialog extends Dialog {
       if (!(await this.manifest.ask(preview, !!trust))) return;
       const r = await owner<{ written: number }>(`/api/harness/import${trust}`, { method: 'POST', body });
       toast(`${t('Harness imported')}: ${r.written}`);
-      window.dispatchEvent(new CustomEvent('subform:harness-imported'));
+      window.dispatchEvent(new CustomEvent('formsubstrate:harness-imported'));
       void this.refresh();
     } catch (e) {
       toast(`${t('The harness was not imported')}: ${e instanceof ApiError ? e.message : message(e)}`, 'error');

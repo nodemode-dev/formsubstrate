@@ -130,7 +130,7 @@ def listing(group: str) -> list[dict]:
             data = _json(path)
             if data is not None:
                 row = _graph_row(name, data)
-                row["installed"] = _has_workspace() and _installed(f".subform/graphs/{name}.json")
+                row["installed"] = _has_workspace() and _installed(f".formsubstrate/graphs/{name}.json")
                 out.append(row)
     elif group == "recipes":
         try:
@@ -147,7 +147,7 @@ def listing(group: str) -> list[dict]:
                 "version": str(meta.get("version", "")),
                 "kind": str(meta.get("kind", "plugin")),
                 "settings": len(meta.get("settings", []) or []),
-                "installed": _has_workspace() and _installed(f".subform/plugins/{name}.py"),
+                "installed": _has_workspace() and _installed(f".formsubstrate/plugins/{name}.py"),
             })
     else:
         for name, folder in _skill_dirs().items():
@@ -229,10 +229,10 @@ def install(group: str, name: str, replace: bool = False, trust: bool = False) -
             recipe = recipes.install_preset(name)
         except recipes.RecipeError as err:
             raise PresetError(err.status, err.detail) from err
-        return {"installed": f".subform/recipes/{name}.json", "recipe": recipe}
+        return {"installed": f".formsubstrate/recipes/{name}.json", "recipe": recipe}
     data = read(group, name)
     if group == "graphs":
-        rel = f".subform/graphs/{name}.json"
+        rel = f".formsubstrate/graphs/{name}.json"
         doc = data.get("doc") if isinstance(data, dict) else None
         if not isinstance(doc, dict):
             raise PresetError(404, "preset graph has no doc")
@@ -241,7 +241,7 @@ def install(group: str, name: str, replace: bool = False, trust: bool = False) -
     if group == "plugins":
         if not trust:
             raise PresetError(403, "trust the workspace to install a plugin")
-        rel = f".subform/plugins/{name}.py"
+        rel = f".formsubstrate/plugins/{name}.py"
         _write(_target(rel), data["source"], replace)
         return {"installed": rel}
     folder = _skill_dirs()[name]

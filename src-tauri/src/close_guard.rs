@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::{Emitter, Manager};
 
-pub const EVENT: &str = "subform://close-requested";
+pub const EVENT: &str = "formsubstrate://close-requested";
 
 #[derive(Default)]
 pub struct CloseGuard {

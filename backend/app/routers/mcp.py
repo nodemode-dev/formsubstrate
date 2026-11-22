@@ -10,7 +10,7 @@ router = APIRouter()
 
 BODY_MAX = 1024 * 1024
 BATCH_MAX = 20
-SESSION_HEADER = "x-subform-session"
+SESSION_HEADER = "x-formsubstrate-session"
 
 
 def _token(request: Request) -> str | None:
@@ -21,7 +21,7 @@ def _token(request: Request) -> str | None:
 
 
 def _problem(status: int, code: int, message: str, extra: dict | None = None) -> JSONResponse:
-    headers = {"WWW-Authenticate": 'Bearer realm="subform"'} if status == 401 else {}
+    headers = {"WWW-Authenticate": 'Bearer realm="formsubstrate"'} if status == 401 else {}
     headers.update(extra or {})
     return JSONResponse({"jsonrpc": "2.0", "id": None, "error": {"code": code, "message": message}}, status_code=status, headers=headers)
 
@@ -30,7 +30,7 @@ def _problem(status: int, code: int, message: str, extra: dict | None = None) ->
 async def mcp_post(request: Request) -> Response:
     token = _token(request)
     if not token:
-        return _problem(401, -32001, "send Authorization: Bearer <token>: the session token from SUBFORM_GATE_TOKEN, or the window token")
+        return _problem(401, -32001, "send Authorization: Bearer <token>: the session token from FORMSUBSTRATE_GATE_TOKEN, or the window token")
     who = mcp_tools.principal(token)
     if who is None:
         return _problem(403, -32001, "that token is not valid for this engine")

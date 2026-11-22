@@ -124,7 +124,7 @@ def terminal_env() -> dict[str, str]:
     env = inherited_env()
     env["TERM"] = "xterm-256color"
     env["COLORTERM"] = "truecolor"
-    env["SUBFORM_TERMINAL"] = "1"
+    env["FORMSUBSTRATE_TERMINAL"] = "1"
     return env
 
 
@@ -133,7 +133,7 @@ def find_mcp_config(cwd: str, session_id: str) -> str | None:
         return None
     base = Path(worktrees_root())
     if base.is_dir():
-        for found in base.glob(f"*/{session_id}/.subform/mcp.json"):
+        for found in base.glob(f"*/{session_id}/.formsubstrate/mcp.json"):
             return str(found)
     return None
 
@@ -351,7 +351,7 @@ async def launch(
         if kind == "claude":
             found = binres.find_bin("claude")
             if not found:
-                raise HTTPException(404, "the claude command was not found on this computer; install Claude Code or set SUBFORM_BIN_DIR")
+                raise HTTPException(404, "the claude command was not found on this computer; install Claude Code or set FORMSUBSTRATE_BIN_DIR")
             argv = [found]
             if session_id:
                 mcp = find_mcp_config(cwd, session_id)

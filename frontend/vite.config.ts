@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
 const FRONTEND_PORT = 5650;
-const BACKEND_PORT = Number(process.env.SUBFORM_BACKEND_PORT) || 5655;
+const BACKEND_PORT = Number(process.env.FORMSUBSTRATE_BACKEND_PORT) || 5655;
 
 export default defineConfig({
   root: '.',

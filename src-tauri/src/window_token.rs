@@ -1,4 +1,4 @@
-pub const ENV: &str = "SUBFORM_WINDOW_TOKEN";
+pub const ENV: &str = "FORMSUBSTRATE_WINDOW_TOKEN";
 
 pub struct WindowToken(String);
 

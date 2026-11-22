@@ -62,7 +62,7 @@ def _end_streams_on_signal() -> list[tuple[int, object]]:
 async def lifespan(_: FastAPI):
     data = config.data_dir()
     runtime.start_logging(data)
-    log = logging.getLogger("subform")
+    log = logging.getLogger("formsubstrate")
     log.info("%s", token_mode())
     for key in config.DEPRECATED_ENV:
         log.warning("environment variable %s is deprecated and will stop working in the next release; use %s%s (the new name wins when both are set)", key, config.NEW_ENV_PREFIX, key[len(config.OLD_ENV_PREFIX):])

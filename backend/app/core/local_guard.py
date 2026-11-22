@@ -5,8 +5,8 @@ from urllib.parse import urlsplit
 from fastapi import Header, HTTPException, Request
 
 LOOPBACK = {"127.0.0.1", "localhost", "::1"}
-WINDOW_HEADER = "X-Subform-Window"
-TOKEN_ENV = "SUBFORM_WINDOW_TOKEN"
+WINDOW_HEADER = "X-FormSubstrate-Window"
+TOKEN_ENV = "FORMSUBSTRATE_WINDOW_TOKEN"
 _given = os.environ.pop(TOKEN_ENV, "").strip()
 INJECTED = len(_given) >= 32
 WINDOW_TOKEN = _given if INJECTED else secrets.token_urlsafe(32)
@@ -70,7 +70,7 @@ class LocalGuard:
         if scope["type"] == "websocket":
             await send({"type": "websocket.close", "code": 4403})
             return
-        body = b'{"detail":"subform answers this computer\'s own window and agents only"}'
+        body = b'{"detail":"Substrate answers this computer\'s own window and agents only"}'
         await send({"type": "http.response.start", "status": 403, "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())]})
         await send({"type": "http.response.body", "body": body})
 

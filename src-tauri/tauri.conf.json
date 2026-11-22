@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "SubForm",
+  "productName": "Substrate",
   "version": "0.16.2",
-  "identifier": "ai.nodemode.subform",
+  "identifier": "ai.nodemode.formsubstrate",
   "build": {
     "frontendDist": "../frontend/dist",
     "devUrl": "http://localhost:5650",
@@ -12,7 +12,7 @@
     "windows": [
       {
         "label": "splash",
-        "title": "SubForm",
+        "title": "Substrate",
         "url": "splash.html",
         "width": 360,
         "height": 200,
@@ -33,8 +33,8 @@
     "active": true,
     "targets": "all",
     "category": "DeveloperTool",
-    "shortDescription": "Developer workbench for the Form family",
-    "longDescription": "subform is a code editor in the Form family shell that hosts Claude Code sessions, reviews and commits their work, and shows formslot.",
+    "shortDescription": "The Form family code and text editor, with agents built in",
+    "longDescription": "Substrate (FormSubstrate) is a code and text editor in the Form family shell that runs Claude Code sessions in their own git worktrees, reviews and commits their work, and shows formslot.",
     "copyright": "Copyright (C) 2026 NodeAgentc, Inc.",
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
     "macOS": {

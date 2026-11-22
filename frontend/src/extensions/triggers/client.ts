@@ -24,7 +24,7 @@ export interface TriggerList { workspace: string | null; open: boolean; triggers
 
 export interface NewTrigger { kind: TriggerKind; spec: Record<string, unknown>; action: Record<string, unknown> }
 
-export const TRIGGERS_CHANGED = 'subform:triggers-changed';
+export const TRIGGERS_CHANGED = 'formsubstrate:triggers-changed';
 
 const json = (body: unknown): RequestInit => ({ body: JSON.stringify(body) });
 

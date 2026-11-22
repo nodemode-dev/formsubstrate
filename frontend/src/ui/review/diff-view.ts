@@ -19,7 +19,7 @@ import { toast } from '../toast';
 import { paintProvenance, PROVENANCE_HTML } from './provenance';
 import type { EditorPrefs, ViewDoc } from './views';
 
-export const GIT_CHANGED = 'subform:git-changed';
+export const GIT_CHANGED = 'formsubstrate:git-changed';
 
 export type DiffMode = 'split' | 'unified';
 

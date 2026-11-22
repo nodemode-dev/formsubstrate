@@ -17,7 +17,7 @@ from app.services.library.paths import atomic_write, clean_name, library_dir
 from app.services.library.registry import Tool, tools
 
 PROTOCOL = "2024-11-05"
-SERVICE = "subform"
+SERVICE = "formsubstrate"
 FILE = "mcp-servers.json"
 ENV_ALLOW = frozenset({"PATH", "HOME", "LANG", "TMPDIR", "USER", "SHELL", "TERM", "SYSTEMROOT", "USERPROFILE", "APPDATA", "TEMP", "TMP"})
 RESULT_MAX = 20000
@@ -84,7 +84,7 @@ class _StdioSession:
 
     async def start(self) -> None:
         argv = shlex.split(self.command)
-        env = {k: v for k, v in os.environ.items() if (k in ENV_ALLOW or k.startswith("LC_") or k in self.env_names) and not k.startswith("SUBFORM_")}
+        env = {k: v for k, v in os.environ.items() if (k in ENV_ALLOW or k.startswith("LC_") or k in self.env_names) and not k.startswith("FORMSUBSTRATE_")}
         cwd = ws.current() or os.path.expanduser("~")
         self.proc = await asyncio.create_subprocess_exec(*argv, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL, env=env, cwd=cwd)
 
@@ -248,7 +248,7 @@ class McpClientManager:
         cfg = srv.config
         tools.unregister_source(f"mcp:{name}")
         headers = _secret_headers(name)
-        info = {"name": "subform", "version": config.VERSION}
+        info = {"name": "formsubstrate", "version": config.VERSION}
         try:
             if cfg.transport == "stdio":
                 if srv.stdio:

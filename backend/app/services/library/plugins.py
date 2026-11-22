@@ -15,7 +15,7 @@ from app.services.library.paths import atomic_write, workspace_dir
 from app.services.library.registry import Host, tools
 
 BUNDLED = Path(__file__).resolve().parent / "bundled"
-SERVICE = "subform"
+SERVICE = "formsubstrate"
 DISABLED_KEY = "plugins_disabled"
 SETTINGS_NAME = "plugin_settings.json"
 VALUE_MAX = 4096
@@ -122,7 +122,7 @@ def _values(plugin: str, schema: list) -> dict:
 
 def _load_one(py: Path, origin: str) -> PluginInfo:
     source = f"plugin:{py.stem}"
-    modname = f"subform_plugin_{origin}_{py.stem}"
+    modname = f"formsubstrate_plugin_{origin}_{py.stem}"
     info = PluginInfo(name=py.stem, description="", path=str(py), origin=origin)
     try:
         spec = importlib.util.spec_from_file_location(modname, py)

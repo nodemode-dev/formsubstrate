@@ -1,12 +1,12 @@
 @echo off
 setlocal
 cd /d "%~dp0.."
-echo [subform] installing backend
+echo [formsubstrate] installing backend
 pushd backend
 call oc_install.bat || ( popd & exit /b 1 )
 popd
-echo [subform] installing frontend
+echo [formsubstrate] installing frontend
 pushd frontend
 call oc_install.bat || ( popd & exit /b 1 )
 popd
-echo [subform] done. Boot with subform.bat
+echo [formsubstrate] done. Boot with formsubstrate.bat

@@ -1,8 +1,8 @@
 {
-  "name": "subform",
+  "name": "formsubstrate",
   "private": true,
   "version": "0.16.2",
-  "description": "subform · the Form family developer workbench",
+  "description": "FormSubstrate · Substrate, the Form family code and text editor with agents built in",
   "license": "GPL-3.0-only",
   "type": "module",
   "engines": {

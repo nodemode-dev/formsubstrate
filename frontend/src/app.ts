@@ -63,11 +63,11 @@ import './extensions/studio';
 import { installPreview, type PreviewApi } from './ui/preview/index';
 import { workspace as store } from './ui/workspace-store';
 
-const APP = 'subform';
+const APP = 'Substrate';
 const FONT_WAIT_MS = 2500;
 const ENGINE_POLL_MS = 15000;
 const UI_ZOOMS = [0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
-const CUSTOM_TITLE_KEY = 'subform.customTitleBar';
+const CUSTOM_TITLE_KEY = 'formsubstrate.customTitleBar';
 const TEXT_EDITS = new Set(['undo', 'redo', 'cut', 'copy', 'paste', 'select-all']);
 const isTauri = (): boolean => '__TAURI_INTERNALS__' in window;
 
@@ -143,7 +143,7 @@ class AboutDialog extends Dialog {
   private readonly dataDir = el('<p class="cv-note"></p>');
 
   constructor() {
-    super('About subform', 380);
+    super('About Substrate', 380);
     const head = el(`<div class="cv-about-head">${brandMark(40)}<span class="cv-about-name">${APP}</span></div>`);
     this.body.append(head, this.version, this.engine, this.dataDir);
     this.foot.append(this.button('Close', 'primary', () => this.close()));
@@ -296,7 +296,7 @@ export async function startApp(): Promise<void> {
     { id: 'minimize', label: 'Minimize', keys: ['Mod+M'], enabled: isTauri, run: () => { void useWindow((w) => w.minimize()); } },
     { id: 'zoom', label: 'Zoom', enabled: isTauri, run: () => { void useWindow((w) => w.toggleMaximize()); } },
     soon({ id: 'help', label: 'Help', keys: ['F1'], run: () => undefined }),
-    { id: 'about', label: 'About subform', run: () => about.show() },
+    { id: 'about', label: 'About Substrate', run: () => about.show() },
     soon({ id: 'report-issue', label: 'Report an Issue...', run: () => undefined }),
     { id: 'toggle-sidebar', label: 'Toggle Side Bar', keys: ['Mod+B'], run: () => wb.toggleSidebar() },
     { id: 'toggle-right-panel', label: 'Toggle Right Panel', keys: ['Alt+Mod+B'], checked: () => wb.rightVisible, run: () => wb.toggleRight() },
@@ -452,7 +452,7 @@ export async function startApp(): Promise<void> {
     applyUiZoom();
     syncChrome();
   });
-  window.addEventListener('subform:ui-zoom', () => { applyUiZoom(); syncChrome(); });
+  window.addEventListener('formsubstrate:ui-zoom', () => { applyUiZoom(); syncChrome(); });
 
   const refreshEngine = async (): Promise<void> => {
     try {

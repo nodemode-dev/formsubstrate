@@ -8,7 +8,7 @@ import { icon } from '../../ui/icons';
 import { FOCUS_EVENT } from '../../ui/workbench';
 import { register, type ExtensionContext, type Shell } from '../registry';
 
-export const LSP_STATUS_EVENT = 'subform:lsp-status';
+export const LSP_STATUS_EVENT = 'formsubstrate:lsp-status';
 
 export interface LspStatusDetail {
   text: string;
@@ -296,7 +296,7 @@ register({
       last = key;
       window.dispatchEvent(new CustomEvent<LspStatusDetail>(LSP_STATUS_EVENT, { detail }));
     };
-    window.addEventListener('subform:lsp-servers', () => { ctx.commands.run('lsp-servers'); });
+    window.addEventListener('formsubstrate:lsp-servers', () => { ctx.commands.run('lsp-servers'); });
     lsp.on('state', publish);
     lsp.on('diagnostics', publish);
     ctx.store.on('active', publish);

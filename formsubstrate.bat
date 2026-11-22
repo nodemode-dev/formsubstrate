@@ -12,16 +12,16 @@ if /i "%CMD%"=="frontend" ( call setup\boot_frontend.bat & exit /b )
 if /i "%CMD%"=="serve" ( call setup\serve.bat & exit /b )
 if /i "%CMD%"=="doctor" ( call setup\doctor.bat & exit /b )
 if /i "%CMD%"=="mcp" (
-  if exist "backend\venv\Scripts\python.exe" ( "backend\venv\Scripts\python.exe" backend\subform_mcp.py ) else ( python backend\subform_mcp.py )
+  if exist "backend\venv\Scripts\python.exe" ( "backend\venv\Scripts\python.exe" backend\formsubstrate_mcp.py ) else ( python backend\formsubstrate_mcp.py )
   exit /b
 )
 if /i "%CMD%"=="clean" ( call setup\clean.bat %ARG% & exit /b )
 if /i "%CMD%"=="help" (
-  echo subform.bat [command]
+  echo formsubstrate.bat [command]
   echo   boot ^| install ^| backend ^| frontend ^| serve ^| doctor ^| mcp ^| clean [--all] ^| help
   exit /b 0
 )
-echo [subform] unknown command: %CMD%
-echo subform.bat [command]
+echo [formsubstrate] unknown command: %CMD%
+echo formsubstrate.bat [command]
 echo   boot ^| install ^| backend ^| frontend ^| serve ^| doctor ^| mcp ^| clean [--all] ^| help
 exit /b 2

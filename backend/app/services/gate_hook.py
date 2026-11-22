@@ -99,8 +99,8 @@ def swap(value, source, target):
 
 
 def remap(event):
-    source = os.environ.get("SUBFORM_WORKTREE", "")
-    target = os.environ.get("SUBFORM_REPO", "")
+    source = os.environ.get("FORMSUBSTRATE_WORKTREE", "")
+    target = os.environ.get("FORMSUBSTRATE_REPO", "")
     if not source or not target:
         return event
     moved = json.loads(json.dumps(event))
@@ -112,7 +112,7 @@ def remap(event):
 
 
 def engine_base():
-    base = os.environ.get("SUBFORM_ENGINE", "")
+    base = os.environ.get("FORMSUBSTRATE_ENGINE", "")
     if base:
         return base
     data = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -125,7 +125,7 @@ def engine_base():
 
 def call(method, url, body=None, timeout=10):
     data = json.dumps(body).encode("utf-8") if body is not None else None
-    request = urllib.request.Request(url, data=data, method=method, headers={"Content-Type": "application/json", "X-Subform-Session": os.environ.get("SUBFORM_GATE_TOKEN", "")})
+    request = urllib.request.Request(url, data=data, method=method, headers={"Content-Type": "application/json", "X-FormSubstrate-Session": os.environ.get("FORMSUBSTRATE_GATE_TOKEN", "")})
     with OPENER.open(request, timeout=timeout) as reply:
         return json.loads(reply.read().decode("utf-8"))
 
@@ -135,7 +135,7 @@ def here():
 
 
 def trail(text):
-    line = "%s %s %s" % (time.strftime("%Y-%m-%dT%H:%M:%S"), os.environ.get("SUBFORM_SESSION", "-"), " ".join(text.split())[:600])
+    line = "%s %s %s" % (time.strftime("%Y-%m-%dT%H:%M:%S"), os.environ.get("FORMSUBSTRATE_SESSION", "-"), " ".join(text.split())[:600])
     try:
         target = os.path.join(here(), "sf_gate.log")
         if os.path.exists(target) and os.path.getsize(target) > 1048576:
@@ -145,7 +145,7 @@ def trail(text):
     except OSError:
         pass
     try:
-        sys.stderr.write("subform gate: " + line + "\n")
+        sys.stderr.write("Substrate gate: " + line + "\n")
     except OSError:
         pass
 
@@ -162,17 +162,17 @@ def flush_notes():
     except OSError:
         return
     base = engine_base()
-    session = os.environ.get("SUBFORM_SESSION", "")
+    session = os.environ.get("FORMSUBSTRATE_SESSION", "")
     if not base or not session:
         return
-    root = os.path.normpath(os.environ.get("SUBFORM_WORKTREE", ""))
+    root = os.path.normpath(os.environ.get("FORMSUBSTRATE_WORKTREE", ""))
     for why, shown, tool_name, short in STATE["pending"]:
         left = STATE["host"] - (time.monotonic() - STATE["start"])
         if left < NOTE_MIN_LEFT or not shown:
             return
         rel = os.path.relpath(shown, root) if root != "." and os.path.normpath(shown).startswith(root + os.sep) else shown
         try:
-            call("POST", base + "/api/gates/notes", {"session": session, "tool": tool_name, "path": rel, "kind": "skipped", "reason": short[:200], "slot": "", "message": ("subform could not ask for this write: " + why)[:3000]}, timeout=min(2, left - 1))
+            call("POST", base + "/api/gates/notes", {"session": session, "tool": tool_name, "path": rel, "kind": "skipped", "reason": short[:200], "slot": "", "message": ("Substrate could not ask for this write: " + why)[:3000]}, timeout=min(2, left - 1))
         except (OSError, ValueError, urllib.error.URLError):
             pass
 
@@ -272,7 +272,7 @@ def judge(binary, payload, tool_name, shown, deadline):
     slots = [{"id": m.group(1), "path": m.group(2), "line": int(m.group(3))} for m in SLOT_RE.finditer(context)]
     slots += [{"id": m.group(1), "path": m.group(2), "line": int(m.group(3))} for m in UNIT_RE.finditer(context)]
     base = engine_base()
-    session = os.environ.get("SUBFORM_SESSION", "")
+    session = os.environ.get("FORMSUBSTRATE_SESSION", "")
     if not slots:
         return ("raw", text)
     if not base or not session:
@@ -282,7 +282,7 @@ def judge(binary, payload, tool_name, shown, deadline):
     if waived(base, session, shown, slots[0]["id"], mark):
         return None
     try:
-        wait = max(1, min(WAIT_MAX, int(os.environ.get("SUBFORM_GATE_TIMEOUT", WAIT_DEFAULT))))
+        wait = max(1, min(WAIT_MAX, int(os.environ.get("FORMSUBSTRATE_GATE_TIMEOUT", WAIT_DEFAULT))))
     except ValueError:
         wait = WAIT_DEFAULT
     wait = min(wait, int(deadline - time.monotonic()))
@@ -1737,7 +1737,7 @@ def walk(text, ctx, depth):
 
 
 def work_root(event):
-    root = os.environ.get("SUBFORM_WORKTREE", "")
+    root = os.environ.get("FORMSUBSTRATE_WORKTREE", "")
     if root:
         return root
     cwd = event.get("cwd")
@@ -1748,7 +1748,7 @@ def inside(path, root):
     for base in {os.path.normpath(root), os.path.realpath(root)}:
         if path == base or path.startswith(base + os.sep):
             rel = os.path.relpath(path, base)
-            return rel.split(os.sep)[0] not in (".git", ".subform") and rel != "."
+            return rel.split(os.sep)[0] not in (".git", ".formsubstrate") and rel != "."
     return False
 
 
@@ -1799,7 +1799,7 @@ def worktree_state(root):
         code, rel = item[:2], item[3:]
         if code[0] in "RC":
             k += 1
-        if rel.split("/")[0] in (".git", ".subform"):
+        if rel.split("/")[0] in (".git", ".formsubstrate"):
             continue
         try:
             info = os.lstat(os.path.join(root, rel))
@@ -1939,7 +1939,7 @@ def post_bash(event, binary):
     if not lines:
         return
     base = engine_base()
-    session = os.environ.get("SUBFORM_SESSION", "")
+    session = os.environ.get("FORMSUBSTRATE_SESSION", "")
     for rel, slot, message in found:
         if not base or not session or time.monotonic() - start > POST_BUDGET + 0.3:
             break

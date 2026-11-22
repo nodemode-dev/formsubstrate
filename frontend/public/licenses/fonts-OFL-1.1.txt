@@ -1,4 +1,4 @@
-Fonts shipped with subform: Inter and JetBrains Mono (via @fontsource/inter and @fontsource/jetbrains-mono 5.3.0)
+Fonts shipped with Substrate: Inter and JetBrains Mono (via @fontsource/inter and @fontsource/jetbrains-mono 5.3.0)
 
 Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)
 Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)

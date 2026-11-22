@@ -13,7 +13,7 @@ import { FOCUS_EVENT } from '../../ui/workbench';
 import { lazyPanel, register, type ExtensionContext, type Shell, type SidebarSection } from '../registry';
 
 const DEBOUNCE_MS = 260;
-const OFFERED_KEY = 'subform.formslot.offered';
+const OFFERED_KEY = 'formsubstrate.formslot.offered';
 
 const DRIFT_LABEL: Record<string, string> = {
   clean: 'in sync',
@@ -518,7 +518,7 @@ const CARD_ROW = '<button class="cv-fsc-row" type="button"><span class="cv-fs-ch
 const CARD_SLOT_BATCH = 5;
 const CARD_CACHE_MAX = 64;
 const CARD_DETAILS_MAX = 256;
-const FILES_CHANGED = 'subform:git-changed';
+const FILES_CHANGED = 'formsubstrate:git-changed';
 
 function remember<V>(map: Map<string, V>, key: string, value: V, max: number): void {
   map.delete(key);

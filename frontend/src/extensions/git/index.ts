@@ -7,11 +7,11 @@ import { icon } from '../../ui/icons';
 import { FOCUS_EVENT } from '../../ui/workbench';
 import { lazyPanel, register, type ExtensionContext, type Shell, type SidebarSection } from '../registry';
 
-export const GIT_CHANGED = 'subform:git-changed';
-export const OPEN_DIFF = 'subform:open-diff';
-export const OPEN_REVIEW = 'subform:open-review';
-export const GIT_SYNC = 'subform:git-sync';
-export const FOCUS_COMMIT = 'subform:focus-commit';
+export const GIT_CHANGED = 'formsubstrate:git-changed';
+export const OPEN_DIFF = 'formsubstrate:open-diff';
+export const OPEN_REVIEW = 'formsubstrate:open-review';
+export const GIT_SYNC = 'formsubstrate:git-sync';
+export const FOCUS_COMMIT = 'formsubstrate:focus-commit';
 
 export interface GitSync { branch: string; ahead: number; behind: number; upstream: string }
 
@@ -58,7 +58,7 @@ const clock = (iso: string): string => {
 
 interface Done { commit: string; summary: string; audit: Audit; identitySource?: string }
 
-const IDENTITY_SOURCE: Record<string, string> = { subform: 'Preferences', git: 'global git config', none: 'none' };
+const IDENTITY_SOURCE: Record<string, string> = { formsubstrate: 'Preferences', git: 'global git config', none: 'none' };
 
 class GitPanel {
   private readonly target: HTMLSelectElement;
@@ -150,8 +150,8 @@ class GitPanel {
     this.flagFix = q<HTMLButtonElement>(host, '.cv-sc-flag-fix');
     this.identCard = q(host, '.cv-sc-identcard');
     this.flaggedNote = q(host, '.cv-sc-flagged');
-    q(host, '.cv-sc-ident-set').addEventListener('click', () => { document.dispatchEvent(new CustomEvent('subform:open-settings', { detail: { section: 'Git and Identity' } })); });
-    document.addEventListener('subform:identity-changed', () => { void this.loadIdentity(); });
+    q(host, '.cv-sc-ident-set').addEventListener('click', () => { document.dispatchEvent(new CustomEvent('formsubstrate:open-settings', { detail: { section: 'Git and Identity' } })); });
+    document.addEventListener('formsubstrate:identity-changed', () => { void this.loadIdentity(); });
     void this.loadIdentity();
 
     this.target.addEventListener('change', () => this.retarget(this.target.value || null));
@@ -411,7 +411,7 @@ class GitPanel {
   }
 
   private paintIdent(): void {
-    const show = this.identSource !== null && this.identSource !== 'subform' && !this.checkText && !this.done && this.flagged.length === 0;
+    const show = this.identSource !== null && this.identSource !== 'formsubstrate' && !this.checkText && !this.done && this.flagged.length === 0;
     setHidden(this.identCard, !show);
     if (!show) return;
     const none = this.identSource === 'none';

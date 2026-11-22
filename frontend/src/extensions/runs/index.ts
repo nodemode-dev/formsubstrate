@@ -12,7 +12,7 @@ import { RUN_EVENT, studio } from '../../ui/studio/api';
 import { toast } from '../../ui/toast';
 import { lazyPanel, register, type ExtensionContext, type Shell } from '../registry';
 
-const MODE_KEY = 'subform.runs.mode';
+const MODE_KEY = 'formsubstrate.runs.mode';
 const LIST_MS = 3000;
 const DETAIL_MS = 300;
 const EVENT_CAP = 300;

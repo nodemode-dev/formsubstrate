@@ -98,7 +98,7 @@ async function done(name: string, mtime: number, warnings: string[], previous: s
 }
 
 export async function removeSaved(name: string): Promise<boolean> {
-  if (!(await confirmAction(t('Delete graph'), `${name} ${t('will be removed from .subform/graphs.')}`, t('Delete'), true))) return false;
+  if (!(await confirmAction(t('Delete graph'), `${name} ${t('will be removed from .formsubstrate/graphs.')}`, t('Delete'), true))) return false;
   try {
     await deleteSavedGraph(name);
     if (studio.fileName === name) studio.setFile(null);

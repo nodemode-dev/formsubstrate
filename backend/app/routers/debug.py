@@ -45,25 +45,25 @@ async def refuse(socket: WebSocket, event: str, body: dict, code: int) -> None:
 async def debug_ws(socket: WebSocket) -> None:
     await socket.accept()
     if debug.slot.busy:
-        await refuse(socket, "subform/busy", {"message": "a debug session is already running"}, CLOSE_BUSY)
+        await refuse(socket, "formsubstrate/busy", {"message": "a debug session is already running"}, CLOSE_BUSY)
         return
     debug.slot.busy = True
     adapter: debug.Adapter | None = None
     try:
         root = current_root()
         if root is None:
-            await refuse(socket, "subform/unavailable", {"message": "no workspace is open"}, CLOSE_UNAVAILABLE)
+            await refuse(socket, "formsubstrate/unavailable", {"message": "no workspace is open"}, CLOSE_UNAVAILABLE)
             return
         trust = socket.query_params.get("trust") == "1"
         found = await run_in_threadpool(debug.resolve_python, root, trust)
         if found["adapter"] is None or found["debuggee"] is None:
             info = debug.describe(root, found)["adapters"][0]
-            await refuse(socket, "subform/unavailable", {"message": info["note"], "install": info["install"]}, CLOSE_UNAVAILABLE)
+            await refuse(socket, "formsubstrate/unavailable", {"message": info["note"], "install": info["install"]}, CLOSE_UNAVAILABLE)
             return
         try:
             adapter = await debug.spawn(found["adapter"]["python"], root)
         except OSError as err:
-            await refuse(socket, "subform/unavailable", {"message": str(err)}, CLOSE_UNAVAILABLE)
+            await refuse(socket, "formsubstrate/unavailable", {"message": str(err)}, CLOSE_UNAVAILABLE)
             return
         debug.slot.adapter = adapter
         await relay(socket, adapter, root, found["debuggee"])
@@ -106,12 +106,12 @@ async def relay(socket: WebSocket, adapter: debug.Adapter, root: str, python: st
             try:
                 message = await adapter.receive()
             except debug.HeaderTooLong as err:
-                await socket.send_text(notice("subform/adapterError", {"message": str(err)}))
+                await socket.send_text(notice("formsubstrate/adapterError", {"message": str(err)}))
                 await socket.close(CLOSE_ERROR)
                 return
             if message is None:
                 tail = adapter.tail.decode("utf-8", "replace").strip()
-                await socket.send_text(notice("subform/adapterExited", {"stderr": tail}))
+                await socket.send_text(notice("formsubstrate/adapterExited", {"stderr": tail}))
                 return
             if message.get("type") == "event" and message.get("event") == "process":
                 pid = (message.get("body") or {}).get("systemProcessId")

@@ -28,7 +28,7 @@ const DEBOUNCE_MS = 140;
 const SLOW_MS = 250;
 const RETRY_MS = 1200;
 const RETRIES = 5;
-export const PALETTE_CHORD = 'subform:palette-chord';
+export const PALETTE_CHORD = 'formsubstrate:palette-chord';
 
 export class CommandPalette extends Dialog {
   private readonly input = el<HTMLInputElement>('<input class="cv-input" type="search" placeholder="Search commands" aria-label="Search commands" spellcheck="false" autocomplete="off">');

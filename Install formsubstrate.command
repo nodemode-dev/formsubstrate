@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 cd "$(dirname "$0")" || exit 1
-echo "Installing subform. This can take a few minutes."
+echo "Installing Substrate. This can take a few minutes."
 echo
-if ./subform_oc_install; then
+if ./formsubstrate_oc_install; then
   echo
-  printf "subform is installed. Start it now? [Y/n] "
+  printf "Substrate is installed. Start it now? [Y/n] "
   read -r answer
   case "${answer:-y}" in
-    [Yy]*) ./subform ;;
-    *) echo "Start it any time with ./subform in this folder." ;;
+    [Yy]*) ./formsubstrate ;;
+    *) echo "Start it any time with ./formsubstrate in this folder." ;;
   esac
 else
   echo

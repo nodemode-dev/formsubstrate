@@ -3,7 +3,7 @@ import { el, q, setClass, setText } from '../../ui/dom';
 import { t } from '../../ui/i18n';
 import { toast } from '../../ui/toast';
 
-export const TOOLS_CHANGED = 'subform:tools-changed';
+export const TOOLS_CHANGED = 'formsubstrate:tools-changed';
 
 export function toolsChanged(): void {
   window.dispatchEvent(new Event(TOOLS_CHANGED));
