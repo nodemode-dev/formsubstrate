@@ -54,6 +54,7 @@ def selfcheck() -> int:
     try:
         import app.main
         import app.services.gate_hook
+        import formsubstrate_mcp
         import formsubstrate_ptyhost
 
         info["app"] = "ok"
@@ -141,6 +142,13 @@ def main() -> int:
         import formsubstrate_ptyhost
 
         return formsubstrate_ptyhost.main() or 0
+    if "--mcp" in sys.argv:
+        from app.core import runtime
+
+        runtime.apply_switches([arg for arg in sys.argv[1:] if arg != "--mcp"])
+        import formsubstrate_mcp
+
+        return formsubstrate_mcp.main() or 0
     from app.core import runtime
 
     runtime.apply_switches(sys.argv[1:])

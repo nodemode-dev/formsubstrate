@@ -16,6 +16,7 @@ usage: ./formsubstrate [command] [options]
   doctor              check the toolchain, installs and ports
   i18n                check the interface language tables
   mcp                 the stdio MCP server for agents (forwards to the running engine)
+  agents sync [--check]  write the MCP tool reference for agents from the engine's tools (--check: fail if it differs)
   clean [--all]       remove build output (--all also venv and node_modules)
   version             the version and build (also --version)
   help                this text
@@ -35,6 +36,7 @@ case "$cmd" in
     py=backend/venv/bin/python
     [ -x "$py" ] || py="$(command -v python3 || command -v python)"
     exec "$py" backend/formsubstrate_mcp.py "$@" ;;
+  agents) exec setup/agents "$@" ;;
   clean) exec setup/clean "$@" ;;
   version|--version|-V)
     printf 'formsubstrate %s' "$(version)"

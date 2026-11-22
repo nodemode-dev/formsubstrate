@@ -42,7 +42,7 @@ pyinstaller --noconfirm --clean --onedir --name formsubstrate-engine \
   --add-data "$FORMSUBSTRATE_ROOT/backend/skills${sep}skills" \
   --collect-submodules app --collect-submodules uvicorn --collect-submodules keyring \
   --copy-metadata keyring \
-  --hidden-import formsubstrate_ptyhost --hidden-import ptyprocess \
+  --hidden-import formsubstrate_ptyhost --hidden-import formsubstrate_mcp --hidden-import ptyprocess \
   --hidden-import app.services.gate_hook \
   --exclude-module tkinter \
   ${extra[@]+"${extra[@]}"} \
