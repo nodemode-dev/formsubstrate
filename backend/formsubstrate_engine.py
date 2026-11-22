@@ -1,7 +1,16 @@
-import glob
-import json
 import os
 import sys
+
+if sys.stdin is None:
+    sys.stdin = open(os.devnull, encoding="utf-8")
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w", encoding="utf-8")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w", encoding="utf-8")
+
+import glob
+import json
+import logging
 import threading
 import time
 
@@ -56,23 +65,25 @@ def selfcheck() -> int:
     return 0 if all(not str(value).startswith("missing") for value in info.values()) else 1
 
 
-def watch_parent() -> None:
-    if os.name != "posix":
-        return
-    parent = os.getppid()
-    if parent <= 1:
+def watch_parent(data) -> None:
+    from app.core import runtime, startup
+
+    shell = startup.shell_pid()
+    if not shell and os.name == "posix":
+        shell = os.getppid()
+    if shell <= 1:
         return
     import shutil
 
-    def run() -> None:
-        while os.getppid() == parent:
-            time.sleep(2)
+    def leave() -> None:
+        logging.getLogger("formsubstrate").info("the app that started this engine is gone (process %s), stopping", shell)
+        runtime.release(data)
         unpacked = getattr(sys, "_MEIPASS", "")
-        if os.path.basename(unpacked).startswith("_MEI"):
+        if os.name == "posix" and os.path.basename(unpacked).startswith("_MEI"):
             shutil.rmtree(unpacked, ignore_errors=True)
         os._exit(0)
 
-    threading.Thread(target=run, name="formsubstrate-parent-watch", daemon=True).start()
+    startup.watch(shell, leave)
 
 
 def sweep_stale_unpacks() -> None:
@@ -140,7 +151,7 @@ def main() -> int:
     except runtime.AlreadyRunning as err:
         print(err, file=sys.stderr)
         return 2
-    watch_parent()
+    watch_parent(config.data_dir())
     sweep_stale_unpacks()
     bundled = os.path.join(resource_dir(), "frontend_dist")
     if os.path.isdir(bundled):
