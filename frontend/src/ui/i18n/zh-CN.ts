@@ -34,7 +34,7 @@ export const zhCN: Record<string, string> = {
   'Call graph': '调用图', 'Call tool': '调用工具', 'Cancel': '取消', 'Cannot check the signature': '无法检查签名',
   'Cannot open': '无法打开', 'Canvas and JSON': '画布和 JSON', 'Canvas only': '仅画布', 'Cards': '卡片', 'Catalog verified': '目录已验证',
   'Changed since opened: save or undo your edits to refresh.': '打开后已更改：请保存或撤销你的编辑以刷新。',
-  'Changes': '修改', 'Changes by turn': '按轮次的更改', 'Channel': '频道', 'Channel settings': '频道设置', 'Channels': '频道',
+  'Changes': '更改', 'Changes by turn': '按轮次的更改', 'Channel': '频道', 'Channel settings': '频道设置', 'Channels': '频道',
   'Checking for debugpy': '正在检查 debugpy', 'Checking formslot': '正在检查 formslot', 'Checkout or binary': '检出目录或二进制文件', 'Choose a folder': '选择文件夹',
   'Classic': '经典', 'Claude': 'Claude', 'Claude CLI: not found': 'Claude CLI：未找到', 'Claude Code': 'Claude Code',
   'Claude Code (terminal CLI)': 'Claude Code（终端 CLI）',

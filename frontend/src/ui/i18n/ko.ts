@@ -34,7 +34,7 @@ export const ko: Record<string, string> = {
   'Call graph': '호출 그래프', 'Call tool': '도구 호출', 'Cancel': '취소', 'Cannot check the signature': '서명을 확인할 수 없음',
   'Cannot open': '열 수 없음', 'Canvas and JSON': '캔버스 및 JSON', 'Canvas only': '캔버스만', 'Cards': '카드', 'Catalog verified': '카탈로그 확인됨',
   'Changed since opened: save or undo your edits to refresh.': '연 후에 변경되었습니다. 새로 고치려면 편집 내용을 저장하거나 실행 취소하세요.',
-  'Changes': '변경됨', 'Changes by turn': '턴별 변경 사항', 'Channel': '채널', 'Channel settings': '채널 설정', 'Channels': '채널',
+  'Changes': '변경 사항', 'Changes by turn': '턴별 변경 사항', 'Channel': '채널', 'Channel settings': '채널 설정', 'Channels': '채널',
   'Checking for debugpy': 'debugpy 확인 중', 'Checking formslot': 'formslot 확인 중', 'Checkout or binary': '체크아웃 또는 바이너리', 'Choose a folder': '폴더 선택',
   'Classic': '클래식', 'Claude': 'Claude', 'Claude CLI: not found': 'Claude CLI: 찾을 수 없음', 'Claude Code': 'Claude Code',
   'Claude Code (terminal CLI)': 'Claude Code(터미널 CLI)',

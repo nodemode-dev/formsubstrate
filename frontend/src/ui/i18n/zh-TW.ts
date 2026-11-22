@@ -34,7 +34,7 @@ export const zhTW: Record<string, string> = {
   'Call graph': '呼叫圖', 'Call tool': '呼叫工具', 'Cancel': '取消', 'Cannot check the signature': '無法檢查簽章',
   'Cannot open': '無法開啟', 'Canvas and JSON': '畫布和 JSON', 'Canvas only': '僅畫布', 'Cards': '卡片', 'Catalog verified': '目錄已驗證',
   'Changed since opened: save or undo your edits to refresh.': '開啟後已變更：請儲存或復原您的編輯以重新整理。',
-  'Changes': '修改', 'Changes by turn': '各輪次的變更', 'Channel': '頻道', 'Channel settings': '頻道設定', 'Channels': '頻道',
+  'Changes': '變更', 'Changes by turn': '各輪次的變更', 'Channel': '頻道', 'Channel settings': '頻道設定', 'Channels': '頻道',
   'Checking for debugpy': '正在檢查 debugpy', 'Checking formslot': '正在檢查 formslot', 'Checkout or binary': '簽出目錄或二進位檔', 'Choose a folder': '選擇資料夾',
   'Classic': '經典', 'Claude': 'Claude', 'Claude CLI: not found': 'Claude CLI：找不到', 'Claude Code': 'Claude Code',
   'Claude Code (terminal CLI)': 'Claude Code（終端機 CLI）',

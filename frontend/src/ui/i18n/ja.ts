@@ -34,7 +34,7 @@ export const ja: Record<string, string> = {
   'Call graph': 'コール グラフ', 'Call tool': 'ツールを呼び出す', 'Cancel': 'キャンセル', 'Cannot check the signature': '署名を確認できません',
   'Cannot open': '開けません', 'Canvas and JSON': 'キャンバスと JSON', 'Canvas only': 'キャンバスのみ', 'Cards': 'カード', 'Catalog verified': 'カタログを検証済み',
   'Changed since opened: save or undo your edits to refresh.': '開いた後に変更されました。更新するには、編集を保存するか元に戻してください。',
-  'Changes': '変更あり', 'Changes by turn': 'ターンごとの変更', 'Channel': 'チャンネル', 'Channel settings': 'チャンネルの設定', 'Channels': 'チャンネル',
+  'Changes': '変更', 'Changes by turn': 'ターンごとの変更', 'Channel': 'チャンネル', 'Channel settings': 'チャンネルの設定', 'Channels': 'チャンネル',
   'Checking for debugpy': 'debugpy を確認しています', 'Checking formslot': 'formslot を確認しています', 'Checkout or binary': 'チェックアウトまたはバイナリ', 'Choose a folder': 'フォルダーを選択',
   'Classic': 'クラシック', 'Claude': 'Claude', 'Claude CLI: not found': 'Claude CLI: 見つかりません', 'Claude Code': 'Claude Code',
   'Claude Code (terminal CLI)': 'Claude Code（ターミナル CLI）',
