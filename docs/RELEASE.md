@@ -9,7 +9,7 @@ This page is for the owner's Mac (and later a Windows machine). Nothing here is 
 3. `tauri build` bundles that folder as the resource `engine` (`Contents/Resources/engine` on macOS) and compiles the shell. The shell finds it through `src-tauri/src/packaged.rs`.
 4. macOS: `Substrate.app` and `formsubstrate-<version>-macos-<arch>.dmg` under `src-tauri/target/release/bundle/`. Linux: a `.deb` (set `FORMSUBSTRATE_BUNDLES` for others). Windows: `build_app.bat`.
 
-The resource entry is passed by `build_app` on the command line, not stored in `tauri.conf.json`, so a plain `cargo build` or `tauri dev` does not need a frozen engine. On macOS the same entry is also in `tauri.macos.conf.json`.
+The resource entry is passed by `build_app` on the command line, not stored in `tauri.conf.json`, so a plain `cargo build` or `tauri dev` does not need a frozen engine. This holds on macOS too: from v0.17.1 there is no `tauri.macos.conf.json`, whose own copy of the entry mapped the same folder a second time, so a direct `tauri build` without `build_app` ships no engine on any platform.
 
 Without `APPLE_SIGNING_IDENTITY` the app is ad-hoc signed (`signingIdentity` `-`): it runs on the machine that built it and shows a Gatekeeper prompt elsewhere.
 
