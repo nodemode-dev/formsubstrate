@@ -240,6 +240,9 @@
   --syn-deleted: var(--danger);
   --syn-changed: var(--warn);
   --syn-invalid: var(--danger-text);
+  --syn-bracket-1: #ffd24d;
+  --syn-bracket-2: #e07ae0;
+  --syn-bracket-3: #3fa9ff;
   --ft-ansi-black: #4b4f5c;
   --ft-ansi-red: #f87171;
   --ft-ansi-green: #34d399;
@@ -295,6 +298,9 @@ body.theme-light {
   --syn-link: var(--syn-blue);
   --syn-changed: color-mix(in srgb, var(--warn) 55%, #000000);
   --syn-invalid: var(--danger);
+  --syn-bracket-1: #8f6400;
+  --syn-bracket-2: #a3309f;
+  --syn-bracket-3: #0b62c4;
   --ft-ansi-black: #1f2328;
   --ft-ansi-red: #b42318;
   --ft-ansi-green: #047857;

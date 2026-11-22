@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="version 0.21.0" src="https://img.shields.io/badge/version-0.21.0-eef0f4?style=flat-square">
+  <img alt="version 0.22.0" src="https://img.shields.io/badge/version-0.22.0-eef0f4?style=flat-square">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-7-3178c6?style=flat-square&logo=typescript&logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-engine-009688?style=flat-square">
   <img alt="Tauri 2" src="https://img.shields.io/badge/Tauri-2-2f7bf5?style=flat-square">
@@ -93,7 +93,7 @@
   <tr>
     <td width="33%" valign="top">
       <h4>Editor</h4>
-      CodeMirror 6 · TypeScript and pyright language servers · Outline · Problems · editor split · Markdown preview · Python debugging with debugpy
+      CodeMirror 6 · TypeScript and pyright language servers · Go to File · search and replace across files · folding · multiple cursors · auto save · format on save · Outline · Problems · editor split · Markdown preview · Python debugging with debugpy
     </td>
     <td width="33%" valign="top">
       <h4>Agents and git</h4>

@@ -92,3 +92,11 @@ review M3. One token helper replaces the two copies in `formslot.ts` and `create
 - logged: v0.19.0 · 2026-11-22
 
 The engine now asks for the window token on every git, workspace and session change (see `backend/app/routers/HASHOUT_LOG.md`, entry of v0.19.0). These callers send through `owner()` from `window-token.ts` instead of `request()`. In `git.ts` the helper `held` wraps `owner` the way `call` wraps `request`, so callers still get a `GitError`; `refusable` (push and sign-and-push) calls `owner` and keeps its 409 mapping. `SessionsClient.create` already used `owner`. No other file in `frontend/src` calls these routes.
+
+### frontend/src/io/workspace.ts · listFiles, WorkspaceFiles
+
+- refers-to: frontend/src/io/workspace.ts :: listFiles, WorkspaceFiles; frontend/src/ui/palette/files.ts :: FileIndex.run
+- kind: rationale
+- logged: v0.22.0 · 2026-11-22
+
+`listFiles(hide, signal)` calls `GET /api/workspace/files` with one `hide` parameter per hidden-folder name and answers `{files, truncated}`. It uses `request()`, not `owner()`, because the route is a read and takes no window key, like `listDir`. The type is named `WorkspaceFiles` because `FileList` is a DOM type. Its only caller is Go to File (see frontend/src/ui/palette/HASHOUT_LOG.md).

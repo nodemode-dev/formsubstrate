@@ -115,3 +115,11 @@ Fourteen new keys (the save-changes question, note and Apply to All; unit; the e
 Labels that sit side by side were compared within each language: the 11 Preferences rail tabs with each page's group headings, the 11 top menu titles, and the Home nav. The one clash was Vietnamese, where FormVis gave Giao diện to Interface, Theme and Appearance: Interface keeps it, Theme is now Chủ đề and Appearance Diện mạo.
 
 Of the keys copied from FormVis, these had the image editor's meaning and were changed: zh-CN Selection 选区 (a marquee region) to 选择, the word of its code-editor menus; Styles in the file-kind legend of the code graph (CSS and similar files) from sv Format to Formatmallar, da Typografier to Typografiark and vi Kiểu to Định kiểu. Fit, Input, Template, Post, Working, Activity, Apply, Restore, Outline, Engine and Variables read correctly for Substrate in every table and were kept; vi Engine (công cụ xử lý) and cs Engine (Jádro) were kept because each table uses the same word in all its engine sentences.
+
+### frontend/scripts/i18n-check.mjs · keys in the first branch of a ternary
+
+- refers-to: frontend/scripts/i18n-check.mjs :: the t() and tn() scan in collect
+- kind: correction
+- logged: v0.22.0 · 2026-11-22
+
+The scan skipped a `t(...)` whose closing parenthesis was followed by `{` or `:`, to leave out declarations such as a method `t(key: string): string {`. A `:` also follows the first branch of every conditional, so in `cond ? t('A') : t('B')` the key A was never collected: no table was required to hold it, and the window showed it in English in every language. Removed: `if (pv(ts[e + 1]) === '{' || pv(ts[e + 1]) === ':') continue;`. A `:` now skips the call only where a declaration can stand, when the token before `t` is `{`, `}` or `;` (or there is none). On the tree of 22 November the key list grew from 1392 to 1472 with none lost; the 80 keys it found were added to the tables in the same version.

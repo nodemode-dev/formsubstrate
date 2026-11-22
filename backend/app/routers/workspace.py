@@ -1,4 +1,3 @@
-import fnmatch
 import json
 import os
 import re
@@ -10,13 +9,14 @@ import threading
 import tomllib
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
 from app.core import workspace_root as ws
 from app.core.binres import find_bin
 from app.core.local_guard import require_window
+from app.services import textsearch as ts
 
 router = APIRouter()
 OWNER = [Depends(require_window)]
@@ -267,6 +267,51 @@ def tree(path: str = "") -> dict:
     return {"path": rel, "entries": entries}
 
 
+FILES_MAX = 20000
+HIDE_MAX = 200
+
+
+def _list_files(base: str, hide: frozenset[str]) -> tuple[list[str], bool]:
+    files: list[str] = []
+    queue = [("", base)]
+    at = 0
+    while at < len(queue):
+        rel, real = queue[at]
+        at += 1
+        try:
+            with os.scandir(real) as scan:
+                items = sorted(scan, key=lambda item: item.name)
+        except OSError:
+            continue
+        for item in items:
+            if item.name in ws.HIDDEN_NAMES:
+                continue
+            path = f"{rel}/{item.name}" if rel else item.name
+            try:
+                if item.is_symlink():
+                    continue
+                if item.is_dir(follow_symlinks=False):
+                    if item.name not in hide:
+                        queue.append((path, item.path))
+                    continue
+                if not item.is_file(follow_symlinks=False):
+                    continue
+            except OSError:
+                continue
+            if len(files) >= FILES_MAX:
+                return files, True
+            files.append(path)
+    return files, False
+
+
+@router.get("/workspace/files")
+def list_files(hide: list[str] = Query(default=[])) -> dict:
+    base = _base()
+    names = frozenset(name for name in hide[:HIDE_MAX] if name and "\0" not in name and "/" not in name)
+    files, truncated = _list_files(base, names)
+    return {"files": files, "truncated": truncated}
+
+
 def _is_binary(chunk: bytes) -> bool:
     return b"\0" in chunk
 
@@ -489,41 +534,35 @@ def _rg_search(rg: str, base: str, q: str, regex: bool, case: bool, glob: str, c
     return hits
 
 
-def _py_search(base: str, q: str, regex: bool, case: bool, glob: str, cap: int) -> list[dict]:
+REPLACE_FILES_MAX = 1000
+PREVIEW_PATHS_MAX = 20
+
+
+def _budget_detail(regex: bool) -> str:
+    if regex:
+        return f"the regular expression ran past its {ts.REGEX_BUDGET:g} s budget without a result; it may backtrack heavily, or the workspace is large. Make the pattern more specific or narrow the files"
+    return f"the search ran past its {ts.LITERAL_BUDGET:g} s budget without a result; narrow the files"
+
+
+def _py_run(job: str, args: tuple, kwargs: dict, regex: bool) -> tuple[list, bool]:
     try:
-        pattern = re.compile(q if regex else re.escape(q), 0 if case else re.IGNORECASE)
-    except re.error as err:
-        raise HTTPException(status_code=400, detail=f"bad pattern: {err}")
-    hits: list[dict] = []
-    for folder, dirs, files in os.walk(base):
-        dirs[:] = sorted(d for d in dirs if d not in ws.HIDDEN_NAMES and not os.path.islink(os.path.join(folder, d)))
-        for name in sorted(files):
-            full = os.path.join(folder, name)
-            rel = os.path.relpath(full, base).replace(os.sep, "/")
-            if os.path.islink(full):
-                continue
-            if glob and not (fnmatch.fnmatch(rel, glob) or fnmatch.fnmatch(name, glob)):
-                continue
-            try:
-                if os.path.getsize(full) > READ_MAX:
-                    continue
-                with open(full, "rb") as handle:
-                    data = handle.read()
-            except OSError:
-                continue
-            if _is_binary(data[:SNIFF_BYTES]):
-                continue
-            try:
-                text = data.decode("utf-8")
-            except UnicodeDecodeError:
-                continue
-            for number, line in enumerate(text.splitlines(), 1):
-                found = pattern.search(line)
-                if found:
-                    hits.append({"path": rel, "line": number, "col": found.start() + 1, "text": _trim(line)})
-                    if len(hits) > cap:
-                        return hits
-    return hits
+        return ts.run(job, args, kwargs, guarded=regex)
+    except ts.BadPattern as err:
+        raise HTTPException(status_code=400, detail=str(err))
+    except ts.Stopped as err:
+        raise HTTPException(status_code=503, detail=str(err))
+
+
+def _py_found(base: str, q: str, regex: bool, case: bool, glob: str, cap: int, excludes: tuple[str, ...] = ()) -> tuple[list[dict], bool]:
+    parts, stopped = _py_run("search", (base, q, regex, case, glob, ws.HIDDEN_NAMES, tuple(excludes), cap, READ_MAX), {}, regex)
+    hits = [hit for part in parts for hit in part]
+    if stopped and not hits:
+        raise HTTPException(status_code=400, detail=_budget_detail(regex))
+    return hits, stopped
+
+
+def _py_search(base: str, q: str, regex: bool, case: bool, glob: str, cap: int, excludes: tuple[str, ...] = ()) -> list[dict]:
+    return _py_found(base, q, regex, case, glob, cap, excludes)[0]
 
 
 @router.get("/workspace/search")
@@ -535,12 +574,190 @@ def search(q: str = "", regex: bool = False, case: bool = False, glob: str = "",
     base = _base()
     cap = min(SEARCH_LIMIT_MAX, max(1, limit))
     rg = find_bin("rg")
+    stopped = False
     if rg:
         engine = "rg"
         hits = _rg_search(rg, base, q, bool(regex), bool(case), glob.strip(), cap)
     else:
-        if regex:
-            raise HTTPException(status_code=400, detail="regular expression search needs ripgrep (rg) on this system")
         engine = "python"
-        hits = _py_search(base, q, bool(regex), bool(case), glob.strip(), cap)
-    return {"hits": hits[:cap], "truncated": len(hits) > cap, "engine": engine}
+        hits, stopped = _py_found(base, q, bool(regex), bool(case), glob.strip(), cap)
+    return {"hits": hits[:cap], "truncated": len(hits) > cap or stopped, "engine": engine, "stopped": stopped}
+
+
+def _replace_query(body: dict) -> tuple[str, bool, bool, str, str]:
+    q = body.get("q")
+    template = body.get("replace")
+    glob = body.get("glob") or ""
+    if not isinstance(q, str) or not q:
+        raise HTTPException(status_code=400, detail="q required")
+    if not isinstance(template, str):
+        raise HTTPException(status_code=400, detail="replace required")
+    if not isinstance(glob, str) or "\0" in q or "\0" in glob or "\0" in template:
+        raise HTTPException(status_code=400, detail="bad query")
+    return q, body.get("regex") is True, body.get("case") is True, glob.strip(), template
+
+
+@router.post("/workspace/replace/preview", dependencies=OWNER)
+async def replace_preview(request: Request) -> dict:
+    body = await _json(request)
+    q, regex, case, glob, template = _replace_query(body)
+    limit = body.get("limit", 500)
+    if isinstance(limit, bool) or not isinstance(limit, int):
+        raise HTTPException(status_code=400, detail="limit must be a number")
+    full = body.get("full") is True
+    paths = body.get("paths")
+    base = _base()
+    picked = None
+    if paths is not None:
+        if not isinstance(paths, list) or not 1 <= len(paths) <= PREVIEW_PATHS_MAX or not all(isinstance(p, str) for p in paths):
+            raise HTTPException(status_code=400, detail=f"paths must be a list of 1 to {PREVIEW_PATHS_MAX} paths")
+        picked = []
+        for path in paths:
+            real, rel = _guard(path)
+            if rel and os.path.isfile(real):
+                picked.append((rel, real))
+    elif full:
+        raise HTTPException(status_code=400, detail="full needs paths")
+    cap = min(SEARCH_LIMIT_MAX, max(1, limit))
+    return await run_in_threadpool(_preview, base, q, regex, case, glob, template, cap, picked, full)
+
+
+def _preview(base: str, q: str, regex: bool, case: bool, glob: str, template: str, cap: int, picked: list | None, full: bool) -> dict:
+    files, stopped = _py_run("plan", (base, q, regex, case, glob, ws.HIDDEN_NAMES, (), template, cap, READ_MAX), {"paths": picked, "full": full}, regex)
+    if stopped and not files:
+        raise HTTPException(status_code=400, detail=_budget_detail(regex))
+    total = sum(len(item["hits"]) for item in files)
+    return {"files": files, "hits": total, "truncated": total >= cap or stopped, "stopped": stopped, "engine": "python"}
+
+
+def _refused(path: str, reason: str) -> dict:
+    return {"path": path, "status": "refused", "reason": reason}
+
+
+@router.post("/workspace/replace", dependencies=OWNER)
+async def replace_files(request: Request) -> dict:
+    body = await _json(request)
+    q, regex, case, glob, template = _replace_query(body)
+    files = body.get("files")
+    if not isinstance(files, list) or not 1 <= len(files) <= REPLACE_FILES_MAX:
+        raise HTTPException(status_code=400, detail=f"files must be a list of 1 to {REPLACE_FILES_MAX} entries")
+    _base()
+    try:
+        ts.compile_template(template, regex, ts.compile_pattern(q, regex, case))
+    except ts.BadPattern as err:
+        raise HTTPException(status_code=400, detail=str(err))
+    return await run_in_threadpool(_replace, q, regex, case, glob, template, files)
+
+
+def _held(item: object, filt: ts.Filter, seen: set[str]) -> tuple[dict | None, tuple | None]:
+    path = item.get("path") if isinstance(item, dict) else None
+    if not isinstance(path, str) or not path:
+        return _refused(str(path), "path required"), None
+    want = item.get("hash")
+    lines = item.get("lines")
+    if not isinstance(want, str) or not want:
+        return _refused(path, "the hash from the preview is required"), None
+    if lines is not None and (not isinstance(lines, list) or not all(isinstance(n, int) and not isinstance(n, bool) and n > 0 for n in lines)):
+        return _refused(path, "lines must be line numbers"), None
+    try:
+        real, rel = ws.resolve(path, write=True)
+    except ws.Refused as err:
+        return _refused(path, err.detail), None
+    if not rel or rel in seen:
+        return _refused(path, "listed twice" if rel else "path required"), None
+    seen.add(rel)
+    if not filt.wanted(rel, ancestors=True):
+        return _refused(rel, "outside the files this search covers"), None
+    try:
+        info = os.stat(real)
+    except OSError:
+        return _refused(rel, "not found"), None
+    if not stat.S_ISREG(info.st_mode):
+        return _refused(rel, "not a file"), None
+    if info.st_size > READ_MAX:
+        return _refused(rel, "file is larger than 4 MiB"), None
+    try:
+        with open(real, "rb") as handle:
+            data = handle.read(READ_MAX + 1)
+    except OSError:
+        return _refused(rel, "not readable"), None
+    if len(data) > READ_MAX:
+        return _refused(rel, "file is larger than 4 MiB"), None
+    if _is_binary(data[:SNIFF_BYTES]):
+        return _refused(rel, "binary file"), None
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return _refused(rel, "not UTF-8 text"), None
+    if ts.digest(data) != want:
+        return _refused(rel, "changed since the preview"), None
+    if not os.access(real, os.W_OK):
+        return _refused(rel, "file is read only"), None
+    return None, (rel, real, want, text, lines)
+
+
+def _replace(q: str, regex: bool, case: bool, glob: str, template: str, files: list) -> dict:
+    filt = ts.Filter(glob, ws.HIDDEN_NAMES)
+    results: list[dict | None] = [None] * len(files)
+    held: dict[int, tuple] = {}
+    seen: set[str] = set()
+    total = 0
+    for index, item in enumerate(files):
+        refusal, keep = _held(item, filt, seen)
+        if refusal is not None or keep is None:
+            results[index] = refusal
+            continue
+        size = len(keep[3].encode("utf-8"))
+        if total + size > ts.APPLY_TEXT_MAX:
+            results[index] = _refused(keep[0], "too much text in one replace; run it again for the rest")
+            continue
+        total += size
+        held[index] = keep
+    done: dict[int, tuple[str, int]] = {}
+    failed = ""
+    if held:
+        jobs = [(index, keep[3], keep[4]) for index, keep in held.items()]
+        try:
+            parts, _ = ts.run("apply", (q, regex, case, template, jobs), {}, guarded=regex)
+        except ts.BadPattern as err:
+            raise HTTPException(status_code=400, detail=str(err))
+        except ts.Stopped as err:
+            parts, failed = [], str(err)
+        done = {key: (after, made) for key, after, made in parts}
+    for index in sorted(held):
+        rel, real, want = held[index][:3]
+        if index not in done:
+            results[index] = _refused(rel, failed or f"stopped: the regular expression ran past its {ts.REGEX_BUDGET:g} s budget")
+            continue
+        after, made = done[index]
+        if not made:
+            results[index] = {"path": rel, "status": "skipped", "reason": "no match left on the confirmed lines"}
+            continue
+        try:
+            data = after.encode("utf-8")
+        except UnicodeEncodeError:
+            results[index] = _refused(rel, "the replacement is not valid unicode")
+            continue
+        if len(data) > WRITE_MAX:
+            results[index] = _refused(rel, "the result is larger than 8 MiB")
+            continue
+        try:
+            with open(real, "rb") as handle:
+                current = handle.read(READ_MAX + 1)
+        except OSError:
+            results[index] = _refused(rel, "no longer readable")
+            continue
+        if ts.digest(current) != want:
+            results[index] = _refused(rel, "changed since the preview")
+            continue
+        try:
+            _atomic_write(real, data)
+            info = os.stat(real)
+        except PermissionError:
+            results[index] = _refused(rel, "permission denied")
+            continue
+        except OSError as err:
+            results[index] = _refused(rel, err.strerror or "write failed")
+            continue
+        results[index] = {"path": rel, "status": "written", "count": made, "size": info.st_size, "mtime": info.st_mtime, "hash": ts.digest(data)}
+    return {"results": results, "written": sum(1 for r in results if r and r["status"] == "written"), "engine": "python"}

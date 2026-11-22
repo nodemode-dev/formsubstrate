@@ -36,7 +36,7 @@ Every tool carries a title, `openWorldHint: false`, and `readOnlyHint: true` exc
 | Tool | Arguments | structuredContent |
 | --- | --- | --- |
 | `workspace_info` | `session` | `{root, name, branch, changed, session}` |
-| `workspace_search` | `query` (required, 500 chars), `regex`, `case`, `glob`, `limit` (1 to 100, 30), `cursor`, `session` | `hits: [{path, line, col, text}]`, `engine` (`rg` or `python`), `capped` (the pool is 200 hits), plus paging |
+| `workspace_search` | `query` (required, 500 chars), `regex`, `case`, `glob`, `limit` (1 to 100, 30), `cursor`, `session` | `hits: [{path, line, col, text}]`, `engine` (`rg` or `python`), `capped` (the pool is 200 hits, or the `python` search stopped at its budget: 8 s for a regex, run in a child process, 15 s for plain text), plus paging; without ripgrep a regex uses Python's syntax |
 | `file_read` | `path` (required, relative), `start_line` (1), `max_lines` (1 to 1000, 300), `session` | `{path, size, start_line, end_line, total_lines, truncated, next_start_line}`; the numbered lines are in the text |
 | `session_list` | `limit` (1 to 100, 25), `cursor` | `sessions: [{id, title, state, mode, branch, repoName, worktree, created, updated, lastMessage, comments}]` plus paging |
 | `session_status` | `session` | `{id, title, state, mode, branch, base, repoName, repo, worktree, terminalId, created, updated, lastMessage, comments, snapshots, tokensSaved, notes, openGates: [{id, tool, path, created}]}` |

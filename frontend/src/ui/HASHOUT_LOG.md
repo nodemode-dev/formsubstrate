@@ -154,3 +154,13 @@ Zero shift: the empty state is a `.cv-prefs-keyrow` the same height as a client 
 New English keys, not yet in the 29 tables: listed in the v0.21.0 worker report.
 
 The empty row's placeholder button first hid itself with an inline `style="visibility: hidden"`. It now carries the class `is-spacer`, with the rule `.cv-prefs-keyrow .cv-btn.is-spacer { visibility: hidden; }` in `dialogs.css`, as the rest of the window keeps space with classes (`.is-idle` in `formslot.css` and `lsp.css`). Same computed style, same box; the window has no inline style in `settings.ts`. The snippet uses the textarea recipe `cv-st-ta` from `studio.css` (token padding and line height); a Preferences-specific class can replace it if the two ever need to differ.
+
+### frontend/src/ui/settings.ts · SettingsDialog Editor card (Saving group, bracket colours); frontend/src/ui/prefs.ts · editor saving and bracket prefs
+
+- refers-to: frontend/src/ui/settings.ts :: SettingsDialog constructor (editorAutoSave, editorAutoSaveDelay, editorFormatOnSave, editorBrackets, pickEditor), SettingsDialog.sync; frontend/src/ui/prefs.ts :: Prefs, DEFAULT_PREFS, loadPrefs, AUTO_SAVE_DELAYS, EDITOR_PREFS_EVENT
+- kind: rationale
+- logged: v0.22.0 · 2026-11-22
+
+Four prefs were added with defaults: `editorAutoSave` false, `editorAutoSaveDelay` 1000 (only 500, 1000, 2000, 5000 or 10000 ms load; anything else falls back to 1000), `editorFormatOnSave` false, `editorBracketColors` true (VS Code has bracket pair colouring on by default). The Editor card keeps its Text group and gains "Bracket pair colours" there, plus a Saving group with Auto save, Auto save delay (a select, enhanced by the window's dropdown) and Format on save, with one note. The rows use the card's existing `toggleRow` and `selectRow` and English labels that the page translator renders, like every other row in the card.
+
+The new rows do not go through `ctx.onPrefs`, because that callback lives in `app.ts` and only forwards font size, tab size and word wrap to `EditorHost.setOptions`. Instead `pickEditor` saves through the same `change()` and then dispatches `EDITOR_PREFS_EVENT` on the document; `EditorHost` listens for it and rereads the prefs, so the settings apply at once to open editors (bracket colours through a Compartment reconfigure, saving behaviour as host state) and `app.ts` was not touched. Rows only toggle checkboxes or a select value; measured in headless Chrome at 4x CPU throttling, opening Preferences, switching each of the four settings and closing gave no layout-shift entry.

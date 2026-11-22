@@ -4,6 +4,18 @@ Versions follow `v*.*.*` with dots. Dates are US Eastern. The newest version is 
 
 The app was renamed Substrate (family name FormSubstrate, machine name `formsubstrate`) at 0.17.0. The entries below read with the new name throughout; the git history keeps the former one.
 
+## 0.22.0 · 2026-11-22
+
+The everyday editing a code editor is expected to have.
+
+- Go to File: Ctrl+P (Cmd+P on a Mac) finds a workspace file by part of its name. Recent files come first, `name:120` opens at line 120, and `>` switches to commands.
+- Replace across files: type a replacement in Search and choose Replace all. Each file is listed with a checkbox and a diff before anything is written; files with unsaved changes in a tab are left out, and open tabs without changes show the new text at once. A file that changed after the preview is refused.
+- Regular expression search works without ripgrep installed, in the window and for agents through the MCP search tool. A pattern that would run for ever stops after a few seconds.
+- Code folding, auto save (off until you turn it on; it never saves over a file changed on disk) and format on save (through the language server; the file is saved anyway if formatting does not answer).
+- Alt+click (Option+click) adds a cursor, Alt+Shift+drag selects a column, and brackets are coloured by depth. All four are in Preferences > Editor.
+- About 80 short labels, such as status words in Git, formslot and Cogentics, showed in English in every language; they are now translated.
+- A slow language server no longer leaves an error behind while it starts.
+
 ## 0.21.0 · 2026-11-22
 
 Substrate's MCP server works from the installed app and for outside clients you approve, and agents can read more of what the window shows.
