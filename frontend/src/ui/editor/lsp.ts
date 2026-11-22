@@ -1,6 +1,7 @@
 import { EditorState, type Extension, type TransactionSpec } from '@codemirror/state';
 import { ViewPlugin, type EditorView, type ViewUpdate } from '@codemirror/view';
 import { lintGutter, setDiagnostics, type Diagnostic } from '@codemirror/lint';
+import { getIndentUnit, indentUnit } from '@codemirror/language';
 import { LSPClient, LSPPlugin, languageServerExtensions, type Transport, type WorkspaceMapping } from '@codemirror/lsp-client';
 import { lspServers, lspSocketUrl, type LspLang, type LspServers } from '../../io/lsp';
 import { t, tn } from '../i18n';
@@ -516,7 +517,7 @@ export class LspManager {
     const root = this.host?.root();
     if (!info || !root) return [];
     const s = this.ensure(info.lang, root);
-    if (s.state === 'unavailable' || s.state === 'stopped') return [];
+    if (s.state === 'unavailable' || s.state === 'stopped') return [lintGutter()];
     return [s.client.plugin(s.uriFor(path), info.id), lintGutter(), lspPhrases()];
   };
 
@@ -569,6 +570,44 @@ export class LspManager {
     const s = info ? this.sessions.get(info.lang) : undefined;
     if (!s) return null;
     try { return await s.symbols(path); } catch { return null; }
+  }
+
+  async formatForSave(view: EditorView, ms: number): Promise<boolean> {
+    const plugin = LSPPlugin.get(view);
+    const session = plugin ? this.sessionOf(plugin.client) : null;
+    if (!plugin || !session || session.state !== 'ready' || !plugin.client.serverCapabilities?.documentFormattingProvider) return false;
+    plugin.client.sync();
+    let timer = 0;
+    const late = new Promise<'late'>((resolve) => { timer = window.setTimeout(() => resolve('late'), ms); });
+    try {
+      return await plugin.client.withMapping(async (mapping: WorkspaceMapping) => {
+        const options = { tabSize: getIndentUnit(view.state), insertSpaces: !view.state.facet(indentUnit).includes('\t') };
+        const reply = await Promise.race([
+          plugin.client.request<unknown, Array<{ range: RawRange; newText: string }> | null>('textDocument/formatting', { textDocument: { uri: plugin.uri }, options }),
+          late,
+        ]);
+        if (reply === 'late' || LSPPlugin.get(view) !== plugin) return false;
+        if (!reply?.length) return true;
+        const touched = mapping.getMapping(plugin.uri);
+        const changes: Array<{ from: number; to: number; insert: string }> = [];
+        for (const edit of reply) {
+          let from = mapping.mapPosition(plugin.uri, edit.range.start);
+          let to = mapping.mapPosition(plugin.uri, edit.range.end);
+          if (touched) {
+            if (touched.touchesRange(from, to)) return false;
+            from = touched.mapPos(from, 1);
+            to = touched.mapPos(to, -1);
+          }
+          changes.push({ from, to, insert: edit.newText });
+        }
+        view.dispatch({ changes, userEvent: 'format' });
+        return true;
+      });
+    } catch {
+      return false;
+    } finally {
+      window.clearTimeout(timer);
+    }
   }
 
   run(command: (view: EditorView) => boolean): boolean {

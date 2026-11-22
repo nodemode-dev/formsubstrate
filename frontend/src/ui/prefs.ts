@@ -34,6 +34,10 @@ export interface Prefs {
   editorFontSize: number;
   editorTabSize: number;
   editorWordWrap: boolean;
+  editorAutoSave: boolean;
+  editorAutoSaveDelay: number;
+  editorFormatOnSave: boolean;
+  editorBracketColors: boolean;
   terminalFontSize: number;
   terminalDockHeight: number;
   agentDefaultModel: string;
@@ -57,13 +61,15 @@ export const MENU_COLORS: readonly string[] = ['red', 'orange', 'yellow', 'green
 export const UI_FONT_SIZES: ReadonlyArray<readonly [UiFontSize, string]> = [['small', 'Small'], ['default', 'Default'], ['large', 'Large'], ['larger', 'Larger']];
 export const UI_FONT_SCALE: Record<UiFontSize, number> = { small: 0.9, default: 1, large: 1.15, larger: 1.3 };
 export const RECOVERY_CHOICES: ReadonlyArray<readonly [string, string]> = [['1', '1 minute'], ['2', '2 minutes'], ['5', '5 minutes'], ['10', '10 minutes'], ['30', '30 minutes']];
+export const AUTO_SAVE_DELAYS: ReadonlyArray<readonly [string, string]> = [['500', '500 ms'], ['1000', '1 second'], ['2000', '2 seconds'], ['5000', '5 seconds'], ['10000', '10 seconds']];
+export const EDITOR_PREFS_EVENT = 'formsubstrate:editor-prefs';
 
 export const DEFAULT_PREFS: Prefs = {
   language: 'en', uiFontSize: 'default', animations: true, showTooltips: true, noticeSeconds: 0,
   autoShowHome: true, homeOnLastClose: false, whatsNewAuto: true, whatsNewSeen: '',
   favouriteThemes: [], themeAuto: false, themeLight: 'light', themeDark: 'studio',
   shortcuts: {}, shortcutSets: {}, menuHidden: [], menuColors: {}, dialogValues: {},
-  editorFontSize: 13, editorTabSize: 2, editorWordWrap: true, terminalFontSize: 13, terminalDockHeight: 260,
+  editorFontSize: 13, editorTabSize: 2, editorWordWrap: true, editorAutoSave: false, editorAutoSaveDelay: 1000, editorFormatOnSave: false, editorBracketColors: true, terminalFontSize: 13, terminalDockHeight: 260,
   agentDefaultModel: '', agentPermissionMode: 'acceptEdits', formslotEnabled: true, formslotAutoStart: true, formslotPath: '', gitSignOnCommit: true, recoveryMinutes: 1,
   largeTabs: false, reopenLastWorkspace: true, hiddenFolders: [], allowTypedPaths: false, trustedWorkspaces: [], trustAsked: [], sidebarWidth: 280, prefsRevision: 3,
 };
@@ -174,6 +180,10 @@ export function loadPrefs(): Prefs {
       editorFontSize: Math.round(num(r.editorFontSize, 8, 32, d.editorFontSize)),
       editorTabSize: Math.round(num(r.editorTabSize, 1, 8, d.editorTabSize)),
       editorWordWrap: num(r.prefsRevision, 0, 99, 0) >= 2 ? flag(r.editorWordWrap, d.editorWordWrap) : d.editorWordWrap,
+      editorAutoSave: flag(r.editorAutoSave, d.editorAutoSave),
+      editorAutoSaveDelay: AUTO_SAVE_DELAYS.some(([k]) => Number(k) === r.editorAutoSaveDelay) ? r.editorAutoSaveDelay as number : d.editorAutoSaveDelay,
+      editorFormatOnSave: flag(r.editorFormatOnSave, d.editorFormatOnSave),
+      editorBracketColors: flag(r.editorBracketColors, d.editorBracketColors),
       terminalFontSize: Math.round(num(r.terminalFontSize, 8, 32, d.terminalFontSize)),
       terminalDockHeight: Math.round(num(r.terminalDockHeight, 120, 800, d.terminalDockHeight)),
       agentDefaultModel: typeof r.agentDefaultModel === 'string' ? r.agentDefaultModel.slice(0, 120) : d.agentDefaultModel,

@@ -11,6 +11,12 @@ import { baseName, languageFor } from './languages';
 import { editorHighlight, editorTheme } from './theme';
 import { wordWrap } from './wrap';
 import { breakpointExtension } from './breakpoints';
+import { bracketColors } from './brackets';
+import { multiCursor } from './cursors';
+import { folding } from './folding';
+import { lsp } from './lsp';
+import { EDITOR_PREFS_EVENT, loadPrefs } from '../prefs';
+import { toast } from '../toast';
 
 export interface EditorDeps {
   load(path: string): Promise<{ text: string; mtime: number }>;
@@ -21,7 +27,11 @@ export interface EditorDeps {
 
 type ScrollSnapshot = ReturnType<EditorView['scrollSnapshot']>;
 
-interface EditorOptions { fontSize: number; tabSize: number; wordWrap: boolean }
+interface EditorOptions { fontSize: number; tabSize: number; wordWrap: boolean; bracketColors: boolean }
+
+interface SaveOptions { autoSave: boolean; delay: number; formatOnSave: boolean }
+
+const FORMAT_ON_SAVE_MS = 1500;
 
 interface Doc {
   path: string;
@@ -37,6 +47,9 @@ interface Doc {
   wrap: Compartment;
   extra: Compartment;
   dbg: Compartment;
+  feat: Compartment;
+  conflict: boolean;
+  queue: Promise<unknown>;
 }
 
 const BINARY_EXT = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif', 'mp3', 'wav', 'ogg', 'm4a', 'flac', 'mp4', 'webm', 'mov', 'mkv', 'zip', 'gz', 'tar', 'pdf', 'woff', 'woff2', 'ttf', 'otf', 'exe', 'dll', 'so', 'dylib', 'wasm', 'bin']);
@@ -77,7 +90,9 @@ export class EditorHost {
   private current: Doc | null = null;
   private showSeq = 0;
   private optsRev = 0;
-  private options: EditorOptions = { fontSize: 13, tabSize: 4, wordWrap: true };
+  private options: EditorOptions = { fontSize: 13, tabSize: 4, wordWrap: true, bracketColors: true };
+  private saving: SaveOptions = { autoSave: false, delay: 1000, formatOnSave: false };
+  private autoTimer = 0;
   private lastPos = '';
 
   constructor(host: HTMLElement, private readonly deps: EditorDeps) {
@@ -89,6 +104,42 @@ export class EditorHost {
     setStyleVar(this.root, '--cv-editor-fs', `${this.options.fontSize}px`);
     this.view = new EditorView({ parent: this.mount, state: this.blankState() });
     setHidden(this.mount, true);
+    this.applyEditorPrefs();
+    document.addEventListener(EDITOR_PREFS_EVENT, () => this.applyEditorPrefs());
+    window.addEventListener('blur', () => this.flushAutoSave());
+  }
+
+  private applyEditorPrefs(): void {
+    const p = loadPrefs();
+    this.saving = { autoSave: p.editorAutoSave, delay: p.editorAutoSaveDelay, formatOnSave: p.editorFormatOnSave };
+    if (!this.saving.autoSave) this.cancelAutoSave();
+    else if (this.current) this.scheduleAutoSave(this.current);
+    if (p.editorBracketColors === this.options.bracketColors) return;
+    this.options = { ...this.options, bracketColors: p.editorBracketColors };
+    this.optsRev++;
+    if (this.current) this.syncOptions(this.current);
+  }
+
+  private featExt(): Extension {
+    return this.options.bracketColors ? bracketColors : [];
+  }
+
+  private cancelAutoSave(): void {
+    if (this.autoTimer) window.clearTimeout(this.autoTimer);
+    this.autoTimer = 0;
+  }
+
+  private scheduleAutoSave(d: Doc): void {
+    this.cancelAutoSave();
+    if (!this.saving.autoSave || !d.dirty || d.conflict) return;
+    const path = d.path;
+    this.autoTimer = window.setTimeout(() => { this.autoTimer = 0; void this.save(path, true); }, this.saving.delay);
+  }
+
+  private flushAutoSave(): void {
+    if (!this.saving.autoSave) return;
+    this.cancelAutoSave();
+    for (const path of this.dirtyPaths()) void this.save(path, true);
   }
 
   private blankState(): EditorState {
@@ -109,8 +160,11 @@ export class EditorHost {
       extensions: [
         d.dbg.of(breakpointExtension(d.path)),
         lineNumbers(),
+        folding(),
         highlightActiveLineGutter(),
         highlightActiveLine(),
+        multiCursor,
+        d.feat.of(this.featExt()),
         drawSelection(),
         dropCursor(),
         history(),
@@ -142,7 +196,7 @@ export class EditorHost {
 
   private onUpdate(d: Doc, u: ViewUpdate): void {
     if (this.current !== d) return;
-    if (u.docChanged) { this.syncDirty(d, u.state.doc); this.onChanged(d.path); }
+    if (u.docChanged) { this.syncDirty(d, u.state.doc); this.onChanged(d.path); this.scheduleAutoSave(d); }
     if (u.docChanged || u.selectionSet) this.reportPosition(u.state);
   }
 
@@ -174,7 +228,7 @@ export class EditorHost {
   private syncOptions(d: Doc): void {
     if (d.optsRev === this.optsRev) return;
     d.optsRev = this.optsRev;
-    this.dispatchTo(d, [d.opts.reconfigure(this.optionsExt()), d.wrap.reconfigure(this.wrapExt())]);
+    this.dispatchTo(d, [d.opts.reconfigure(this.optionsExt()), d.wrap.reconfigure(this.wrapExt()), d.feat.reconfigure(this.featExt())]);
   }
 
   private docText(d: Doc): string {
@@ -197,6 +251,7 @@ export class EditorHost {
       path, state: this.blankState(), saved: this.blankState().doc, mtime: loaded.mtime, eol: dominantEol(loaded.text),
       dirty: false, scroll: null, optsRev: this.optsRev,
       lang: new Compartment(), opts: new Compartment(), wrap: new Compartment(), extra: new Compartment(), dbg: new Compartment(),
+      feat: new Compartment(), conflict: false, queue: Promise.resolve(),
     };
     const resolved = languageFor(path);
     d.state = this.buildState(d, loaded.text, resolved.now);
@@ -313,27 +368,45 @@ export class EditorHost {
     return [...this.docs.values()].filter((d) => d.dirty).map((d) => d.path);
   }
 
-  async save(path?: string): Promise<boolean> {
+  save(path?: string, auto = false): Promise<boolean> {
     const d = path === undefined ? this.current : this.docs.get(path);
-    if (!d) return false;
+    if (!d) return Promise.resolve(false);
+    if (!auto && this.current === d) this.cancelAutoSave();
+    const run = d.queue.then(() => this.saveNow(d, auto));
+    d.queue = run.catch(() => false);
+    return run;
+  }
+
+  private async saveNow(d: Doc, auto: boolean): Promise<boolean> {
+    if (auto && (!d.dirty || d.conflict || d.mtime === null || this.docs.get(d.path) !== d)) return false;
+    const skipped = !auto && this.saving.formatOnSave && this.current === d && lsp.supports(d.path) && !(await lsp.formatForSave(this.view, FORMAT_ON_SAVE_MS));
     const snapshot = this.liveState(d).doc;
     const text = snapshot.sliceString(0, snapshot.length, d.eol);
+    let ok: boolean;
     try {
       const r = await this.deps.save(d.path, text, d.mtime);
-      return this.commitSave(d, snapshot, r.mtime);
+      ok = this.commitSave(d, snapshot, r.mtime);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (!msg.startsWith('409')) {
         this.deps.onStatus(`${t('Save failed')}: ${baseName(d.path)}: ${msg}`);
         return false;
       }
-      return this.resolveConflict(d, snapshot, text);
+      if (auto) {
+        d.conflict = true;
+        this.deps.onStatus(`${t('Auto save paused')}: ${baseName(d.path)} ${t('changed on disk')}`);
+        return false;
+      }
+      ok = await this.resolveConflict(d, snapshot, text);
     }
+    if (ok && skipped) toast(t('Formatting was skipped; the file was saved as it was'), 'info', { key: 'format-on-save-skipped' });
+    return ok;
   }
 
   private commitSave(d: Doc, snapshot: Text, mtime: number): boolean {
     d.saved = snapshot;
     d.mtime = mtime;
+    d.conflict = false;
     this.syncDirty(d, this.liveState(d).doc);
     this.deps.onStatus(`${t('Saved')} ${baseName(d.path)}`);
     return true;
@@ -370,6 +443,7 @@ export class EditorHost {
     d.eol = dominantEol(fresh.text);
     d.saved = this.liveState(d).doc;
     d.mtime = fresh.mtime;
+    d.conflict = false;
     this.syncDirty(d, d.saved);
     this.deps.onStatus(`${t('Reloaded')} ${baseName(d.path)}`);
   }

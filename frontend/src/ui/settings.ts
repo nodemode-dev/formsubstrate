@@ -11,7 +11,7 @@ import { icon } from './icons';
 import { languages, onLanguage, setLanguage, t } from './i18n';
 import { colorRow, numberRow, selectRow, sliderRow, toggleRow, type Row } from './panels/controls';
 import { pickPath } from './path-picker';
-import { FORMSLOT_PATH_EVENT, HIDDEN_FOLDERS_EVENT, PERMISSION_MODES, loadPrefs, savePrefs, setUiScale, UI_FONT_SIZES, UI_SCALES, uiScaleChoice, type AgentPermissionMode, type Prefs, type UiFontSize } from './prefs';
+import { AUTO_SAVE_DELAYS, EDITOR_PREFS_EVENT, FORMSLOT_PATH_EVENT, HIDDEN_FOLDERS_EVENT, PERMISSION_MODES, loadPrefs, savePrefs, setUiScale, UI_FONT_SIZES, UI_SCALES, uiScaleChoice, type AgentPermissionMode, type Prefs, type UiFontSize } from './prefs';
 import { readChoice, setAccent, setIntensity, setTheme, THEMES, themeSwatchesHtml } from './themes';
 import { toast } from './toast';
 
@@ -104,6 +104,10 @@ export class SettingsDialog {
   private readonly editorFont: ReturnType<typeof numberRow>;
   private readonly editorTab: ReturnType<typeof numberRow>;
   private readonly editorWrap: Row<boolean>;
+  private readonly editorAutoSave: Row<boolean>;
+  private readonly editorAutoSaveDelay: Row<string>;
+  private readonly editorFormatOnSave: Row<boolean>;
+  private readonly editorBrackets: Row<boolean>;
   private readonly terminalFont: ReturnType<typeof numberRow>;
   private readonly model: Row<string>;
   private readonly permission: Row<string>;
@@ -182,6 +186,11 @@ export class SettingsDialog {
     this.editorFont = numberRow('Font size', 8, 32, 1, (v) => pick({ editorFontSize: v }));
     this.editorTab = numberRow('Tab size', 1, 8, 1, (v) => pick({ editorTabSize: v }));
     this.editorWrap = toggleRow('Word wrap', (v) => pick({ editorWordWrap: v }));
+    const pickEditor = (p: Partial<Prefs>): void => { pick(p); document.dispatchEvent(new CustomEvent(EDITOR_PREFS_EVENT)); };
+    this.editorAutoSave = toggleRow('Auto save', (v) => pickEditor({ editorAutoSave: v }));
+    this.editorAutoSaveDelay = selectRow('Auto save delay', AUTO_SAVE_DELAYS.map(([k, l]): [string, string] => [k, l]), (v) => pickEditor({ editorAutoSaveDelay: Number(v) }));
+    this.editorFormatOnSave = toggleRow('Format on save', (v) => pickEditor({ editorFormatOnSave: v }));
+    this.editorBrackets = toggleRow('Bracket pair colours', (v) => pickEditor({ editorBracketColors: v }));
     this.terminalFont = numberRow('Font size', 8, 32, 1, (v) => pick({ terminalFontSize: v }));
     this.model = selectRow('Default model', [['', 'Choose when starting'], ...MODELS.map((m): [string, string] => [m, m])], (v) => pick({ agentDefaultModel: v }));
     this.permission = selectRow('Headless permission mode', PERMISSION_MODES.map(([k, l]): [string, string] => [k, l]), (v) => pick({ agentPermissionMode: v as AgentPermissionMode }));
@@ -258,7 +267,10 @@ export class SettingsDialog {
         grp('Trusted workspaces', this.trustList, this.trustNone, nt('A trusted workspace may run its own language servers and its Python environment. Revoke to stop.')),
         grp('Hidden folders', this.hiddenRow(), nt('Folder names separated by commas stay out of the file tree.')),
       ],
-      Editor: [grp('Text', this.editorFont.el, this.editorTab.el, this.editorWrap.el)],
+      Editor: [
+        grp('Text', this.editorFont.el, this.editorTab.el, this.editorWrap.el, this.editorBrackets.el),
+        grp('Saving', this.editorAutoSave.el, this.editorAutoSaveDelay.el, this.editorFormatOnSave.el, nt('Auto save writes a changed file after you stop typing for the delay, and when the window loses focus. Files changed on disk are never saved over. Format on save asks the language server to format the file first; if it does not answer in time the file is saved unformatted.')),
+      ],
       Terminal: [grp('Text', this.terminalFont.el)],
       Agents: [
         grp('Claude Code', this.model.el, this.permission.el, nt('Headless sessions run without a person to approve tools. Accept edits lets them change files inside their own worktree only; Bash and other tools are denied. Interactive terminal sessions are not affected.')),
@@ -527,6 +539,10 @@ export class SettingsDialog {
     this.editorFont.set(p.editorFontSize);
     this.editorTab.set(p.editorTabSize);
     this.editorWrap.set(p.editorWordWrap);
+    this.editorAutoSave.set(p.editorAutoSave);
+    this.editorAutoSaveDelay.set(String(p.editorAutoSaveDelay));
+    this.editorFormatOnSave.set(p.editorFormatOnSave);
+    this.editorBrackets.set(p.editorBracketColors);
     this.terminalFont.set(p.terminalFontSize);
     this.model.set(p.agentDefaultModel);
     this.permission.set(p.agentPermissionMode);

@@ -212,3 +212,51 @@ Breakpoints live in a module-level map keyed by workspace-relative path, so they
 - logged: v0.12.0 · 2026-10-30
 
 Closes the v0.4.0 todo for the extension point: `startApp` assigns `editor.extensionsFor = lsp.extensionsFor` before any document opens and the LSP controller calls `refreshExtensions` through `attach({ refresh })`, so language-server extensions, diagnostics and breakpoints reach every document. The aside about format-before-save is still open on purpose: the LSP phase landed with Format Document as an explicit command (lsp-format, Shift+Alt+F) and `save()` has no hook. Formatting every file on every save would rewrite files the user did not ask to change, so it needs a Preferences switch (default off) and a `beforeSave` dep on `EditorHost` that awaits the server's edits before `deps.save`; that is a feature decision for the owner, not a leftover.
+
+### frontend/src/ui/editor/folding.ts · folding
+
+- refers-to: frontend/src/ui/editor/folding.ts :: folding, indentFolding, marker, foldTheme; frontend/src/ui/editor/editor.ts :: EditorHost.buildState
+- kind: rationale
+- logged: v0.22.0 · 2026-11-22
+
+Code folding is new in v0.22.0; before it the editor had no fold gutter, no fold keys and no placeholder style. `folding()` sits right after `lineNumbers()` in every document's state, so the order is breakpoints, line numbers, fold arrows, lint. It adds `codeFolding()`, `foldGutter` with a `markerDOM` that draws the icon module's `chevronDown` (open, shown at full strength only while the gutter is hovered, by opacity so nothing moves) and `chevronRight` (folded, always shown), `foldKeymap` (Ctrl+Shift+[ and ] to fold and unfold, Ctrl+Alt+[ and ] for all; Cmd+Alt+[ and ] on macOS, as VS Code), a placeholder styled from tokens, and phrases through `t()`. Every language with a syntax tree folds through its own fold props. Languages without one get indentation folding from a `foldService`: it answers only when the state has no language or a `StreamLanguage` (the legacy modes from language-data, whose trees carry no fold info), so Lezer languages and Markdown keep their own folding. A line folds to the last following line indented deeper, skipping blank lines, scanning at most 20000 lines.
+
+The gutter width cannot change when markers appear: `foldGutter` mounts its `initialSpacer` (a folded marker built by the same `markerDOM`) from the first frame, so the column is 18 px before the language pack loads and after. The `markerDOM` callback gets no view, so its title is set with `t('Fold line')` and `t('Unfold line')` directly. Measured at 4x CPU throttling on a 3,000-line file: the fold gutter stays 18 px from open through language load; folding and unfolding by click and by keys gave layout-shift entries only for the lines below the fold, all flagged hadRecentInput (the content moving because the person folded it).
+
+### frontend/src/ui/editor/cursors.ts · multiCursor
+
+- refers-to: frontend/src/ui/editor/cursors.ts :: multiCursor, crosshair, columnKeys; frontend/src/ui/editor/editor.ts :: EditorHost.buildState
+- kind: rationale
+- logged: v0.22.0 · 2026-11-22
+
+Before v0.22.0 the editor had the commands for several selections (`selectNextOccurrence`, `selectSelectionMatches` behind EditorHost.selectNext and selectAllOccurrences) and `drawSelection`, but not `EditorState.allowMultipleSelections`, which defaults to false, so the state collapsed every multi-range selection to its main range and those commands only moved one selection. Mouse adding was CodeMirror's default, Ctrl+click (Cmd+click on macOS), and there was no column selection. `multiCursor` turns multiple selections on, makes Alt+click (Option+click on macOS) add a cursor through `clickAddsSelectionRange`, and makes Alt+Shift+drag (Option+Shift) a rectangular selection through `rectangularSelection`, as VS Code does. CodeMirror's `crosshairCursor` watches one key only, so a small view plugin shows the crosshair while Alt and Shift are both held, by toggling the `cv-crosshair` class on the content element from window keydown and keyup and editor mousemove, and clears it on window blur and on destroy (EditorHost swaps states, which recreates plugins). The menu bar's lone-Alt mnemonic is reset by its own pointerdown listener, so Alt+click does not focus the menu.
+
+### frontend/src/ui/editor/brackets.ts · bracketColors
+
+- refers-to: frontend/src/ui/editor/brackets.ts :: bracketColors, build, depthAt, opensAt; frontend/src/ui/editor/editor.ts :: EditorHost.featExt, Doc.feat; frontend/src/styles/tokens.css :: --syn-bracket-1, --syn-bracket-2, --syn-bracket-3
+- kind: rationale
+- logged: v0.22.0 · 2026-11-22
+
+Bracket pair colouring is new. For each visible range the plugin finds the depth at the range start once (ancestors of the node there that have an opening bracket as their first or second child before that point; the second child covers subscripts such as `a[0]`, where the bracket follows the object), then walks the syntax tree through the range in document order and colours each one-character `(`, `[`, `{` token and its closer by depth, cycling three classes. Brackets inside strings and comments are never tokens of their own, so they are not coloured, and a language without a tree is left alone. Rebuilds happen on doc change, viewport change or a new tree only. The theme targets the mark and its direct span child, so the colour wins over the highlight style's punctuation colour whichever span is outside. It lives in a per-document `feat` Compartment fed by `featExt()`; the setting reconfigures it through the existing optsRev path (current document at once, hidden ones on show), never by rebuilding the view.
+
+The first version resolved every bracket character with `resolveInner` and walked its ancestors. Measured at 4x CPU throttling on the 3,000-line file, that cost about 12 ms of main thread per keystroke over colouring off; the tree walk brought it to about 4 ms (scroll cost equal within noise). Removed code: "const node = tree.resolveInner(pos, 1); if (node.name !== m[0] || node.from !== pos) continue; const depth = depthOf(node);".
+
+Tokens added in `tokens.css`, dark root and `body.theme-light`: `--syn-bracket-1` (#ffd24d, light #8f6400), `--syn-bracket-2` (#e07ae0, light #a3309f), `--syn-bracket-3` (#3fa9ff, light #0b62c4); no existing token gave three hues that read apart on both backgrounds without colliding with keyword and string colours.
+
+### frontend/src/ui/editor/editor.ts · EditorHost auto save and format on save
+
+- refers-to: frontend/src/ui/editor/editor.ts :: EditorHost.save, saveNow, commitSave, reloadFromDisk, applyEditorPrefs, scheduleAutoSave, cancelAutoSave, flushAutoSave, onUpdate; frontend/src/ui/editor/lsp.ts :: LspManager.formatForSave
+- kind: rationale
+- logged: v0.22.0 · 2026-11-22
+
+Closes the format-before-save item left open above, as the owner's switch (default off). `save(path, auto)` now queues saves per document (`Doc.queue`), so an auto save and Ctrl+S never send two writes with the same expected mtime, which would answer 409 to the second. A manual save of the shown document, with format on save on and a TypeScript or Python file, first calls `lsp.formatForSave(view, 1500)`: it sends textDocument/formatting itself (Format Document's command returns before the reply, so it cannot be awaited), races it against the time limit, maps the edits through the workspace mapping, drops them if the person typed inside an edited range, and applies them with userEvent `format`. If the server is missing, not ready, has no formatting provider, fails or is late, the file is still written and a quiet info toast (one key, so repeats merge) says formatting was skipped. Other file types save without asking. Auto saves and Save All for hidden tabs never format, as VS Code does not format on delayed auto save.
+
+Auto save (default off) schedules a save of the shown document `editorAutoSaveDelay` ms after its last change while it is dirty, and on window blur saves every dirty document. It never saves a document with no mtime and never a document whose last save answered 409: the existing conflict check is the trigger, but an auto save does not raise the Overwrite or Reload dialog; it sets `Doc.conflict`, shows "Auto save paused: name changed on disk" in the status bar, and stops auto saving that document until a manual save (which shows the usual conflict dialog) or a reload clears it. EditorHost has no untitled documents (every document is a workspace path loaded with an mtime), so the mtime check is the untitled guard. The settings reach the host through `EDITOR_PREFS_EVENT` (see frontend/src/ui/HASHOUT_LOG.md); `app.ts` is unchanged. Removed code from `save`: "try { const r = await this.deps.save(d.path, text, d.mtime); return this.commitSave(d, snapshot, r.mtime); }" now lives in `saveNow` with the auto and format branches.
+
+### frontend/src/ui/editor/lsp.ts · LspManager.extensionsFor keeps the lint gutter
+
+- refers-to: frontend/src/ui/editor/lsp.ts :: LspManager.extensionsFor
+- kind: rationale
+- logged: v0.22.0 · 2026-11-22
+
+Opening a TypeScript file with no language server installed moved the text 16 px left about 400 ms after open: the first `extensionsFor` added `lintGutter()`, and when the server reported itself unavailable the refresh returned no extensions, removing the gutter. An unavailable or stopped session now still returns `[lintGutter()]`, so the column stays and the open gives no layout shift (measured 0 at 4x throttling; before, one 0.007 entry from `.cm-content`). Removed code: "if (s.state === 'unavailable' || s.state === 'stopped') return [];". Still open, not part of this change: with no TypeScript server installed, lsp-client's initialize request times out after 20 s and surfaces as an unhandled "Request timed out" page error.
