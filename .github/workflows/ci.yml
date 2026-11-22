@@ -1,0 +1,54 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        working-directory: frontend
+        run: npm ci --no-fund
+      - name: Type check and build
+        working-directory: frontend
+        run: npm run build
+
+  engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install
+        run: pip install -r backend/requirements.txt
+      - name: Self check
+        run: python backend/formsubstrate_engine.py --selfcheck
+      - name: Compile
+        run: python -m compileall -q backend/app backend/presets backend/formsubstrate_engine.py backend/formsubstrate_mcp.py backend/formsubstrate_ptyhost.py
+      - name: Shell syntax
+        run: |
+          for f in formsubstrate formsubstrate_oc_install build_app "Install formsubstrate.command" backend/oc_install backend/boot_backend frontend/oc_install frontend/boot_frontend setup/lib.sh setup/boot_all setup/boot_backend setup/boot_frontend setup/clean setup/doctor setup/freeze_backend setup/install_all setup/serve; do
+            bash -n "$f"
+          done
