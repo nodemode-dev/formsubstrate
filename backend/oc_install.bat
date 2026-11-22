@@ -2,8 +2,8 @@
 setlocal
 cd /d "%~dp0"
 set "PY="
-py -3 -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 13) else 1)" >nul 2>nul && set "PY=py -3"
-if not defined PY python -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 13) else 1)" >nul 2>nul && set "PY=python"
+python -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 13) else 1)" >nul 2>nul && set "PY=python"
+if not defined PY py -3 -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 13) else 1)" >nul 2>nul && set "PY=py -3"
 if not defined PY ( echo [formsubstrate] Python 3.13 or newer is required & exit /b 1 )
 if not exist venv %PY% -m venv venv
 if not exist venv\Scripts\activate.bat ( echo [formsubstrate] error: the engine venv could not be made in backend\venv & exit /b 1 )
