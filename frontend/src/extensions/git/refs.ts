@@ -3,7 +3,7 @@ import { Commands } from '../../ui/commands';
 import { confirmAction, Dialog } from '../../ui/dialogs';
 import { el, patchList, q, setDisabled, setHidden, setText, setTitle } from '../../ui/dom';
 import { enhanceSelect } from '../../ui/dropdown';
-import { t } from '../../ui/i18n';
+import { t, tn } from '../../ui/i18n';
 import { icon } from '../../ui/icons';
 import { PopupMenu, type MenuItem } from '../../ui/menu';
 
@@ -450,7 +450,7 @@ export class GitRefs {
       try {
         const r = await git.pull(mode);
         this.h.applied(r.status);
-        const what = r.result === 'up-to-date' ? t('Already up to date') : r.result === 'merged' ? t('Pulled with a merge commit') : `${t('Pulled')} ${r.behind} ${t(r.behind === 1 ? 'commit' : 'commits')}`;
+        const what = r.result === 'up-to-date' ? t('Already up to date') : r.result === 'merged' ? t('Pulled with a merge commit') : `${t('Pulled')} ${r.behind} ${tn(r.behind, 'commit', 'commits')}`;
         this.h.say(what, false);
         this.h.changed();
       } catch (err) {
