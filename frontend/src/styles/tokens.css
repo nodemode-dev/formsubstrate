@@ -1,7 +1,7 @@
 :root {
   color-scheme: dark;
-  --accent-color: #f97316;
-  --accent-color-dim: #f9731633;
+  --accent-color: #a077e0;
+  --accent-color-dim: #a077e033;
   --accent-color-hover: color-mix(in srgb, var(--accent-color) 82%, #ffffff);
 
   --bg-primary: #111111;
@@ -15,6 +15,26 @@
   --text-muted: #717072;
   --canvas-bg: #1c1b1d;
   --grid-color: #5e5e60;
+  --node-shadow: 0 6px 18px rgba(0,0,0,0.45);
+
+  --grid-size: 24px;
+  --node-opacity: 1;
+  --connection-width: 2.5px;
+  --canvas-bg-image: none;
+
+  --handle-text: #d946ef;
+  --handle-image: #5eead4;
+  --handle-array: #9ca3af;
+  --handle-video: #1120aa;
+  --handle-audio: #ff8b1f;
+  --handle-3d: #eab308;
+  --handle-number: #2eff3f;
+  --handle-list: #f7e81c;
+  --handle-boolean: #22c55e;
+  --handle-mask: #a78bfa;
+  --handle-archive: #427268;
+  --handle-code: #191d1a;
+  --handle-data: #242323;
 
   --transition-fast: 0.15s ease;
   --transition-normal: 0.25s ease;
@@ -138,8 +158,16 @@
   --danger-fill: #dc2626;
   --danger-fill-hover: #b91c1c;
   --brand-orange: #f97316;
+  --diff-add: color-mix(in srgb, var(--ok) 13%, transparent);
+  --diff-add-strong: color-mix(in srgb, var(--ok) 30%, transparent);
+  --diff-del: color-mix(in srgb, var(--danger) 13%, transparent);
+  --diff-del-strong: color-mix(in srgb, var(--danger) 30%, transparent);
 
+  --z-under: -1;
   --z-base: 0;
+  --z-local-2: 2;
+  --z-local-4: 4;
+  --z-local-5: 5;
   --z-raised: 8;
   --z-selected: 9;
   --z-rail: 10;
@@ -168,6 +196,18 @@
   --cv-status-h: 28px;
   --cv-rail-w: 52px;
   --ft-dock-h: 0px;
+  --cv-layers-w: 288px;
+  --cv-row-h: 40px;
+  --cv-thumb: 30px;
+  --cv-checker-a: #ffffff;
+  --cv-checker-b: #cccccc;
+  --cv-ants-a: #000000;
+  --cv-ants-b: #ffffff;
+  --cv-pixel-grid: rgba(128, 128, 140, 0.35);
+  --cv-handle-fill: #ffffff;
+  --cv-doc-edge: rgba(0, 0, 0, 0.55);
+  --cv-action-blue: #3b82f6;
+  --cv-action-violet: #8b5cf6;
 
   --glass-bg: color-mix(in srgb, var(--surface-2) 82%, transparent);
   --glass-border: color-mix(in srgb, var(--text-primary) 16%, transparent);
@@ -216,6 +256,13 @@
   --ft-ansi-bright-magenta: #d8b4fe;
   --ft-ansi-bright-cyan: #67e8f9;
   --ft-ansi-bright-white: #fafafa;
+}
+
+:root[data-oled] {
+  --bg-hover: rgba(255, 255, 255, 0.1);
+  --border-soft: rgba(255, 255, 255, 0.12);
+  --surface-1: var(--bg-primary);
+  --line-0: var(--border-color);
 }
 
 body.theme-light {

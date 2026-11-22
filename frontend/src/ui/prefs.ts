@@ -61,7 +61,7 @@ export const RECOVERY_CHOICES: ReadonlyArray<readonly [string, string]> = [['1',
 export const DEFAULT_PREFS: Prefs = {
   language: 'en', uiFontSize: 'default', animations: true, showTooltips: true, noticeSeconds: 0,
   autoShowHome: true, homeOnLastClose: false, whatsNewAuto: true, whatsNewSeen: '',
-  favouriteThemes: [], themeAuto: false, themeLight: 'light', themeDark: 'substrata',
+  favouriteThemes: [], themeAuto: false, themeLight: 'light', themeDark: 'studio',
   shortcuts: {}, shortcutSets: {}, menuHidden: [], menuColors: {}, dialogValues: {},
   editorFontSize: 13, editorTabSize: 2, editorWordWrap: true, terminalFontSize: 13, terminalDockHeight: 260,
   agentDefaultModel: '', agentPermissionMode: 'acceptEdits', formslotEnabled: true, formslotAutoStart: true, formslotPath: '', gitSignOnCommit: true, recoveryMinutes: 1,
