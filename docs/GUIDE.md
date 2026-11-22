@@ -8,6 +8,10 @@ Substrate is a code editor for your repositories that also runs Claude Code for 
 
 You need [git](https://git-scm.com) and [Claude Code](https://claude.com/product/claude-code). Language servers are optional and are found on your computer; Substrate never installs programs for you and never bundles git, `claude` or a language server.
 
+Substrate looks for `claude` the way a terminal would find it, even when the app was opened from Finder, the Dock or the Start menu: the app's own PATH, the usual install folders (such as `~/.local/bin` and `~/.claude/local`), then the PATH your login shell sets up. To point it at one program, set `FORMSUBSTRATE_CLAUDE_BIN` to its full path before starting Substrate.
+
+Only one Substrate runs at a time. Opening it again brings the running window forward.
+
 Pick one way:
 
 - **macOS:** double-click `Install formsubstrate.command` in the Substrate folder. The first time, macOS may refuse because the file was downloaded. Right-click the file, choose Open, then choose Open again in the question that appears. You only do this once. When the install finishes the window offers to start Substrate and stays open until you press Enter.

@@ -349,7 +349,7 @@ async def launch(
 ) -> dict:
     if argv is None:
         if kind == "claude":
-            found = binres.find_bin("claude")
+            found = await asyncio.to_thread(binres.find_agent, "claude")
             if not found:
                 raise HTTPException(404, "the claude command was not found on this computer; install Claude Code or set FORMSUBSTRATE_BIN_DIR")
             argv = [found]
@@ -365,11 +365,12 @@ async def launch(
         same = sum(1 for item in existing if (item.get("meta") or {}).get("kind", "shell") == kind)
         label = title or f"{'Claude' if kind == 'claude' else 'Terminal'} {same + 1}"
         tid = new_id()
-        env = terminal_env()
+        agent = kind == "claude"
+        env = await asyncio.to_thread(binres.agent_env, terminal_env(), argv[0] if agent else None)
         if env_extra:
             env.update(env_extra)
         await client.request(
-            {"op": "spawn", "id": tid, "cwd": cwd, "argv": argv, "env": env, "cols": cols, "rows": rows,
+            {"op": "spawn", "id": tid, "cwd": cwd, "argv": binres.agent_argv(argv) if agent else argv, "env": env, "cols": cols, "rows": rows,
              "meta": {"title": label, "kind": kind, "sessionId": session_id}},
             ("spawned",),
         )

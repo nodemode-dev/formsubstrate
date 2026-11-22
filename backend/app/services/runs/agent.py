@@ -4,7 +4,7 @@ import os
 from typing import Awaitable, Callable
 
 from app.core import workspace_root as ws
-from app.core.binres import find_bin
+from app.core.binres import agent_argv, agent_env, find_agent
 from app.services.runs import worktree
 
 Emit = Callable[[str, str | None], Awaitable[None]]
@@ -32,7 +32,7 @@ class AgentError(Exception):
 
 
 def claude_path() -> str | None:
-    return find_bin("claude")
+    return find_agent("claude")
 
 
 def parse_verdict(output: str) -> str:
@@ -80,8 +80,9 @@ async def _run_claude(*, role: str, task: str, context: str, cfg: dict, evaluato
         cwd, extra, env = await worktree.prepare(procs, ws.real_root())
     except worktree.WorktreeError as err:
         raise AgentError(str(err)[:400])
+    env = await asyncio.to_thread(agent_env, env, exe)
     proc = await asyncio.create_subprocess_exec(
-        *argv, *extra, cwd=cwd, env=env, stdin=asyncio.subprocess.PIPE,
+        *agent_argv([*argv, *extra]), cwd=cwd, env=env, stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, limit=LINE_LIMIT)
     procs.add(proc)
     state = {"text": "", "final": None, "error": None, "streamed": False}

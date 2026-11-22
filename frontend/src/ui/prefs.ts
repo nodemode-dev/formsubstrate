@@ -73,7 +73,6 @@ export const FORMSLOT_PATH_EVENT = 'formsubstrate:formslot-path';
 
 const KEY = 'formsubstrate.prefs';
 const ZOOM_KEY = 'formsubstrate.uiZoom';
-const UPDATE_KEY = 'formsubstrate.updateAtStart';
 
 const num = (v: unknown, lo: number, hi: number, d: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d);
 const flag = (v: unknown, d: boolean): boolean => (typeof v === 'boolean' ? v : d);
@@ -284,14 +283,6 @@ export function autoUiScale(): number {
 export function setUiScale(v: string): void {
   try { localStorage.setItem(ZOOM_KEY, v); } catch { return; }
   window.dispatchEvent(new Event('formsubstrate:ui-zoom'));
-}
-
-export function updateAtStart(): boolean {
-  try { return localStorage.getItem(UPDATE_KEY) !== '0'; } catch { return true; }
-}
-
-export function setUpdateAtStart(on: boolean): void {
-  try { localStorage.setItem(UPDATE_KEY, on ? '1' : '0'); } catch { return; }
 }
 
 let systemScheme: MediaQueryList | null = null;

@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.core import config, workspace_root as ws
-from app.core.binres import find_bin
+from app.core.binres import find_agent, find_bin
 from app.services import formslot as formslot_service
 from app.services import gitops
 
@@ -253,7 +253,7 @@ def _git() -> str:
 
 
 def _claude() -> str:
-    found = find_bin("claude")
+    found = find_agent("claude")
     if not found:
         raise Refused(404, "the claude command was not found on this computer; install Claude Code and try again")
     return found

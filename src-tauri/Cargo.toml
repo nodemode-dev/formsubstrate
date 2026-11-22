@@ -1,6 +1,6 @@
 [package]
 name = "formsubstrate"
-version = "0.17.1"
+version = "0.18.0"
 description = "Substrate desktop shell (FormSubstrate)"
 authors = ["nodemode-ai"]
 license = "GPL-3.0-only"
@@ -11,7 +11,8 @@ rust-version = "1.90"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["devtools", "macos-private-api"] }
+tauri = { version = "2", features = ["macos-private-api"] }
+tauri-plugin-single-instance = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"

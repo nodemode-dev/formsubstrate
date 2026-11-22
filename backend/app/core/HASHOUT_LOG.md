@@ -150,3 +150,34 @@ review 14 and 7. The data folder copy no longer takes the whole old folder: it c
 - logged: v0.17.0 · 2026-11-21
 
 The app is now Substrate (family name FormSubstrate, machine name `formsubstrate`). The substrataform copy above was retargeted rather than stacked: the old name is now `subform`, so `SUBFORM_*` variables are adopted as `FORMSUBSTRATE_*` (the new name wins), `~/Subform`, the per-OS `subform` folder and `SubformData` are copied once into `~/FormSubstrate`, `formsubstrate` and `FormSubstrateData`, and keychain service `subform` is copied to `formsubstrate`. An install that still holds only substrataform data is no longer copied; every tester who ran a SubForm build already had it copied then. Two kinds of state live outside the data folder and are moved, not copied: a workspace's `.subform` folder is renamed to `.formsubstrate` when the workspace is opened and `.formsubstrate` does not exist (one `os.rename`, a failure leaves it alone), and snapshot refs under `refs/subform/snapshots/<key>/` are created under `refs/formsubstrate/snapshots/<key>/` and the old ref deleted, the first time that key's list is read, so a pruned snapshot does not come back. Webhook senders may keep the `X-Subform-*` headers; the new header is read first. `.subform` stays in the skip and block lists for a workspace where both folders exist. Checked with a fresh HOME on port 5657: the old data folder was copied with the marker, the deprecation warning for `SUBFORM_LOG_LEVEL` was logged, opening a workspace renamed its `.subform` folder, and `refs/subform/snapshots/workspace/3` was listed as `refs/formsubstrate/snapshots/workspace/3` with the old ref gone.
+
+### backend/app/core/binres.py · find_agent, agent_env, agent_argv, wide_path, warm; backend/app/services/agent_lookup.py
+
+- refers-to: backend/app/core/binres.py :: SHELL_WAIT, AGENT_OVERRIDES, find_bin, wide_path, find_agent, agent_env, agent_argv, warm; backend/app/services/agent_lookup.py (whole file); backend/app/services/sessions.py :: _claude; backend/app/services/runs/agent.py :: claude_path, _run_claude; backend/app/routers/terminal.py :: launch; backend/app/routers/system.py :: git_version, status; backend/app/routers/cogentics.py :: status; backend/app/main.py :: lifespan
+- kind: rationale
+- logged: v0.18.0 · 2026-11-22
+
+An app opened from Finder, the Dock or the Start menu gets the system's short PATH, so `shutil.which("claude")` reported Claude Code missing for a person who has it in `~/.local/bin` or under a version manager. `agent_lookup.py` is the family's finder, version 1.0.1, copied from FormVis without a change: its SHA-256 is `62667f9b68b7d101e1896ce617240424e33b7e498c560bc79d45f0ab26c77d51`, the value FormVis records for 1.0.1 in `setup/agents.py`. It is never edited here; a new version replaces the whole file. Its table carries Claude Code, Codex, Cursor and Antigravity; only `claude` is started in this version.
+
+- `find_agent(program)` looks in `FORMSUBSTRATE_BIN_DIR` and the bundle's `bin` first (as `find_bin` does), then asks the finder with the development override `FORMSUBSTRATE_<PROGRAM>_BIN`. Removed: `find_bin("claude")` at the three call sites and `shutil.which("claude")` in the two status routes.
+- `find_bin` is kept for git, rg, formslot, formmcp and the language servers. Its last line was `return shutil.which(name)`; it now also searches `wide_path()`, the PATH the finder builds (the person's shell PATH, the known install folders, then the engine's PATH).
+- `agent_env(env, path)` returns the environment for a start: the program's own folder first on PATH, and a frozen engine's `LD_LIBRARY_PATH` and `DYLD_LIBRARY_PATH` put back as they were. The finder drops `CLAUDE*` variables it does not know; every `CLAUDE*` key already in `env` is passed as `keep`, because `terminal.inherited_env` and `worktree.STRIPPED_ENV` have already decided which of them a child gets.
+- `agent_argv` wraps a `.cmd` or `.bat` program in the command interpreter on Windows and changes nothing elsewhere. The finder's own `start_argv` also wraps every start in the login shell on macOS and Linux; that is not used here, because the environment above already carries the shell's PATH and the pty-host starts the program itself.
+- `warm()` reads the shell PATH once on a background thread at engine start, so the first session does not wait up to `SHELL_WAIT` seconds for a login shell.
+- No Preferences field for a program's path yet; the finder accepts one (`setting`) and the field arrives with the other three programs.
+
+Run on Linux with a stand-in `claude` in a made-up home and a PATH of the four system folders: found in `~/.local/bin`, its folder first on the child's PATH. Not run on macOS or Windows, and never against a real agent program.
+
+### backend/app/core/startup.py · claim, holder, watch; backend/app/core/runtime.py · claim
+
+- refers-to: backend/app/core/startup.py (whole file); backend/app/core/runtime.py :: AlreadyRunning, _alive, claim
+- kind: rationale
+- logged: v0.18.0 · 2026-11-22
+
+`startup.py` comes from FormVis (`backend/app/core/startup.py`, Apache-2.0) with five names changed: `APP`, `NAMES`, `SHELL_ENV` (`FORMSUBSTRATE_SHELL_PID`), `ALONE_ENV` and `ERRORS_NAME`. The lock now records `born`, `shell` and `shellBorn` beside `pid` and `started`.
+
+Removed from `runtime.py`: `class AlreadyRunning(RuntimeError): pass` (now `startup.Busy` under the same name); the body of `_alive` (on Windows `OpenProcess(0x1000, False, pid)`, which counts a finished process as alive while anything holds a handle; elsewhere `os.kill(pid, 0)` plus the zombie test in `/proc`); and the body of `claim`: read `pid` from the lock, `if held and held != os.getpid() and _alive(held): raise AlreadyRunning(...)`, then write `{"pid", "started"}`. That rule obeyed any live process with the recorded id for ever. On Windows the engine did not leave with its app, so after the shell was ended from Task Manager the next start met a live engine, raised, and the person saw "The Substrate engine failed to start".
+
+The rule now: a lock whose engine is gone, or whose process id belongs to a different process (start times differ), is free. A lock whose engine is alive and whose shell is alive is busy and refuses. A lock whose engine is alive and whose shell is gone is a leftover: the engine is ended (terminate, then kill after five seconds) and the lock is taken. A lock written by 0.17.1 has no `shell`: it is a leftover when this start has a shell, and busy when it has none (two `./formsubstrate boot` in a row still refuse).
+
+`keep_errors`, `alone`, `app_beside` and `open_app` are in the file and not called: Substrate's engine sits in a folder of its own inside the bundle, so FormVis's places for the app program do not apply.

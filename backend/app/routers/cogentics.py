@@ -1,6 +1,5 @@
 import asyncio
 import json
-import shutil
 import time
 from typing import AsyncIterator
 
@@ -8,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.core import workspace_root as ws
+from app.core import binres, workspace_root as ws
 from app.core.local_guard import require_window
 from app.services.cogentics import catalog, usage
 from app.services.cogentics.hub import hub
@@ -81,7 +80,7 @@ def _channel(name: str):
 async def status() -> dict:
     snap = llm.snapshot()
     return {"llm_configured": snap["configured"], "provider": snap["provider"], "model": snap["model"],
-            "claude_cli": bool(shutil.which("claude")), "simulator": not snap["configured"]}
+            "claude_cli": bool(await asyncio.to_thread(binres.find_agent, "claude")), "simulator": not snap["configured"]}
 
 
 @router.get("/provider")
