@@ -97,6 +97,8 @@ async def lsp_ws(ws: WebSocket) -> None:
             if reply is not None:
                 await proc.send(reply)
                 continue
+            if msg.get("method") == "textDocument/publishDiagnostics":
+                lsp.record_diagnostics(root, msg.get("params"), proc)
             await ws.send_text(json.dumps(msg))
 
     tasks: list[asyncio.Task] = []

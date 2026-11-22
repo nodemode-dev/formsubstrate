@@ -7,6 +7,9 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
+import time
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import AsyncIterator
@@ -69,6 +72,85 @@ LANGS: dict[str, dict] = {
 _versions: dict[str, str | None] = {}
 _live: set["LspProc"] = set()
 _starting: list[str] = []
+
+PROBLEM_ROOTS = 16
+PROBLEM_DOCS = 2000
+PROBLEM_ITEMS = 200
+PROBLEM_TEXT = 2000
+PROBLEM_FIELD = 200
+PROBLEM_URI = 4096
+_problems: "OrderedDict[str, dict]" = OrderedDict()
+_problems_lock = threading.Lock()
+_problems_seq = 0
+
+
+def _whole(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+
+
+def _diagnostic(item: object) -> dict | None:
+    if not isinstance(item, dict):
+        return None
+    span = item.get("range") if isinstance(item.get("range"), dict) else {}
+    start = span.get("start") if isinstance(span.get("start"), dict) else {}
+    severity = item.get("severity")
+    code = item.get("code")
+    source = item.get("source")
+    return {
+        "line": _whole(start.get("line")) or 0,
+        "character": _whole(start.get("character")) or 0,
+        "severity": severity if severity in (1, 2, 3, 4) and not isinstance(severity, bool) else 1,
+        "message": str(item.get("message") or "")[:PROBLEM_TEXT],
+        "source": source[:PROBLEM_FIELD] if isinstance(source, str) else None,
+        "code": str(code)[:PROBLEM_FIELD] if isinstance(code, (str, int)) and not isinstance(code, bool) else None,
+    }
+
+
+def record_diagnostics(root: str, params: object, owner: object = None) -> None:
+    global _problems_seq
+    if not isinstance(root, str) or not root or not isinstance(params, dict):
+        return
+    uri = params.get("uri")
+    raw = params.get("diagnostics")
+    if not isinstance(uri, str) or not uri or len(uri) > PROBLEM_URI or not isinstance(raw, list):
+        return
+    rows = [row for row in (_diagnostic(item) for item in raw[:PROBLEM_ITEMS]) if row is not None]
+    with _problems_lock:
+        entry = _problems.get(root)
+        if entry is None:
+            entry = {"docs": OrderedDict(), "servers": set()}
+            _problems[root] = entry
+            while len(_problems) > PROBLEM_ROOTS:
+                _problems.popitem(last=False)
+        _problems.move_to_end(root)
+        entry["servers"].add(owner)
+        docs = entry["docs"]
+        docs.pop(uri, None)
+        if not rows:
+            return
+        _problems_seq += 1
+        docs[uri] = {"uri": uri, "version": _whole(params.get("version")), "at": time.time(), "seq": _problems_seq, "sent": len(raw), "items": rows, "owner": owner}
+        while len(docs) > PROBLEM_DOCS:
+            docs.popitem(last=False)
+
+
+def forget_diagnostics(owner: object) -> None:
+    with _problems_lock:
+        for root in list(_problems):
+            entry = _problems[root]
+            for uri in [u for u, doc in entry["docs"].items() if doc["owner"] is owner]:
+                del entry["docs"][uri]
+            entry["servers"].discard(owner)
+            if not entry["servers"]:
+                del _problems[root]
+
+
+def diagnostics_of(root: str) -> list[dict] | None:
+    with _problems_lock:
+        entry = _problems.get(root)
+        if entry is None:
+            return None
+        return [{k: v for k, v in doc.items() if k != "owner"} for doc in reversed(entry["docs"].values())]
 
 
 @dataclass
@@ -254,6 +336,7 @@ class LspProc:
 
     async def stop(self) -> None:
         _live.discard(self)
+        forget_diagnostics(self)
         if not self.alive():
             return
         self._signal(signal.SIGTERM)

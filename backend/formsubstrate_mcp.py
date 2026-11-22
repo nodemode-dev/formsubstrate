@@ -8,6 +8,7 @@ OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 DEFAULT_PORT = 5655
 TIMEOUT = 60
 NOT_RUNNING = "Substrate is not running: open Substrate, then try again"
+NOT_ADMITTED = "Substrate did not accept this client: in Substrate open Preferences, Agents, MCP clients, add a client, and set FORMSUBSTRATE_MCP_TOKEN to the token it shows"
 
 
 def data_dir() -> str:
@@ -64,6 +65,11 @@ def forward(base: str, token: str, line: str) -> None:
             body = reply.read().decode("utf-8")
             status = reply.status
     except urllib.error.HTTPError as err:
+        if err.code in (401, 403):
+            for ident in wants:
+                say(failure(ident, -32001, NOT_ADMITTED))
+            print(f"formsubstrate mcp: {NOT_ADMITTED}", file=sys.stderr)
+            return
         text = err.read().decode("utf-8", "replace")
         try:
             say(json.loads(text))
@@ -87,7 +93,7 @@ def forward(base: str, token: str, line: str) -> None:
 
 def main() -> int:
     base = engine_base()
-    token = os.environ.get("FORMSUBSTRATE_GATE_TOKEN", "").strip()
+    token = os.environ.get("FORMSUBSTRATE_GATE_TOKEN", "").strip() or os.environ.get("FORMSUBSTRATE_MCP_TOKEN", "").strip()
     print(f"formsubstrate mcp: forwarding to {base}", file=sys.stderr)
     for line in sys.stdin:
         line = line.strip()
