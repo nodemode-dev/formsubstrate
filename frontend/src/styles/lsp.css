@@ -33,6 +33,22 @@
 .cv-lsp-srv-install[hidden] { display: flex; }
 .cv-lsp-srv-how { min-height: 1lh; }
 .cv-lsp-srv-install code:empty { visibility: hidden; }
+.cv-lsp-custom-list { display: flex; flex-direction: column; }
+.cv-lsp-custom-row { display: flex; flex-direction: column; gap: var(--space-0); padding: var(--space-1) 0; border-bottom: 1px solid var(--border-soft); }
+.cv-lsp-custom-row .cv-lsp-srv-detail { min-height: 1lh; }
+.cv-lsp-custom-row code, .cv-prefs-lsp-row code { box-sizing: border-box; height: calc(1lh + var(--space-1) * 2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--surface-field); color: var(--text-primary); font-family: var(--font-mono); font-size: var(--fs-11); user-select: text; }
+.cv-lsp-custom-row code[hidden], .cv-prefs-lsp-row code[hidden] { display: none; }
+.cv-lsp-custom-none { margin: 0; }
+.cv-lsp-custom-none[hidden], .cv-lsp-custom-trust[hidden] { display: none; }
+.cv-lsp-custom-trust { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding-top: var(--space-1); }
+.cv-prefs-lsp-row { display: flex; flex-direction: column; gap: var(--space-0); padding: var(--space-1) 0; border-bottom: 1px solid var(--border-soft); font-size: var(--fs-12); }
+.cv-prefs-lsp-head { display: flex; align-items: center; gap: var(--space-2); min-height: var(--ctl-md); }
+.cv-prefs-lsp-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+.cv-prefs-lsp-sub { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: var(--fs-11); user-select: text; }
+.cv-prefs-lsp-form[hidden], .cv-prefs-lsp-presets[hidden] { display: none; }
+.cv-prefs-lsp-form { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) 0; }
+.cv-prefs-lsp-form textarea { min-height: calc(4lh + var(--space-2) * 2); resize: vertical; font-family: var(--font-mono); font-size: var(--fs-11); }
+.cv-prefs-lsp-presets { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .cv-lsp-srv-install code { box-sizing: border-box; height: calc(1lh + var(--space-1) * 2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--surface-field); color: var(--text-primary); font-family: var(--font-mono); font-size: var(--fs-11); overflow-wrap: anywhere; user-select: text; }
 
 .cv-st-lsp { display: inline-flex; align-items: center; flex: none; gap: var(--space-2); width: var(--size-st-lsp); height: var(--size-chip-h); padding: 0 var(--space-1); border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: inherit; font: inherit; text-align: left; white-space: nowrap; overflow: hidden; cursor: pointer; }

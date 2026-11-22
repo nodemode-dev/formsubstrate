@@ -1,5 +1,6 @@
 import { findReferences, formatDocument, jumpToDefinition, renameSymbol } from '@codemirror/lsp-client';
-import type { LspServerInfo } from '../../io/lsp';
+import { CUSTOM_LSP_EVENT, syncTrust, type CustomServer, type LspServerInfo, type LspServers } from '../../io/lsp';
+import { setTrusted, TRUST_EVENT } from '../../io/trust';
 import { Dialog } from '../../ui/dialogs';
 import { el, patchList, q, setClass, setHidden, setText, setTitle } from '../../ui/dom';
 import { lsp, type LspStatus, type OutlineItem, type Problem } from '../../ui/editor/lsp';
@@ -29,14 +30,19 @@ const SEVERITY_ICON: Record<number, string> = { 1: 'error', 2: 'warning', 3: 'in
 
 const LANG_NAME: Record<string, string> = { typescript: 'TypeScript', python: 'Python' };
 
-const STATE_WORD: Record<string, string> = { starting: 'starting', ready: 'ready', unavailable: 'not installed', stopped: 'stopped' };
+const STATE_WORD: Record<string, string> = { starting: 'starting', ready: 'ready', unavailable: 'not installed', stopped: 'stopped', untrusted: 'needs trust' };
 
 const baseOf = (path: string): string => path.slice(path.lastIndexOf('/') + 1);
+
+const untrusted = (st: LspStatus | null): boolean => !!st && st.state === 'unavailable' && st.reason === 'untrusted';
+
+const trustNeed = (label: string): string => `${t('Trust the workspace to run')} ${label}`;
 
 function emptyReason(path: string | null, st: LspStatus | null): string {
   if (!path) return t('Open a TypeScript or Python file');
   if (!st) return t('No language server for this file type');
   if (st.state === 'starting') return t('The language server is starting');
+  if (untrusted(st)) return trustNeed(st.label || st.lang);
   if (st.state === 'unavailable') return t('No language server was found. Open Language Servers for how to install one.');
   if (st.state === 'stopped') return t('The language server stopped');
   return t('No symbols');
@@ -201,14 +207,67 @@ class ServersDialog extends Dialog {
         lines: Array.from(block.querySelectorAll<HTMLElement>('code')),
       });
     }
-    this.foot.append(this.button('Close', 'primary', () => this.close()));
+    const custom = el<HTMLElement>(
+      '<section class="cv-lsp-srv cv-lsp-custom"><div class="cv-lsp-srv-head"><span class="cv-lsp-srv-name"></span></div>' +
+      '<div class="cv-lsp-custom-list" role="list"></div><p class="cv-note cv-lsp-custom-none"></p>' +
+      '<div class="cv-lsp-custom-trust"><span class="cv-note"></span><button class="cv-btn cv-btn-primary" type="button"></button></div></section>');
+    this.body.append(custom);
+    this.customList = q(custom, '.cv-lsp-custom-list');
+    this.customNone = q(custom, '.cv-lsp-custom-none');
+    this.trustRow = q(custom, '.cv-lsp-custom-trust');
+    setText(q(custom, '.cv-lsp-srv-name'), t('Custom servers'));
+    setText(this.customNone, t('No custom server yet. Add one in Preferences, Language Servers.'));
+    setText(q(this.trustRow, 'button'), t('Trust this workspace'));
+    q(this.trustRow, 'button').addEventListener('click', () => {
+      const path = this.ctx.store.workspace?.path;
+      if (!path) return;
+      setTrusted(path, true);
+      void syncTrust().then(() => this.show());
+    });
+    this.foot.append(this.button('Preferences', 'ghost', () => { this.close(); this.ctx.commands.run('settings'); }), this.button('Close', 'primary', () => this.close()));
+  }
+
+  private readonly customList: HTMLElement;
+  private readonly customNone: HTMLElement;
+  private readonly trustRow: HTMLElement;
+  private ctx!: ExtensionContext;
+
+  bind(ctx: ExtensionContext): this {
+    this.ctx = ctx;
+    return this;
   }
 
   async show(): Promise<void> {
-    this.open();
-    let servers: LspServerInfo[] = [];
-    try { servers = (await lsp.servers()).servers; } catch { servers = []; }
-    for (const info of servers) this.paint(info);
+    let found: LspServers | null = null;
+    try { found = await lsp.servers(); } catch { found = null; }
+    for (const info of found?.servers ?? []) this.paint(info);
+    this.paintCustom(found?.custom ?? [], !!found?.trusted);
+    if (!this.isOpen) this.open();
+  }
+
+  private paintCustom(list: CustomServer[], trusted: boolean): void {
+    const fill = (node: HTMLElement, s: CustomServer): HTMLElement => {
+      const live = lsp.statusFor(`x${s.exts[0] ?? ''}`);
+      const word = !trusted ? 'needs trust' : !s.found ? 'not installed' : live && live.lang === s.lang && live.state !== 'starting' ? STATE_WORD[live.state] : 'found';
+      setText(q(node, '.cv-lsp-srv-name'), s.label);
+      setText(q(node, '.cv-lsp-srv-state'), t(word));
+      setClass(q(node, '.cv-lsp-srv-state'), 'is-bad', !trusted || !s.found);
+      setText(q(node, '.cv-lsp-srv-detail'), `${s.exts.join(' ')} · ${s.path ?? [s.program, ...s.args].join(' ')}`);
+      const line = q(node, 'code');
+      const how = s.found ? '' : s.install[0] ?? '';
+      setText(line, how);
+      setTitle(line, how);
+      setHidden(line, !how);
+      return node;
+    };
+    patchList(this.customList, list, {
+      key: (s) => s.id,
+      create: (s) => fill(el<HTMLElement>('<div class="cv-lsp-custom-row" role="listitem"><div class="cv-lsp-srv-head"><span class="cv-lsp-srv-name"></span><span class="cv-lsp-srv-state"></span></div><p class="cv-note cv-lsp-srv-detail"></p><code></code></div>'), s),
+      update: (node, s) => { fill(node, s); },
+    });
+    setHidden(this.customNone, list.length > 0);
+    setHidden(this.trustRow, trusted || list.length === 0 || !this.ctx.store.workspace);
+    setText(q(this.trustRow, '.cv-note'), list.length ? trustNeed(list.map((s) => s.label).join(', ')) : '');
   }
 
   private paint(info: LspServerInfo): void {
@@ -235,7 +294,8 @@ class ServersDialog extends Dialog {
 
 function describe(st: LspStatus | null): { text: string; title: string; state: string } {
   if (!st) return { text: '', title: '', state: 'idle' };
-  const name = LANG_NAME[st.lang] ?? st.lang;
+  const name = st.label || (LANG_NAME[st.lang] ?? st.lang);
+  if (untrusted(st)) return { text: `${name} · ${t(STATE_WORD.untrusted)}`, title: `${trustNeed(name)}. ${t('Open Language Servers to trust it.')}`, state: 'unavailable' };
   const text = `${name} · ${t(STATE_WORD[st.state] ?? st.state)}`;
   const server = st.name ? `${st.name}${st.version ? ` ${st.version}` : ''}` : '';
   const title = st.state === 'unavailable' ? `${st.error}${st.install.length ? `\n${st.install.join('\n')}` : ''}` : st.state === 'stopped' ? st.error : server;
@@ -280,7 +340,7 @@ register({
       { id: 'lsp-outline', label: 'Show Outline', run: () => (outlineRight ?? outlineSection).reveal() },
       { id: 'lsp-outline-left', label: 'Show Outline in the Sidebar', run: () => outlineSection.reveal() },
       { id: 'lsp-problems', label: 'Show Problems', run: () => problemsSection.reveal() },
-      { id: 'lsp-servers', label: 'Language Servers...', run: () => { servers ??= new ServersDialog(); void servers.show(); } },
+      { id: 'lsp-servers', label: 'Language Servers...', run: () => { servers ??= new ServersDialog().bind(ctx); void servers.show(); } },
       { id: 'lsp-restart', label: 'Restart Language Servers', enabled: () => ctx.store.docs.length > 0, run: () => lsp.restart(ctx.store.docs.map((d) => d.path)) },
     );
 
@@ -297,6 +357,10 @@ register({
       window.dispatchEvent(new CustomEvent<LspStatusDetail>(LSP_STATUS_EVENT, { detail }));
     };
     window.addEventListener('formsubstrate:lsp-servers', () => { ctx.commands.run('lsp-servers'); });
+    const repaintServers = (): void => { if (servers?.isOpen) void servers.show(); };
+    window.addEventListener(CUSTOM_LSP_EVENT, repaintServers);
+    window.addEventListener(TRUST_EVENT, () => { void syncTrust().then(repaintServers); });
+    lsp.on('state', repaintServers);
     lsp.on('state', publish);
     lsp.on('diagnostics', publish);
     ctx.store.on('active', publish);

@@ -2,6 +2,7 @@ import { formslot } from '../io/formslot';
 import { git, type Identity } from '../io/git';
 import { removeSecret, saveSecret, secretStatus, secretStatusText, type SecretStatus } from '../io/secrets';
 import { addMcpClient, listMcpClients, removeMcpClient, type McpClient } from '../io/mcp-clients';
+import { customLsp, type CustomPreset, type CustomServer, type CustomServerFields } from '../io/lsp';
 import { systemStatus } from '../io/api';
 import { setTrusted } from '../io/trust';
 import { formatKeys, type Commands } from './commands';
@@ -152,6 +153,27 @@ export class SettingsDialog {
   private mcpNote = '';
   private mcpBad = false;
   private mcpBusy = false;
+  private readonly lspList = el('<div class="cv-prefs-keys"></div>');
+  private readonly lspNone = el('<p class="cv-note"></p>');
+  private readonly lspPresets = el('<div class="cv-prefs-lsp-presets"></div>');
+  private readonly lspForm = el('<div class="cv-prefs-lsp-form" hidden></div>');
+  private readonly lspLabel = el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" autocomplete="off" maxlength="80">');
+  private readonly lspProgram = el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" autocomplete="off" maxlength="1024">');
+  private readonly lspArgs = el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" autocomplete="off" maxlength="4096">');
+  private readonly lspExts = el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" autocomplete="off" maxlength="400">');
+  private readonly lspLang = el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" autocomplete="off" maxlength="64">');
+  private readonly lspOptions = el<HTMLTextAreaElement>('<textarea class="cv-input" wrap="off" spellcheck="false"></textarea>');
+  private readonly lspSave = el<HTMLButtonElement>('<button class="cv-btn cv-btn-primary" type="button"></button>');
+  private readonly lspCancel = el<HTMLButtonElement>('<button class="cv-btn cv-btn-ghost" type="button"></button>');
+  private readonly lspNew = el<HTMLButtonElement>('<button class="cv-btn" type="button"></button>');
+  private readonly lspStatus = el('<p class="cv-note cv-prefs-status" role="status"></p>');
+  private lspServers: CustomServer[] = [];
+  private lspPresetList: CustomPreset[] = [];
+  private lspEditing: string | null = null;
+  private lspFormPreset: string | null = null;
+  private lspNote = '';
+  private lspBad = false;
+  private lspBusy = false;
   private readonly version: HTMLElement;
 
   constructor(ctx: SettingsContext) {
@@ -284,7 +306,7 @@ export class SettingsDialog {
         grp('Service', this.slotEnabled.el, this.slotAuto.el, valueRow('Service status', t('Not running')).el),
         grp('Location', this.pathRow(), this.slotFound.el, nt('The folder you unpacked formslot into, or the formslot program itself. Home uses it to install formslot when none is found.')),
       ],
-      'Language Servers': [grp('Servers', nt('Language servers are found on this system and used when they are installed.'))],
+      'Language Servers': [grp('Servers', nt('Language servers are found on this system and used when they are installed.')), this.lspCard()],
       Keys: [grp('Shortcuts', this.keyList, nt('Shortcuts can be changed in a later version.'))],
       Updates: [grp('Version', versionRow.el, nt('Updates come through FormPortal.'))],
     };
@@ -658,6 +680,7 @@ export class SettingsDialog {
   private async refreshRemote(): Promise<void> {
     this.forgetMcpToken();
     void this.loadMcp();
+    void this.loadLsp();
     this.gitTouched = false;
     void this.loadGit();
     void this.paintFound();
@@ -867,6 +890,205 @@ export class SettingsDialog {
       this.mcpBusy = false;
       this.paintMcp();
     }
+  }
+
+  private lspCard(): HTMLElement {
+    const formActions = el('<div class="cv-prefs-actions"></div>');
+    formActions.append(this.lspSave, this.lspCancel);
+    const optionsRow = el('<label class="cv-field"><span></span></label>');
+    optionsRow.append(this.lspOptions);
+    this.lspForm.append(this.fieldRow('Label', this.lspLabel), this.fieldRow('Program', this.lspProgram), this.fieldRow('Arguments', this.lspArgs), this.fieldRow('File extensions', this.lspExts), this.fieldRow('Language id', this.lspLang), optionsRow, formActions);
+    const newActions = el('<div class="cv-prefs-actions"></div>');
+    newActions.append(this.lspNew);
+    const labels = (): void => {
+      setText(this.lspNone, t('No custom server yet. Add a preset or your own.'));
+      setText(q(optionsRow, 'span'), t('initializationOptions (JSON)'));
+      this.lspProgram.placeholder = t('A command name or an absolute path');
+      this.lspArgs.placeholder = t('Separated by spaces, for example --stdio');
+      this.lspExts.placeholder = '.rs';
+      this.lspLang.placeholder = 'rust';
+      this.lspOptions.placeholder = t('Optional, for example {"provideFormatter": true}');
+      for (const [input, label] of [[this.lspLabel, 'Label'], [this.lspProgram, 'Program'], [this.lspArgs, 'Arguments'], [this.lspExts, 'File extensions'], [this.lspLang, 'Language id'], [this.lspOptions, 'initializationOptions (JSON)']] as const) input.setAttribute('aria-label', t(label));
+      setText(this.lspSave, t('Save'));
+      setText(this.lspCancel, t('Cancel'));
+      setText(this.lspNew, t('Add custom server'));
+      this.paintLsp();
+    };
+    this.lspNew.addEventListener('click', () => this.openLspForm(null));
+    this.lspCancel.addEventListener('click', () => this.closeLspForm());
+    this.lspSave.addEventListener('click', () => { void this.saveLsp(); });
+    for (const input of [this.lspLabel, this.lspProgram, this.lspArgs, this.lspExts, this.lspLang]) {
+      input.addEventListener('input', () => this.paintLsp());
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); this.lspSave.click(); } });
+    }
+    this.lspOptions.addEventListener('input', () => this.paintLsp());
+    this.lspList.addEventListener('click', (e) => {
+      const b = e.target instanceof Element ? e.target.closest<HTMLElement>('[data-act]') : null;
+      const id = b?.closest<HTMLElement>('[data-key]')?.dataset.key;
+      if (!b || !id) return;
+      if (b.dataset.act === 'edit') this.openLspForm(id);
+      else if (b.dataset.act === 'remove') void this.removeLsp(id);
+    });
+    this.lspPresets.addEventListener('click', (e) => {
+      const b = e.target instanceof Element ? e.target.closest<HTMLElement>('[data-key]') : null;
+      if (b?.dataset.key) void this.addLspPreset(b.dataset.key);
+    });
+    const card = grp('Custom servers', this.lspList, this.lspNone, this.lspPresets, newActions, this.lspForm, this.lspStatus,
+      nt('One-click presets add a server you can then edit. Substrate never installs a server: run the install line shown under a server that was not found. A custom server runs only in a trusted workspace, with a reduced environment.'));
+    labels();
+    onLanguage(labels);
+    return card;
+  }
+
+  private lspFields(): CustomServerFields | string {
+    const text = this.lspOptions.value.trim();
+    let options: unknown = null;
+    if (text) {
+      try { options = JSON.parse(text); } catch { return 'initializationOptions is not valid JSON.'; }
+    }
+    return {
+      label: this.lspLabel.value.trim(),
+      program: this.lspProgram.value.trim(),
+      args: this.lspArgs.value.split(/\s+/).filter(Boolean),
+      exts: this.lspExts.value.split(/[\s,]+/).filter(Boolean).map((x) => (x.startsWith('.') ? x : `.${x}`).toLowerCase()),
+      languageId: this.lspLang.value.trim(),
+      initializationOptions: options,
+      preset: this.lspFormPreset,
+    };
+  }
+
+  private openLspForm(id: string | null): void {
+    const s = id ? this.lspServers.find((x) => x.id === id) : undefined;
+    this.lspEditing = s ? s.id : null;
+    this.lspFormPreset = s?.preset ?? null;
+    setValue(this.lspLabel, s?.label ?? '');
+    setValue(this.lspProgram, s?.program ?? '');
+    setValue(this.lspArgs, s?.args.join(' ') ?? '');
+    setValue(this.lspExts, s?.exts.join(' ') ?? '');
+    setValue(this.lspLang, s?.languageId ?? '');
+    this.lspOptions.value = s && s.initializationOptions != null ? JSON.stringify(s.initializationOptions, null, 1) : '';
+    this.lspNote = '';
+    this.lspBad = false;
+    setHidden(this.lspForm, false);
+    this.paintLsp();
+    this.lspLabel.focus();
+  }
+
+  private closeLspForm(): void {
+    this.lspEditing = null;
+    this.lspFormPreset = null;
+    setHidden(this.lspForm, true);
+    this.paintLsp();
+  }
+
+  private paintLsp(): void {
+    const fill = (node: HTMLElement, s: CustomServer): void => {
+      setText(q(node, '.cv-prefs-lsp-name'), s.label);
+      setText(q(node, '.cv-prefs-lsp-sub'), `${s.exts.join(' ')} · ${s.languageId} · ${[s.program, ...s.args].join(' ')}${s.found ? '' : ` · ${t('not found')}`}`);
+      setTitle(q(node, '.cv-prefs-lsp-sub'), s.path ?? s.program);
+      const line = q(node, 'code');
+      const how = s.found ? '' : s.install[0] ?? '';
+      setText(line, how);
+      setTitle(line, how);
+      setHidden(line, !how);
+      setText(q(node, '[data-act="edit"]'), t('Edit'));
+      setText(q(node, '[data-act="remove"]'), t('Remove'));
+    };
+    patchList(this.lspList, this.lspServers, {
+      key: (s) => s.id,
+      create: (s) => {
+        const node = el('<div class="cv-prefs-lsp-row"><div class="cv-prefs-lsp-head"><span class="cv-prefs-lsp-name"></span><button class="cv-btn" type="button" data-act="edit"></button><button class="cv-btn cv-btn-danger" type="button" data-act="remove"></button></div><span class="cv-prefs-lsp-sub"></span><code></code></div>');
+        fill(node, s);
+        return node;
+      },
+      update: fill,
+    });
+    setHidden(this.lspNone, this.lspServers.length > 0);
+    const taken = new Set(this.lspServers.flatMap((s) => s.exts));
+    patchList(this.lspPresets, this.lspPresetList, {
+      key: (p) => p.preset ?? p.label,
+      create: (p) => { const b = el<HTMLButtonElement>('<button class="cv-btn" type="button"></button>'); setText(b, `${t('Add')} ${p.label}`); return b; },
+      update: (node, p) => { setText(node, `${t('Add')} ${p.label}`); },
+    });
+    for (const b of Array.from(this.lspPresets.children) as HTMLButtonElement[]) {
+      const p = this.lspPresetList.find((x) => (x.preset ?? x.label) === b.dataset.key);
+      const off = this.lspBusy || !p || p.exts.some((x) => taken.has(x));
+      if (b.disabled !== off) b.disabled = off;
+      setTitle(b, p ? `${[p.program, ...p.args].join(' ')} · ${p.exts.join(' ')} · ${t('install')}: ${p.install.join(' | ')}` : '');
+    }
+    setHidden(this.lspPresets, this.lspPresetList.length === 0);
+    setText(this.lspStatus, this.lspNote || ' ');
+    setClass(this.lspStatus, 'is-error', this.lspBad);
+    const fields = this.lspFields();
+    const ready = typeof fields !== 'string' && !!fields.label && !!fields.program && fields.exts.length > 0 && !!fields.languageId;
+    const off = (b: HTMLButtonElement, v: boolean): void => { if (b.disabled !== v) b.disabled = v; };
+    off(this.lspSave, this.lspBusy || !ready);
+    off(this.lspNew, this.lspBusy || !this.lspForm.hidden);
+  }
+
+  private async loadLsp(): Promise<void> {
+    try {
+      const found = await customLsp.list();
+      this.lspServers = found.servers;
+      this.lspPresetList = found.presets;
+      if (this.lspBad) { this.lspNote = ''; this.lspBad = false; }
+    } catch (e) {
+      this.lspNote = `${t('The server list was not read')}: ${e instanceof Error ? e.message : ''}`;
+      this.lspBad = true;
+    }
+    this.paintLsp();
+  }
+
+  private async lspWrite(run: () => Promise<unknown>, done: string, failed: string): Promise<boolean> {
+    if (this.lspBusy) return false;
+    this.lspBusy = true;
+    this.paintLsp();
+    let ok = false;
+    try {
+      await run();
+      const found = await customLsp.list();
+      this.lspServers = found.servers;
+      this.lspPresetList = found.presets;
+      this.lspNote = t(done);
+      this.lspBad = false;
+      ok = true;
+    } catch (e) {
+      this.lspNote = `${t(failed)}: ${e instanceof Error ? e.message.replace(/^\d+ /, '') : ''}`;
+      this.lspBad = true;
+    } finally {
+      this.lspBusy = false;
+      this.paintLsp();
+    }
+    return ok;
+  }
+
+  private async addLspPreset(key: string): Promise<void> {
+    const p = this.lspPresetList.find((x) => (x.preset ?? x.label) === key);
+    if (!p) return;
+    const body: CustomServerFields = { label: p.label, program: p.program, args: p.args, exts: p.exts, languageId: p.languageId, initializationOptions: p.initializationOptions, preset: p.preset };
+    await this.lspWrite(() => customLsp.add(body), 'Added. Edit it to change the program or its arguments.', 'The server was not added');
+  }
+
+  private async saveLsp(): Promise<void> {
+    const fields = this.lspFields();
+    if (typeof fields === 'string') {
+      this.lspNote = t(fields);
+      this.lspBad = true;
+      this.paintLsp();
+      return;
+    }
+    const id = this.lspEditing;
+    const ok = await this.lspWrite(() => (id ? customLsp.change(id, fields) : customLsp.add(fields)), 'Saved.', 'The server was not saved');
+    if (ok) this.closeLspForm();
+  }
+
+  private async removeLsp(id: string): Promise<void> {
+    const s = this.lspServers.find((x) => x.id === id);
+    if (!s || this.lspBusy) return;
+    const ok = await confirmAction(t('Remove this language server?'), `${s.label}: ${t('it stops at once, and its files get no language features until you add it again.')}`, t('Remove'), true);
+    if (!ok) return;
+    if (this.lspEditing === id) this.closeLspForm();
+    await this.lspWrite(() => customLsp.remove(id), 'Removed.', 'The server was not removed');
   }
 
   private async reset(): Promise<void> {

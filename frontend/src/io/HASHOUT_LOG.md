@@ -108,3 +108,10 @@ The engine now asks for the window token on every git, workspace and session cha
 - logged: v0.23.0 · 2026-11-22
 
 `fileLog(path, {session, limit, skip})` is `GET /api/git/log` with `path`, kept apart from `log()` because it answers the whole object (`commits`, `path`, `folder`, `more`) and its rows carry `status`, `path` and `oldPath`; `log()` keeps its `Commit[]` answer and gained `skip`. `show(sha, path, session)` is `GET /api/git/show`; `CommitDiff` extends `FileDiff`, so the diff tab draws it with the code it uses for a working-tree diff. Both use `call()`, not `owner()`: the routes are reads and take no window key.
+
+### frontend/src/io/lsp.ts · customLsp, CUSTOM_LSP_EVENT, syncTrust, trustSynced, forgetTrustSync, lspSocketUrl, LspLang
+- refers-to: frontend/src/io/lsp.ts :: LspLang, CUSTOM_LSP_EVENT, CustomServerFields, CustomServer, CustomPreset, CustomListing, customLsp, trustKey, trustSynced, forgetTrustSync, syncTrust, LspServers, lspSocketUrl, SymbolHub.search
+- kind: rationale
+- logged: v0.24.0 · 2026-11-22
+
+`LspLang` is a built-in name or `custom:<id>`. `customLsp` is the client for `/api/lsp/custom`; add, change and remove go through `owner()` (the window key) and dispatch `formsubstrate:lsp-custom-changed` on success. `syncTrust()` tells the engine whether the open workspace is trusted (`POST /api/lsp/trust`), once per pair of workspace path and trust; `trustSynced()` says whether that pair has been answered, and `forgetTrustSync()` makes the next call send again (Restart Language Servers uses it after an engine restart). The engine no longer believes `trust=1`, so `lspSocketUrl` no longer adds it, and the lang is URL-encoded because a custom lang has a colon. Workspace symbol search awaits `syncTrust()` before its sockets open. Removed: the import of `trustQuery` and `${trustQuery('&')}` at the end of the socket URL.

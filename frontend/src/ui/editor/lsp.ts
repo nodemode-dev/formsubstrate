@@ -3,7 +3,7 @@ import { ViewPlugin, type EditorView, type ViewUpdate } from '@codemirror/view';
 import { lintGutter, setDiagnostics, type Diagnostic } from '@codemirror/lint';
 import { getIndentUnit, indentUnit } from '@codemirror/language';
 import { LSPClient, LSPPlugin, languageServerExtensions, type Transport, type WorkspaceMapping } from '@codemirror/lsp-client';
-import { lspServers, lspSocketUrl, type LspLang, type LspServers } from '../../io/lsp';
+import { CUSTOM_LSP_EVENT, customLsp, forgetTrustSync, lspServers, lspSocketUrl, syncTrust, trustSynced, type LspLang, type LspServers } from '../../io/lsp';
 import { t, tn } from '../i18n';
 import { toast } from '../toast';
 import { SfWorkspace, type SfFile, type WorkspaceHost } from './lsp-workspace';
@@ -45,7 +45,11 @@ export interface LspStatus {
   version: string | null;
   error: string;
   install: string[];
+  label: string;
+  reason: string;
 }
+
+interface LangPick { lang: LspLang; id: string; label: string }
 
 interface RawPos { line: number; character: number }
 interface RawRange { start: RawPos; end: RawPos }
@@ -180,6 +184,7 @@ class Session {
   version: string | null = null;
   error = '';
   install: string[] = [];
+  reason = '';
   lostAt = 0;
   readonly client: LSPClient;
   readonly workspace: SfWorkspace;
@@ -262,6 +267,7 @@ class Session {
     } else if (msg.method === 'formsubstrate/serverUnavailable') {
       this.error = String(p.error ?? '');
       this.install = Array.isArray(p.install) ? p.install.map(String) : [];
+      this.reason = String(p.reason ?? '');
       this.set('unavailable');
     }
   }
@@ -416,9 +422,45 @@ export class LspManager {
   private readonly listeners: Record<Topic, Set<(arg: string) => void>> = { state: new Set(), diagnostics: new Set(), changed: new Set() };
   private idle = new Map<LspLang, number>();
   private refreshing = false;
+  private custom = new Map<string, LangPick>();
+  private readonly opened = new Set<string>();
+  private customSerial = 0;
 
   attach(host: LspHost): void {
     this.host = host;
+    void this.loadCustom();
+    window.addEventListener(CUSTOM_LSP_EVENT, () => { void this.loadCustom(); });
+  }
+
+  private langOf(path: string | null): LangPick | null {
+    if (!path) return null;
+    const ext = extOf(path);
+    const builtin = LANG_OF_EXT[ext];
+    return builtin ? { ...builtin, label: '' } : this.custom.get(ext) ?? null;
+  }
+
+  private async loadCustom(): Promise<void> {
+    const mine = ++this.customSerial;
+    let next = new Map<string, LangPick>();
+    try {
+      for (const s of (await customLsp.list()).servers) {
+        for (const ext of s.exts) next.set(ext.replace(/^\./, ''), { lang: s.lang, id: s.languageId, label: s.label });
+      }
+    } catch {
+      next = this.custom;
+    }
+    if (mine !== this.customSerial) return;
+    const before = this.custom;
+    this.custom = next;
+    const stale = Array.from(this.sessions.keys()).filter((lang) => lang.startsWith('custom:'));
+    for (const lang of stale) {
+      const s = this.sessions.get(lang);
+      this.sessions.delete(lang);
+      s?.dispose();
+    }
+    const touched = Array.from(this.opened).filter((p) => before.has(extOf(p)) || next.has(extOf(p)));
+    for (const p of touched) this.host?.refresh(p);
+    if (touched.length || stale.length) { this.emit('state'); this.emit('diagnostics'); }
   }
 
   on(topic: Topic, fn: (arg: string) => void): () => void {
@@ -513,15 +555,21 @@ export class LspManager {
   }
 
   extensionsFor = (path: string): Extension[] => {
-    const info = LANG_OF_EXT[extOf(path)];
+    this.opened.add(path);
+    const info = this.langOf(path);
     const root = this.host?.root();
     if (!info || !root) return [];
+    if (!trustSynced()) {
+      void syncTrust().then(() => { if (this.opened.has(path)) this.host?.refresh(path); });
+      return [lintGutter()];
+    }
     const s = this.ensure(info.lang, root);
     if (s.state === 'unavailable' || s.state === 'stopped') return [lintGutter()];
     return [s.client.plugin(s.uriFor(path), info.id), lintGutter(), lspPhrases()];
   };
 
   release(path: string): void {
+    this.opened.delete(path);
     for (const s of this.sessions.values()) s.workspace.release(s.uriFor(path));
   }
 
@@ -536,19 +584,20 @@ export class LspManager {
 
   restart(paths: string[]): void {
     this.reset();
-    for (const p of paths) if (LANG_OF_EXT[extOf(p)]) this.host?.refresh(p);
+    forgetTrustSync();
+    for (const p of paths) if (this.langOf(p)) this.host?.refresh(p);
   }
 
   statusFor(path: string | null): LspStatus | null {
-    const info = path ? LANG_OF_EXT[extOf(path)] : undefined;
+    const info = this.langOf(path);
     if (!info) return null;
     const s = this.sessions.get(info.lang);
-    if (!s) return { lang: info.lang, state: 'starting', name: '', version: null, error: '', install: [] };
-    return { lang: info.lang, state: s.state, name: s.name, version: s.version, error: s.error, install: s.install };
+    if (!s) return { lang: info.lang, state: 'starting', name: '', version: null, error: '', install: [], label: info.label, reason: '' };
+    return { lang: info.lang, state: s.state, name: s.name, version: s.version, error: s.error, install: s.install, label: info.label, reason: s.reason };
   }
 
   supports(path: string): boolean {
-    return LANG_OF_EXT[extOf(path)] !== undefined;
+    return this.langOf(path) !== null;
   }
 
   problems(): Problem[] {
@@ -566,7 +615,7 @@ export class LspManager {
   }
 
   async symbols(path: string): Promise<OutlineItem[] | null> {
-    const info = LANG_OF_EXT[extOf(path)];
+    const info = this.langOf(path);
     const s = info ? this.sessions.get(info.lang) : undefined;
     if (!s) return null;
     try { return await s.symbols(path); } catch { return null; }

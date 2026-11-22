@@ -8,7 +8,7 @@ import time
 import uuid
 from pathlib import Path
 
-from app.core import config
+from app.core import config, trust
 from app.core import workspace_root as ws
 from app.services.recipes import launch, runs_bridge, store
 from app.services.triggers import hooks, watch
@@ -107,7 +107,6 @@ def _current_hash(action: dict) -> tuple[str, str]:
 
 class Triggers:
     def __init__(self) -> None:
-        self._trusted: set[str] = set()
         self._root: str | None = None
         self._table: dict[str, dict] = {}
         self._anchor: dict[str, float] = {}
@@ -159,19 +158,10 @@ class Triggers:
             raise TriggerError(409, "no workspace open")
 
     def set_trust(self, workspace: str, trusted: bool) -> dict:
-        root = ws.current()
-        if root is None or not workspace or os.path.realpath(workspace) != os.path.realpath(root):
-            return {"trusted": self.trusted()}
-        key = os.path.realpath(root)
-        if trusted:
-            self._trusted.add(key)
-        else:
-            self._trusted.discard(key)
-        return {"trusted": trusted}
+        return trust.set_trust(workspace, trusted)
 
     def trusted(self) -> bool:
-        root = ws.current()
-        return root is not None and os.path.realpath(root) in self._trusted
+        return trust.is_trusted()
 
     def confirm(self, tid: str) -> dict:
         self._need()

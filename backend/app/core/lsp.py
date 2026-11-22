@@ -14,7 +14,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import AsyncIterator
 
-from app.core.binres import find_bin
+from app.core import lsp_custom
+from app.core.binres import find_bin, wide_path
 
 FRAME_CAP = 64_000_000
 STOP_WAIT = 2.0
@@ -260,8 +261,8 @@ def report(lang: str, root: str | None, trust: bool = False) -> Report:
     return out
 
 
-def listing(root: str | None) -> list[Report]:
-    return [report(lang, root) for lang in LANGS]
+def listing(root: str | None, trust: bool = False) -> list[Report]:
+    return [report(lang, root, trust) for lang in LANGS]
 
 
 def encode_msg(msg: dict) -> bytes:
@@ -301,6 +302,7 @@ class LspProc:
     lang: str
     resolved: Resolved
     proc: asyncio.subprocess.Process
+    init: object = None
 
     async def send(self, msg: dict) -> None:
         stdin = self.proc.stdin
@@ -349,9 +351,10 @@ class LspProc:
 
 
 class Unavailable(Exception):
-    def __init__(self, message: str, install: list[str]) -> None:
+    def __init__(self, message: str, install: list[str], reason: str = "missing") -> None:
         super().__init__(message)
         self.install = install
+        self.reason = reason
 
 
 class Busy(Exception):
@@ -364,33 +367,74 @@ def _count(lang: str | None = None) -> int:
     return len(every) if lang is None else sum(1 for item in every if item == lang)
 
 
+def custom_path(entry: dict, root: str | None, trusted: bool) -> str | None:
+    program = entry["program"]
+    if os.path.isabs(program):
+        return program if os.path.isfile(program) and os.access(program, os.X_OK) else None
+    return locate(root, program, trusted)
+
+
+def custom_env(path: str) -> dict[str, str]:
+    env = minimal_env()
+    env["PATH"] = os.pathsep.join(part for part in (os.path.dirname(path), wide_path()) if part)
+    return env
+
+
 async def spawn(lang: str, root: str, trust: bool = False) -> LspProc:
-    if lang not in LANGS:
+    entry = lsp_custom.of_lang(lang)
+    if lang not in LANGS and entry is None:
         raise Unavailable(f"unknown language: {lang}", [])
+    if entry is not None and not trust:
+        raise Unavailable(f"trust the workspace to run {entry['label']}", lsp_custom.install_of(entry), "untrusted")
     if _count() >= MAX_TOTAL:
         raise Busy(f"too many language servers are running (limit {MAX_TOTAL})")
     if _count(lang) >= MAX_PER_LANG:
-        raise Busy(f"too many {lang} language servers are running (limit {MAX_PER_LANG})")
+        raise Busy(f"too many {entry['label'] if entry else lang} language servers are running (limit {MAX_PER_LANG})")
     _starting.append(lang)
     try:
-        rep = await asyncio.to_thread(report, lang, root, trust)
-        if rep.active is None:
-            raise Unavailable(f"no language server for {rep.label} was found", rep.install)
-        argv = rep.active.argv
+        init: object = None
+        if entry is not None:
+            path = await asyncio.to_thread(custom_path, entry, root, True)
+            if path is None:
+                raise Unavailable(f"{entry['program']} was not found for {entry['label']}", lsp_custom.install_of(entry))
+            resolved = Resolved(entry["label"], path, [path, *entry["args"]], "custom")
+            env = await asyncio.to_thread(custom_env, path)
+            init = entry["initializationOptions"]
+        else:
+            rep = await asyncio.to_thread(report, lang, root, trust)
+            if rep.active is None:
+                raise Unavailable(f"no language server for {rep.label} was found", rep.install)
+            resolved = rep.active
+            env = minimal_env()
         proc = await asyncio.create_subprocess_exec(
-            *argv,
+            *resolved.argv,
             cwd=root,
-            env=minimal_env(),
+            env=env,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
             start_new_session=sys.platform != "win32",
         )
-        handle = LspProc(lang=lang, resolved=rep.active, proc=proc)
+        handle = LspProc(lang=lang, resolved=resolved, proc=proc, init=init)
         _live.add(handle)
         return handle
     finally:
         _starting.remove(lang)
+
+
+async def stop_trusted_only(root: str) -> int:
+    base = os.path.normcase(os.path.realpath(root)) + os.sep
+    hit = [h for h in list(_live) if h.resolved.kind == "custom" or os.path.normcase(os.path.realpath(h.resolved.path)).startswith(base)]
+    for handle in hit:
+        await handle.stop()
+    return len(hit)
+
+
+async def stop_lang(lang: str) -> int:
+    hit = [h for h in list(_live) if h.lang == lang]
+    for handle in hit:
+        await handle.stop()
+    return len(hit)
 
 
 def live_count() -> int:
