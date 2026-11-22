@@ -123,6 +123,20 @@ The HTTP endpoint is `POST /mcp`, behind a local guard and a bearer token. A rou
 - **Window:** TypeScript and Vite 8 with CodeMirror 6, wrapped by a Tauri 2 desktop shell.
 - **Terminals:** a detached pty-host keeps shells and Claude Code running through an engine restart.
 
+## What Substrate sends over the network
+
+Nothing leaves your computer unless you use a feature that needs it. Substrate collects no usage data: there is no telemetry, no crash reporting and no update check. The engine and the window talk to each other on `127.0.0.1` only.
+
+- **The model provider you configure** (Cogentics). Chats, Test connection and the model price list go to the provider's address: OpenRouter by default, Ollama or LM Studio on this computer, or a custom address you enter. The price list is fetched only when a provider is configured. Requests to OpenRouter name Substrate in two headers.
+- **The web search plugin.** When an agent or recipe runs it, the search words go to DuckDuckGo (`html.duckduckgo.com`).
+- **The HTTP connector plugin.** Requests go to the address its settings name, only when it runs.
+- **MCP servers you add.** An HTTP server gets requests at the address you gave, with the headers you saved. A command server runs on your computer and does whatever that program does.
+- **git.** Clone repo fetches the address you enter (https and ssh only). Push runs `git push` to the remote you pick; Sign and Push runs `git fetch` and then `git push`. Nothing is fetched or pushed in the background.
+- **Claude Code.** Sessions run the `claude` command found on your computer. Its traffic to Anthropic is Claude Code's own, under its own settings; Substrate does not see or relay it.
+- **Language servers and debuggers** you installed run as your programs; what they download is up to them. The install commands Substrate shows are text for you to copy; it does not run them.
+- **formslot** is reached on this computer only (`127.0.0.1`).
+- **Links.** The desktop app opens an `http`, `https` or `mailto` link in your browser only when you click it.
+
 ## Download
 
 | Platform | Download | Release |
