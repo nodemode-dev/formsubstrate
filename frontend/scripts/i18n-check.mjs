@@ -702,7 +702,7 @@ export function extract() {
       const p = ts[i - 1];
       if (p && (pv(p) === '.' || pv(p) === '?.' || p.v === 'function' || MODIFIERS.has(p.v))) continue;
       const e = close(ts, i + 1);
-      if (pv(ts[e + 1]) === '{' || pv(ts[e + 1]) === ':') continue;
+      if (pv(ts[e + 1]) === '{' || (pv(ts[e + 1]) === ':' && (!p || pv(p) === '{' || pv(p) === '}' || pv(p) === ';'))) continue;
       const args = splitArgs(ts, i + 2, e);
       const where = `${f.rel}:${lineOf(f, k.pos)}`;
       const pick = k.v === 't' ? [args[0]] : [args[1], args[2]];
