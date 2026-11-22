@@ -119,7 +119,7 @@ class AutomationPanel {
     patchList(list, this.rows, { key: (r) => r.key, create: (r) => { const n = this.makeRow(); this.update(n, r); return n; }, update: (n, r) => this.update(n, r) });
     if (pinned) list.scrollTop = list.scrollHeight;
     const ws = !!this.ctx.store.workspace;
-    setText(this.note, ws ? `${tn(this.active, '{n} trigger on', '{n} triggers on')} · ${t('they run only while subform is open')}` : '');
+    setText(this.note, ws ? `${tn(this.active, '{n} trigger on', '{n} triggers on')} · ${t('they run only while Substrate is open')}` : '');
     const msg = !ws ? t('Open a folder to see automation.') : this.loaded && !this.rows.length ? t('Nothing has fired yet.') : this.problem;
     setText(this.empty, msg);
     setHidden(this.empty, !msg);

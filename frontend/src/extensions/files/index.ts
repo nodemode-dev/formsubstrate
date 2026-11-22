@@ -10,7 +10,7 @@ import { PopupMenu } from '../../ui/menu';
 import type { WorkspaceInfo } from '../../ui/workspace-store';
 import { register, type ExtensionContext, type Shell } from '../registry';
 
-export const PATHS_CHANGED = 'subform:paths-changed';
+export const PATHS_CHANGED = 'formsubstrate:paths-changed';
 
 export interface PathsChanged { kind: 'delete' | 'rename'; from: string; to?: string }
 
@@ -26,7 +26,7 @@ interface Row {
   loading: boolean;
 }
 
-const OPEN_KEY = 'subform.files.open';
+const OPEN_KEY = 'formsubstrate.files.open';
 const OPEN_MAX = 500;
 const ROOT = '';
 

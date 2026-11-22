@@ -9,7 +9,7 @@ export type { PluginsView } from '../manager/plugins-view';
 register({
   id: 'plugins',
   name: 'Plugins',
-  description: 'Backend Python plugins and connectors with settings; bundled ones and, in a trusted workspace, .subform/plugins.',
+  description: 'Backend Python plugins and connectors with settings; bundled ones and, in a trusted workspace, .formsubstrate/plugins.',
   setup(ctx: ExtensionContext): void {
     ctx.commands.add({
       id: 'plugins-reload',

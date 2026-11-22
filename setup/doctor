@@ -10,14 +10,14 @@ if command -v npm >/dev/null 2>&1; then ok "npm"; else bad "npm" "install npm"; 
 if py="$(sf_python)"; then ok "python $("$py" -V 2>&1 | awk '{print $2}')"; else bad "python" "Python 3.13+ is required"; fi
 if command -v git >/dev/null 2>&1; then ok "$(git --version)"; else warn "git" "the workbench finds git on the system; install it"; fi
 if command -v claude >/dev/null 2>&1; then ok "claude command at $(command -v claude)"; else warn "claude" "Claude Code sessions need the claude command on the PATH"; fi
-if [ -f "$SUBFORM_ROOT/backend/venv/bin/activate" ]; then ok "backend venv"; else warn "backend venv" "run ./subform install"; fi
-if [ -d "$SUBFORM_ROOT/frontend/node_modules" ]; then ok "frontend node_modules"; else warn "frontend deps" "run ./subform install"; fi
-vpy="$SUBFORM_ROOT/backend/venv/bin/python"
+if [ -f "$FORMSUBSTRATE_ROOT/backend/venv/bin/activate" ]; then ok "backend venv"; else warn "backend venv" "run ./formsubstrate install"; fi
+if [ -d "$FORMSUBSTRATE_ROOT/frontend/node_modules" ]; then ok "frontend node_modules"; else warn "frontend deps" "run ./formsubstrate install"; fi
+vpy="$FORMSUBSTRATE_ROOT/backend/venv/bin/python"
 if [ -x "$vpy" ]; then
-  if "$vpy" -c "import fastapi, uvicorn, httpx, keyring" >/dev/null 2>&1; then ok "engine packages"; else warn "engine packages" "rerun ./subform install"; fi
+  if "$vpy" -c "import fastapi, uvicorn, httpx, keyring" >/dev/null 2>&1; then ok "engine packages"; else warn "engine packages" "rerun ./formsubstrate install"; fi
 fi
 if command -v cargo >/dev/null 2>&1; then ok "rust $(rustc --version | awk '{print $2}') for desktop builds"; else warn "rust" "desktop builds need https://rustup.rs"; fi
-for port in 5650 "${SUBFORM_PORT:-5655}"; do
+for port in 5650 "${FORMSUBSTRATE_PORT:-5655}"; do
   if (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; then warn "port $port" "already in use"; else ok "port $port free"; fi
 done
 if [ "$fail" = 0 ]; then sf_say "ready"; else sf_say "fix the FAIL lines above"; fi

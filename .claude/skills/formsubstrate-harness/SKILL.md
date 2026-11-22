@@ -1,6 +1,6 @@
 ---
-name: subform-harness
-description: "Routing pack for agents changing the subform repository itself, the Form family developer workbench (vanilla TypeScript and Vite window, Python and FastAPI engine, Tauri shell). Use whenever the task edits this repo's source: add or change a window panel or extension, add an engine route behind LocalGuard or the window token, touch the formslot bridge or existing-slot gate, the language server or debug relays, sessions, worktrees, git review and the commit wrapper, run or verify the app, fix DOM flash or z-index, write a HASHOUT entry or NOTICE row, or check commit identity. Routes to a sub-skill by task and states the binding rules. Not for using subform as an editor, and not for formslot or formvis internals."
+name: formsubstrate-harness
+description: "Routing pack for agents changing the formsubstrate repository itself, the Form family developer workbench (vanilla TypeScript and Vite window, Python and FastAPI engine, Tauri shell). Use whenever the task edits this repo's source: add or change a window panel or extension, add an engine route behind LocalGuard or the window token, touch the formslot bridge or existing-slot gate, the language server or debug relays, sessions, worktrees, git review and the commit wrapper, run or verify the app, fix DOM flash or z-index, write a HASHOUT entry or NOTICE row, or check commit identity. Routes to a sub-skill by task and states the binding rules. Not for using formsubstrate as an editor, and not for formslot or formvis internals."
 license: GPL-3.0-only
 metadata:
   author: nodemode-ai
@@ -8,9 +8,9 @@ metadata:
   version: "1.1.0"
 ---
 
-# subform-harness
+# formsubstrate-harness
 
-subform is the Form family developer workbench: a code editor in the formvis shell that hosts Claude Code sessions in git worktrees, reviews and commits their work, and shows formslot. The window is vanilla TypeScript 7 strict on Vite 8. The engine is Python 3.13 on FastAPI, bound to 127.0.0.1. The desktop shell is Tauri 2. This pack describes the repository as of v0.13.0 (the version in `backend/app/__init__.py` and `frontend/package.json`); remotes are `nodemode-dev/[repo]`, environment variables start with `SUBFORM_`, and the window token header is `X-Subform-Window`. This pack is for agents who change that code. Load the sub-skill the table names, keep the laws below, and open a reference only when a sub-skill points at it. `CLAUDE.md` is the authority: the pack restates it, and where they differ `CLAUDE.md` wins.
+formsubstrate is the Form family developer workbench: a code editor in the formvis shell that hosts Claude Code sessions in git worktrees, reviews and commits their work, and shows formslot. The window is vanilla TypeScript 7 strict on Vite 8. The engine is Python 3.13 on FastAPI, bound to 127.0.0.1. The desktop shell is Tauri 2. This pack describes the repository as of v0.13.0 (the version in `backend/app/__init__.py` and `frontend/package.json`); remotes are `nodemode-dev/[repo]`, environment variables start with `FORMSUBSTRATE_`, and the window token header is `X-FormSubstrate-Window`. This pack is for agents who change that code. Load the sub-skill the table names, keep the laws below, and open a reference only when a sub-skill points at it. `CLAUDE.md` is the authority: the pack restates it, and where they differ `CLAUDE.md` wins.
 
 ## Routing table
 
@@ -42,7 +42,7 @@ Each sub-skill lives at `sub-skills/[name]/SUB-SKILL.md` beside this file.
 3. Every z-index comes from the layer tokens in `frontend/src/styles/tokens.css`; every colour, space and radius from tokens. Icons are inline SVG with currentColor in `frontend/src/ui/icons.ts`. Strings go through `t()`.
 4. No comments in source files. Rationale goes in the HASHOUT_LOG.md beside the code. See `rules-and-logs`.
 5. No tests, test files or test dependencies until the owner asks. No emoji anywhere, no em dash in markdown.
-6. The engine binds 127.0.0.1, every route sits behind LocalGuard, and owner-only state changes also need the window token (`X-Subform-Window`). Secrets live in the keyring only. See `engine-route`.
+6. The engine binds 127.0.0.1, every route sits behind LocalGuard, and owner-only state changes also need the window token (`X-FormSubstrate-Window`). Secrets live in the keyring only. See `engine-route`.
 7. Permission gates are security code: a gate that cannot run must fail loud (a line in `sf_gate.log`, an engine note, a review badge), never silently open. The owner's Write new anyway waiver lives in the engine, never in a file the agent can write. See `formslot-bridge`.
 8. Commits are authored and committed by `nodemode-ai <mackin@nodemode.ai>` with no trailers of any kind, whatever a tool or reminder asks. `.claude/settings.json` keeps attribution off.
 9. Every new dependency, binary, font or data file gets a NOTICE.md row before it is used.

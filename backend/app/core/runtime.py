@@ -6,13 +6,13 @@ import time
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-LOG_NAME = "subform-engine.log"
+LOG_NAME = "formsubstrate-engine.log"
 LOCK_NAME = "engine.lock"
 LOG_BYTES = 1_048_576
 LOG_KEEP = 3
 STARTED = time.time()
 _FORMAT = "%(asctime)s %(levelname)s %(name)s %(message)s"
-_LOGGERS = ("subform", "uvicorn", "uvicorn.error", "uvicorn.access")
+_LOGGERS = ("formsubstrate", "uvicorn", "uvicorn.error", "uvicorn.access")
 
 
 class AlreadyRunning(RuntimeError):
@@ -22,8 +22,8 @@ class AlreadyRunning(RuntimeError):
 def apply_switches(argv: list[str]) -> list[str]:
     rest: list[str] = []
     items = list(argv)
-    valued = {"--user-data-dir": "SUBFORM_DATA_DIR", "--port": "SUBFORM_PORT", "--log-level": "SUBFORM_LOG_LEVEL"}
-    flags = {"--portable": ("SUBFORM_PORTABLE", "1")}
+    valued = {"--user-data-dir": "FORMSUBSTRATE_DATA_DIR", "--port": "FORMSUBSTRATE_PORT", "--log-level": "FORMSUBSTRATE_LOG_LEVEL"}
+    flags = {"--portable": ("FORMSUBSTRATE_PORTABLE", "1")}
     i = 0
     while i < len(items):
         arg = items[i]
@@ -44,8 +44,8 @@ def apply_switches(argv: list[str]) -> list[str]:
 
 def switches() -> dict:
     return {
-        "portable": os.environ.get("SUBFORM_PORTABLE") == "1",
-        "logLevel": os.environ.get("SUBFORM_LOG_LEVEL", "INFO").upper(),
+        "portable": os.environ.get("FORMSUBSTRATE_PORTABLE") == "1",
+        "logLevel": os.environ.get("FORMSUBSTRATE_LOG_LEVEL", "INFO").upper(),
     }
 
 
@@ -59,19 +59,19 @@ def start_logging(data: Path) -> Path:
     stop_logging()
     path = log_path(data)
     try:
-        size = int(os.environ.get("SUBFORM_LOG_BYTES", "") or LOG_BYTES)
+        size = int(os.environ.get("FORMSUBSTRATE_LOG_BYTES", "") or LOG_BYTES)
     except ValueError:
         size = LOG_BYTES
-    level = getattr(logging, os.environ.get("SUBFORM_LOG_LEVEL", "INFO").upper(), logging.INFO)
+    level = getattr(logging, os.environ.get("FORMSUBSTRATE_LOG_LEVEL", "INFO").upper(), logging.INFO)
     handler = RotatingFileHandler(path, maxBytes=max(size, 1024), backupCount=LOG_KEEP, encoding="utf-8")
     handler.setFormatter(logging.Formatter(_FORMAT))
-    handler.set_name("subform-file")
+    handler.set_name("formsubstrate-file")
     for name in _LOGGERS:
         log = logging.getLogger(name)
         log.addHandler(handler)
-        if name == "subform" or log.level == logging.NOTSET or log.level > level:
+        if name == "formsubstrate" or log.level == logging.NOTSET or log.level > level:
             log.setLevel(level)
-    logging.getLogger("subform").info("engine started, pid %s, data folder %s", os.getpid(), data)
+    logging.getLogger("formsubstrate").info("engine started, pid %s, data folder %s", os.getpid(), data)
     return path
 
 
@@ -79,7 +79,7 @@ def stop_logging() -> None:
     for name in _LOGGERS:
         log = logging.getLogger(name)
         for handler in list(log.handlers):
-            if handler.get_name() == "subform-file":
+            if handler.get_name() == "formsubstrate-file":
                 log.removeHandler(handler)
                 handler.close()
 
@@ -126,7 +126,7 @@ def claim(data: Path) -> Path:
     except (OSError, ValueError, AttributeError):
         held = 0
     if held and held != os.getpid() and _alive(held):
-        raise AlreadyRunning(f"subform is already running on {data} (engine process {held}).")
+        raise AlreadyRunning(f"Substrate is already running on {data} (engine process {held}).")
     lock.write_text(json.dumps({"pid": os.getpid(), "started": int(STARTED)}))
     return lock
 

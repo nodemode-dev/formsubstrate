@@ -9,7 +9,7 @@ from typing import Optional
 from app.services.cogentics.paths import has_symlink, state_dir
 
 _scope: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
-    "subform_checkpoint_scope", default=None)
+    "formsubstrate_checkpoint_scope", default=None)
 
 
 def _root_dir(ws_root: Path) -> Path:

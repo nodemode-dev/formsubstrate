@@ -158,7 +158,7 @@ class GraphsPanel {
 register({
   id: 'studio',
   name: 'Studio',
-  description: 'The node canvas where agent graphs are built, with the JSON kept in sync and graphs saved in .subform/graphs.',
+  description: 'The node canvas where agent graphs are built, with the JSON kept in sync and graphs saved in .formsubstrate/graphs.',
   setup(ctx: ExtensionContext, shell: Shell): void {
     const section = shell.sidebarSection({
       id: 'graphs',

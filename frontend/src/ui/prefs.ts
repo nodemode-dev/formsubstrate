@@ -68,12 +68,12 @@ export const DEFAULT_PREFS: Prefs = {
   largeTabs: false, reopenLastWorkspace: true, hiddenFolders: [], allowTypedPaths: false, trustedWorkspaces: [], trustAsked: [], sidebarWidth: 280, prefsRevision: 3,
 };
 
-export const HIDDEN_FOLDERS_EVENT = 'subform:hidden-folders';
-export const FORMSLOT_PATH_EVENT = 'subform:formslot-path';
+export const HIDDEN_FOLDERS_EVENT = 'formsubstrate:hidden-folders';
+export const FORMSLOT_PATH_EVENT = 'formsubstrate:formslot-path';
 
-const KEY = 'subform.prefs';
-const ZOOM_KEY = 'subform.uiZoom';
-const UPDATE_KEY = 'subform.updateAtStart';
+const KEY = 'formsubstrate.prefs';
+const ZOOM_KEY = 'formsubstrate.uiZoom';
+const UPDATE_KEY = 'formsubstrate.updateAtStart';
 
 const num = (v: unknown, lo: number, hi: number, d: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d);
 const flag = (v: unknown, d: boolean): boolean => (typeof v === 'boolean' ? v : d);
@@ -131,7 +131,7 @@ function cleanDialogValues(v: unknown): Record<string, Record<string, DialogValu
   return out;
 }
 
-const LEGACY_FORMSLOT_KEY = 'subform.formslot.checkout';
+const LEGACY_FORMSLOT_KEY = 'formsubstrate.formslot.checkout';
 let legacyTaken: string | null = null;
 
 function legacyFormslotPath(): string {
@@ -283,7 +283,7 @@ export function autoUiScale(): number {
 
 export function setUiScale(v: string): void {
   try { localStorage.setItem(ZOOM_KEY, v); } catch { return; }
-  window.dispatchEvent(new Event('subform:ui-zoom'));
+  window.dispatchEvent(new Event('formsubstrate:ui-zoom'));
 }
 
 export function updateAtStart(): boolean {

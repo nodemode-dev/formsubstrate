@@ -5,7 +5,7 @@ import { t } from './i18n';
 
 export const wantsNativeMenus = (): boolean => '__TAURI_INTERNALS__' in window && /Mac/.test(navigator.platform) && !menusInWindow();
 
-export const MENUS_IN_WINDOW_KEY = 'subform.menusInWindow';
+export const MENUS_IN_WINDOW_KEY = 'formsubstrate.menusInWindow';
 export function menusInWindow(): boolean {
   try { return localStorage.getItem(MENUS_IN_WINDOW_KEY) === '1'; } catch { return false; }
 }
@@ -74,8 +74,8 @@ export class NativeMenus {
         return item;
       };
       const top = [];
-      top.push(await api.Submenu.new({ text: 'subform', items: [
-        await api.PredefinedMenuItem.new({ item: { About: { name: 'subform' } }, text: t('About subform') }),
+      top.push(await api.Submenu.new({ text: 'Substrate', items: [
+        await api.PredefinedMenuItem.new({ item: { About: { name: 'Substrate' } }, text: t('About Substrate') }),
         await api.PredefinedMenuItem.new({ item: 'Separator' }),
         ...(this.commands.get('settings') ? [await make('settings')] : []),
         await api.PredefinedMenuItem.new({ item: 'Separator' }),

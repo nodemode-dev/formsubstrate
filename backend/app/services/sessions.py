@@ -17,7 +17,7 @@ from app.services import gitops
 
 REGISTRY_NAME = "sessions.json"
 WORKTREES_NAME = "worktrees"
-MCP_DIR = ".subform"
+MCP_DIR = ".formsubstrate"
 MCP_NAME = "mcp.json"
 SETTINGS_FOLDER = "session-settings"
 SETTINGS_BODY = {"includeCoAuthoredBy": False, "attribution": {"commit": "", "pr": ""}}
@@ -276,7 +276,7 @@ def _worktree_path(top: str, name: str, session_id: str) -> Path:
     return config.data_dir() / WORKTREES_NAME / f"{name}-{digest}" / session_id
 
 
-async def _exclude_subform(top: str) -> None:
+async def _exclude_formsubstrate(top: str) -> None:
     code, out, _ = await _run([_git(), "rev-parse", "--git-common-dir"], cwd=top)
     if code != 0:
         return
@@ -319,19 +319,19 @@ async def _mcp_config() -> tuple[dict, list[str]]:
         notes.append("formslot is installed but its mcp command is not available yet; the session runs without it")
     else:
         notes.append("formslot was not found; the session runs without it")
-    launcher = config.REPO_DIR / ("subform.bat" if os.name == "nt" else "subform")
+    launcher = config.REPO_DIR / ("formsubstrate.bat" if os.name == "nt" else "formsubstrate")
     if launcher.is_file():
-        servers["subform"] = {
+        servers["formsubstrate"] = {
             "command": str(launcher),
             "args": ["mcp"],
             "env": {
-                "SUBFORM_GATE_TOKEN": "${SUBFORM_GATE_TOKEN}",
-                "SUBFORM_ENGINE": "${SUBFORM_ENGINE}",
-                "SUBFORM_DATA_DIR": str(config.data_dir()),
+                "FORMSUBSTRATE_GATE_TOKEN": "${FORMSUBSTRATE_GATE_TOKEN}",
+                "FORMSUBSTRATE_ENGINE": "${FORMSUBSTRATE_ENGINE}",
+                "FORMSUBSTRATE_DATA_DIR": str(config.data_dir()),
             },
         }
     else:
-        notes.append("the subform launcher was not found next to the engine; the session runs without the subform MCP server")
+        notes.append("the formsubstrate launcher was not found next to the engine; the session runs without the formsubstrate MCP server")
     from app.services.library.mcp_client import mcp_clients
 
     await mcp_clients.ensure_loaded()
@@ -659,7 +659,7 @@ async def prepare_worktree(root: str, base: str, tag: str, branch: str) -> tuple
     code, _, err = await _run([git, "worktree", "add", "-b", branch, str(path), base], cwd=top)
     if code != 0:
         raise Refused(409, "git could not create the worktree: " + (err.strip() or "unknown error"))
-    await _exclude_subform(top)
+    await _exclude_formsubstrate(top)
     config_obj, notes = await _mcp_config()
     _write_mcp(path, config_obj)
     _write_settings(path)

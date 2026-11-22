@@ -8,7 +8,7 @@ from app.core import workspace_root as ws
 
 SAFE_REF = re.compile(r"^(?!-)[A-Za-z0-9._:/@-]{1,120}$")
 
-SENSITIVE_PREFIXES = (".subform/plugins", ".subform/cogentics", ".claude", ".mcp.json", ".git")
+SENSITIVE_PREFIXES = (".formsubstrate/plugins", ".formsubstrate/cogentics", ".claude", ".mcp.json", ".git")
 
 
 def root() -> Path:

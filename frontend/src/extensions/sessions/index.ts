@@ -225,7 +225,7 @@ class SessionsPanel {
       return;
     }
     if (act === 'review') {
-      window.dispatchEvent(new CustomEvent('subform:open-review', { detail: { session: id } }));
+      window.dispatchEvent(new CustomEvent('formsubstrate:open-review', { detail: { session: id } }));
       return;
     }
     if (act === 'remove' && !(await confirmAction('Remove worktree', `${s.title}: ${t('the worktree and its branch are deleted from disk.')} ${s.worktree}`, 'Remove', true))) return;

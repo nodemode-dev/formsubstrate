@@ -12,9 +12,9 @@ import { GIT_CHANGED } from './diff-view';
 import { paintProvenance, PROVENANCE_HTML } from './provenance';
 import type { EditorPrefs, ViewDoc } from './views';
 
-export const OPEN_DIFF = 'subform:open-diff';
-export const OPEN_REVIEW = 'subform:open-review';
-export const FOCUS_COMMIT = 'subform:focus-commit';
+export const OPEN_DIFF = 'formsubstrate:open-diff';
+export const OPEN_REVIEW = 'formsubstrate:open-review';
+export const FOCUS_COMMIT = 'formsubstrate:focus-commit';
 
 const RELOAD_MS = 120;
 const NOTICE_MS = 5000;

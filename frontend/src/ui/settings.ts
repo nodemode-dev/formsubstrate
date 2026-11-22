@@ -16,9 +16,9 @@ import { toast } from './toast';
 
 export interface SettingsContext { commands: Commands; onPrefs: (p: Prefs) => void }
 
-const RAIL_KEY = 'subform.prefsRailCollapsed';
+const RAIL_KEY = 'formsubstrate.prefsRailCollapsed';
 const API_KEY_SECRET = 'anthropic-api-key';
-const OWN_KEY_PREFIX = 'subform.';
+const OWN_KEY_PREFIX = 'formsubstrate.';
 const SHARED_THEME_KEY = 'nodemode_ui_settings';
 const SPY_MUTE_MS = 700;
 const SCROLL_PAD = 12;
@@ -253,7 +253,7 @@ export class SettingsDialog {
         grp('Anthropic API key', this.keyRow(), this.keyStatus, nt('The key goes to the engine and is kept in the system keychain. This page never reads it back.')),
       ],
       'Git and Identity': [
-        grp('Commits', this.fieldRow('Author name', this.gitName), this.fieldRow('Author email', this.gitEmail), this.sign.el, this.fieldRow('Signing key path', this.gitKey), this.gitActions(), this.gitStatus, nt('Every commit made from subform, by you or by an agent session, uses this name and email. Signing uses the SSH public key at the path; the private key is never read or stored here.')),
+        grp('Commits', this.fieldRow('Author name', this.gitName), this.fieldRow('Author email', this.gitEmail), this.sign.el, this.fieldRow('Signing key path', this.gitKey), this.gitActions(), this.gitStatus, nt('Every commit made from Substrate, by you or by an agent session, uses this name and email. Signing uses the SSH public key at the path; the private key is never read or stored here.')),
       ],
       formslot: [
         grp('Service', this.slotEnabled.el, this.slotAuto.el, valueRow('Service status', t('Not running')).el),
@@ -299,7 +299,7 @@ export class SettingsDialog {
     new ResizeObserver(() => this.queueWire()).observe(this.frame);
     window.addEventListener('resize', () => this.queueWire());
     document.addEventListener('nm:ui-settings-changed', () => { if (this.dlg.isOpen) this.sync(); });
-    document.addEventListener('subform:open-settings', (e) => { this.open(e instanceof CustomEvent && typeof e.detail?.section === 'string' ? e.detail.section : undefined); });
+    document.addEventListener('formsubstrate:open-settings', (e) => { this.open(e instanceof CustomEvent && typeof e.detail?.section === 'string' ? e.detail.section : undefined); });
 
     const reset = this.dlg.button('Reset', 'danger', () => { void this.reset(); });
     reset.classList.add('cv-btn-apart');
@@ -577,9 +577,9 @@ export class SettingsDialog {
     if (!v.name) problem = 'Enter the name commits are made with.';
     else if (!v.email.includes('@')) problem = 'The email needs an @.';
     else if (v.sign && !v.signingKey) problem = 'Signing needs the path to a .pub key file.';
-    const clean = JSON.stringify(v) === this.gitSaved && this.gitSource === 'subform';
+    const clean = JSON.stringify(v) === this.gitSaved && this.gitSource === 'formsubstrate';
     let note = this.gitNote;
-    if (!note && this.gitSource === 'git' && !this.gitTouched) note = 'Read from your global git config. Save keeps it in subform.';
+    if (!note && this.gitSource === 'git' && !this.gitTouched) note = 'Read from your global git config. Save keeps it in Substrate.';
     if (!note && this.gitSource === 'none' && !this.gitTouched) note = 'No identity is set yet. Commits are refused until you save one.';
     if (!note && this.gitTouched && problem) note = problem;
     setText(this.gitStatus, note ? t(note) : '');
@@ -619,7 +619,7 @@ export class SettingsDialog {
       this.applyGit(id);
       this.gitNote = 'Saved.';
       this.gitBad = false;
-      document.dispatchEvent(new CustomEvent('subform:identity-changed'));
+      document.dispatchEvent(new CustomEvent('formsubstrate:identity-changed'));
     } catch (e) {
       this.gitNote = e instanceof Error ? e.message : 'The identity was not saved.';
       this.gitBad = true;
@@ -695,7 +695,7 @@ export class SettingsDialog {
   }
 
   private async reset(): Promise<void> {
-    const ok = await confirmAction('Reset all preferences?', t('Every preference and the theme go back to how subform comes. Your files are kept. subform reloads.'), 'Reset', true);
+    const ok = await confirmAction('Reset all preferences?', t('Every preference and the theme go back to how Substrate comes. Your files are kept. Substrate reloads.'), 'Reset', true);
     if (!ok) return;
     try {
       const keys: string[] = [];

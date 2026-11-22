@@ -36,7 +36,7 @@ export class ChatPane {
       if (s.title !== c.title) { c.title = s.title; setText(this.title, s.title); }
     });
     this.reviewBtn.addEventListener('click', () => {
-      if (this.current) window.dispatchEvent(new CustomEvent('subform:open-review', { detail: { session: this.current.id } }));
+      if (this.current) window.dispatchEvent(new CustomEvent('formsubstrate:open-review', { detail: { session: this.current.id } }));
     });
     onLanguage(() => this.paint());
     this.paint();

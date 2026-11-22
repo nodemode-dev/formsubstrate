@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
 set -e
 source "$(dirname "$0")/lib.sh"
-if [ -n "${SUBFORM_BUILD_VENV:-}" ]; then
-  source "$SUBFORM_BUILD_VENV/bin/activate"
+if [ -n "${FORMSUBSTRATE_BUILD_VENV:-}" ]; then
+  source "$FORMSUBSTRATE_BUILD_VENV/bin/activate"
 else
   sf_venv
 fi
 python -c "import PyInstaller" 2>/dev/null || sf_die "PyInstaller missing: pip install -r backend/requirements_build.txt in the engine venv (build_app does this)"
-dist="${SUBFORM_FRONTEND_DIST:-$SUBFORM_ROOT/frontend/dist}"
+dist="${FORMSUBSTRATE_FRONTEND_DIST:-$FORMSUBSTRATE_ROOT/frontend/dist}"
 [ -f "$dist/index.html" ] || sf_die "the built window is missing at $dist: run ./build_app, or cd frontend && npx vite build"
-work="${SUBFORM_FREEZE_WORK:-$SUBFORM_ROOT/backend}"
-out="${SUBFORM_ENGINE_OUT:-$SUBFORM_ROOT/src-tauri/engine}"
+work="${FORMSUBSTRATE_FREEZE_WORK:-$FORMSUBSTRATE_ROOT/backend}"
+out="${FORMSUBSTRATE_ENGINE_OUT:-$FORMSUBSTRATE_ROOT/src-tauri/engine}"
 sep=":"
 [ "$(sf_os)" = windows ] && sep=";"
 ext=""
 [ "$(sf_os)" = windows ] && ext=".exe"
 extra=()
-[ -z "${SUBFORM_PYI_ARCH:-}" ] || extra+=(--target-arch "$SUBFORM_PYI_ARCH")
+[ -z "${FORMSUBSTRATE_PYI_ARCH:-}" ] || extra+=(--target-arch "$FORMSUBSTRATE_PYI_ARCH")
 if [ "$(sf_os)" = macos ] && [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
-  extra+=(--codesign-identity "$APPLE_SIGNING_IDENTITY" --osx-entitlements-file "$SUBFORM_ROOT/src-tauri/entitlements.plist")
+  extra+=(--codesign-identity "$APPLE_SIGNING_IDENTITY" --osx-entitlements-file "$FORMSUBSTRATE_ROOT/src-tauri/entitlements.plist")
 fi
 safe_rm() {
   local expected="$1" path="${2%/}"
@@ -29,26 +29,26 @@ safe_rm() {
 mkdir -p "$work"
 safe_rm pyinstaller "$work/build/pyinstaller"
 safe_rm dist-engine "$work/dist-engine"
-cd "$SUBFORM_ROOT/backend"
-pyinstaller --noconfirm --clean --onedir --name subform-engine \
+cd "$FORMSUBSTRATE_ROOT/backend"
+pyinstaller --noconfirm --clean --onedir --name formsubstrate-engine \
   --distpath "$work/dist-engine" --workpath "$work/build/pyinstaller" --specpath "$work/build/pyinstaller" \
   --add-data "$dist${sep}frontend_dist" \
-  --add-data "$SUBFORM_ROOT/backend/app/templates${sep}app/templates" \
-  --add-data "$SUBFORM_ROOT/backend/presets/graphs${sep}presets/graphs" \
-  --add-data "$SUBFORM_ROOT/backend/presets/plugins${sep}presets/plugins" \
-  --add-data "$SUBFORM_ROOT/backend/presets/skills${sep}presets/skills" \
-  --add-data "$SUBFORM_ROOT/backend/app/services/recipes/presets${sep}app/services/recipes/presets" \
-  --add-data "$SUBFORM_ROOT/backend/app/services/library/bundled${sep}app/services/library/bundled" \
-  --add-data "$SUBFORM_ROOT/backend/skills${sep}skills" \
+  --add-data "$FORMSUBSTRATE_ROOT/backend/app/templates${sep}app/templates" \
+  --add-data "$FORMSUBSTRATE_ROOT/backend/presets/graphs${sep}presets/graphs" \
+  --add-data "$FORMSUBSTRATE_ROOT/backend/presets/plugins${sep}presets/plugins" \
+  --add-data "$FORMSUBSTRATE_ROOT/backend/presets/skills${sep}presets/skills" \
+  --add-data "$FORMSUBSTRATE_ROOT/backend/app/services/recipes/presets${sep}app/services/recipes/presets" \
+  --add-data "$FORMSUBSTRATE_ROOT/backend/app/services/library/bundled${sep}app/services/library/bundled" \
+  --add-data "$FORMSUBSTRATE_ROOT/backend/skills${sep}skills" \
   --collect-submodules app --collect-submodules uvicorn --collect-submodules keyring \
   --copy-metadata keyring \
-  --hidden-import subform_ptyhost --hidden-import ptyprocess \
+  --hidden-import formsubstrate_ptyhost --hidden-import ptyprocess \
   --hidden-import app.services.gate_hook \
   --exclude-module tkinter \
   ${extra[@]+"${extra[@]}"} \
-  "$SUBFORM_ROOT/backend/subform_engine.py"
+  "$FORMSUBSTRATE_ROOT/backend/formsubstrate_engine.py"
 safe_rm engine "$out"
 mkdir -p "$(dirname "$out")"
-cp -R "$work/dist-engine/subform-engine" "$out"
-"$out/subform-engine$ext" --selfcheck
+cp -R "$work/dist-engine/formsubstrate-engine" "$out"
+"$out/formsubstrate-engine$ext" --selfcheck
 sf_say "engine folder ready: $out ($(du -sh "$out" | awk '{print $1}'))"

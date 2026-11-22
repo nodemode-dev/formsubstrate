@@ -1,7 +1,7 @@
 [package]
-name = "subform"
-version = "0.16.2"
-description = "subform desktop shell"
+name = "formsubstrate"
+version = "0.17.0"
+description = "Substrate desktop shell (FormSubstrate)"
 authors = ["nodemode-ai"]
 license = "GPL-3.0-only"
 edition = "2021"

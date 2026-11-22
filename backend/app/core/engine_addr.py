@@ -18,7 +18,7 @@ def remember(request: Request) -> None:
 def port() -> int:
     if _base:
         return int(_base.rsplit(":", 1)[1])
-    raw = os.environ.get("SUBFORM_PORT", "")
+    raw = os.environ.get("FORMSUBSTRATE_PORT", "")
     if raw.isdigit() and int(raw) > 0:
         return int(raw)
     try:

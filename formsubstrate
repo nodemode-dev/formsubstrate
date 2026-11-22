@@ -3,10 +3,10 @@ set -e
 cd "$(dirname "$0")"
 version() { sed -n 's/^__version__ = "\(.*\)"$/\1/p' backend/app/__init__.py 2>/dev/null; }
 usage() {
-  printf 'subform %s - the Form family developer workbench\n' "$(version)"
+  printf 'formsubstrate %s - Substrate, the Form family code and text editor\n' "$(version)"
   cat << 'EOF'
 
-usage: ./subform [command] [options]
+usage: ./formsubstrate [command] [options]
 
   (none) | boot       boot backend (5655) and frontend (5650) together
   install             install the backend and the frontend
@@ -32,13 +32,13 @@ case "$cmd" in
   mcp)
     py=backend/venv/bin/python
     [ -x "$py" ] || py="$(command -v python3 || command -v python)"
-    exec "$py" backend/subform_mcp.py "$@" ;;
+    exec "$py" backend/formsubstrate_mcp.py "$@" ;;
   clean) exec setup/clean "$@" ;;
   version|--version|-V)
-    printf 'subform %s' "$(version)"
+    printf 'formsubstrate %s' "$(version)"
     commit="$(git rev-parse --short HEAD 2>/dev/null || true)"
     [ -n "$commit" ] && printf ' (%s)' "$commit"
     printf '\n' ;;
   help|-h|--help) usage ;;
-  *) printf '[subform] unknown command: %s\n\n' "$cmd"; usage; exit 2 ;;
+  *) printf '[formsubstrate] unknown command: %s\n\n' "$cmd"; usage; exit 2 ;;
 esac

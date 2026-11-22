@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-SUBFORM_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export SUBFORM_ROOT
-sf_say() { printf '[subform] %s\n' "$*"; }
-sf_die() { printf '[subform] error: %s\n' "$*" >&2; exit 1; }
+FORMSUBSTRATE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export FORMSUBSTRATE_ROOT
+sf_say() { printf '[formsubstrate] %s\n' "$*"; }
+sf_die() { printf '[formsubstrate] error: %s\n' "$*" >&2; exit 1; }
 sf_os() {
   case "$(uname -s 2>/dev/null)" in
     Darwin) echo macos ;;
@@ -22,6 +22,6 @@ sf_python() {
   return 1
 }
 sf_venv() {
-  [ -f "$SUBFORM_ROOT/backend/venv/bin/activate" ] || sf_die "backend venv missing, run ./subform install"
-  source "$SUBFORM_ROOT/backend/venv/bin/activate"
+  [ -f "$FORMSUBSTRATE_ROOT/backend/venv/bin/activate" ] || sf_die "backend venv missing, run ./formsubstrate install"
+  source "$FORMSUBSTRATE_ROOT/backend/venv/bin/activate"
 }

@@ -12,8 +12,8 @@ import { Ledger } from './ledger';
 import { fillModels, MemberRail, type Spent } from './members';
 import { blankCode, fmtTok, patchFilled } from './rich';
 
-const ACTIVE_KEY = 'subform.cogentics.active';
-const SEEN_KEY = 'subform.cogentics.seen.';
+const ACTIVE_KEY = 'formsubstrate.cogentics.active';
+const SEEN_KEY = 'formsubstrate.cogentics.seen.';
 const METER_WAIT_MS = 250;
 
 const getSeen = (c: string): number => {
@@ -107,7 +107,7 @@ export class CogenticsPanel {
     this.ledger = new Ledger(q(root, '.cx-ledger'), {
       handles: () => new Set(this.members.map((m) => m.handle)),
       decide: (seq, ok) => { void this.decide(seq, ok); },
-      openNote: (name) => { if (this.active) shell.openEditorTab(`.subform/cogentics/${this.active}-ledger/${name}.md`); },
+      openNote: (name) => { if (this.active) shell.openEditorTab(`.formsubstrate/cogentics/${this.active}-ledger/${name}.md`); },
       openChanges: (scope) => this.openChanges(scope),
       scopeOf: (seq) => `cog-${this.active}-${seq}`,
     });
@@ -124,7 +124,7 @@ export class CogenticsPanel {
     this.bind(root);
     onLanguage(() => this.paintEmpty());
     ctx.store.on('workspace', () => { void this.onWorkspace(); });
-    window.addEventListener('subform:trust-changed', () => this.updateReach());
+    window.addEventListener('formsubstrate:trust-changed', () => this.updateReach());
     host.addEventListener('wb-focus', () => { void this.refresh(); });
     void this.onWorkspace();
     void this.loadStatic();

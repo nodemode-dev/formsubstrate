@@ -7,10 +7,11 @@ import time
 import keyring
 from keyring.errors import KeyringError, PasswordDeleteError
 
-SERVICE = "subform.triggers"
-HEADER = "X-Subform-Signature"
-TS_HEADER = "X-Subform-Timestamp"
-NONCE_HEADER = "X-Subform-Nonce"
+SERVICE = "formsubstrate.triggers"
+HEADER = "X-FormSubstrate-Signature"
+TS_HEADER = "X-FormSubstrate-Timestamp"
+NONCE_HEADER = "X-FormSubstrate-Nonce"
+OLD_HEADERS = {HEADER: "X-Subform-Signature", TS_HEADER: "X-Subform-Timestamp", NONCE_HEADER: "X-Subform-Nonce"}
 WINDOW = 300
 NONCE_TTL = 600
 MAX_NONCES = 2000

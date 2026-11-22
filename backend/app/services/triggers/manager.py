@@ -13,7 +13,7 @@ from app.core import workspace_root as ws
 from app.services.recipes import launch, runs_bridge, store
 from app.services.triggers import hooks, watch
 
-log = logging.getLogger("subform")
+log = logging.getLogger("formsubstrate")
 
 KINDS = ("interval", "delay", "watch", "webhook")
 ACTIONS = ("run_recipe", "run_graph", "resume")
@@ -82,7 +82,7 @@ def _clean_action(action: object) -> dict:
 
 def _graph_text(name: str) -> str | None:
     try:
-        path = store.safe_path(f".subform/graphs/{name}.json")
+        path = store.safe_path(f".formsubstrate/graphs/{name}.json")
         if path.is_symlink() or not path.is_file() or path.stat().st_size > store.MAX_BYTES:
             return None
         return path.read_text(encoding="utf-8")

@@ -8,7 +8,7 @@ from app.core.local_guard import require_window
 
 router = APIRouter()
 
-ROOT = ".subform"
+ROOT = ".formsubstrate"
 FILE_MAX = 400_000
 FILES_MAX = 500
 IMPORT_MAX = 4_000_000
@@ -91,7 +91,7 @@ def _plan(body: Harness, trust: bool) -> tuple[list[dict], list[tuple[str, str]]
         if not isinstance(path, str) or not isinstance(content, str):
             raise HTTPException(status_code=400, detail="the harness holds a bad entry")
         if not path.startswith(ROOT + "/"):
-            manifest.append({"path": path, "group": "", "bytes": 0, "action": "skip", "reason": "outside .subform"})
+            manifest.append({"path": path, "group": "", "bytes": 0, "action": "skip", "reason": "outside .formsubstrate"})
             continue
         size = len(content.encode("utf-8"))
         total += size

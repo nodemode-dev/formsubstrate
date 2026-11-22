@@ -60,7 +60,7 @@ const activated = new Set<string>();
 const providers = new Map<string, SearchProvider>();
 let live: { ctx: ExtensionContext; shell: Shell } | null = null;
 
-const DISABLED_KEY = 'subform.ext.disabled';
+const DISABLED_KEY = 'formsubstrate.ext.disabled';
 
 function disabledSet(): Set<string> {
   try {

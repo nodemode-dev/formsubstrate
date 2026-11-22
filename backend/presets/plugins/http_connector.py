@@ -54,7 +54,7 @@ def register(host, settings):
         if params:
             full += ("&" if "?" in full else "?") + urllib.parse.urlencode(params)
         own = bool(base) and _origin(full) == _origin(base)
-        head = {"User-Agent": "subform-http-connector/1.0", **(headers or {})}
+        head = {"User-Agent": "formsubstrate-http-connector/1.0", **(headers or {})}
         private = dict(extra) if own else {}
         if token and own and "Authorization" not in head and "Authorization" not in private:
             private["Authorization"] = f"Bearer {token}"

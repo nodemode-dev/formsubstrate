@@ -3,7 +3,7 @@ import shutil
 import sys
 from pathlib import Path
 
-BIN_ENV = "SUBFORM_BIN_DIR"
+BIN_ENV = "FORMSUBSTRATE_BIN_DIR"
 
 
 def vendor_dirs() -> list[Path]:

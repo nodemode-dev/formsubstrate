@@ -1,8 +1,8 @@
-# Feature parity: substrata to subform
+# Feature parity: substrata to formsubstrate
 
-Reference: substrata (MIT, the owner's, `/home/claude/ref2`). Target: subform (this repository). Written for build turn 11 (v0.14.0). Status words:
+Reference: substrata (MIT, the owner's, `/home/claude/ref2`). Target: formsubstrate (this repository). Written for build turn 11 (v0.14.0). Status words:
 
-- **present**: already in subform, with the subform file.
+- **present**: already in formsubstrate, with the formsubstrate file.
 - **ported (parity)**: ported this turn by the named agent into the named place.
 - **ported (turn 11, parity agent)**: ported by the parity agent, files listed.
 - **not ported**: decided against, with the reason.
@@ -11,7 +11,7 @@ Ports owned by other agents this turn: port-studio (Studio canvas), port-runs (r
 
 ## Frontend extensions (`frontend/src/extensions/*` in substrata)
 
-| substrata extension | Status | subform file or owner |
+| substrata extension | Status | formsubstrate file or owner |
 | --- | --- | --- |
 | activity | being ported: port-library | extensions/activity (planned) |
 | approvals | being ported: port-recipes | extensions/approvals (planned) |
@@ -46,25 +46,25 @@ Ports owned by other agents this turn: port-studio (Studio canvas), port-runs (r
 | triggers | being ported: port-recipes | extensions/triggers (planned) |
 | welcome (first-run wizard) | ported (turn 11, parity agent) | extensions/welcome/index.ts; command `welcome`, Help menu; see D2 |
 | workspace | present | ui/workspace-store.ts, io/workspace.ts, routers/workspace.py, core/workspace_root.py, ui/open-folder.ts |
-| ndjson.ts (stream helper) | not needed here | subform streams sessions over its own SSE client (io/sessions.ts); port-runs brings its own if it needs one |
+| ndjson.ts (stream helper) | not needed here | formsubstrate streams sessions over its own SSE client (io/sessions.ts); port-runs brings its own if it needs one |
 
 ## Backend routers (`backend/app/routers/*` in substrata)
 
-| substrata router | Status | subform file or owner |
+| substrata router | Status | formsubstrate file or owner |
 | --- | --- | --- |
 | chat.py | not ported | D1 |
 | cogentics.py | being ported: port-insight | routers/cogentics (planned) |
 | collections.py | being ported: port-library | routers/collections.py |
 | dap.py | present | routers/debug.py, core/debug.py |
-| extensions.py (install, git install of UI extensions) | being ported: port-library (manager) | with the manager; subform extensions are compiled in, so an install route needs a decision there |
+| extensions.py (install, git install of UI extensions) | being ported: port-library (manager) | with the manager; formsubstrate extensions are compiled in, so an install route needs a decision there |
 | git.py | present | routers/git.py, services/gitops.py |
-| harness.py | ported (turn 11, parity agent) | routers/harness.py (`.subform/` tree; import needs the window token) |
+| harness.py | ported (turn 11, parity agent) | routers/harness.py (`.formsubstrate/` tree; import needs the window token) |
 | insight.py | being ported: port-insight | routers/insight (planned) |
 | lsp.py | present | routers/lsp.py, core/lsp.py |
-| mcp.py (substrata as MCP server) | present, different server | routers/mcp.py, services/mcp_tools.py, docs/MCP.md (subform's own MCP server, behind LocalGuard and a bearer token) |
+| mcp.py (substrata as MCP server) | present, different server | routers/mcp.py, services/mcp_tools.py, docs/MCP.md (formsubstrate's own MCP server, behind LocalGuard and a bearer token) |
 | mcp_servers.py (client connections) | being ported: port-library (mounted in main.py) | routers/mcp_servers.py; see D3 |
 | plugins.py | being ported: port-library | routers/plugins.py |
-| presets.py (graph and skill presets, plugin catalog) | ported: sf-presets | routers/presets.py over services/presets: one service with four groups (graphs, recipes, plugins, skills) at `/api/presets/{group}`; plugin presets install into .subform/plugins only by an owner action with the workspace trusted, skill presets into .claude/skills by an owner action; `/api/graphs/presets` stays as an alias. Dropped: the navi_notify catalog plugin (a Navi overlay on a fixed port, not a Form family tool), install-from-URL (runs fetched code), and plugin disable, enable and uninstall (already served by `/api/plugins`) |
+| presets.py (graph and skill presets, plugin catalog) | ported: sf-presets | routers/presets.py over services/presets: one service with four groups (graphs, recipes, plugins, skills) at `/api/presets/{group}`; plugin presets install into .formsubstrate/plugins only by an owner action with the workspace trusted, skill presets into .claude/skills by an owner action; `/api/graphs/presets` stays as an alias. Dropped: the navi_notify catalog plugin (a Navi overlay on a fixed port, not a Form family tool), install-from-URL (runs fetched code), and plugin disable, enable and uninstall (already served by `/api/plugins`) |
 | preview.py | present | routers/media.py |
 | recipes.py | being ported: port-recipes | routers/recipes.py |
 | run.py, runs.py | being ported: port-runs | routers/runs (planned) |
@@ -75,13 +75,13 @@ Ports owned by other agents this turn: port-studio (Studio canvas), port-runs (r
 
 ## Skills under `backend/skills`
 
-| substrata skill | Status | subform file |
+| substrata skill | Status | formsubstrate file |
 | --- | --- | --- |
-| substrata-graphs | ported (turn 11, parity agent) | backend/skills/subform-graphs/SKILL.md (see D4) |
+| substrata-graphs | ported (turn 11, parity agent) | backend/skills/formsubstrate-graphs/SKILL.md (see D4) |
 
 ## Product surfaces named in the brief
 
-| Surface | Status | subform file or note |
+| Surface | Status | formsubstrate file or note |
 | --- | --- | --- |
 | Welcome screen | ported, as a readiness check (D2) | extensions/welcome/index.ts; Home (ui/home.ts) stays the start page |
 | Chat | not ported as a navigator; a transcript pane exists | ui/chat-pane.ts follows Claude Code session transcripts; see D1 |
@@ -99,12 +99,12 @@ Ports owned by other agents this turn: port-studio (Studio canvas), port-runs (r
 
 ## Summary count
 
-Of 33 substrata frontend extensions: 13 present, 2 ported by the parity agent (system, welcome), 17 being ported by the five other agents (of which graphs and palette are folded into the Studio), 1 not ported (chat). Of 21 backend routers: 7 present, 1 ported by the parity agent (harness), 11 being ported by the other agents, 1 not ported (chat), 1 ported by sf-presets (presets, now unified). The one shipped skill is ported. The count of "present" rows is by extension or router name, not a measure of depth: subform's git review, terminal and gates are larger than substrata's, while Studio, runs, recipes and triggers did not exist until this turn.
+Of 33 substrata frontend extensions: 13 present, 2 ported by the parity agent (system, welcome), 17 being ported by the five other agents (of which graphs and palette are folded into the Studio), 1 not ported (chat). Of 21 backend routers: 7 present, 1 ported by the parity agent (harness), 11 being ported by the other agents, 1 not ported (chat), 1 ported by sf-presets (presets, now unified). The one shipped skill is ported. The count of "present" rows is by extension or router name, not a measure of depth: formsubstrate's git review, terminal and gates are larger than substrata's, while Studio, runs, recipes and triggers did not exist until this turn.
 
 ## Decisions on items nobody else owns
 
-- **D1 chat, not ported.** Substrata's chat drawer talks to a built-in navigator agent that needs a model client in the engine. subform is a workbench for Claude Code: the conversation with an agent happens in a Claude Code session (terminal dock for interactive ones, `ui/chat-pane.ts` transcript for headless ones), which already has file, shell and review access in its own worktree. A second built-in agent loop would duplicate that and add a key and a model client to the engine. If a model-backed assistant is wanted later it should be a session type, not a drawer.
-- **D2 welcome, ported as a readiness check.** Substrata's wizard picked a model provider because its agents needed one. subform has no provider of its own; what a new user needs is to know the engine, git and the `claude` command are found, whether an API key is in the keychain, and that a workspace is open. The dialog shows exactly that, opens once on first run when no workspace is open (flag `subform.welcomed.v1`), and is always available as `Help > Welcome`. It sits beside Home, not inside it, because the onboarding agent is editing Home this turn.
-- **D3 settings: model provider, embeddings, MCP client servers, not ported by the parity agent.** Provider and embedding settings belong to the model layer that port-library's tools router and the runner (port-runs) bring; they are exposed in Preferences only when those land, since Preferences is the one place for settings and the owner of that page is the shell. MCP client connections (`mcp_servers.py`) are with port-library. Claude Code sessions take their MCP servers from the session `mcp.json` that subform writes, so the Preferences page needs no server list for them.
-- **D4 skill shipped as a skill.** `subform-graphs` is the substrata-graphs text with the folder renamed to `.subform/`. It is a standard `SKILL.md`, so a Claude Code session can use it by copying it into `.claude/skills`. The current skills scan (`services/sessions.py` `list_skills`) only looks in the workspace `.claude/skills` and the user's `~/.claude/skills`, so the file under `backend/skills` is not discovered by itself. port-library's tools and skills loader (or the Studio's graph agent runs) should read `backend/skills`; until then it is shipped data, not active.
-- **D5 harness.** Export and import of the `.subform/` tree as one JSON file fits subform (share a whole setup between workspaces). Import is an owner-only state change and so requires the window token, and it is previewed first: a manifest dialog lists every file as write, overwrite, skip or refuse before anything is written; the `runs` and `cogentics` groups are never imported and `plugins` is refused unless the workspace is trusted. Export is read only. Paths are confined to `.subform/` and checked against the workspace root; symlinks are skipped on export; limits are 400,000 bytes per file, 500 files and 4,000,000 bytes on import.
+- **D1 chat, not ported.** Substrata's chat drawer talks to a built-in navigator agent that needs a model client in the engine. formsubstrate is a workbench for Claude Code: the conversation with an agent happens in a Claude Code session (terminal dock for interactive ones, `ui/chat-pane.ts` transcript for headless ones), which already has file, shell and review access in its own worktree. A second built-in agent loop would duplicate that and add a key and a model client to the engine. If a model-backed assistant is wanted later it should be a session type, not a drawer.
+- **D2 welcome, ported as a readiness check.** Substrata's wizard picked a model provider because its agents needed one. formsubstrate has no provider of its own; what a new user needs is to know the engine, git and the `claude` command are found, whether an API key is in the keychain, and that a workspace is open. The dialog shows exactly that, opens once on first run when no workspace is open (flag `formsubstrate.welcomed.v1`), and is always available as `Help > Welcome`. It sits beside Home, not inside it, because the onboarding agent is editing Home this turn.
+- **D3 settings: model provider, embeddings, MCP client servers, not ported by the parity agent.** Provider and embedding settings belong to the model layer that port-library's tools router and the runner (port-runs) bring; they are exposed in Preferences only when those land, since Preferences is the one place for settings and the owner of that page is the shell. MCP client connections (`mcp_servers.py`) are with port-library. Claude Code sessions take their MCP servers from the session `mcp.json` that formsubstrate writes, so the Preferences page needs no server list for them.
+- **D4 skill shipped as a skill.** `formsubstrate-graphs` is the substrata-graphs text with the folder renamed to `.formsubstrate/`. It is a standard `SKILL.md`, so a Claude Code session can use it by copying it into `.claude/skills`. The current skills scan (`services/sessions.py` `list_skills`) only looks in the workspace `.claude/skills` and the user's `~/.claude/skills`, so the file under `backend/skills` is not discovered by itself. port-library's tools and skills loader (or the Studio's graph agent runs) should read `backend/skills`; until then it is shipped data, not active.
+- **D5 harness.** Export and import of the `.formsubstrate/` tree as one JSON file fits formsubstrate (share a whole setup between workspaces). Import is an owner-only state change and so requires the window token, and it is previewed first: a manifest dialog lists every file as write, overwrite, skip or refuse before anything is written; the `runs` and `cogentics` groups are never imported and `plugins` is refused unless the workspace is trusted. Export is read only. Paths are confined to `.formsubstrate/` and checked against the workspace root; symlinks are skipped on export; limits are 400,000 bytes per file, 500 files and 4,000,000 bytes on import.

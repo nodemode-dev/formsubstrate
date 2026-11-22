@@ -2,7 +2,7 @@ import { el, patchList, q, setClass, setText, setTitle } from './dom';
 import { icon } from './icons';
 import type { OpenDoc, WorkspaceStore } from './workspace-store';
 
-const APP = 'subform';
+const APP = 'Substrate';
 
 export class Tabs {
   private frame = 0;

@@ -15,7 +15,7 @@ ToolExec = Callable[[str, dict], Awaitable[Any]]
 
 MAX_ITERATIONS = 24
 CONTEXT_BUDGET = 24000
-SKIP_DIRS = {".git", "node_modules", "venv", ".venv", "__pycache__", "dist", "target", ".subform"}
+SKIP_DIRS = {".git", "node_modules", "venv", ".venv", "__pycache__", "dist", "target", ".formsubstrate", ".subform"}
 SIM_WRITE = re.compile(r"simulate:write\s+(\S+)")
 SIM_SEARCH = re.compile(r"simulate:search\s+(\S+)")
 SIM_SHELL = re.compile(r"simulate:shell\s+(.+)")

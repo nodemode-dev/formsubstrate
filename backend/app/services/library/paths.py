@@ -5,13 +5,13 @@ from pathlib import Path
 from app.core import config
 from app.core import workspace_root as ws
 
-FOLDER = ".subform"
+FOLDER = ".formsubstrate"
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 
 
 def refuse_link(path: Path) -> Path:
     if path.is_symlink():
-        raise ws.Refused(403, "a symbolic link inside .subform is refused")
+        raise ws.Refused(403, "a symbolic link inside .formsubstrate is refused")
     return path
 
 
@@ -23,9 +23,9 @@ def workspace_dir(*parts: str) -> Path:
     for part in clean.split("/"):
         walked = os.path.join(walked, part)
         if os.path.islink(walked):
-            raise ws.Refused(403, "a symbolic link inside .subform is refused")
+            raise ws.Refused(403, "a symbolic link inside .formsubstrate is refused")
     if os.path.realpath(real) != os.path.join(base, *clean.split("/")):
-        raise ws.Refused(403, "a symbolic link inside .subform is refused")
+        raise ws.Refused(403, "a symbolic link inside .formsubstrate is refused")
     return Path(real)
 
 

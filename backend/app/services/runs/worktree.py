@@ -12,11 +12,11 @@ REGISTRY_NAME = "run-worktrees.json"
 EDIT_PERMISSIONS = ("edit", "plan")
 AGENT_KINDS = ("agent", "evaluator")
 SWEEP_SECONDS = 3.0
-STRIPPED_ENV = ("SUBFORM_WINDOW_TOKEN",)
+STRIPPED_ENV = ("FORMSUBSTRATE_WINDOW_TOKEN",)
 SESSION_SUFFIX = "000"
 RUN_ID_LEN = 10
 
-RUN_MCP_SERVERS = ("subform", "formslot")
+RUN_MCP_SERVERS = ("formsubstrate", "formslot")
 
 KEPT: set[str] = set()
 _live: dict[str, dict] = {}

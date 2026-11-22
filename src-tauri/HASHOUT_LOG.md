@@ -359,3 +359,11 @@ Closes the v0.10.0 todo. It was already done the same day: `engine_folder` lists
 - logged: v0.14.0 · 2026-10-31
 
 The bundle id changed from `ai.nodemode.substrataform` to `ai.nodemode.subform`, which moves `app_config_dir` (window.json). On macOS and Linux `load` first copies the old id's config folder into the new one when the new one is empty or missing and the old exists; the old folder is never touched. Windows is skipped (no-op). Only the config folder is copied: the webview's own storage (macOS WKWebView, Linux WebKitGTK data dir) is created by the splash window before this runs and is not merged, so localStorage from the old id may be lost there; the page-side copy only helps where the storage survives. `cargo check` passes without warnings; the copy itself was not run here (no desktop session).
+
+### tauri.conf.json, window_state.rs, packaged.rs · Substrate.app, bundle id ai.nodemode.formsubstrate
+
+- refers-to: src-tauri/tauri.conf.json :: productName, identifier, app.windows.title, bundle; src-tauri/src/window_state.rs :: OLD_ID; src-tauri/src/packaged.rs :: ENGINE, engine_folder; src-tauri/Cargo.toml :: package.name
+- kind: rationale
+- logged: v0.17.0 · 2026-11-21
+
+Names only. `productName` and the window titles are Substrate, the identifier is `ai.nodemode.formsubstrate`, the crate is `formsubstrate`, the engine binary is `formsubstrate-engine`, the env names are `FORMSUBSTRATE_PORT` and `FORMSUBSTRATE_WINDOW_TOKEN`, the close event is `formsubstrate://close-requested` and the splash hook `window.formsubstrateSplashDone`. `OLD_ID` now names `ai.nodemode.subform`, so window position and size come across once on macOS and Linux. The new identifier is a new app to the operating system: the web view's storage (theme, layout, per-viewer flags) starts empty in the desktop app, and the keychain may ask once before the new binary reads an old entry. `packaged.rs` looks in both `../lib/formsubstrate/engine` and `../lib/substrate/engine` because the `.deb` folder name for the new product name has not been seen in a build. The shell was not compiled for this change.

@@ -34,7 +34,7 @@ KNOWN_BLOCKS = {
     5620: "formMCP",
     5630: "formskills",
     5640: "formslot",
-    5650: "subform",
+    5650: "formsubstrate",
 }
 PORT_SCAN_RE = re.compile(r"\b(5[6-9]\d\d)\b")
 SCAN_FILES = ("CLAUDE.md", "README.md", "AGENTS.md")
@@ -503,7 +503,7 @@ async def create_app(name_raw: object, kind_raw: object, dest_raw: object, port_
         await gitops.must(root, ["add", "-A"], timeout=GIT_STEP_TIMEOUT)
         args = ["commit", "-q", "--no-verify", "--no-gpg-sign" if not sign else "-S", "-F", "-"]
         configs = gitops._ident_configs(who, sign) + ["core.hooksPath=/dev/null" if os.name == "posix" else "core.hooksPath=NUL", "commit.gpgsign=" + ("true" if sign else "false")]
-        message = f"Initial commit of {name}\n\nScaffolded by subform from the {KINDS[kind]['short']} template.\n"
+        message = f"Initial commit of {name}\n\nScaffolded by Substrate from the {KINDS[kind]['short']} template.\n"
         await gitops.must(root, args, configs=configs, env=gitops._ident_env(who), stdin=message.encode("utf-8"), timeout=GIT_STEP_TIMEOUT)
         sha = (await gitops.must(root, ["rev-parse", "HEAD"])).strip()
     except gitops.Refused as err:

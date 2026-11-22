@@ -22,7 +22,7 @@ def selfcheck() -> int:
             info[name] = f"missing: {exc}"
     from app import __version__
 
-    info["subform"] = __version__
+    info["formsubstrate"] = __version__
     info["dist_bundled"] = os.path.isdir(os.path.join(resource_dir(), "frontend_dist"))
     templates = os.path.join(resource_dir(), "app", "templates")
     for part in ("common", "python", "rust"):
@@ -45,7 +45,7 @@ def selfcheck() -> int:
     try:
         import app.main
         import app.services.gate_hook
-        import subform_ptyhost
+        import formsubstrate_ptyhost
 
         info["app"] = "ok"
     except Exception as exc:
@@ -72,7 +72,7 @@ def watch_parent() -> None:
             shutil.rmtree(unpacked, ignore_errors=True)
         os._exit(0)
 
-    threading.Thread(target=run, name="subform-parent-watch", daemon=True).start()
+    threading.Thread(target=run, name="formsubstrate-parent-watch", daemon=True).start()
 
 
 def sweep_stale_unpacks() -> None:
@@ -103,7 +103,7 @@ def sweep_stale_unpacks() -> None:
                 continue
             shutil.rmtree(os.path.join(root, name), ignore_errors=True)
 
-    threading.Thread(target=run, name="subform-unpack-sweep", daemon=True).start()
+    threading.Thread(target=run, name="formsubstrate-unpack-sweep", daemon=True).start()
 
 
 def announce_port(server, data) -> None:
@@ -120,16 +120,16 @@ def announce_port(server, data) -> None:
         except (OSError, IndexError):
             return
 
-    threading.Thread(target=run, name="subform-port-file", daemon=True).start()
+    threading.Thread(target=run, name="formsubstrate-port-file", daemon=True).start()
 
 
 def main() -> int:
     if (len(sys.argv) > 1 and sys.argv[1] == "selfcheck") or "--selfcheck" in sys.argv:
         return selfcheck()
     if "--ptyhost" in sys.argv:
-        import subform_ptyhost
+        import formsubstrate_ptyhost
 
-        return subform_ptyhost.main() or 0
+        return formsubstrate_ptyhost.main() or 0
     from app.core import runtime
 
     runtime.apply_switches(sys.argv[1:])
@@ -144,13 +144,13 @@ def main() -> int:
     sweep_stale_unpacks()
     bundled = os.path.join(resource_dir(), "frontend_dist")
     if os.path.isdir(bundled):
-        os.environ.setdefault("SUBFORM_DIST", bundled)
-    os.environ.setdefault("SUBFORM_DESKTOP", "1")
+        os.environ.setdefault("FORMSUBSTRATE_DIST", bundled)
+    os.environ.setdefault("FORMSUBSTRATE_DESKTOP", "1")
     import uvicorn
 
     from app.main import app as fastapi_app
 
-    port = int(os.environ.get("SUBFORM_PORT", "0") or 0)
+    port = int(os.environ.get("FORMSUBSTRATE_PORT", "0") or 0)
     server = uvicorn.Server(uvicorn.Config(fastapi_app, host="127.0.0.1", port=port, log_level="info"))
     data = config.data_dir()
     announce_port(server, data)

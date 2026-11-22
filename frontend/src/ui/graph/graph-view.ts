@@ -7,7 +7,7 @@ import { icon } from '../icons';
 import type { EditorPrefs, ViewDoc } from '../review/views';
 import type { LayoutIn, LayoutOut } from './graph-layout';
 
-const MM_KEY = 'subform.graph.minimap';
+const MM_KEY = 'formsubstrate.graph.minimap';
 const MIN_K = 0.02;
 const MAX_K = 8;
 const GRID = 22;

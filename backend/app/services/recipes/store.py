@@ -36,13 +36,13 @@ def safe_path(rel: str, write: bool = False) -> Path:
 
 
 def folder(write: bool = False) -> Path:
-    return safe_path(".subform/recipes", write)
+    return safe_path(".formsubstrate/recipes", write)
 
 
 def _path(name: str, write: bool = False) -> Path:
     if not SAFE_NAME.match(name or ""):
         raise RecipeError(400, "a recipe name is letters, digits, dashes and underscores")
-    return safe_path(f".subform/recipes/{name}.json", write)
+    return safe_path(f".formsubstrate/recipes/{name}.json", write)
 
 
 def content_hash(recipe: dict) -> str:

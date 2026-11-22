@@ -13,7 +13,7 @@ PROVIDER_BASES = {
     "lmstudio": "http://localhost:1234/v1",
 }
 LOCAL_PROVIDERS = {"ollama", "lmstudio"}
-KEY_SERVICE = "subform"
+KEY_SERVICE = "formsubstrate"
 KEY_NAME = "cogentics-api-key"
 OnDelta = Callable[[str], Awaitable[None]]
 
@@ -101,7 +101,7 @@ class Client:
             h["Authorization"] = f"Bearer {self._key}"
         if self.provider == "openrouter":
             h["HTTP-Referer"] = "http://localhost:5650"
-            h["X-Title"] = "subform"
+            h["X-Title"] = "Substrate"
         return h
 
     def _payload(self, messages: list[dict], tools: Optional[list[dict]], temperature: float,

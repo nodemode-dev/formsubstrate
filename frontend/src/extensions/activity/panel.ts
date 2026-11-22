@@ -3,8 +3,8 @@ import { el, q, setClass, setHidden, setText, setTitle } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 import { onLanguage, t, tn } from '../../ui/i18n';
 
-export const RUN_EVENT = 'subform:run-event';
-export const RUN_STARTED = 'subform:run-started';
+export const RUN_EVENT = 'formsubstrate:run-event';
+export const RUN_STARTED = 'formsubstrate:run-started';
 
 export const PHASES = ['enter', 'exit', 'tool', 'output', 'delta', 'skills', 'loop', 'yielded', 'halt', 'error', 'compaction'] as const;
 

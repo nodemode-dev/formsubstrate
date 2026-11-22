@@ -37,11 +37,11 @@ class EnabledBody(BaseModel):
 
 
 def builtin_rows() -> list[dict]:
-    rows = [{"name": "subform", "origin": "builtin", "transport": "http", "url": "/mcp", "command": "", "status": "connected", "detail": "this engine", "tools": len(mcp_tools.TOOLS), "enabled": True}]
+    rows = [{"name": "formsubstrate", "origin": "builtin", "transport": "http", "url": "/mcp", "command": "", "status": "connected", "detail": "this engine", "tools": len(mcp_tools.TOOLS), "enabled": True}]
     from app.core import config
 
-    launcher = config.REPO_DIR / ("subform.bat" if os.name == "nt" else "subform")
-    rows.append({"name": "subform launcher", "origin": "builtin", "transport": "stdio", "url": "", "command": redact_command(f"{launcher} mcp") if launcher.is_file() else "", "status": "connected" if launcher.is_file() else "missing", "detail": "written into session mcp.json" if launcher.is_file() else "not next to the engine", "tools": len(mcp_tools.TOOLS), "enabled": True})
+    launcher = config.REPO_DIR / ("formsubstrate.bat" if os.name == "nt" else "formsubstrate")
+    rows.append({"name": "formsubstrate launcher", "origin": "builtin", "transport": "stdio", "url": "", "command": redact_command(f"{launcher} mcp") if launcher.is_file() else "", "status": "connected" if launcher.is_file() else "missing", "detail": "written into session mcp.json" if launcher.is_file() else "not next to the engine", "tools": len(mcp_tools.TOOLS), "enabled": True})
     formmcp = os.environ.get("FORMMCP_BIN") or find_bin("formmcp")
     rows.append({"name": "formMCP", "origin": "builtin", "transport": "stdio", "url": "", "command": os.path.basename(formmcp) if formmcp and os.path.isfile(formmcp) else "", "status": "connected" if formmcp and os.path.isfile(formmcp) else "missing", "detail": "written into session mcp.json" if formmcp else "not found", "tools": 0, "enabled": True})
     slot = formslot_service.binary()
@@ -72,7 +72,7 @@ async def add_server(body: ServerBody) -> dict:
         raise HTTPException(400, "a stdio server needs a command")
     if len(body.headers) > HEADERS_MAX or any(not k or len(k) > HEADER_NAME_MAX or len(v) > HEADER_VALUE_MAX or "\n" in k + v for k, v in body.headers.items()):
         raise HTTPException(400, "headers are at most 16 short single-line pairs")
-    cfg = McpServerConfig(name=name, transport=body.transport, url=body.url.strip(), command=body.command.strip(), enabled=body.enabled, sessions=body.sessions, env_names=[n for n in body.env if ENV_NAME.fullmatch(n) and not n.startswith("SUBFORM_")][:16])
+    cfg = McpServerConfig(name=name, transport=body.transport, url=body.url.strip(), command=body.command.strip(), enabled=body.enabled, sessions=body.sessions, env_names=[n for n in body.env if ENV_NAME.fullmatch(n) and not n.startswith("FORMSUBSTRATE_")][:16])
     try:
         srv = await mcp_clients.add(cfg, body.headers)
     except Exception as error:

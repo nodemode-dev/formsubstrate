@@ -5,7 +5,7 @@ Replace names in square brackets. Scratch work goes under your own scratch folde
 ## Typecheck and build
 
 ```bash
-cd /home/claude/repos/subform/frontend
+cd /home/claude/repos/formsubstrate/frontend
 npx tsc --noEmit
 npx vite build --outDir [scratch]/dist
 ```
@@ -13,9 +13,9 @@ npx vite build --outDir [scratch]/dist
 ## Engine
 
 ```bash
-cd /home/claude/repos/subform/backend
+cd /home/claude/repos/formsubstrate/backend
 venv/bin/python -c "import app.main"
-SUBFORM_DATA_DIR=[scratch]/data SUBFORM_DIST=[scratch]/dist \
+FORMSUBSTRATE_DATA_DIR=[scratch]/data FORMSUBSTRATE_DIST=[scratch]/dist \
   venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port [port] &
 echo $! > [scratch]/engine.pid
 curl -s http://127.0.0.1:[port]/api/system/status
@@ -42,8 +42,8 @@ The hook is `[data]/hooks/sf_gate.py`, written by the engine when a session star
 
 ```bash
 echo '{"session_id":"","tool_name":"Bash","tool_input":{"command":"echo x > notes.txt"}}' | \
-  SUBFORM_ENGINE=http://127.0.0.1:[port] SUBFORM_SESSION=[id] SUBFORM_WORKTREE=[worktree] \
-  SUBFORM_REPO=[repo] SUBFORM_GATE_TOKEN=[token] FORMSLOT_BIN=[fake or copied formslot] \
+  FORMSUBSTRATE_ENGINE=http://127.0.0.1:[port] FORMSUBSTRATE_SESSION=[id] FORMSUBSTRATE_WORKTREE=[worktree] \
+  FORMSUBSTRATE_REPO=[repo] FORMSUBSTRATE_GATE_TOKEN=[token] FORMSLOT_BIN=[fake or copied formslot] \
   python3 [data]/hooks/sf_gate.py
 ```
 

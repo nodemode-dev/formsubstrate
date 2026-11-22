@@ -6,7 +6,7 @@ import { DialogHistory, REMEMBERED } from './dialog-history';
 
 export interface RememberedExtra { read(): Record<string, DialogValue>; write(values: Record<string, DialogValue>): void; onChange(notify: () => void): void }
 
-const SPOTS_KEY = 'subform.dialogSpots';
+const SPOTS_KEY = 'formsubstrate.dialogSpots';
 
 let openCount = 0;
 let titleSeq = 0;

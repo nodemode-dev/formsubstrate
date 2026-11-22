@@ -93,7 +93,7 @@ class HomeSessions {
 export class Home {
   readonly el = el(`<section class="cv-home" aria-label="${t('Home')}">
     <nav class="cv-home-nav" aria-label="${t('Home')}">
-      <div class="cv-home-brand">subform <span>${t('Form family workbench')}</span></div>
+      <div class="cv-home-brand">Substrate <span>${t('Form family code editor')}</span></div>
       ${this.nav('start', 'home', 'Start')}${this.nav('recent', 'history', 'Recent')}${this.nav('workspaces', 'pfWorkspace', 'Workspaces')}${this.nav('sessions', 'agentChat', 'Sessions')}
       <div class="cv-home-nav-sep"></div>
       <div class="cv-home-nav-title">${t('Create')}</div>

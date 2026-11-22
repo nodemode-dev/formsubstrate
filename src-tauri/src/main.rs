@@ -21,7 +21,7 @@ struct Backend(Mutex<Option<CommandChild>>);
 const FALLBACK_SIZE: (f64, f64) = (1323.0, 860.0);
 const MIN_SIZE: (f64, f64) = (980.0, 640.0);
 const SCREEN_FRACTION: f64 = 0.9;
-const DEV_ENGINE: &str = "../backend/subform_engine.py";
+const DEV_ENGINE: &str = "../backend/formsubstrate_engine.py";
 
 fn kill_backend(handle: &tauri::AppHandle) {
     let state = handle.state::<Backend>();
@@ -61,7 +61,7 @@ fn engine_failed(handle: &tauri::AppHandle) {
     close_splash(handle);
     let _ = handle
         .dialog()
-        .message("The subform engine failed to start. Please relaunch the app.")
+        .message("The Substrate engine failed to start. Please relaunch the app.")
         .blocking_show();
     kill_backend(handle);
     handle.exit(1);
@@ -116,7 +116,7 @@ fn main() {
             let secret = token.value().to_string();
             app.manage(token);
             let spawned = engine_command(&handle)
-                .and_then(|engine| engine.env("SUBFORM_PORT", "0").env(window_token::ENV, secret).spawn().ok());
+                .and_then(|engine| engine.env("FORMSUBSTRATE_PORT", "0").env(window_token::ENV, secret).spawn().ok());
             let Some((mut rx, child)) = spawned else {
                 tauri::async_runtime::spawn(async move { engine_failed(&handle) });
                 return Ok(());
@@ -157,7 +157,7 @@ fn main() {
                                 .unwrap_or(FALLBACK_SIZE)
                         };
                         let builder = WebviewWindowBuilder::new(&handle, "main", WebviewUrl::External(url.parse().unwrap()))
-                            .title("SubForm")
+                            .title("Substrate")
                             .visible(reveal::BUILD_VISIBLE)
                             .background_color(reveal::BACKGROUND)
                             .inner_size(width, height)
@@ -190,7 +190,7 @@ fn main() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("error while building the subform app");
+        .expect("error while building the Substrate app");
 
     app.run(|handle, event| match event {
         RunEvent::ExitRequested { api, code: None, .. } => {

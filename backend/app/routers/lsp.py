@@ -61,7 +61,7 @@ async def lsp_ws(ws: WebSocket) -> None:
 
     async def refuse(message: str, install: list[str], code: int = 1000) -> None:
         with contextlib.suppress(Exception):
-            await ws.send_text(json.dumps({"jsonrpc": "2.0", "method": "subform/serverUnavailable", "params": {"lang": lang, "error": message, "install": install}}))
+            await ws.send_text(json.dumps({"jsonrpc": "2.0", "method": "formsubstrate/serverUnavailable", "params": {"lang": lang, "error": message, "install": install}}))
             await ws.close(code=code, reason=message[:120])
 
     if root is None:
@@ -100,7 +100,7 @@ async def lsp_ws(ws: WebSocket) -> None:
 
     tasks: list[asyncio.Task] = []
     try:
-        await ws.send_text(json.dumps({"jsonrpc": "2.0", "method": "subform/serverStarted", "params": {"lang": lang, "name": proc.resolved.name, "kind": proc.resolved.kind, "version": proc.resolved.version, "root": root}}))
+        await ws.send_text(json.dumps({"jsonrpc": "2.0", "method": "formsubstrate/serverStarted", "params": {"lang": lang, "name": proc.resolved.name, "kind": proc.resolved.kind, "version": proc.resolved.version, "root": root}}))
         tasks = [asyncio.create_task(client_to_server()), asyncio.create_task(server_to_client())]
         await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
     except WebSocketDisconnect:

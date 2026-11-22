@@ -101,9 +101,7 @@ async def fire_hook(tid: str, request: Request) -> dict:
     refusal = hooks.verify(
         tid,
         raw,
-        request.headers.get(hooks.HEADER, ""),
-        request.headers.get(hooks.TS_HEADER, ""),
-        request.headers.get(hooks.NONCE_HEADER, ""),
+        *(request.headers.get(name) or request.headers.get(hooks.OLD_HEADERS[name], "") for name in (hooks.HEADER, hooks.TS_HEADER, hooks.NONCE_HEADER)),
     )
     if refusal:
         raise HTTPException(status_code=429 if refusal.startswith("too many") else 401, detail=refusal)

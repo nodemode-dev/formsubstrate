@@ -122,7 +122,7 @@ class SymbolSession {
     let msg: { id?: unknown; method?: unknown; result?: unknown; error?: { message?: string } };
     try { msg = JSON.parse(data) as typeof msg; } catch { return; }
     if (typeof msg.method === 'string') {
-      if (msg.method === 'subform/serverUnavailable') { this.verdict = 'unavailable'; this.die(new Error('unavailable')); }
+      if (msg.method === 'formsubstrate/serverUnavailable') { this.verdict = 'unavailable'; this.die(new Error('unavailable')); }
       return;
     }
     const wait = typeof msg.id === 'number' ? this.waits.get(msg.id) : undefined;

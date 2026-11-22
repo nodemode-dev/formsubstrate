@@ -13,7 +13,7 @@ type Sort = 'opened' | 'name';
 type View = 'grid' | 'list';
 type Kind = 'recent' | 'workspaces';
 
-const PREFS = 'subform.home';
+const PREFS = 'formsubstrate.home';
 
 function readPrefs(): { sort: Sort; view: View } {
   const out = { sort: 'opened' as Sort, view: 'list' as View };

@@ -24,7 +24,7 @@ export class WebhookDialog extends Dialog {
     this.url.value = `${location.origin}${path}`;
     this.header.value = header;
     this.secret.value = secret;
-    setText(this.how, t('Send a POST with three headers: X-Subform-Timestamp (unix seconds, within five minutes), X-Subform-Nonce (a fresh random string of 8 to 64 letters, digits, dashes or underscores, never reused) and X-Subform-Signature, which is sha256= and the HMAC-SHA256 of timestamp, a dot, the nonce, a dot and the raw body, keyed with the secret. A stale, repeated or unsigned request does not fire the trigger.'));
+    setText(this.how, t('Send a POST with three headers: X-FormSubstrate-Timestamp (unix seconds, within five minutes), X-FormSubstrate-Nonce (a fresh random string of 8 to 64 letters, digits, dashes or underscores, never reused) and X-FormSubstrate-Signature, which is sha256= and the HMAC-SHA256 of timestamp, a dot, the nonce, a dot and the raw body, keyed with the secret. A stale, repeated or unsigned request does not fire the trigger.'));
     if (!this.isOpen) this.open();
   }
 

@@ -1,17 +1,17 @@
 <p align="center">
-  <img src="assets/app-icon/subform-256.png" width="128" height="128" alt="SubForm icon">
+  <img src="assets/app-icon/formsubstrate-256.png" width="128" height="128" alt="FormSubstrate icon">
 </p>
 
-<h1 align="center">SubForm</h1>
+<h1 align="center">FormSubstrate</h1>
 
 <p align="center">
-  <b>Developer workbench; a code editor that runs several Claude Code agents at once.</b><br>
-  Each agent works in its own git worktree, and you review its changes hunk by hunk,<br>
-  with what FormSlot already knows shown before an agent writes.
+  <b>FormSubstrate - instead of VS Code: the code &amp; text editor from the FormAI family of apps, with Claude Code agents built in.</b><br>
+  The application is called Substrate (<code>Substrate.app</code>). It runs several Claude Code agents at once,<br>
+  each in its own git worktree; you review their changes hunk by hunk, with what FormSlot already knows shown before an agent writes.
 </p>
 
 <p align="center">
-  <img alt="version 0.16.2" src="https://img.shields.io/badge/version-0.16.2-eef0f4?style=flat-square">
+  <img alt="version 0.17.0" src="https://img.shields.io/badge/version-0.17.0-eef0f4?style=flat-square">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-7-3178c6?style=flat-square&logo=typescript&logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-engine-009688?style=flat-square">
   <img alt="Tauri 2" src="https://img.shields.io/badge/Tauri-2-2f7bf5?style=flat-square">
@@ -20,14 +20,14 @@
 </p>
 
 <p align="center">
-  <a href="https://formai.studio/"><b>Download SubForm on formai.studio</b></a> ·
+  <a href="https://formai.studio/"><b>Download Substrate on formai.studio</b></a> ·
   <a href="#run-it-from-source">Run it from source</a>
 </p>
 
 <p align="center">
-  <img src="docs/images/subform-hero.png" alt="SubForm editing a TypeScript file with the FormSlot panel open on the left, showing the Toast notices slot and the copies of it found in two repositories" width="100%">
+  <img src="docs/images/formsubstrate-hero.png" alt="Substrate editing a TypeScript file with the FormSlot panel open on the left, showing the Toast notices slot and the copies of it found in two repositories" width="100%">
   <br>
-  <sub>The editor on SubForm's own source, with the FormSlot panel showing a slot and its copies.</sub>
+  <sub>The editor on Substrate's own source, with the FormSlot panel showing a slot and its copies.</sub>
 </p>
 
 <p align="center">
@@ -65,13 +65,13 @@
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/images/subform-formslot.png" alt="SubForm with the FormSlot panel listing slots and code units that match a search for toast notification" width="100%">
+      <img src="docs/images/formsubstrate-formslot.png" alt="Substrate with the FormSlot panel listing slots and code units that match a search for toast notification" width="100%">
       <br><sub>Search slots, code and decisions from the side panel.</sub>
       <h3>FormSlot in the editor</h3>
       A status item, a slots panel with search and manifests, and provenance badges in review show what already exists.
     </td>
     <td width="50%" valign="top">
-      <img src="docs/images/subform-review.png" alt="SubForm Source Control panel beside a side-by-side diff of a changed file" width="100%">
+      <img src="docs/images/formsubstrate-review.png" alt="Substrate Source Control panel beside a side-by-side diff of a changed file" width="100%">
       <br><sub>Source Control with a side-by-side diff of a working-tree change.</sub>
       <h3>Git and review</h3>
       Stage, diff, snapshot and rewind, then commit with trailers stripped and every commit audited. Push and Sign and Push check each push.
@@ -79,7 +79,7 @@
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/images/subform-file-graph.png" alt="File graph of a repository with files as nodes coloured by type and links between them" width="100%">
+      <img src="docs/images/formsubstrate-file-graph.png" alt="File graph of a repository with files as nodes coloured by type and links between them" width="100%">
       <br><sub>The file graph of this repository: 413 files and 1139 links.</sub>
       <h3>File graph</h3>
       See how a repository's files link to each other, filter by folder or type, and click a node to open the file.
@@ -108,14 +108,14 @@
 
 ## Built for agents
 
-SubForm's engine is an MCP server with nine read-mostly tools. Only `review_comment` changes state, and no tool writes files, commits or answers a gate.
+Substrate's engine is an MCP server with nine read-mostly tools. Only `review_comment` changes state, and no tool writes files, commits or answers a gate.
 
 ```sh
-./subform mcp        # MCP server on stdio for Claude Code, Codex and Cursor
-./subform doctor     # toolchain, installs and ports
+./formsubstrate mcp        # MCP server on stdio for Claude Code, Codex and Cursor
+./formsubstrate doctor     # toolchain, installs and ports
 ```
 
-The HTTP endpoint is `POST /mcp`, behind a local guard and a bearer token. A routing skill pack for agents is in [`.claude/skills/subform-harness/`](.claude/skills/subform-harness/SKILL.md). See [`docs/MCP.md`](docs/MCP.md) and [`AGENTS.md`](AGENTS.md).
+The HTTP endpoint is `POST /mcp`, behind a local guard and a bearer token. A routing skill pack for agents is in [`.claude/skills/formsubstrate-harness/`](.claude/skills/formsubstrate-harness/SKILL.md). See [`docs/MCP.md`](docs/MCP.md) and [`AGENTS.md`](AGENTS.md).
 
 ## Under the hood
 
@@ -127,11 +127,11 @@ The HTTP endpoint is `POST /mcp`, behind a local guard and a bearer token. A rou
 
 | Platform | Download | Release |
 |---|---|---|
-| macOS | [Download SubForm for macOS](https://formai.studio/get/subform/macos) | [SubForm releases on FormCompiler](https://github.com/nodemode-dev/formcompiler/releases?q=subform-v&expanded=true) |
-| Windows | [Download SubForm for Windows](https://formai.studio/get/subform/windows) | [SubForm releases on FormCompiler](https://github.com/nodemode-dev/formcompiler/releases?q=subform-v&expanded=true) |
-| Linux | [Download SubForm for Linux](https://formai.studio/get/subform/linux) | [SubForm releases on FormCompiler](https://github.com/nodemode-dev/formcompiler/releases?q=subform-v&expanded=true) |
+| macOS | [Download Substrate for macOS](https://formai.studio/get/formsubstrate/macos) | [Substrate releases on FormCompiler](https://github.com/nodemode-dev/formcompiler/releases?q=formsubstrate-v&expanded=true) |
+| Windows | [Download Substrate for Windows](https://formai.studio/get/formsubstrate/windows) | [Substrate releases on FormCompiler](https://github.com/nodemode-dev/formcompiler/releases?q=formsubstrate-v&expanded=true) |
+| Linux | [Download Substrate for Linux](https://formai.studio/get/formsubstrate/linux) | [Substrate releases on FormCompiler](https://github.com/nodemode-dev/formcompiler/releases?q=formsubstrate-v&expanded=true) |
 
-All SubForm builds are compiled and released from [FormCompiler](https://github.com/nodemode-dev/formcompiler); this repo holds the source.
+All Substrate builds are compiled and released from [FormCompiler](https://github.com/nodemode-dev/formcompiler); this repo holds the source.
 
 ## Run it from source
 
@@ -139,13 +139,13 @@ Prefer it in your browser, or want to contribute? Run the web UI straight from t
 **Requires:** git, Python 3.13 or later, Node 20.19 or later, and Claude Code for agent sessions.
 
 ```sh
-git clone git@github.com:nodemode-dev/subform.git
-cd subform
-./subform_oc_install     # backend venv and frontend packages
-./subform                # engine on 127.0.0.1:5655, web UI at http://localhost:5650
+git clone git@github.com:nodemode-dev/formsubstrate.git
+cd formsubstrate
+./formsubstrate_oc_install     # backend venv and frontend packages
+./formsubstrate                # engine on 127.0.0.1:5655, web UI at http://localhost:5650
 ```
 
-`frontend/node_modules/.bin/tauri dev` opens the desktop window instead; `SUBFORM_PORT` moves the engine port. On Windows use `subform_oc_install.bat` and `subform.bat`. New users can double-click `Install subform.command` or `Install subform.bat`. The guide is [`docs/GUIDE.md`](docs/GUIDE.md).
+`frontend/node_modules/.bin/tauri dev` opens the desktop window instead; `FORMSUBSTRATE_PORT` moves the engine port. On Windows use `formsubstrate_oc_install.bat` and `formsubstrate.bat`. New users can double-click `Install formsubstrate.command` or `Install formsubstrate.bat`. The guide is [`docs/GUIDE.md`](docs/GUIDE.md).
 
 > [!IMPORTANT]
 > **Status:** release. Signing and notarization of the desktop app, and the FormCompiler catalogue rows, are still the owner's steps. See [`docs/RELEASE.md`](docs/RELEASE.md).
@@ -172,4 +172,4 @@ Code owners are set in [`.github/CODEOWNERS`](.github/CODEOWNERS).
 
 ## License
 
-SubForm is licensed under the GNU General Public License v3.0 ([`LICENSE`](LICENSE), SPDX `GPL-3.0-only`). Copyright (C) 2026 NodeAgentc, Inc. Third-party notices: [`NOTICE.md`](NOTICE.md). Code ported from FormVis (Apache-2.0) and substrata (MIT) keeps its notices there.
+FormSubstrate is licensed under the GNU General Public License v3.0 ([`LICENSE`](LICENSE), SPDX `GPL-3.0-only`). Copyright (C) 2026 NodeAgentc, Inc. Third-party notices: [`NOTICE.md`](NOTICE.md). Code ported from FormVis (Apache-2.0) and substrata (MIT) keeps its notices there.

@@ -454,7 +454,7 @@ class DebugPanel {
     conn.onClose((reason) => { this.onClosed(conn, reason); });
     try {
       await conn.open();
-      await conn.request('initialize', { clientID: 'subform', clientName: 'subform', adapterID: 'python', linesStartAt1: true, columnsStartAt1: true, pathFormat: 'path', supportsVariableType: true });
+      await conn.request('initialize', { clientID: 'formsubstrate', clientName: 'formsubstrate', adapterID: 'python', linesStartAt1: true, columnsStartAt1: true, pathFormat: 'path', supportsVariableType: true });
       const initialized = this.waitFor(conn, 'initialized');
       const launching = conn.request('launch', { program: doc.path, args: splitArgs(this.argsEl.value) }).then(() => '', (err: unknown) => failText(err));
       initialized.catch(() => undefined);
@@ -506,11 +506,11 @@ class DebugPanel {
       this.exitCode = Number(body.exitCode ?? 0);
     } else if (e.event === 'terminated') {
       void this.end(this.exitCode === null ? t('Finished') : `${t('Finished')} · ${t('exit code')} ${this.exitCode}`);
-    } else if (e.event === 'subform/adapterExited') {
+    } else if (e.event === 'formsubstrate/adapterExited') {
       const tail = typeof body.stderr === 'string' ? body.stderr : '';
       if (tail) this.log('err', tail);
       void this.end(t('Adapter stopped'));
-    } else if (e.event === 'subform/busy' || e.event === 'subform/unavailable') {
+    } else if (e.event === 'formsubstrate/busy' || e.event === 'formsubstrate/unavailable') {
       const message = typeof body.message === 'string' ? body.message : '';
       const install = typeof body.install === 'string' && body.install ? ` ${t('Install')}: ${body.install}` : '';
       this.refusal = `${message}${install}`;

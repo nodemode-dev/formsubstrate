@@ -77,10 +77,10 @@ export class StatusBar {
     this.jobs = new JobsList(store, root);
     setTitle(this.busy, t('Show the running jobs, each with its own Stop'));
     this.busy.addEventListener('click', () => this.jobs.toggle());
-    this.lsp.addEventListener('click', () => window.dispatchEvent(new Event('subform:lsp-servers')));
-    window.addEventListener('subform:lsp-status', (e) => this.syncLsp((e as CustomEvent<{ text: string; title: string; state: string; errors: number; warnings: number }>).detail));
+    this.lsp.addEventListener('click', () => window.dispatchEvent(new Event('formsubstrate:lsp-servers')));
+    window.addEventListener('formsubstrate:lsp-status', (e) => this.syncLsp((e as CustomEvent<{ text: string; title: string; state: string; errors: number; warnings: number }>).detail));
     store.on('workspace', () => this.syncWorkspace());
-    window.addEventListener('subform:git-sync', (e) => this.syncGit((e as CustomEvent<{ ahead: number; behind: number; upstream: string }>).detail));
+    window.addEventListener('formsubstrate:git-sync', (e) => this.syncGit((e as CustomEvent<{ ahead: number; behind: number; upstream: string }>).detail));
     store.on('sessions', () => this.syncSessions());
     store.on('jobs', () => this.syncJobs());
     store.on('active', () => this.syncActive());

@@ -5,7 +5,7 @@ import { el, q, setText } from '../../ui/dom';
 import { t } from '../../ui/i18n';
 import { register, type ExtensionContext } from '../registry';
 
-const FLAG = 'subform.welcomed.v1';
+const FLAG = 'formsubstrate.welcomed.v1';
 const KEY_NAME = 'anthropic-api-key';
 const SHOW_DELAY_MS = 900;
 
@@ -27,8 +27,8 @@ class WelcomeDialog extends Dialog {
   private run = 0;
 
   constructor(private readonly ctx: ExtensionContext) {
-    super('Welcome to subform', 500);
-    this.body.appendChild(el(`<p class="cv-note">${t('subform is the Form family workbench. A quick check of what is ready on this computer:')}</p>`));
+    super('Welcome to Substrate', 500);
+    this.body.appendChild(el(`<p class="cv-note">${t('Substrate is the Form family code and text editor. A quick check of what is ready on this computer:')}</p>`));
     for (const s of STEPS) {
       const row = el(`<div class="cv-dialog-row"><span></span><span class="cv-note"></span></div>`);
       setText(q(row, 'span'), s.title);
@@ -36,7 +36,7 @@ class WelcomeDialog extends Dialog {
       this.rows.set(s.id, row);
       this.body.appendChild(row);
     }
-    this.button('Preferences', 'ghost', () => { this.close(); document.dispatchEvent(new CustomEvent('subform:open-settings')); });
+    this.button('Preferences', 'ghost', () => { this.close(); document.dispatchEvent(new CustomEvent('formsubstrate:open-settings')); });
     this.button('Open folder', '', () => { this.close(); ctx.commands.run('open-folder'); });
     this.button('Start', 'primary', () => this.close());
     this.onClose = markSeen;

@@ -10,7 +10,7 @@ export interface FileReview { path: string; oldPath: string | null; kind: GitFil
 export interface Review { root: string; session: string | null; files: FileReview[]; snapshots: number }
 export interface Audit { author: string; committer: string; identityOk: boolean; trailers: number; signature: string }
 export interface Commit { sha: string; short: string; subject: string; author: string; email: string; date: string; signature: string }
-export interface Identity { name: string; email: string; sign: boolean; signingKey: string; source: 'subform' | 'git' | 'none' }
+export interface Identity { name: string; email: string; sign: boolean; signingKey: string; source: 'formsubstrate' | 'git' | 'none' }
 export interface Snapshot { n: number; ref: string; commit: string; label: string; created: string; files: number }
 export interface ReviewComment { id: string; path: string; line: number | null; hunk: string | null; text: string; created: string }
 
@@ -87,7 +87,7 @@ export const git = {
   discard(paths: string[], untracked: boolean, session?: string | null): Promise<GitStatus> {
     return call<GitStatus>('/api/git/discard', post(withSession({ paths, untracked }, session)));
   },
-  commit(message: string, opts: { amend?: boolean; all?: boolean; session?: string | null } = {}): Promise<{ commit: string; summary: string; audit: Audit; identitySource?: 'subform' | 'git' | 'none' }> {
+  commit(message: string, opts: { amend?: boolean; all?: boolean; session?: string | null } = {}): Promise<{ commit: string; summary: string; audit: Audit; identitySource?: 'formsubstrate' | 'git' | 'none' }> {
     return call('/api/git/commit', post(withSession({ message, amend: opts.amend === true, all: opts.all === true }, opts.session)));
   },
   async log(opts: { session?: string | null; limit?: number; ref?: string } = {}): Promise<Commit[]> {

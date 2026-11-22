@@ -3,7 +3,7 @@ import { t } from '../i18n';
 import type { Views } from '../review/views';
 import type { WorkspaceStore } from '../workspace-store';
 
-export const OPEN_GRAPH = 'subform:open-graph';
+export const OPEN_GRAPH = 'formsubstrate:open-graph';
 
 const GRAPH_ID = 'graph:files';
 

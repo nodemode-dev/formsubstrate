@@ -26,8 +26,8 @@ export interface GraphRow { name: string; nodes: number; valid: boolean }
 
 export interface RunEnv { claude: boolean }
 
-export const RUN_STARTED = 'subform:run-started';
-export const RECIPES_CHANGED = 'subform:recipes-changed';
+export const RUN_STARTED = 'formsubstrate:run-started';
+export const RECIPES_CHANGED = 'formsubstrate:recipes-changed';
 
 const json = (body: unknown): RequestInit => ({ body: JSON.stringify(body) });
 
@@ -56,7 +56,7 @@ export function placeholdersOf(template: string): RecipeInput[] {
   return out;
 }
 
-const MODE_KEY = 'subform.recipes.mode';
+const MODE_KEY = 'formsubstrate.recipes.mode';
 
 export function savedMode(): string {
   try { return localStorage.getItem(MODE_KEY) === 'claude' ? 'claude' : 'simulate'; } catch { return 'simulate'; }

@@ -7,11 +7,11 @@ import urllib.request
 OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 DEFAULT_PORT = 5655
 TIMEOUT = 60
-NOT_RUNNING = "subform is not running: open subform, then try again"
+NOT_RUNNING = "Substrate is not running: open Substrate, then try again"
 
 
 def data_dir() -> str:
-    raw = os.environ.get("SUBFORM_DATA_DIR")
+    raw = os.environ.get("FORMSUBSTRATE_DATA_DIR")
     if raw:
         return os.path.expanduser(raw)
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -21,10 +21,10 @@ def data_dir() -> str:
 
 
 def engine_base() -> str:
-    base = os.environ.get("SUBFORM_ENGINE", "").strip().rstrip("/")
+    base = os.environ.get("FORMSUBSTRATE_ENGINE", "").strip().rstrip("/")
     if base:
         return base
-    port = os.environ.get("SUBFORM_PORT", "")
+    port = os.environ.get("FORMSUBSTRATE_PORT", "")
     if port.isdigit() and int(port) > 0:
         return f"http://127.0.0.1:{int(port)}"
     try:
@@ -70,7 +70,7 @@ def forward(base: str, token: str, line: str) -> None:
             return
         except ValueError:
             for ident in wants:
-                say(failure(ident, -32000, f"subform answered {err.code}"))
+                say(failure(ident, -32000, f"Substrate answered {err.code}"))
             return
     except (urllib.error.URLError, OSError):
         for ident in wants:
@@ -82,13 +82,13 @@ def forward(base: str, token: str, line: str) -> None:
         say(json.loads(body))
     except ValueError:
         for ident in wants:
-            say(failure(ident, -32603, "subform sent an answer that is not JSON"))
+            say(failure(ident, -32603, "Substrate sent an answer that is not JSON"))
 
 
 def main() -> int:
     base = engine_base()
-    token = os.environ.get("SUBFORM_GATE_TOKEN", "").strip()
-    print(f"subform mcp: forwarding to {base}", file=sys.stderr)
+    token = os.environ.get("FORMSUBSTRATE_GATE_TOKEN", "").strip()
+    print(f"formsubstrate mcp: forwarding to {base}", file=sys.stderr)
     for line in sys.stdin:
         line = line.strip()
         if line:

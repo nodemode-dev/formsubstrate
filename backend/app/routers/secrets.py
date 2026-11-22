@@ -12,9 +12,9 @@ from app.core.local_guard import require_window
 
 router = APIRouter()
 
-SERVICE = "subform"
-OLD_SERVICE = "substrataform"
-KEYRING_MARKER = ".keyring-migrated-from-substrataform"
+SERVICE = "formsubstrate"
+OLD_SERVICE = "subform"
+KEYRING_MARKER = ".keyring-migrated-from-subform"
 RESERVED = ("mcp.", "plugin.", "cogentics-", "webhook-")
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_.-]{0,63}$")
 INDEX_NAME = "secrets-index.json"

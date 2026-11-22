@@ -16,7 +16,8 @@ from app.core.binres import find_bin
 
 IDENTITY_NAME = "identity.json"
 HOOKS_NAME = "githooks"
-SNAP_ROOT = "refs/subform/snapshots"
+SNAP_ROOT = "refs/formsubstrate/snapshots"
+OLD_SNAP_ROOT = "refs/subform/snapshots"
 SNAP_MAX = 50
 GIT_TIMEOUT = 60
 NET_TIMEOUT = 120
@@ -38,7 +39,7 @@ GENERATED_MARK = "Generated with [Claude Code]"
 STALE = "the file changed; reload the review"
 LIVE_STATES = ("working", "needs-input")
 DIFF_FLAGS = ["--diff-algorithm=histogram", "-U3", "--no-color", "--no-ext-diff"]
-SNAP_IDENT = {"GIT_AUTHOR_NAME": "subform", "GIT_AUTHOR_EMAIL": "subform@localhost", "GIT_COMMITTER_NAME": "subform", "GIT_COMMITTER_EMAIL": "subform@localhost"}
+SNAP_IDENT = {"GIT_AUTHOR_NAME": "formsubstrate", "GIT_AUTHOR_EMAIL": "formsubstrate@localhost", "GIT_COMMITTER_NAME": "formsubstrate", "GIT_COMMITTER_EMAIL": "formsubstrate@localhost"}
 HOOK_SCRIPT = """#!/bin/sh
 f="$1"
 [ -f "$f" ] || exit 0
@@ -217,7 +218,7 @@ def _stored_identity() -> dict | None:
 async def identity_get() -> dict:
     stored = _stored_identity()
     if stored and (stored["name"] or stored["email"]):
-        return {**stored, "source": "subform"}
+        return {**stored, "source": "formsubstrate"}
     name = email = ""
     if find_bin("git"):
         code, out, _ = await run(str(config.data_dir()), ["config", "--global", "user.name"])
@@ -256,7 +257,7 @@ async def identity_put(name: object, email: object, sign: object, signing_key: o
         if os.path.isdir(tree):
             await run(tree, ["config", "--worktree", "user.name", name])
             await run(tree, ["config", "--worktree", "user.email", email])
-    return {**record, "source": "subform"}
+    return {**record, "source": "formsubstrate"}
 
 
 async def _need_identity() -> dict:
@@ -960,8 +961,22 @@ def _note_count(key: str, count: int) -> None:
         return
 
 
+async def _adopt_old_snapshots(t: Target) -> None:
+    code, out, _ = await run(t.root, ["for-each-ref", "--format=%(refname) %(objectname)", f"{OLD_SNAP_ROOT}/{t.key}/"])
+    if code != 0:
+        return
+    for line in out.splitlines():
+        name, _, sha = line.strip().partition(" ")
+        tail = name.rsplit("/", 1)[-1]
+        if tail.isdigit() and sha:
+            moved, _, _ = await run(t.root, ["update-ref", f"{_snap_ref_prefix(t.key)}{tail}", sha, "0" * len(sha)])
+            if moved == 0:
+                await run(t.root, ["update-ref", "-d", name, sha])
+
+
 async def snapshot_list(t: Target) -> list[dict]:
-    fmt = "%(refname)%1f%(objectname)%1f%(committerdate:iso-strict)%1f%(contents:subject)%1f%(contents:body)%1e"
+    await _adopt_old_snapshots(t)
+    fmt ="%(refname)%1f%(objectname)%1f%(committerdate:iso-strict)%1f%(contents:subject)%1f%(contents:body)%1e"
     code, out, _ = await run(t.root, ["for-each-ref", f"--format={fmt}", _snap_ref_prefix(t.key)])
     if code != 0:
         return []
@@ -1099,8 +1114,8 @@ def _combined(out: str, err: str) -> str:
 async def push(t: Target, remote: object, branch: object) -> dict:
     remote, name = await _remote_and_branch(t, remote, branch)
     ident = await identity_get()
-    signing = ident["source"] == "subform" and bool(ident["sign"]) and bool(ident["signingKey"])
-    found = await _range_check(t.root, [f"refs/heads/{name}", "--not", f"--remotes={remote}"], ident if ident["source"] == "subform" else None, signing)
+    signing = ident["source"] == "formsubstrate" and bool(ident["sign"]) and bool(ident["signingKey"])
+    found = await _range_check(t.root, [f"refs/heads/{name}", "--not", f"--remotes={remote}"], ident if ident["source"] == "formsubstrate" else None, signing)
     if found["unsigned"] or found["other"] or found["trailers"]:
         raise Refused(409, "not pushed, nothing was changed: " + found["check"], {"ok": False, "check": found["check"], "output": ""})
     args, configs = _push_args(remote, name)
@@ -1120,7 +1135,7 @@ async def _agent_identity(t: Target) -> str:
 
 async def sign_and_push(t: Target, remote: object, branch: object) -> dict:
     ident = await identity_get()
-    if ident["source"] != "subform" or not ident["sign"] or not ident["signingKey"]:
+    if ident["source"] != "formsubstrate" or not ident["sign"] or not ident["signingKey"]:
         raise Refused(409, "signing is off or no signing key is set; turn on signing and choose a .pub key in Preferences, Git and Identity")
     remote, name = await _remote_and_branch(t, remote, branch)
     if name != await _current_branch(t):

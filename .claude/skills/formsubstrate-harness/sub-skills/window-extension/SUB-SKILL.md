@@ -1,6 +1,6 @@
 ---
 name: window-extension
-description: Add or change a window panel, command, menu entry or search provider in subform's TypeScript frontend through the extension registry, with keyed lists, tokens, z-index layers, icons and t() strings. Use for any frontend edit under src/extensions, src/ui, src/io or src/styles.
+description: Add or change a window panel, command, menu entry or search provider in formsubstrate's TypeScript frontend through the extension registry, with keyed lists, tokens, z-index layers, icons and t() strings. Use for any frontend edit under src/extensions, src/ui, src/io or src/styles.
 ---
 
 # window-extension
@@ -26,8 +26,8 @@ The window lives in `frontend/src`: `app.ts` and `main.ts` boot; `extensions/` h
 4. A search provider: `registerSearchProvider({ id, prefix?, label, query })` imported from `extensions/registry.ts` (the search extension does this). Symbol search in the command palette is separate: `ui/command-palette.ts` switches on the first character of the input, `@` for symbols in the active file and `#` for the workspace (constants and `scopeOf` in `ui/palette/symbols.ts`, fuzzy scoring in `ui/palette/fuzzy.ts`, language-server symbols through `symbolHub` in `io/lsp.ts`, text fallback through `searchWorkspace`). The commands `go-to-symbol` (`Alt+Mod+O`) and `go-to-symbol-workspace` (`Mod+T`) are declared in `app.ts`. Palette rows patch in place; do not rebuild the list per keystroke.
 5. Add `import './extensions/[name]';` to the import block at the top of `app.ts`. Order there is activation order.
 6. Add an `io/[name].ts` client and, if the engine needs a route, follow `engine-route`.
-7. Enabled state is stored under the localStorage key `subform.ext.disabled`; `required: true` extensions cannot be disabled. Disabling calls `dispose` and asks for a reload.
-8. Cross-extension messages are `window` CustomEvents named `subform:[thing]`, exported as constants beside their owner (for example `GIT_CHANGED`, `FORMSLOT_OPEN`, `SESSION_SELECTED`).
+7. Enabled state is stored under the localStorage key `formsubstrate.ext.disabled`; `required: true` extensions cannot be disabled. Disabling calls `dispose` and asks for a reload.
+8. Cross-extension messages are `window` CustomEvents named `formsubstrate:[thing]`, exported as constants beside their owner (for example `GIT_CHANGED`, `FORMSLOT_OPEN`, `SESSION_SELECTED`).
 
 ## Zero flash patterns (ui/dom.ts)
 
@@ -38,7 +38,7 @@ The window lives in `frontend/src`: `app.ts` and `main.ts` boot; `extensions/` h
 - `reserve(el, box)` fixes size before content arrives; `delayedIndicator` and `pendingClass` hold a spinner back 300 ms and keep it at least 250 ms.
 - Never assign `innerHTML` on a live container. `setHtml(node, html, key)` is the keyed exception.
 - Anything that appears late (banners, cards) needs its space reserved or must overlay, or layout shift will be above 0. Worked example: the terminal gate banner `.ft-dock-gate` and the tab badge `.ft-dock-tab-gate` in `ui/terminal-dock.ts` are built once in the dock template and toggled with `setHidden`; repaints are scheduled with `requestAnimationFrame` (`scheduleGates`, `paintGate`) so a gate arriving paints with its banner in one frame.
-- Quit guard: `ui/close-guard.ts` (`installCloseGuard`, `leaveApp`) arms the Tauri `close_guard` command (`src-tauri/src/close_guard.rs`, event `subform://close-requested`) while any file is unsaved, so closing the window asks first. It installs only inside the desktop shell (`isTauri()` in `app.ts`); a window code path that closes the app on purpose must call `leaveApp()`, which disarms first.
+- Quit guard: `ui/close-guard.ts` (`installCloseGuard`, `leaveApp`) arms the Tauri `close_guard` command (`src-tauri/src/close_guard.rs`, event `formsubstrate://close-requested`) while any file is unsaved, so closing the window asks first. It installs only inside the desktop shell (`isTauri()` in `app.ts`); a window code path that closes the app on purpose must call `leaveApp()`, which disarms first.
 
 ## Tokens, layers, strings
 

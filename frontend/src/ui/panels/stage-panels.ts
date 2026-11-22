@@ -11,8 +11,8 @@ export const SPLIT_MIN = 20;
 export const SPLIT_MAX = 80;
 export const SPLIT_DEFAULT = 45;
 
-const KEY = 'subform.stage';
-export const RIGHT_PANEL_EVENT = 'subform:right-panel';
+const KEY = 'formsubstrate.stage';
+export const RIGHT_PANEL_EVENT = 'formsubstrate:right-panel';
 
 interface Saved { right: string; rightOpen: boolean; rightW: number; splitOpen: boolean; splitPct: number }
 

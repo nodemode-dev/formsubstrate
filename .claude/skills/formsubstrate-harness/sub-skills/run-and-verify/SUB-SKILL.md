@@ -1,6 +1,6 @@
 ---
 name: run-and-verify
-description: Run, build and verify subform changes. Use when starting the engine or window, building into a scratch folder, typechecking, checking a UI change for flash or layout shift in Chromium at 4x CPU throttle with Playwright, or deciding which ports and data folder to use.
+description: Run, build and verify formsubstrate changes. Use when starting the engine or window, building into a scratch folder, typechecking, checking a UI change for flash or layout shift in Chromium at 4x CPU throttle with Playwright, or deciding which ports and data folder to use.
 ---
 
 # run-and-verify
@@ -9,14 +9,14 @@ Verification is part of the change. A UI edit is not done until it was exercised
 
 ## Scripts in setup/
 
-The root `./subform` dispatcher runs these (all in `setup/`, with `.bat` twins):
+The root `./formsubstrate` dispatcher runs these (all in `setup/`, with `.bat` twins):
 
 | Command | Script | Does |
 | --- | --- | --- |
-| `./subform install` | `install_all` | backend venv and frontend node_modules |
-| `./subform` or `boot` | `boot_all` | backend on 5655 and Vite on 5650 together |
+| `./formsubstrate install` | `install_all` | backend venv and frontend node_modules |
+| `./formsubstrate` or `boot` | `boot_all` | backend on 5655 and Vite on 5650 together |
 | `backend`, `frontend` | `boot_backend`, `boot_frontend` | one half |
-| `serve` | `serve` | builds `frontend/dist` if missing, then the engine serves it on `SUBFORM_PORT` (default 5655) |
+| `serve` | `serve` | builds `frontend/dist` if missing, then the engine serves it on `FORMSUBSTRATE_PORT` (default 5655) |
 | `doctor` | `doctor` | toolchain, installs, ports 5650 and the engine port |
 | `clean [--all]` | `clean` | build output, with `--all` also venv and node_modules |
 
@@ -26,11 +26,11 @@ As a parallel agent do not use these on the default ports. Use your own port and
 
 From `backend/`, with a scratch data folder and your own port (check it is free first):
 
-1. `SUBFORM_DATA_DIR=[scratch]/data SUBFORM_DIST=[scratch]/dist venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port [port]`
+1. `FORMSUBSTRATE_DATA_DIR=[scratch]/data FORMSUBSTRATE_DIST=[scratch]/dist venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port [port]`
 2. Record the pid you started and kill only that pid.
 3. After any Python edit: `venv/bin/python -c "import app.main"`.
 
-`SUBFORM_DIST` is read by `config.dist_dir()`; the engine mounts it at `/` only when it holds an `index.html`. Without it the engine falls back to `frontend/dist`. The engine origin rule: the window origins are the CORS origins (5650 on localhost and 127.0.0.1), the preview port (5651), `tauri://localhost` and `http://tauri.localhost`; for an engine on another port serving its own dist, LocalGuard also accepts an http origin equal to the Host.
+`FORMSUBSTRATE_DIST` is read by `config.dist_dir()`; the engine mounts it at `/` only when it holds an `index.html`. Without it the engine falls back to `frontend/dist`. The engine origin rule: the window origins are the CORS origins (5650 on localhost and 127.0.0.1), the preview port (5651), `tauri://localhost` and `http://tauri.localhost`; for an engine on another port serving its own dist, LocalGuard also accepts an http origin equal to the Host.
 
 ## Window
 

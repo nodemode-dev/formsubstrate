@@ -7,8 +7,8 @@ import type { WorkspaceStore } from '../workspace-store';
 import type { DiffTarget } from './diff-view';
 import { Views } from './views';
 
-const OPEN_DIFF = 'subform:open-diff';
-const OPEN_REVIEW = 'subform:open-review';
+const OPEN_DIFF = 'formsubstrate:open-diff';
+const OPEN_REVIEW = 'formsubstrate:open-review';
 const diffId = (x: DiffTarget): string => `diff:${x.session ?? 'workspace'}:${x.staged ? 'staged' : 'work'}:${x.path}`;
 
 const reviewId = (session: string | null): string => `review:${session ?? 'workspace'}`;

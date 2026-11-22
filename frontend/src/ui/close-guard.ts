@@ -2,7 +2,7 @@ import { confirmAction } from './dialogs';
 import { t } from './i18n';
 import type { WorkspaceStore } from './workspace-store';
 
-const EVENT = 'subform://close-requested';
+const EVENT = 'formsubstrate://close-requested';
 
 type Core = typeof import('@tauri-apps/api/core');
 

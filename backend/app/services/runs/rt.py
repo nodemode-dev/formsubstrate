@@ -9,7 +9,7 @@ from app.services.runs.safe_expr import ExprError, evaluate
 
 MAX_STEPS = 200
 MAX_PARALLEL = 8
-GRAPHS_DIR = ".subform/graphs"
+GRAPHS_DIR = ".formsubstrate/graphs"
 TEMPLATE_RE = re.compile(r"\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}")
 NAME_RE = re.compile(r"[^a-zA-Z0-9_-]")
 KINDS = ("start", "agent", "tool", "evaluator", "yield", "branch", "foreach", "transform", "call_graph", "end")
@@ -104,7 +104,7 @@ def plain_path(rel: str, write: bool = False) -> str:
     for part in clean.split("/"):
         walk = os.path.join(walk, part)
         if os.path.islink(walk):
-            raise GraphError("symbolic links are refused in the .subform folder")
+            raise GraphError("symbolic links are refused in the .formsubstrate folder")
     return real
 
 

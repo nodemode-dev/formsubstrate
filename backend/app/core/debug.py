@@ -158,7 +158,7 @@ def launch_arguments(raw: object, root: str, python: str) -> dict:
             raise ws.Refused(400, "bad arguments")
         args.append(item)
     return {
-        "name": "subform",
+        "name": "formsubstrate",
         "type": "python",
         "request": "launch",
         "program": program,

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from app import __version__
 
-APP_NAME = "subform"
+APP_NAME = "formsubstrate"
 VERSION = __version__
 FRONTEND_PORT = 5650
 BACKEND_PORT = 5655
@@ -31,10 +31,10 @@ def _load_env_file() -> None:
 
 _load_env_file()
 
-OLD_NAME = "substrataform"
-OLD_ENV_PREFIX = "SUBSTRATAFORM_"
-NEW_ENV_PREFIX = "SUBFORM_"
-MARKER_NAME = ".migrated-from-substrataform.json"
+OLD_NAME = "subform"
+OLD_ENV_PREFIX = "SUBFORM_"
+NEW_ENV_PREFIX = "FORMSUBSTRATE_"
+MARKER_NAME = ".migrated-from-subform.json"
 USER_DATA = (
     "recent.json",
     "secrets-index.json",
@@ -71,19 +71,19 @@ def _ensure(path: Path) -> Path:
 def portable_dir() -> Path | None:
     frozen = getattr(sys, "frozen", False)
     beside = Path(sys.executable).resolve().parent if frozen else BACKEND_DIR
-    if os.environ.get("SUBFORM_PORTABLE") == "1" or (frozen and any((beside / name).is_file() for name in ("portable", "portable.txt"))):
-        return beside / "SubformData"
+    if os.environ.get("FORMSUBSTRATE_PORTABLE") == "1" or (frozen and any((beside / name).is_file() for name in ("portable", "portable.txt"))):
+        return beside / "FormSubstrateData"
     return None
 
 
 def platform_data_dir() -> Path:
     home = Path.home()
     if sys.platform == "darwin":
-        return home / "Library" / "Application Support" / "subform"
+        return home / "Library" / "Application Support" / "formsubstrate"
     if sys.platform.startswith("win"):
-        return Path(os.environ.get("APPDATA") or home / "AppData" / "Roaming") / "subform"
+        return Path(os.environ.get("APPDATA") or home / "AppData" / "Roaming") / "formsubstrate"
     base = Path(os.environ.get("XDG_DATA_HOME") or ".")
-    return (base if base.is_absolute() else home / ".local" / "share") / "subform"
+    return (base if base.is_absolute() else home / ".local" / "share") / "formsubstrate"
 
 
 def _old_platform_dir() -> Path:
@@ -118,18 +118,18 @@ def _copy_old_data(old: Path, new: Path) -> None:
 
 
 def _migrate_data_dir() -> None:
-    if os.environ.get("SUBFORM_DATA_DIR"):
+    if os.environ.get("FORMSUBSTRATE_DATA_DIR"):
         return
     portable = portable_dir()
     if portable:
-        old, new = portable.with_name("SubstrataformData"), portable
+        old, new = portable.with_name("SubformData"), portable
     else:
         home = Path.home()
-        if (home / "Substrataform").is_dir():
-            old, new = home / "Substrataform", home / "Subform"
+        if (home / "Subform").is_dir():
+            old, new = home / "Subform", home / "FormSubstrate"
             if not new.exists() and platform_data_dir().exists():
                 new = platform_data_dir()
-        elif (home / "Subform").exists():
+        elif (home / "FormSubstrate").exists():
             return
         else:
             old, new = _old_platform_dir(), platform_data_dir()
@@ -142,10 +142,10 @@ def _migrate_data_dir() -> None:
 
 
 def old_data_dir() -> Path | None:
-    if os.environ.get("SUBFORM_DATA_DIR"):
+    if os.environ.get("FORMSUBSTRATE_DATA_DIR"):
         return None
     portable = portable_dir()
-    candidates = [portable.with_name("SubstrataformData")] if portable else [Path.home() / "Substrataform", _old_platform_dir()]
+    candidates = [portable.with_name("SubformData")] if portable else [Path.home() / "Subform", _old_platform_dir()]
     return next((item for item in candidates if item.is_dir()), None)
 
 
@@ -154,7 +154,7 @@ _migrated = False
 
 def data_dir() -> Path:
     global _migrated
-    raw = os.environ.get("SUBFORM_DATA_DIR")
+    raw = os.environ.get("FORMSUBSTRATE_DATA_DIR")
     if raw:
         return _ensure(Path(raw).expanduser())
     if not _migrated:
@@ -163,30 +163,30 @@ def data_dir() -> Path:
     portable = portable_dir()
     if portable:
         return _ensure(portable)
-    path = Path.home() / "Subform"
+    path = Path.home() / "FormSubstrate"
     if path.exists():
         return _ensure(path)
     return _ensure(platform_data_dir())
 
 
 def data_dir_source() -> str:
-    if os.environ.get("SUBFORM_DATA_DIR"):
+    if os.environ.get("FORMSUBSTRATE_DATA_DIR"):
         return "override"
     return "portable" if portable_dir() else "default"
 
 
 def dist_dir() -> Path | None:
-    raw = os.environ.get("SUBFORM_DIST")
+    raw = os.environ.get("FORMSUBSTRATE_DIST")
     folder = Path(raw).expanduser() if raw else REPO_DIR / "frontend" / "dist"
     return folder if (folder / "index.html").is_file() else None
 
 
 def is_desktop() -> bool:
-    return os.environ.get("SUBFORM_DESKTOP") == "1"
+    return os.environ.get("FORMSUBSTRATE_DESKTOP") == "1"
 
 
 def cors_origins() -> list[str]:
-    raw = os.environ.get("SUBFORM_CORS_ORIGINS")
+    raw = os.environ.get("FORMSUBSTRATE_CORS_ORIGINS")
     if raw:
         return [item.strip() for item in raw.split(",") if item.strip()]
     return [f"http://localhost:{FRONTEND_PORT}", f"http://127.0.0.1:{FRONTEND_PORT}"]

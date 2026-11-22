@@ -81,7 +81,7 @@ export class PluginsView {
     });
     setText(this.count, tn(this.plugins.length, '{n} plugin', '{n} plugins'));
     setHidden(this.empty, this.plugins.length > 0 || !this.loaded);
-    setText(this.empty, t('No plugins. Put .py files in .subform/plugins/ in the workspace.'));
+    setText(this.empty, t('No plugins. Put .py files in .formsubstrate/plugins/ in the workspace.'));
   }
 
   private create(info: PluginInfo): HTMLElement {

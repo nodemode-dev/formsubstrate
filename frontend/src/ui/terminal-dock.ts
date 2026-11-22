@@ -340,7 +340,7 @@ export class TerminalDock {
         const waiting = this.gatesFor(tab).length > 0;
         const badge = q(node, '.ft-dock-tab-gate');
         setHidden(badge, !waiting);
-        setTitle(badge, waiting ? t('subform is waiting for your answer') : '');
+        setTitle(badge, waiting ? t('Substrate is waiting for your answer') : '');
       },
     });
     this.syncEmpty();
@@ -365,7 +365,7 @@ export class TerminalDock {
     if (!g) { this.gateId = ''; this.announced = ''; setText(this.gateLive, ''); return; }
     this.gateId = g.id;
     const slot = g.slots[0]?.id ?? '';
-    const said = slot ? `${t('subform is waiting for your answer')} · ${t('slot')} ${slot}` : t('subform is waiting for your answer');
+    const said = slot ? `${t('Substrate is waiting for your answer')} · ${t('slot')} ${slot}` : t('Substrate is waiting for your answer');
     setText(this.gateText, said);
     if (this.open && this.announced !== g.id) { this.announced = g.id; setText(this.gateLive, said); }
     setTitle(this.gateText, g.message);

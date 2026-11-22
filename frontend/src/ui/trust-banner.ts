@@ -44,7 +44,7 @@ export class TrustBanner {
     this.path = ws?.path ?? '';
     if (!ws || tools.length === 0 || isTrusted(ws.path) || wasAsked(ws.path)) { setHidden(this.el, true); return; }
     setText(this.title, `${t('Trust')} ${ws.name}?`);
-    setText(this.sub, `${t('This workspace has its own tools:')} ${tools.join(', ')}. ${t('Trusting it lets subform run them for language features and debugging. Change this any time in Preferences.')}`);
+    setText(this.sub, `${t('This workspace has its own tools:')} ${tools.join(', ')}. ${t('Trusting it lets Substrate run them for language features and debugging. Change this any time in Preferences.')}`);
     setHidden(this.el, false);
   }
 }

@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/license-GPL--3.0-555555" alt="license GPL 3.0" />
 </p>
 
-{{name}} is a Form family app: {{stack}}. This repository was scaffolded by subform on {{date}}.
+{{name}} is a Form family app: {{stack}}. This repository was scaffolded by Substrate on {{date}}.
 
 ## Quick start
 

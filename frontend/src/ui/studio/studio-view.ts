@@ -15,7 +15,7 @@ export const STUDIO_ID = 'studio';
 
 type Mode = 'canvas' | 'split' | 'code';
 
-const MODE_KEY = 'subform.studio.mode';
+const MODE_KEY = 'formsubstrate.studio.mode';
 const CODE_DELAY = 280;
 
 function readMode(): Mode {
@@ -237,7 +237,7 @@ export class StudioTab implements ViewDoc {
     if (document.activeElement !== this.name && this.name.value !== doc.name) this.name.value = doc.name;
     setDisabled(this.btn.get('undo') as HTMLButtonElement, !studio.engine.canUndo);
     setDisabled(this.btn.get('redo') as HTMLButtonElement, !studio.engine.canRedo);
-    setText(this.footFile, studio.fileName ? `.subform/graphs/${studio.fileName}.json` : t('Not saved yet'));
+    setText(this.footFile, studio.fileName ? `.formsubstrate/graphs/${studio.fileName}.json` : t('Not saved yet'));
     setText(this.footCount, `${doc.nodes.length} ${t('nodes')} · ${doc.edges.length} ${t('edges')}`);
     setText(this.footCheck, '');
     setClass(this.footCheck, 'is-error', false);

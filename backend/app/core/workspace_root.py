@@ -26,9 +26,23 @@ def current() -> str | None:
     return _root
 
 
+OLD_FOLDER = ".subform"
+FOLDER = ".formsubstrate"
+
+
+def _adopt_old_folder(root: str) -> None:
+    old, new = os.path.join(root, OLD_FOLDER), os.path.join(root, FOLDER)
+    if os.path.isdir(old) and not os.path.islink(old) and not os.path.lexists(new):
+        try:
+            os.rename(old, new)
+        except OSError:
+            return
+
+
 def set_current(path: str) -> str:
     global _root
     _root = os.path.normpath(path)
+    _adopt_old_folder(_root)
     return _root
 
 
