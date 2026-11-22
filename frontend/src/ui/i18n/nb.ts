@@ -216,7 +216,6 @@ export const nb: Record<string, string> = {
   'Problems': 'Problemer', 'Provider': 'Leverandør', 'Provider default model': 'Leverandørens standardmodell',
   'Provider saved. Add an API key to leave simulator mode.': 'Leverandøren er lagret. Legg til en API-nøkkel for å gå ut av simulatormodus.', 'Providers': 'Leverandører',
   'Push': 'Push', 'Push refused': 'Push avvist', 'Push the current branch': 'Push gjeldende gren', 'Pushed': 'Pushet', 'Pushing': 'Pusher', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'Python-feilsøking via debugpy: stoppunkter, trinnvis kjøring, kallstakk, variabler og en konsoll.',
   'Python engine and Tauri (like formvis)': 'Python-motor og Tauri (som formvis)', 'Quick actions': 'Hurtighandlinger',
   'Quiet wire: add an agent member, then @mention it.': 'Stille kanal: legg til et agentmedlem, og @nevn det deretter.', 'Quit': 'Avslutt', 'Quit without saving': 'Avslutt uten å lagre',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'Signer og rydd commitene som ikke er pushet, på nytt, og push deretter. Historikken skrives bare om når du klikker.',

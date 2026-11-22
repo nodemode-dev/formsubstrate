@@ -216,7 +216,6 @@ export const ar: Record<string, string> = {
   'Problems': 'المشكلات', 'Provider': 'المزوّد', 'Provider default model': 'النموذج الافتراضي للمزوّد',
   'Provider saved. Add an API key to leave simulator mode.': 'تم حفظ المزوّد. أضف مفتاح API للخروج من وضع المحاكي.', 'Providers': 'المزوّدون',
   'Push': 'دفع', 'Push refused': 'تم رفض الدفع', 'Push the current branch': 'دفع الفرع الحالي', 'Pushed': 'تم الدفع', 'Pushing': 'جارٍ الدفع', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'تصحيح أخطاء Python عبر debugpy: نقاط التوقف، والتنفيذ خطوة بخطوة، ومكدس الاستدعاءات، والمتغيرات، ووحدة تحكم.',
   'Python engine and Tauri (like formvis)': 'محرك Python وTauri (مثل formvis)', 'Quick actions': 'إجراءات سريعة',
   'Quiet wire: add an agent member, then @mention it.': 'القناة هادئة: أضف عضوًا وكيلًا، ثم أشر إليه باستخدام @.', 'Quit': 'إنهاء', 'Quit without saving': 'إنهاء دون حفظ',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'إعادة توقيع الإيداعات غير المدفوعة وتنظيفها، ثم الدفع. لا تتم إعادة كتابة السجل إلا عند النقر.',

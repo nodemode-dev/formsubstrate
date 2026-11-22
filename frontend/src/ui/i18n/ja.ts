@@ -216,7 +216,6 @@ export const ja: Record<string, string> = {
   'Problems': '問題', 'Provider': 'プロバイダー', 'Provider default model': 'プロバイダーの既定のモデル',
   'Provider saved. Add an API key to leave simulator mode.': 'プロバイダーを保存しました。シミュレーター モードを終了するには API キーを追加してください。', 'Providers': 'プロバイダー',
   'Push': 'プッシュ', 'Push refused': 'プッシュが拒否されました', 'Push the current branch': '現在のブランチをプッシュ', 'Pushed': 'プッシュしました', 'Pushing': 'プッシュしています', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'debugpy による Python デバッグ: ブレークポイント、ステップ実行、コール スタック、変数、コンソール。',
   'Python engine and Tauri (like formvis)': 'Python エンジンと Tauri（formvis と同様）', 'Quick actions': 'クイック アクション',
   'Quiet wire: add an agent member, then @mention it.': 'まだ静かです。エージェント メンバーを追加して、@メンションしてください。', 'Quit': '終了', 'Quit without saving': '保存せずに終了',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'プッシュされていないコミットを再署名してクリーンアップし、プッシュします。履歴はクリックしたときにのみ書き換えられます。',

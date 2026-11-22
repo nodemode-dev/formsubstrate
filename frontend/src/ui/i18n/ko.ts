@@ -216,7 +216,6 @@ export const ko: Record<string, string> = {
   'Problems': '문제', 'Provider': '공급자', 'Provider default model': '공급자 기본 모델',
   'Provider saved. Add an API key to leave simulator mode.': '공급자가 저장되었습니다. 시뮬레이터 모드를 종료하려면 API 키를 추가하세요.', 'Providers': '공급자',
   'Push': '푸시', 'Push refused': '푸시가 거부됨', 'Push the current branch': '현재 브랜치 푸시', 'Pushed': '푸시됨', 'Pushing': '푸시하는 중', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'debugpy를 통한 Python 디버깅: 중단점, 단계별 실행, 호출 스택, 변수, 콘솔.',
   'Python engine and Tauri (like formvis)': 'Python 엔진 및 Tauri(formvis와 동일)', 'Quick actions': '빠른 작업',
   'Quiet wire: add an agent member, then @mention it.': '아직 조용합니다. 에이전트 멤버를 추가한 다음 @멘션하세요.', 'Quit': '종료', 'Quit without saving': '저장하지 않고 종료',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': '푸시되지 않은 커밋에 다시 서명하고 정리한 다음 푸시합니다. 기록은 클릭할 때만 다시 작성됩니다.',

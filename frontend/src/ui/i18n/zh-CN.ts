@@ -216,7 +216,6 @@ export const zhCN: Record<string, string> = {
   'Problems': '问题', 'Provider': '提供商', 'Provider default model': '提供商默认模型',
   'Provider saved. Add an API key to leave simulator mode.': '提供商已保存。添加 API 密钥即可退出模拟器模式。', 'Providers': '提供商',
   'Push': '推送', 'Push refused': '推送被拒绝', 'Push the current branch': '推送当前分支', 'Pushed': '已推送', 'Pushing': '正在推送', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': '通过 debugpy 进行 Python 调试：断点、单步执行、调用堆栈、变量和控制台。',
   'Python engine and Tauri (like formvis)': 'Python 引擎和 Tauri（与 formvis 相同）', 'Quick actions': '快速操作',
   'Quiet wire: add an agent member, then @mention it.': '频道很安静：请添加一个智能体成员，然后 @ 提及它。', 'Quit': '退出', 'Quit without saving': '退出且不保存',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': '重新签名并清理未推送的提交，然后推送。只有在你单击后才会重写历史记录。',

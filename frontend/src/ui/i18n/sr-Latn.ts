@@ -216,7 +216,6 @@ export const srLatn: Record<string, string> = {
   'Problems': 'Problemi', 'Provider': 'Dobavljač', 'Provider default model': 'Podrazumevani model dobavljača',
   'Provider saved. Add an API key to leave simulator mode.': 'Dobavljač je sačuvan. Dodajte API ključ da biste izašli iz režima simulatora.', 'Providers': 'Dobavljači',
   'Push': 'Potisni', 'Push refused': 'Potiskivanje je odbijeno', 'Push the current branch': 'Potisni trenutnu granu', 'Pushed': 'Potisnuto', 'Pushing': 'Potiskivanje', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'Otklanjanje grešaka u Python-u preko debugpy: tačke prekida, izvršavanje korak po korak, stek poziva, promenljive i konzola.',
   'Python engine and Tauri (like formvis)': 'Python engine i Tauri (kao formvis)', 'Quick actions': 'Brze radnje',
   'Quiet wire: add an agent member, then @mention it.': 'Tiha linija: dodajte člana agenta, a zatim ga pomenite sa @.', 'Quit': 'Izađi', 'Quit without saving': 'Izađi bez čuvanja',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'Ponovo potpiši i očisti nepotisnute komitove, a zatim potisni. Istorija se prepisuje tek kada kliknete.',

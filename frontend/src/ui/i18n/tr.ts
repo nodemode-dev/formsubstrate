@@ -210,7 +210,6 @@ export const tr: Record<string, string> = {
   'Provider default model': 'Sağlayıcının varsayılan modeli', 'Provider saved. Add an API key to leave simulator mode.': 'Sağlayıcı kaydedildi. Simülatör modundan çıkmak için bir API anahtarı ekleyin.',
   'Providers': 'Sağlayıcılar', 'Push': 'Gönder', 'Push refused': 'Gönderme reddedildi', 'Push the current branch': 'Geçerli dalı gönder', 'Pushed': 'Gönderildi',
   'Pushing': 'Gönderiliyor', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'debugpy ile Python hata ayıklama: kesme noktaları, adımlama, çağrı yığını, değişkenler ve bir konsol.',
   'Python engine and Tauri (like formvis)': 'Python motoru ve Tauri (formvis gibi)', 'Quick actions': 'Hızlı eylemler',
   'Quiet wire: add an agent member, then @mention it.': 'Sessiz hat: bir ajan üye ekleyin, ardından @ ile ondan bahsedin.', 'Quit': 'Çık', 'Quit without saving': 'Kaydetmeden çık',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'Gönderilmemiş commit’leri yeniden imzala ve temizle, ardından gönder. Geçmiş yalnızca siz tıkladığınızda yeniden yazılır.',

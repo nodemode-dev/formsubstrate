@@ -210,7 +210,6 @@ export const cs: Record<string, string> = {
   'Provider default model': 'Výchozí model poskytovatele', 'Provider saved. Add an API key to leave simulator mode.': 'Poskytovatel byl uložen. Pro ukončení režimu simulátoru přidejte klíč API.',
   'Providers': 'Poskytovatelé', 'Push': 'Nasdílet', 'Push refused': 'Nasdílení odmítnuto', 'Push the current branch': 'Nasdílet aktuální větev', 'Pushed': 'Nasdíleno',
   'Pushing': 'Nasdílení', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'Ladění Pythonu pomocí debugpy: zarážky, krokování, zásobník volání, proměnné a konzole.',
   'Python engine and Tauri (like formvis)': 'Jádro v Pythonu a Tauri (jako formvis)', 'Quick actions': 'Rychlé akce',
   'Quiet wire: add an agent member, then @mention it.': 'Tichá linka: přidejte agentního člena a pak jej zmiňte pomocí @.', 'Quit': 'Ukončit', 'Quit without saving': 'Ukončit bez uložení',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'Znovu podepsat a vyčistit nenasdílené commity a pak nasdílet. Historie se přepíše teprve po kliknutí.',

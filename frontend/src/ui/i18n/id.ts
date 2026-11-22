@@ -216,7 +216,6 @@ export const id: Record<string, string> = {
   'Problems': 'Masalah', 'Provider': 'Penyedia', 'Provider default model': 'Model default penyedia',
   'Provider saved. Add an API key to leave simulator mode.': 'Penyedia disimpan. Tambahkan kunci API untuk keluar dari mode simulator.', 'Providers': 'Penyedia',
   'Push': 'Push', 'Push refused': 'Push ditolak', 'Push the current branch': 'Push cabang saat ini', 'Pushed': 'Di-push', 'Pushing': 'Melakukan push', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'Debugging Python melalui debugpy: titik henti, eksekusi langkah demi langkah, tumpukan panggilan, variabel, dan konsol.',
   'Python engine and Tauri (like formvis)': 'Mesin Python dan Tauri (seperti formvis)', 'Quick actions': 'Tindakan cepat',
   'Quiet wire: add an agent member, then @mention it.': 'Kanal sepi: tambahkan anggota agen, lalu @sebut namanya.', 'Quit': 'Keluar', 'Quit without saving': 'Keluar tanpa menyimpan',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'Tanda tangani ulang dan bersihkan commit yang belum di-push, lalu push. Riwayat hanya ditulis ulang saat Anda mengklik.',

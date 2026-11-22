@@ -216,7 +216,6 @@ export const el: Record<string, string> = {
   'Problems': 'Προβλήματα', 'Provider': 'Πάροχος', 'Provider default model': 'Προεπιλεγμένο μοντέλο παρόχου',
   'Provider saved. Add an API key to leave simulator mode.': 'Ο πάροχος αποθηκεύτηκε. Προσθέστε ένα κλειδί API για έξοδο από τη λειτουργία προσομοιωτή.', 'Providers': 'Πάροχοι',
   'Push': 'Προώθηση', 'Push refused': 'Η προώθηση απορρίφθηκε', 'Push the current branch': 'Προώθηση του τρέχοντος κλάδου', 'Pushed': 'Προωθήθηκε', 'Pushing': 'Προώθηση σε εξέλιξη', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'Εντοπισμός σφαλμάτων Python μέσω debugpy: σημεία διακοπής, εκτέλεση βήμα προς βήμα, στοίβα κλήσεων, μεταβλητές και κονσόλα.',
   'Python engine and Tauri (like formvis)': 'Μηχανή Python και Tauri (όπως το formvis)', 'Quick actions': 'Γρήγορες ενέργειες',
   'Quiet wire: add an agent member, then @mention it.': 'Ήσυχη γραμμή: προσθέστε ένα μέλος-πράκτορα και, στη συνέχεια, αναφέρετέ το με @.', 'Quit': 'Έξοδος', 'Quit without saving': 'Έξοδος χωρίς αποθήκευση',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'Νέα υπογραφή και καθαρισμός των μη προωθημένων δεσμεύσεων και, στη συνέχεια, προώθηση. Το ιστορικό ξαναγράφεται μόνο όταν κάνετε κλικ.',

@@ -216,7 +216,6 @@ export const vi: Record<string, string> = {
   'Problems': 'Sự cố', 'Provider': 'Nhà cung cấp', 'Provider default model': 'Mô hình mặc định của nhà cung cấp',
   'Provider saved. Add an API key to leave simulator mode.': 'Đã lưu nhà cung cấp. Thêm khóa API để thoát chế độ mô phỏng.', 'Providers': 'Nhà cung cấp',
   'Push': 'Push', 'Push refused': 'Push bị từ chối', 'Push the current branch': 'Push nhánh hiện tại', 'Pushed': 'Đã push', 'Pushing': 'Đang push', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'Gỡ lỗi Python qua debugpy: điểm dừng, chạy từng bước, ngăn xếp lời gọi, biến và bảng điều khiển.',
   'Python engine and Tauri (like formvis)': 'Công cụ xử lý Python và Tauri (như formvis)', 'Quick actions': 'Thao tác nhanh',
   'Quiet wire: add an agent member, then @mention it.': 'Kênh còn yên lặng: hãy thêm một thành viên tác nhân, rồi @nhắc đến nó.', 'Quit': 'Thoát', 'Quit without saving': 'Thoát mà không lưu',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'Ký lại và làm sạch các commit chưa push, rồi push. Lịch sử chỉ được viết lại khi bạn nhấp.',

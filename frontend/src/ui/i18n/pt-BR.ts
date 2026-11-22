@@ -216,7 +216,6 @@ export const ptBR: Record<string, string> = {
   'Problems': 'Problemas', 'Provider': 'Provedor', 'Provider default model': 'Modelo padrão do provedor',
   'Provider saved. Add an API key to leave simulator mode.': 'Provedor salvo. Adicione uma chave de API para sair do modo simulador.', 'Providers': 'Provedores',
   'Push': 'Enviar', 'Push refused': 'Envio recusado', 'Push the current branch': 'Enviar o branch atual', 'Pushed': 'Enviado', 'Pushing': 'Enviando', 'Python': 'Python',
-  'Python debugging through debugpy: breakpoints, stepping, call stack, variables and a console.': 'Depuração de Python com debugpy: pontos de interrupção, execução passo a passo, pilha de chamadas, variáveis e um console.',
   'Python engine and Tauri (like formvis)': 'Mecanismo em Python e Tauri (como o formvis)', 'Quick actions': 'Ações rápidas',
   'Quiet wire: add an agent member, then @mention it.': 'Canal silencioso: adicione um membro agente e depois mencione-o com @.', 'Quit': 'Sair', 'Quit without saving': 'Sair sem salvar',
   'Re-sign and clean the unpushed commits, then push. History is only rewritten when you click.': 'Assinar de novo e limpar os commits não enviados e depois enviar. O histórico só é reescrito quando você clica.',
