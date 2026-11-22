@@ -127,11 +127,11 @@ The HTTP endpoint is `POST /mcp`, behind a local guard and a bearer token. A rou
 
 | Platform | Download | Release |
 |---|---|---|
-| macOS | [Download Substrate for macOS](https://formai.studio/get/formsubstrate/macos) | [Substrate releases on FormCompiler](https://github.com/nodemode-dev/formcompiler/releases?q=formsubstrate-v&expanded=true) |
-| Windows | [Download Substrate for Windows](https://formai.studio/get/formsubstrate/windows) | [Substrate releases on FormCompiler](https://github.com/nodemode-dev/formcompiler/releases?q=formsubstrate-v&expanded=true) |
-| Linux | [Download Substrate for Linux](https://formai.studio/get/formsubstrate/linux) | [Substrate releases on FormCompiler](https://github.com/nodemode-dev/formcompiler/releases?q=formsubstrate-v&expanded=true) |
+| macOS | [Download Substrate for macOS](https://formai.studio/get/formsubstrate/macos) | [Substrate releases](https://github.com/nodemode-dev/formsubstrate/releases) |
+| Windows | [Download Substrate for Windows](https://formai.studio/get/formsubstrate/windows) | [Substrate releases](https://github.com/nodemode-dev/formsubstrate/releases) |
+| Linux | [Download Substrate for Linux](https://formai.studio/get/formsubstrate/linux) | [Substrate releases](https://github.com/nodemode-dev/formsubstrate/releases) |
 
-All Substrate builds are compiled and released from [FormCompiler](https://github.com/nodemode-dev/formcompiler); this repo holds the source.
+All Substrate builds are compiled and signed by [FormCompiler](https://github.com/nodemode-dev/formcompiler), which drafts each release on this repository's own [Releases page](https://github.com/nodemode-dev/formsubstrate/releases); this repo holds the source. What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 
 ## Run it from source
 
