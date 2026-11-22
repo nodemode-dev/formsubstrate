@@ -1,6 +1,9 @@
-# HASHOUT_LOG · backend/app/services/runs
+# HASHOUT_LOG · backend/app/services/runs · formsubstrate
 
 Rationale for the graph run engine, ported from substrata (MIT, the owner's) `backend/app/core/runner*.py`, `agent.py`, `llm.py` and `routers/run.py`, `runs.py`, `presets.py`.
+
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ### backend/app/services/runs/manager.py · RunManager, Run
 

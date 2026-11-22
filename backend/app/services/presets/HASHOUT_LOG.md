@@ -1,6 +1,9 @@
-# HASHOUT log · backend/app/services/presets
+# HASHOUT log · backend/app/services/presets · formsubstrate
 
 Entries for the unified presets service. Newest at the end.
+
+Current build version: v0.20.0
+Last updated: 2026-11-22
 
 ### backend/app/services/presets/store.py · four groups, one service
 
