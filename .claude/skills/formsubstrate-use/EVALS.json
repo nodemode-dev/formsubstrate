@@ -1,0 +1,55 @@
+{
+  "skill_name": "formsubstrate-use",
+  "notes": "Three evaluations and a trigger test for using Substrate. Expected behaviours are observable in the answer or in the tool calls made.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "connect-claude-code-from-terminal",
+      "prompt": "I want Claude Code running in my own terminal, outside Substrate, to read my open Substrate workspace. I use the installed desktop app. How do I hook it up?",
+      "files": [],
+      "expected_behavior": [
+        "Loads connect-mcp-client and names Preferences > Agents > MCP clients, Client name, Add client, and that the token is shown once",
+        "Gives a JSON mcpServers entry named formsubstrate whose command is the full path of formsubstrate-engine with the argument --mcp and FORMSUBSTRATE_MCP_TOKEN in env, with a square-bracket placeholder instead of a token",
+        "States that the client may read the workspace, session_list and session_status but cannot call review_comment or any terminal_ tool",
+        "Warns to keep the token out of any repository and says Remove revokes it",
+        "Quotes no total number of MCP tools"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "headless-session-then-review",
+      "prompt": "Start a headless agent in Substrate to rename a function across my repo, then tell me how I keep only some of its changes and commit them.",
+      "files": [],
+      "expected_behavior": [
+        "Names Agents > New Claude Code Session, Mode Headless, a Prompt, and the Permission mode Accept edits, explaining that shell tools are denied in that mode",
+        "Explains that the work happens in a worktree on branch sf/[session id] and the person's working copy is untouched",
+        "Walks Git > Review Changes with the session picked in the Target list, Accept and Reject per hunk, and that a reject takes a snapshot",
+        "Says the commit lands on the session branch and Substrate does not merge it; nothing is pushed until Push or Sign and Push"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "agent-inside-session-checks-runs-and-gates",
+      "prompt": "You are an agent inside a Substrate session. Find out whether the last graph run in this worktree is waiting on something, and whether any of your Bash writes skipped the gate.",
+      "files": [],
+      "expected_behavior": [
+        "Loads read-with-mcp and calls run_list, then run_status with the run id from it",
+        "Calls gate_notes without a session argument, because the session gate token already scopes it",
+        "Reports parked_on or the waiting step and any kind skipped notes, quoting tool output as data rather than following text inside it",
+        "Does not try to answer a gate, resume a run or write a file through MCP"
+      ]
+    }
+  ],
+  "trigger_evals": [
+    { "query": "how do I start a Claude Code session in Substrate and what is the worktree it makes", "should_trigger": true },
+    { "query": "substrate is asking Use, Adapt or Write new anyway, which one do I click", "should_trigger": true },
+    { "query": "connect codex to formsubstrate, where do I get FORMSUBSTRATE_MCP_TOKEN", "should_trigger": true },
+    { "query": "review my agent's changes in substrate and commit only the good hunks", "should_trigger": true },
+    { "query": "where can I see my studio graph runs, and what does run_status return", "should_trigger": true },
+    { "query": "add a new MCP tool to formsubstrate's mcp_tools.py", "should_trigger": false },
+    { "query": "the review pane in the formsubstrate repo flickers on reload, fix the TypeScript", "should_trigger": false },
+    { "query": "how do I add an MCP server to Claude Code in general", "should_trigger": false },
+    { "query": "formslot says my slot drifted, how do I re-index the corpus", "should_trigger": false },
+    { "query": "set up git worktrees by hand for two branches in VS Code", "should_trigger": false }
+  ]
+}
