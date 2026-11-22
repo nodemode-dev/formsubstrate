@@ -5,8 +5,11 @@ import { addMcpClient, listMcpClients, removeMcpClient, type McpClient } from '.
 import { customLsp, type CustomPreset, type CustomServer, type CustomServerFields } from '../io/lsp';
 import { debugAdapters, debugSettings, saveDebugSettings } from '../io/debug';
 import { systemStatus } from '../io/api';
+import { AGENT_PROGRAMS, agents, formnet as formnetApi, ideLink, type AgentInfo, type AgentProgram, type FormnetStatus, type IdeLinkStatus } from '../io/agents';
+import { detailOf } from '../io/workspace';
 import { setTrusted } from '../io/trust';
-import { formatKeys, type Commands } from './commands';
+import type { Commands } from './commands';
+import { KeysPage } from './keys-page';
 import { confirmAction, Dialog } from './dialogs';
 import { el, patchList, q, setChecked, setClass, setHidden, setText, setTitle, setValue } from './dom';
 import { icon } from './icons';
@@ -36,7 +39,6 @@ const RAIL_ICONS: Record<string, string> = {
 
 const SECTIONS = ['General', 'Interface', 'Workspace', 'Editor', 'Terminal', 'Agents', 'Git and Identity', 'formslot', 'Language Servers', 'Keys', 'Updates'] as const;
 
-interface KeyItem { id: string; label: string; keys: string }
 
 const grp = (label: string, ...content: HTMLElement[]): HTMLElement => {
   const g = el('<section class="cv-prefs-group"><h3 class="cv-prefs-label"></h3></section>');
@@ -113,6 +115,19 @@ export class SettingsDialog {
   private readonly terminalFont: ReturnType<typeof numberRow>;
   private readonly model: Row<string>;
   private readonly permission: Row<string>;
+  private readonly agentParts = new Map<AgentProgram, { found: HTMLElement; input: HTMLInputElement }>();
+  private readonly agentStatus = el('<p class="cv-note cv-prefs-status cv-prefs-agentstatus" role="status"></p>');
+  private readonly netToggle: Row<boolean>;
+  private readonly netCert = el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" autocomplete="off" maxlength="4096" aria-label="Certificate path">');
+  private readonly netProxy = valueRow(t('Proxy'), '');
+  private readonly netFound = valueRow(t('Certificate'), '');
+  private readonly netStatus = el('<p class="cv-note cv-prefs-status cv-prefs-netstatus" role="status"></p>');
+  private netState: FormnetStatus | null = null;
+  private netError = '';
+  private readonly ideToggle: Row<boolean>;
+  private readonly ideStatus = el('<p class="cv-note cv-prefs-status cv-prefs-netstatus" role="status"></p>');
+  private ideState: IdeLinkStatus | null = null;
+  private ideError = '';
   private readonly keyInput = el<HTMLInputElement>('<input class="cv-input" type="password" autocomplete="new-password" spellcheck="false" aria-label="Anthropic API key">');
   private readonly keyStatus = el('<p class="cv-note cv-prefs-status" role="status"></p>');
   private readonly keySave: HTMLButtonElement;
@@ -137,7 +152,7 @@ export class SettingsDialog {
   private readonly slotPath = el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" autocomplete="off" maxlength="1024" aria-label="Checkout or binary">');
   private readonly slotBrowse = el<HTMLButtonElement>('<button class="cv-btn" type="button"></button>');
   private readonly slotFound: { el: HTMLElement; value: HTMLElement };
-  private readonly keyList = el('<div class="cv-prefs-keys"></div>');
+  private keysPage: KeysPage | null = null;
   private readonly mcpList = el('<div class="cv-prefs-keys"></div>');
   private readonly mcpNone = el('<div class="cv-prefs-keys"><div class="cv-prefs-keyrow"><span class="cv-prefs-keyname"></span><button class="cv-btn is-spacer" type="button" disabled tabindex="-1" aria-hidden="true">&nbsp;</button></div></div>');
   private readonly mcpName = el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" autocomplete="off" maxlength="80">');
@@ -221,6 +236,10 @@ export class SettingsDialog {
     this.editorFormatOnSave = toggleRow('Format on save', (v) => pickEditor({ editorFormatOnSave: v }));
     this.editorBrackets = toggleRow('Bracket pair colours', (v) => pickEditor({ editorBracketColors: v }));
     this.terminalFont = numberRow('Font size', 8, 32, 1, (v) => pick({ terminalFontSize: v }));
+    this.netToggle = toggleRow('Route through FormNET', (v) => { void this.saveFormnet({ enabled: v }); });
+    this.ideToggle = toggleRow('Connect Claude Code to this window', (v) => { void this.saveIde(v); });
+    this.netCert.addEventListener('change', () => { void this.saveFormnet({ certPath: this.netCert.value.trim() }); });
+    this.netCert.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); this.netCert.blur(); } });
     this.model = selectRow('Default model', [['', 'Choose when starting'], ...MODELS.map((m): [string, string] => [m, m])], (v) => pick({ agentDefaultModel: v }));
     this.permission = selectRow('Headless permission mode', PERMISSION_MODES.map(([k, l]): [string, string] => [k, l]), (v) => pick({ agentPermissionMode: v as AgentPermissionMode }));
     this.sign = toggleRow('Sign commits', (v) => { this.gitSign = v; this.touchGit(); });
@@ -300,11 +319,13 @@ export class SettingsDialog {
         grp('Text', this.editorFont.el, this.editorTab.el, this.editorWrap.el, this.editorBrackets.el),
         grp('Saving', this.editorAutoSave.el, this.editorAutoSaveDelay.el, this.editorFormatOnSave.el, nt('Auto save writes a changed file after you stop typing for the delay, and when the window loses focus. Files changed on disk are never saved over. Format on save asks the language server to format the file first; if it does not answer in time the file is saved unformatted.')),
       ],
-      Terminal: [grp('Text', this.terminalFont.el)],
+      Terminal: [grp('Text', this.terminalFont.el), this.formnetCard()],
       Agents: [
+        this.agentsCard(),
         grp('Claude Code', this.model.el, this.permission.el, nt('Headless sessions run without a person to approve tools. Accept edits lets them change files inside their own worktree only; Bash and other tools are denied. Interactive terminal sessions are not affected.')),
         grp('Anthropic API key', this.keyRow(), this.keyStatus, nt('The key goes to the engine and is kept in the system keychain, or in a file only you can read when this computer has no keychain. This page never reads it back, and opening it does not touch the keychain.')),
         this.mcpCard(),
+        grp('Claude Code in the editor', this.ideToggle.el, this.ideStatus, nt('Off by default. When on, Claude Code started in a Substrate terminal can read the problems, the open files and your selection from this window, open a file, and show a change for you to accept or reject. The connection listens on this computer only and needs a token that is written to a file only you can read. It follows the connection Claude Code documents for its VS Code extension, and has not been tried with every version of Claude Code.')),
       ],
       'Git and Identity': [
         grp('Commits', this.fieldRow('Author name', this.gitName), this.fieldRow('Author email', this.gitEmail), this.sign.el, this.fieldRow('Signing key path', this.gitKey), this.gitActions(), this.gitStatus, nt('Every commit made from Substrate, by you or by an agent session, uses this name and email. Signing uses the SSH public key at the path; the private key is never read or stored here.')),
@@ -314,7 +335,7 @@ export class SettingsDialog {
         grp('Location', this.pathRow(), this.slotFound.el, nt('The folder you unpacked formslot into, or the formslot program itself. Home uses it to install formslot when none is found.')),
       ],
       'Language Servers': [grp('Servers', nt('Language servers are found on this system and used when they are installed.')), this.lspCard(), this.debugCard()],
-      Keys: [grp('Shortcuts', this.keyList, nt('Shortcuts can be changed in a later version.'))],
+      Keys: [grp('Shortcuts', (this.keysPage = new KeysPage(ctx.commands)).el, nt('Change sets a new shortcut for a command, Remove leaves it without one and Reset puts its default back. A change is saved at once and kept after a restart. Shortcuts that belong to the text editor itself, such as folding, the keys inside the find panel, indenting and extra cursors, are not commands and cannot be changed here.'))],
       Updates: [grp('Version', versionRow.el, nt('Updates come through FormPortal.'))],
     };
     for (const name of SECTIONS) this.add(name, ...content[name]);
@@ -448,6 +469,122 @@ export class SettingsDialog {
     actions.append(this.slotBrowse);
     wrap.append(this.fieldRow('Checkout or binary', this.slotPath), actions);
     return wrap;
+  }
+
+  private agentsCard(): HTMLElement {
+    const blocks: HTMLElement[] = [];
+    for (const [program, title] of AGENT_PROGRAMS) {
+      const head = el('<div class="cv-note-head" data-no-i18n></div>');
+      setText(head, title);
+      const found = valueRow(t('Found at'), t('Looking for it'));
+      found.value.classList.add('cv-prefs-oneline');
+      found.value.setAttribute('data-no-i18n', '');
+      const input = el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" autocomplete="off" maxlength="4096">');
+      input.setAttribute('aria-label', `${title}: ${t('Program path')}`);
+      input.placeholder = t('Found automatically');
+      input.addEventListener('change', () => { void this.saveAgentPath(program, input.value.trim()); });
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
+      this.agentParts.set(program, { found: found.value, input });
+      blocks.push(head, found.el, this.fieldRow('Program path', input));
+    }
+    return grp('Agent programs', ...blocks, this.agentStatus, nt('Each program is looked for on this computer. A path given here is used instead of the one found; it must be the absolute path of an existing program. New Session offers the programs that were found. Only Claude Code gets gate cards.'));
+  }
+
+  private paintAgents(list: readonly AgentInfo[], known: boolean): void {
+    for (const [program, parts] of this.agentParts) {
+      const info = list.find((a) => a.program === program);
+      const text = !info ? t(known ? 'Engine offline' : 'Looking for it') : info.path ? [info.path, info.version, info.finding === 'broken' ? `${t('does not start')}: ${info.error}` : ''].filter(Boolean).join('  ') : `${t('Not found. Install it with:')} ${info.install}`;
+      setText(parts.found, text);
+      setTitle(parts.found, text);
+      if (info) setValue(parts.input, info.setting);
+    }
+  }
+
+  private async loadAgents(): Promise<void> {
+    this.paintAgents(agents.cached(), false);
+    setText(this.agentStatus, '');
+    setClass(this.agentStatus, 'is-error', false);
+    try { this.paintAgents(await agents.list(), true); } catch { this.paintAgents([], true); }
+  }
+
+  private async saveAgentPath(program: AgentProgram, path: string): Promise<void> {
+    try {
+      await agents.setPath(program, path);
+      setText(this.agentStatus, t(path ? 'The path was saved.' : 'The path was cleared; the program is looked for again.'));
+      setClass(this.agentStatus, 'is-error', false);
+    } catch (err) {
+      setText(this.agentStatus, detailOf(err));
+      setClass(this.agentStatus, 'is-error', true);
+    }
+    this.paintAgents(agents.cached(), true);
+  }
+
+  private formnetCard(): HTMLElement {
+    this.netCert.placeholder = t('Found automatically');
+    this.netProxy.value.classList.add('cv-prefs-oneline');
+    this.netFound.value.classList.add('cv-prefs-oneline');
+    this.netProxy.value.setAttribute('data-no-i18n', '');
+    this.netFound.value.setAttribute('data-no-i18n', '');
+    return grp('FormNET', this.netToggle.el, this.fieldRow('Certificate path', this.netCert), this.netProxy.el, this.netFound.el, this.netStatus,
+      nt('Off by default. When on, terminals and agent sessions opened from now on use the FormNET proxy on 127.0.0.1:8761 and trust its root certificate. Terminals that are already open keep what they started with. Requests to this computer never go through the proxy, and the engine, language servers and git are not routed.'));
+  }
+
+  private paintFormnet(): void {
+    const s = this.netState;
+    this.netToggle.set(!!s?.enabled);
+    const proxy = s ? `${s.proxy}  ${t(s.portOpen ? 'answering' : 'not answering')}` : '';
+    const cert = !s ? '' : s.certFound ?? (s.certSource === 'setting' ? t('The file at the path is not a certificate') : `${t('Not found in')} ${s.certFolder}`);
+    setText(this.netProxy.value, proxy);
+    setTitle(this.netProxy.value, proxy);
+    setText(this.netFound.value, cert);
+    setTitle(this.netFound.value, cert);
+    if (s) setValue(this.netCert, s.certPath);
+    const line = this.netError ? this.netError
+      : !s ? t('Engine offline')
+      : !s.enabled ? t('Off. New terminals are started without the proxy.')
+      : !s.portOpen ? t('On, but the proxy port does not answer: new terminals are started without the proxy so they keep the network.')
+      : !s.certFound ? t('On. New terminals use the proxy, but no certificate was found, so HTTPS sites will not verify in them.')
+      : !s.bundle ? t('On. New terminals use the proxy. The system certificates could not be combined with the FormNET root, so SSL_CERT_FILE, REQUESTS_CA_BUNDLE, CURL_CA_BUNDLE and GIT_SSL_CAINFO are left unset.')
+      : t('On. Terminals opened from now on use the proxy and trust the FormNET certificate.');
+    setText(this.netStatus, line);
+    setClass(this.netStatus, 'is-error', !!this.netError);
+  }
+
+  private async loadFormnet(): Promise<void> {
+    this.netError = '';
+    try { this.netState = await formnetApi.status(); } catch { this.netState = null; }
+    this.paintFormnet();
+  }
+
+  private paintIde(): void {
+    const s = this.ideState;
+    this.ideToggle.set(!!s?.enabled);
+    const line = this.ideError ? this.ideError
+      : !s ? t('Engine offline')
+      : !s.enabled ? t('Off. Claude Code is not connected to this window.')
+      : !s.running ? t('On. It starts when a folder is open.')
+      : s.clients > 0 ? t('On. Claude Code is connected.')
+      : t('On. Waiting for Claude Code in a Substrate terminal.');
+    setText(this.ideStatus, line);
+    setClass(this.ideStatus, 'is-error', !!this.ideError);
+  }
+
+  private async loadIde(): Promise<void> {
+    this.ideError = '';
+    try { this.ideState = await ideLink.status(); } catch { this.ideState = null; }
+    this.paintIde();
+  }
+
+  private async saveIde(enabled: boolean): Promise<void> {
+    this.ideError = '';
+    try { this.ideState = await ideLink.save(enabled); } catch (err) { this.ideError = detailOf(err); }
+    this.paintIde();
+  }
+
+  private async saveFormnet(body: { enabled?: boolean; certPath?: string }): Promise<void> {
+    this.netError = '';
+    try { this.netState = await formnetApi.save(body); } catch (err) { this.netError = detailOf(err); }
+    this.paintFormnet();
   }
 
   private async paintFound(): Promise<void> {
@@ -603,15 +740,7 @@ export class SettingsDialog {
     this.titleBar.set(!!tb?.checked?.());
     this.menusRow.set(!!mw?.checked?.());
 
-    const items: KeyItem[] = this.ctx.commands.all().filter((cmd) => cmd.keys && cmd.keys.length > 0).map((cmd) => ({
-      id: cmd.id, label: this.ctx.commands.label(cmd).replace(/\.\.\.$/, ''), keys: (cmd.keys ?? []).map(formatKeys).join('  ·  '),
-    }));
-    const paintKeyRow = (node: HTMLElement, i: KeyItem): void => { setText(q(node, '.cv-prefs-keyname'), t(i.label)); setText(q(node, '.cv-prefs-keycombo'), i.keys); };
-    patchList(this.keyList, items, {
-      key: (i) => i.id,
-      create: (i) => { const node = el('<div class="cv-prefs-keyrow"><span class="cv-prefs-keyname"></span><span class="cv-prefs-keycombo"></span></div>'); paintKeyRow(node, i); return node; },
-      update: paintKeyRow,
-    });
+    this.keysPage?.sync();
     this.paintKey();
   }
 
@@ -692,6 +821,9 @@ export class SettingsDialog {
     this.gitTouched = false;
     void this.loadGit();
     void this.paintFound();
+    void this.loadAgents();
+    void this.loadFormnet();
+    void this.loadIde();
     try {
       const s = await systemStatus();
       setText(this.version, s.version);

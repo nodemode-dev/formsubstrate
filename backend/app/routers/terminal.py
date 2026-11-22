@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from app.core import binres, config, workspace_root
 from app.core.local_guard import WINDOW_TOKEN, require_window
-from app.services import ptyhost_client
+from app.services import formnet, ptyhost_client
 from app.services.ptyhost_client import PtyHostError, PtyHostMissing
 
 router = APIRouter()
@@ -126,6 +126,9 @@ def terminal_env() -> dict[str, str]:
     env["TERM"] = "xterm-256color"
     env["COLORTERM"] = "truecolor"
     env["FORMSUBSTRATE_TERMINAL"] = "1"
+    from app.services import ide_link
+
+    ide_link.add_env(env)
     return env
 
 
@@ -368,6 +371,7 @@ async def launch(
         tid = new_id()
         agent = kind == "claude"
         env = await asyncio.to_thread(binres.agent_env, terminal_env(), argv[0] if agent else None)
+        env.update(await asyncio.to_thread(formnet.terminal_env, env))
         if env_extra:
             env.update(env_extra)
         await client.request(

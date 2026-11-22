@@ -153,6 +153,9 @@
 .cv-prefs-dlg .cv-dialog-head [data-close]:hover { color: var(--text-primary); border-color: var(--accent-color); }
 .cv-prefs-value { min-height: 1.4em; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .cv-prefs-status { min-height: 1.45em; }
+.cv-prefs-netstatus { min-height: calc(4.35em + var(--space-0)); }
+.cv-prefs-agentstatus { min-height: calc(1.45em + var(--space-0)); }
+.cv-prefs-oneline { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cv-prefs-actions { display: flex; gap: var(--space-2); }
 .cv-prefs-keys { display: flex; flex-direction: column; }
 .cv-prefs-keyrow { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding: var(--space-1) 0; border-bottom: 1px solid var(--border-soft); font-size: var(--fs-12); }
@@ -160,3 +163,14 @@
 .cv-prefs-keyrow .cv-btn.is-spacer { visibility: hidden; }
 .cv-prefs-keyname { color: var(--text-secondary); }
 .cv-prefs-keycombo { flex: none; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.cv-keys { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.cv-keys-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); align-items: center; }
+.cv-keys .cv-prefs-status { box-sizing: content-box; height: 2.9em; overflow: hidden; }
+.cv-keys .cv-prefs-status.is-error { color: var(--danger); }
+.cv-keys-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; column-gap: var(--space-2); min-height: var(--ctl-lg); }
+.cv-keys-row[hidden] { display: none; }
+.cv-keys-row .cv-prefs-keyname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv-keys-row.is-changed .cv-prefs-keycombo { color: var(--accent-color); }
+.cv-keys-row.is-capturing .cv-prefs-keycombo { color: var(--text-muted); }
+.cv-keys-acts { display: inline-flex; align-items: center; gap: var(--space-1); }
+.cv-prefs-dlg .cv-keys-change { min-width: var(--size-btn-min); height: var(--ctl-md); padding: 0 var(--space-2); justify-content: center; }
