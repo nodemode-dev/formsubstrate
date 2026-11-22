@@ -13,7 +13,7 @@ export interface DirListing { path: string; entries: DirEntry[] }
 export interface FileContent { path: string; text: string; size: number; mtime: number }
 export interface FileSaved { path: string; size: number; mtime: number }
 export interface SearchHit { path: string; line: number; col: number; text: string }
-export interface SearchResult { hits: SearchHit[]; truncated: boolean; engine: string }
+export interface SearchResult { hits: SearchHit[]; truncated: boolean; engine: string; stopped?: boolean }
 export interface SearchOptions { q: string; regex?: boolean; caseSensitive?: boolean; glob?: string; limit?: number; signal?: AbortSignal }
 
 const json = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) });
@@ -87,4 +87,22 @@ export function searchWorkspace(opts: SearchOptions): Promise<SearchResult> {
   if (opts.glob) p.set('glob', opts.glob);
   if (opts.limit) p.set('limit', String(opts.limit));
   return request<SearchResult>(`/api/workspace/search?${p.toString()}`, { signal: opts.signal });
+}
+
+export interface ReplaceQuery { q: string; regex: boolean; caseSensitive: boolean; glob: string; replace: string }
+export interface ReplaceHit { line: number; col: number; before: string; after: string; count: number }
+export interface ReplaceFile { path: string; hash: string; size: number; mtime: number; hits: ReplaceHit[]; before?: string; after?: string }
+export interface ReplacePreview { files: ReplaceFile[]; hits: number; truncated: boolean; stopped: boolean; engine: string }
+export interface ReplaceTarget { path: string; hash: string; lines?: number[] }
+export interface ReplaceOutcome { path: string; status: 'written' | 'refused' | 'skipped'; reason?: string; count?: number; size?: number; mtime?: number; hash?: string }
+export interface ReplaceReply { results: ReplaceOutcome[]; written: number; engine: string }
+
+const replaceBody = (r: ReplaceQuery): Record<string, unknown> => ({ q: r.q, regex: r.regex, case: r.caseSensitive, glob: r.glob, replace: r.replace });
+
+export function previewReplace(r: ReplaceQuery, opts: { limit?: number; paths?: string[]; full?: boolean; signal?: AbortSignal } = {}): Promise<ReplacePreview> {
+  return owner<ReplacePreview>('/api/workspace/replace/preview', { method: 'POST', body: JSON.stringify({ ...replaceBody(r), limit: opts.limit, paths: opts.paths, full: opts.full }), signal: opts.signal });
+}
+
+export function replaceInFiles(r: ReplaceQuery, files: ReplaceTarget[]): Promise<ReplaceReply> {
+  return owner<ReplaceReply>('/api/workspace/replace', json({ ...replaceBody(r), files }));
 }
