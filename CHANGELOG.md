@@ -4,6 +4,17 @@ Versions follow `v*.*.*` with dots. Dates are US Eastern. The newest version is 
 
 The app was renamed Substrate (family name FormSubstrate, machine name `formsubstrate`) at 0.17.0. The entries below read with the new name throughout; the git history keeps the former one.
 
+## 0.24.0 · 2026-11-22
+
+More languages, quick fixes, and a debugger with the features people expect.
+
+- Custom language servers: Preferences > Language Servers > Custom servers takes a program, its arguments and file extensions, with one-click presets for Rust (rust-analyzer), JSON, HTML, CSS and YAML. Substrate shows the install line and never installs a server. A custom server runs only in a workspace you have trusted.
+- Quick fixes: a light bulb marks a line with fixes; `Ctrl+.` (`Cmd+.` on a Mac), the editor's new right-click menu and a problem's tooltip list them. Organize Imports is `Alt+Shift+O`. A fix is one undo.
+- Debugger: conditional breakpoints, hit counts and logpoints from a right-click in the breakpoint gutter; a Watch list; a launch file (`.formsubstrate/launch.json`, or `.vscode/launch.json` when there is none) with a configuration picker. Breakpoints and watches are remembered per workspace.
+- Node.js debugging through Microsoft's js-debug. Substrate does not download it; set its folder in Preferences > Language Servers > Run and Debug.
+- Workspace trust for language servers, the debugger and triggers is now kept by the engine, so another program on your computer cannot start a workspace's server or debugger by claiming the workspace is trusted.
+- The Format Document shortcut (`Alt+Shift+F`) now works.
+
 ## 0.23.0 · 2026-11-22
 
 Routine git work without leaving Substrate.
