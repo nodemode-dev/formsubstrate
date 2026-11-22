@@ -73,4 +73,12 @@
 .cv-ns-problem { min-height: 16px; margin: 0; color: var(--danger-soft); }
 .cv-ns-permnote { min-height: 48px; margin: 0; }
 .cv-ns-permnote.is-off { opacity: 0.45; }
+.cv-ns-agentfield { align-items: start; }
+.cv-ns-agentfield > span { line-height: var(--ctl-sm); }
+.cv-ns-agents { display: flex; flex-direction: column; min-width: 0; }
+.cv-ns-agent { display: grid; grid-template-columns: auto calc(var(--space-8) * 3) minmax(0, 1fr); align-items: center; column-gap: var(--space-2); height: var(--ctl-sm); color: var(--text-primary); font-size: var(--fs-12); }
+.cv-ns-agent.is-off { color: var(--text-muted); }
+.cv-ns-agent > input { margin: 0; accent-color: var(--accent-color); }
+.cv-ns-agent-info { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-family: var(--font-mono); font-size: var(--fs-11); }
+.cv-ns-agentnote { min-height: calc(var(--space-4) * 2); margin: 0; }
 body.animations-disabled .cv-ss-row { transition: none; }

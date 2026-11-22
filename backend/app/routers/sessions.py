@@ -21,6 +21,7 @@ class NewSession(BaseModel):
     base: str | None = None
     permissionMode: str | None = None
     trusted: bool = False
+    agent: str | None = Field(default=None, max_length=32)
 
 
 def _fail(err: svc.Refused) -> HTTPException:
@@ -65,7 +66,7 @@ async def events() -> StreamingResponse:
 @router.post("/sessions", dependencies=[Depends(require_window)])
 async def create(body: NewSession) -> dict:
     try:
-        return await svc.create(body.title, body.mode, body.prompt, body.base, body.permissionMode, body.trusted)
+        return await svc.create(body.title, body.mode, body.prompt, body.base, body.permissionMode, body.trusted, body.agent)
     except svc.Refused as err:
         raise _fail(err)
 
