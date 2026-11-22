@@ -35,7 +35,8 @@ Some projects carry their own programs: a language server, a Python environment,
 
 Trust lets Substrate:
 
-- start language servers and debug adapters that live inside the project;
+- start language servers and debug adapters that live inside the project, and any custom language server added under Preferences > Language Servers > Custom servers;
+- read the project's debug launch file (`.formsubstrate/launch.json`, or `.vscode/launch.json` when that file does not exist);
 - run Studio graphs through Claude, and graphs that contain tool nodes (the simulator without tool nodes needs no trust);
 - let Cogentics channels run agent turns;
 - let triggers start recipes;

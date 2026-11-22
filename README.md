@@ -93,7 +93,7 @@
   <tr>
     <td width="33%" valign="top">
       <h4>Editor</h4>
-      CodeMirror 6 · TypeScript and pyright language servers · Go to File · search and replace across files · folding · multiple cursors · auto save · format on save · Outline · Problems · editor split · Markdown preview · Python debugging with debugpy
+      CodeMirror 6 · TypeScript and pyright language servers · custom language servers with presets for Rust, JSON, HTML, CSS and YAML · quick fixes and Organize Imports · Go to File · search and replace across files · folding · multiple cursors · auto save · format on save · Outline · Problems · editor split · Markdown preview · Python debugging with debugpy and Node.js debugging with js-debug · conditional breakpoints, logpoints, Watch and a launch file
     </td>
     <td width="33%" valign="top">
       <h4>Agents and git</h4>
