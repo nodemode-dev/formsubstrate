@@ -22,6 +22,7 @@ const FALLBACK_SIZE: (f64, f64) = (1323.0, 860.0);
 const MIN_SIZE: (f64, f64) = (980.0, 640.0);
 const SCREEN_FRACTION: f64 = 0.9;
 const DEV_ENGINE: &str = "../backend/formsubstrate_engine.py";
+const SHELL_ENV: &str = "FORMSUBSTRATE_SHELL_PID";
 
 fn kill_backend(handle: &tauri::AppHandle) {
     let state = handle.state::<Backend>();
@@ -79,9 +80,19 @@ fn engine_command(handle: &tauri::AppHandle) -> Option<Command> {
     None
 }
 
+fn show_first_window(handle: &tauri::AppHandle) {
+    let window = handle.get_webview_window("main").or_else(|| handle.get_webview_window("splash"));
+    if let Some(window) = window {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
 fn main() {
     reveal::mark_launch();
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|handle, _args, _cwd| show_first_window(handle)))
         .manage(window_state::Memory::default())
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
@@ -116,7 +127,14 @@ fn main() {
             let secret = token.value().to_string();
             app.manage(token);
             let spawned = engine_command(&handle)
-                .and_then(|engine| engine.env("FORMSUBSTRATE_PORT", "0").env(window_token::ENV, secret).spawn().ok());
+                .and_then(|engine| {
+                    engine
+                        .env("FORMSUBSTRATE_PORT", "0")
+                        .env(SHELL_ENV, std::process::id().to_string())
+                        .env(window_token::ENV, secret)
+                        .spawn()
+                        .ok()
+                });
             let Some((mut rx, child)) = spawned else {
                 tauri::async_runtime::spawn(async move { engine_failed(&handle) });
                 return Ok(());
