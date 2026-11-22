@@ -176,9 +176,9 @@ async def commit(body: CommitBody) -> dict:
 
 
 @router.get("/git/log")
-async def log(session: str | None = None, limit: int = 50, ref: str | None = None) -> dict:
+async def log(session: str | None = None, limit: int = 50, ref: str | None = None, path: str | None = None, skip: int = 0) -> dict:
     try:
-        return await gitops.log(await gitops.resolve_target(session), limit, ref)
+        return await gitops.log(await gitops.resolve_target(session), limit, ref, path, skip)
     except gitops.Refused as err:
         raise _fail(err)
 
@@ -396,3 +396,11 @@ async def tag_create(body: TagBody):
 @router.post("/git/tags/push", dependencies=OWNER)
 async def tag_push(body: TagBody):
     return await _locked(body.session, lambda t: gitops.tag_push(t, body.name, body.remote))
+
+
+@router.get("/git/show")
+async def show(sha: str = "", path: str = "", session: str | None = None) -> dict:
+    try:
+        return await gitops.show(await gitops.resolve_target(session), sha, path)
+    except gitops.Refused as err:
+        raise _fail(err)

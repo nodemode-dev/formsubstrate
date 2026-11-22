@@ -6,6 +6,7 @@ import { onLanguage, t, tn } from '../../ui/i18n';
 import { icon } from '../../ui/icons';
 import { FOCUS_EVENT } from '../../ui/workbench';
 import { lazyPanel, register, type ExtensionContext, type Shell, type SidebarSection } from '../registry';
+import { FileHistory, HISTORY_HTML, OPEN_HISTORY } from './history';
 import { GitRefs, REFS_HTML } from './refs';
 
 export const GIT_CHANGED = 'formsubstrate:git-changed';
@@ -91,6 +92,7 @@ class GitPanel {
   private readonly flaggedNote: HTMLElement;
   private readonly branchBtn: HTMLButtonElement;
   private readonly refs: GitRefs;
+  private readonly history: FileHistory;
   private identSource: string | null = null;
   private flaggedKnown = false;
   private session: string | null = null;
@@ -127,6 +129,7 @@ class GitPanel {
 <p class="cv-sc-warn is-off">${icon('warning', 12)}<span class="cv-sc-warn-t"></span></p>
 </div>
 </div></div>
+${HISTORY_HTML}
 <div class="cv-sc-snaps"><div class="cv-sc-snaps-bar"><span class="cv-sc-snaps-t"></span><span class="cv-sc-snaps-n"></span><button class="cv-wb-tool cv-sc-take" type="button">${icon('add', 14)}</button></div><div class="cv-sc-snaplist" role="list"></div><p class="cv-sc-snaps-empty cv-note"></p></div>
 ${REFS_HTML}
 <div class="cv-sc-foot">
@@ -169,6 +172,14 @@ ${REFS_HTML}
       changed: () => this.fire(),
       schedule: () => this.schedule(),
     });
+    this.history = new FileHistory(host, { signature: (letter) => t(SIGNATURE[letter] ?? 'Unknown') });
+    this.list.addEventListener('contextmenu', (e) => {
+      const row = e.target instanceof Element ? e.target.closest<HTMLElement>('.cv-sc-row') : null;
+      if (!row?.dataset.path) return;
+      e.preventDefault();
+      this.history.fileMenu(row.dataset.path, this.session, e.clientX, e.clientY);
+    });
+    window.addEventListener(GIT_CHANGED, () => this.history.changed());
     this.branchBtn.addEventListener('click', () => this.openBranchMenu(this.branchBtn.getBoundingClientRect()));
     q(host, '.cv-sc-ident-set').addEventListener('click', () => { document.dispatchEvent(new CustomEvent('formsubstrate:open-settings', { detail: { section: 'Git and Identity' } })); });
     document.addEventListener('formsubstrate:identity-changed', () => { void this.loadIdentity(); });
@@ -216,7 +227,7 @@ ${REFS_HTML}
       const now = ctx.store.workspace?.path ?? null;
       if (now === root) { this.schedule(); return; }
       root = now;
-      this.status = null; this.conflicts = null; this.snaps = []; this.flagged = []; this.done = null; this.refs.reset(); this.schedule(); void this.refresh();
+      this.status = null; this.conflicts = null; this.snaps = []; this.flagged = []; this.done = null; this.refs.reset(); this.history.close(); this.schedule(); void this.refresh();
     });
     new IntersectionObserver((records) => { if (records.some((r) => r.isIntersecting)) void this.refresh(); }).observe(host);
     window.setInterval(() => { if (this.visible() && document.hasFocus() && !document.hidden) void this.refresh(); }, POLL_MS);
@@ -235,6 +246,8 @@ ${REFS_HTML}
   }
 
   get gitRefs(): GitRefs { return this.refs; }
+
+  get fileHistory(): FileHistory { return this.history; }
 
   get hasMessage(): boolean { return this.msg.value.trim().length > 0; }
 
@@ -826,7 +839,18 @@ register({
       { id: 'git-pull', label: 'Pull', enabled: ws, run: () => withPanel((p) => { void p.gitRefs.pull('ff-only'); }) },
       { id: 'git-stash', label: 'Stash Changes...', enabled: ws, run: () => withPanel((p) => { void p.gitRefs.stash(); }) },
       { id: 'git-tag', label: 'Create Tag...', enabled: ws, run: () => withPanel((p) => { void p.gitRefs.createTag(); }) },
+      { id: 'git-file-history', label: 'Open File History', enabled: () => !!ctx.store.workspace && !!activeFile(), run: () => { const path = activeFile(); if (path) withPanel((p) => p.fileHistory.open(path, null)); } },
     );
+    function activeFile(): string | null {
+      const d = ctx.store.active;
+      return d && d.id === d.path && d.path ? d.path : null;
+    }
+    window.addEventListener(OPEN_HISTORY, (e) => {
+      const d = (e as CustomEvent<{ path?: unknown; session?: unknown } | null>).detail;
+      const path = typeof d?.path === 'string' ? d.path : '';
+      if (!path || !ctx.store.workspace) return;
+      withPanel((p) => p.fileHistory.open(path, typeof d?.session === 'string' ? d.session : null));
+    });
     function withPanel(job: (p: GitPanel) => void, tries = 30): void {
       section?.reveal();
       if (panel) { job(panel); return; }

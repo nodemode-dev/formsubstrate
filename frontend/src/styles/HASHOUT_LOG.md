@@ -102,3 +102,11 @@ The dark half of Auto, and the theme the title bar's light and dark toggle goes 
 - logged: v0.23.0 · 2026-11-22
 
 Conflict tokens sit beside the `--diff-*` ones, in VS Code's colours: current is green (`--ok`), incoming is blue (`--conflict-incoming-ink`, #3b9eff dark and #1d6fd8 light), the base is the muted grey, each with a stronger tint for its marker line. The light theme sets its own ink and tints in `body.theme-light`, because a custom property resolved on `:root` would keep the dark ink. `--conflict-actions-h` is `1lh`, one editor line, so the action line under each block header takes exactly the height CodeMirror reserved for it. The review pane's conflict note and Open to Resolve button are styled in git.css with their `[hidden]` rules (`.cv-rv-act` is `inline-flex`, which would otherwise beat `hidden`).
+
+### frontend/src/styles/git.css · .cv-sc-hist (File History), .cv-diff .cm-conflict-*
+
+- refers-to: frontend/src/styles/git.css :: .cv-sc-hist to .cv-sc-hist-more, .cv-diff .cm-conflict-*; frontend/src/extensions/git/history.ts :: HISTORY_HTML; frontend/src/ui/review/diff-view.ts :: DiffTab.editExt
+- kind: rationale
+- logged: v0.23.0 · 2026-11-22
+
+The File History section follows the Snapshots and Stashes recipe: a fixed height (`--ctl-md` for the bar plus six 38px rows, the row height of the other two-line sections) with `contain: strict`, its own scrolling list, and the empty and loading notes placed absolutely under the bar, so nothing inside it changes the panel's layout. A Load More slot keeps the row box and only swaps which children are displayed (`.is-more`), so a slot turning into a commit row does not change size. The signature box keeps its width for N with `visibility: hidden`. The status letter colours repeat the Source Control row colours by `data-status`. The `.cv-diff` conflict rules copy editor.css's `.cv-editor` ones (tints, marker colour, the fixed-height action line and its buttons) for the diff tab's editable side, which is not inside `.cv-editor`; both use the same tokens, so a token change reaches both.

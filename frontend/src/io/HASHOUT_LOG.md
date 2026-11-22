@@ -100,3 +100,11 @@ The engine now asks for the window token on every git, workspace and session cha
 - logged: v0.22.0 · 2026-11-22
 
 `listFiles(hide, signal)` calls `GET /api/workspace/files` with one `hide` parameter per hidden-folder name and answers `{files, truncated}`. It uses `request()`, not `owner()`, because the route is a read and takes no window key, like `listDir`. The type is named `WorkspaceFiles` because `FileList` is a DOM type. Its only caller is Go to File (see frontend/src/ui/palette/HASHOUT_LOG.md).
+
+### frontend/src/io/git.ts · git.fileLog, git.show, git.log (skip), FileCommit, FileLog, CommitDiff
+
+- refers-to: frontend/src/io/git.ts :: git.fileLog, git.show, git.log, FileCommit, FileLog, CommitDiff; frontend/src/extensions/git/history.ts :: FileHistory; frontend/src/ui/review/diff-view.ts :: DiffTab.load
+- kind: rationale
+- logged: v0.23.0 · 2026-11-22
+
+`fileLog(path, {session, limit, skip})` is `GET /api/git/log` with `path`, kept apart from `log()` because it answers the whole object (`commits`, `path`, `folder`, `more`) and its rows carry `status`, `path` and `oldPath`; `log()` keeps its `Commit[]` answer and gained `skip`. `show(sha, path, session)` is `GET /api/git/show`; `CommitDiff` extends `FileDiff`, so the diff tab draws it with the code it uses for a working-tree diff. Both use `call()`, not `owner()`: the routes are reads and take no window key.

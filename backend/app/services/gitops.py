@@ -971,20 +971,82 @@ async def agent_audit(t: Target) -> dict:
     return {"commits": flagged[:AUDIT_MAX]}
 
 
-async def log(t: Target, limit: int, ref: str | None) -> dict:
+SHA_RE = re.compile(r"^[0-9a-fA-F]{4,64}$")
+LOG_SKIP_MAX = 100000
+
+
+def _commit_row(f: list[str]) -> dict:
+    return {"sha": f[0], "short": f[1], "subject": _pub(f[2]), "author": _pub(f[3]), "email": _pub(f[4]), "date": f[5], "signature": f[6].strip() or "N"}
+
+
+def _follow_rows(out: str, rel: str) -> list[dict]:
+    rows = []
+    current = rel
+    for rec in out.split("\x1e"):
+        head, _, rest = rec.partition("\0")
+        f = head.strip("\n").split("\x1f")
+        if len(f) < 7:
+            continue
+        row = _commit_row(f)
+        tokens = rest.lstrip("\n").split("\0")
+        status, path, old = "M", current, None
+        i = 0
+        while i < len(tokens):
+            code = tokens[i].strip("\n")
+            if not code:
+                i += 1
+                continue
+            letter = code[0]
+            if letter in ("R", "C") and i + 2 < len(tokens):
+                src, dst = tokens[i + 1], tokens[i + 2]
+                i += 3
+                if dst == current or src == current:
+                    status, path, old = letter, dst, src
+            elif i + 1 < len(tokens):
+                name = tokens[i + 1]
+                i += 2
+                if name == current:
+                    status, path = letter, name
+            else:
+                break
+        row["status"] = status if status in ("A", "M", "D", "R", "C", "T") else "M"
+        row["path"] = _pub(path)
+        row["oldPath"] = _pub(old) if old else None
+        rows.append(row)
+        if old:
+            current = old
+    return rows
+
+
+async def log(t: Target, limit: int, ref: str | None, path: object = None, skip: int = 0) -> dict:
     if not 1 <= limit <= 500:
         raise Refused(400, "limit must be between 1 and 500")
+    if not 0 <= skip <= LOG_SKIP_MAX:
+        raise Refused(400, f"skip must be between 0 and {LOG_SKIP_MAX}")
     if ref is not None and (not ref or ref.startswith("-") or "\0" in ref):
         raise Refused(400, "bad ref")
+    rel = clean_path(t.root, path) if path is not None else None
+    if rel is not None and os.path.isdir(os.path.join(t.root, *rel.split("/"))) and not os.path.islink(os.path.join(t.root, *rel.split("/"))):
+        return {"commits": [], "path": rel, "folder": True, "more": False}
     if not await _has_head(t.root):
-        return {"commits": []}
+        return {"commits": [], "path": rel, "folder": False, "more": False} if rel is not None else {"commits": []}
     fmt = "--format=%H%x1f%h%x1f%s%x1f%an%x1f%ae%x1f%cI%x1f%G?%x1e"
-    args = ["log", f"-n{limit}", fmt]
+    if rel is not None:
+        args = ["log", f"-n{skip + limit + 1}", "--follow", "--diff-merges=first-parent", "-M", "--name-status", "-z", "--format=%x1e%H%x1f%h%x1f%s%x1f%an%x1f%ae%x1f%cI%x1f%G?"]
+    else:
+        args = ["log", f"-n{limit}", fmt]
+        if skip:
+            args.append(f"--skip={skip}")
     if ref:
         args += ["--end-of-options", ref]
+    if rel is not None:
+        args += ["--", rel]
     code, out, err = await run(t.root, args, configs=_verify_configs())
     if code != 0:
         raise Refused(404 if ref else 500, _clip(_pub(err)))
+    if rel is not None:
+        rows = _follow_rows(out, rel)[skip:]
+        return {"commits": rows[:limit], "path": rel, "folder": False, "more": len(rows) > limit}
     commits = []
     for rec in out.split("\x1e"):
         rec = rec.strip("\n")
@@ -993,8 +1055,80 @@ async def log(t: Target, limit: int, ref: str | None) -> dict:
         f = rec.split("\x1f")
         if len(f) < 7:
             continue
-        commits.append({"sha": f[0], "short": f[1], "subject": _pub(f[2]), "author": _pub(f[3]), "email": _pub(f[4]), "date": f[5], "signature": f[6].strip() or "N"})
+        commits.append(_commit_row(f))
     return {"commits": commits}
+
+
+async def _tree_size(root: str, spec: str) -> int:
+    code, out, _ = await run(root, ["cat-file", "-s", spec])
+    try:
+        return int(out.strip()) if code == 0 else -1
+    except ValueError:
+        return -1
+
+
+async def show(t: Target, sha: object, path: object) -> dict:
+    text = str(sha or "").strip()
+    if not SHA_RE.match(text):
+        raise Refused(400, "bad commit id")
+    rel = clean_path(t.root, path)
+    code, out, _ = await run(t.root, ["rev-parse", "--verify", "--quiet", "--end-of-options", f"{text}^{{commit}}"])
+    full = out.strip()
+    if code != 0 or not SHA_RE.match(full):
+        raise Refused(404, f"{text} does not name a commit")
+    code, out, _ = await run(t.root, ["rev-parse", "--verify", "--quiet", "--end-of-options", f"{full}^1"])
+    parent = out.strip() if code == 0 and SHA_RE.match(out.strip()) else None
+    base = parent or EMPTY_TREE
+    code, out, err = await run(t.root, ["diff-tree", "-r", "-M", "--no-commit-id", "--name-status", "-z", base, full])
+    if code != 0:
+        raise Refused(500, _clip(_pub(err) or "git diff-tree failed"))
+    tokens = out.split("\0")
+    status, old = None, None
+    i = 0
+    while i < len(tokens):
+        entry = tokens[i].strip("\n")
+        if not entry:
+            i += 1
+            continue
+        letter = entry[0]
+        if letter in ("R", "C") and i + 2 < len(tokens):
+            if tokens[i + 2] == rel:
+                status, old = letter, tokens[i + 1]
+            i += 3
+        elif i + 1 < len(tokens):
+            if tokens[i + 1] == rel:
+                status = letter
+            i += 2
+        else:
+            break
+    before_spec = None if status == "A" else f"{base}:{old or rel}"
+    after_spec = None if status == "D" else f"{full}:{rel}"
+    before_size = await _tree_size(t.root, before_spec) if before_spec and parent else -1
+    after_size = await _tree_size(t.root, after_spec) if after_spec else -1
+    if before_size < 0:
+        before_spec = None
+    if after_size < 0:
+        after_spec = None
+    if before_spec is None and after_spec is None:
+        raise Refused(404, f"{rel} is not in commit {full[:12]}")
+    if status is None:
+        status = "A" if before_spec is None else "D" if after_spec is None else ""
+    code, raw, err = await run(t.root, ["diff", *DIFF_FLAGS, "-M", base, full, "--", *[p for p in (old, rel) if p]])
+    if code not in (0, 1):
+        raise Refused(500, _clip(_pub(err) or "git diff failed"))
+    binary, hunks = parse_diff(rel, raw)
+    original = modified = ""
+    too_large = max(before_size, after_size) > DIFF_MAX
+    if not binary and not too_large:
+        before = await _blob(t.root, before_spec) if before_spec else b""
+        after = await _blob(t.root, after_spec) if after_spec else b""
+        if b"\0" in before[:8000] or b"\0" in after[:8000]:
+            binary = True
+        else:
+            original, modified = _pub(_text(before)), _pub(_text(after))
+    code, out, _ = await run(t.root, ["log", "-n1", "--format=%h%x1f%s", "--end-of-options", full, "--"])
+    short, _, subject = out.strip("\n").partition("\x1f")
+    return {"path": rel, "oldPath": _pub(old) if old else None, "binary": binary, "staged": False, "original": original, "modified": modified, "hunks": [_public_hunk(h) for h in hunks], "tooLarge": too_large, "mtime": None, "commit": full, "short": short or full[:7], "subject": _pub(subject), "parent": parent, "status": status}
 
 
 def _snap_ref_prefix(key: str) -> str:

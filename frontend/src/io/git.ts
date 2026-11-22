@@ -11,6 +11,9 @@ export interface FileReview { path: string; oldPath: string | null; kind: GitFil
 export interface Review { root: string; session: string | null; files: FileReview[]; snapshots: number }
 export interface Audit { author: string; committer: string; identityOk: boolean; trailers: number; signature: string }
 export interface Commit { sha: string; short: string; subject: string; author: string; email: string; date: string; signature: string }
+export interface FileCommit extends Commit { status: 'A' | 'M' | 'D' | 'R' | 'C' | 'T'; path: string; oldPath: string | null }
+export interface FileLog { commits: FileCommit[]; path: string; folder: boolean; more: boolean }
+export interface CommitDiff extends FileDiff { commit: string; short: string; subject: string; parent: string | null; status: string }
 export interface Identity { name: string; email: string; sign: boolean; signingKey: string; source: 'formsubstrate' | 'git' | 'none' }
 export interface Snapshot { n: number; ref: string; commit: string; label: string; created: string; files: number }
 export interface ReviewComment { id: string; path: string; line: number | null; hunk: string | null; text: string; created: string }
@@ -110,9 +113,15 @@ export const git = {
   commit(message: string, opts: { amend?: boolean; all?: boolean; session?: string | null } = {}): Promise<{ commit: string; summary: string; audit: Audit; identitySource?: 'formsubstrate' | 'git' | 'none' }> {
     return held('/api/git/commit', post(withSession({ message, amend: opts.amend === true, all: opts.all === true }, opts.session)));
   },
-  async log(opts: { session?: string | null; limit?: number; ref?: string } = {}): Promise<Commit[]> {
-    const r = await call<{ commits: Commit[] }>(`/api/git/log${query({ session: opts.session, limit: opts.limit, ref: opts.ref })}`);
+  async log(opts: { session?: string | null; limit?: number; ref?: string; skip?: number } = {}): Promise<Commit[]> {
+    const r = await call<{ commits: Commit[] }>(`/api/git/log${query({ session: opts.session, limit: opts.limit, ref: opts.ref, skip: opts.skip || null })}`);
     return r.commits;
+  },
+  fileLog(path: string, opts: { session?: string | null; limit?: number; skip?: number } = {}): Promise<FileLog> {
+    return call<FileLog>(`/api/git/log${query({ session: opts.session, path, limit: opts.limit, skip: opts.skip || null })}`);
+  },
+  show(sha: string, path: string, session?: string | null): Promise<CommitDiff> {
+    return call<CommitDiff>(`/api/git/show${query({ session, sha, path })}`);
   },
   identity(): Promise<Identity> {
     return call<Identity>('/api/git/identity');

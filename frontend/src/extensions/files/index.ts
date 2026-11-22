@@ -315,6 +315,7 @@ class FilesTree {
       { id: 'ft-new-folder', label: 'New Folder...', run: () => { void this.create('dir', this.targetDir()); } },
       { id: 'ft-rename', label: 'Rename...', enabled: notRoot, run: () => { void this.rename(this.target); } },
       { id: 'ft-delete', label: 'Delete', enabled: notRoot, run: () => { void this.remove(this.target); } },
+      { id: 'ft-history', label: 'Open File History', enabled: () => this.target.kind === 'file', run: () => { window.dispatchEvent(new CustomEvent('formsubstrate:open-history', { detail: { path: this.target.path, session: null } })); } },
     );
   }
 
@@ -324,7 +325,7 @@ class FilesTree {
 
   private showMenu(x: number, y: number, target: { path: string; kind: 'file' | 'dir' | 'root' }): void {
     this.target = target;
-    this.menu.setItems(target.kind === 'root' ? ['ft-new-file', 'ft-new-folder'] : ['ft-new-file', 'ft-new-folder', '-', 'ft-rename', 'ft-delete']);
+    this.menu.setItems(target.kind === 'root' ? ['ft-new-file', 'ft-new-folder'] : target.kind === 'file' ? ['ft-new-file', 'ft-new-folder', '-', 'ft-rename', 'ft-delete', '-', 'ft-history'] : ['ft-new-file', 'ft-new-folder', '-', 'ft-rename', 'ft-delete']);
     this.menu.openAt(x, y);
   }
 

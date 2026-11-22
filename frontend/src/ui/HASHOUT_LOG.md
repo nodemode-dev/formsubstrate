@@ -174,3 +174,11 @@ The new rows do not go through `ctx.onPrefs`, because that callback lives in `ap
 A menu row passed every label through `t()`, which is right for command names and wrong for names the person chose: the branch menu's Switch to Branch and Delete Branch rows are branch names, and a branch called `Fetch` or `Pull` would have shown in the interface language. A command with `verbatim: true` keeps its label as written; `GitRefs.dyn` sets it on every branch row. Nothing else sets it, so every other menu reads as before.
 
 The status bar's branch item opened the branch menu on a click but was a plain span, so a keyboard could not reach it and a screen reader did not announce it. It now has `role="button"`, `tabindex="0"` and `aria-haspopup="menu"`, Enter and Space open the menu as a click does, and the pointer shows it can be pressed. The span stays a span so the status bar's spacing and type are unchanged.
+
+### frontend/src/ui/tabs.ts · Tabs (context menu, tab-history)
+
+- refers-to: frontend/src/ui/tabs.ts :: Tabs constructor, menu, menuCommands, menuPath; frontend/src/extensions/git/index.ts :: OPEN_HISTORY listener
+- kind: rationale
+- logged: v0.23.0 · 2026-11-22
+
+The editor tabs had no context menu. They now have one standalone `PopupMenu` on a private `Commands`, built once, with a single entry, Open File History, shown only for a file tab (a doc whose id is its path; diff, review, graph and preview tabs have other ids) while a workspace is open; on other tabs the browser menu is suppressed and nothing opens. The entry sends `formsubstrate:open-history` ({path, session: null}) on `window`, so this shell module does not import the git extension. Escape closes it, as in the Files panel.
