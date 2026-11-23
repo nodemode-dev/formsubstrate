@@ -5,7 +5,7 @@ license: GPL-3.0-only
 metadata:
   author: nodemode-ai
   compiled: "2026-11-22"
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # formsubstrate-use

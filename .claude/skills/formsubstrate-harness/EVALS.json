@@ -1,6 +1,6 @@
 {
   "skill_name": "formsubstrate-harness",
-  "notes": "Three evaluations and a trigger test. Expected behaviours are observable in the diff, the commands run, or the report.",
+  "notes": "Five evaluations and a trigger test. Expected behaviours are observable in the diff, the commands run, or the report.",
   "evals": [
     {
       "id": 1,
@@ -48,6 +48,18 @@
         "Does not store the waiver in a file; leaves the engine-held waiver in gates.py keyed on content",
         "Runs the real sf_gate.py with a PreToolUse payload against a scratch engine and shows the denial and a sf_gate.log line for any fail-open",
         "Logs a rationale entry at the end of backend/app/services/HASHOUT_LOG.md and proposes the new form for the Gates bullet in CLAUDE.md in its report instead of editing it"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "add-a-builtin-problem-matcher",
+      "prompt": "Add a built-in `$go` problem matcher so the errors a `go build` task prints land in the Problems list like `$tsc` ones do.",
+      "files": [],
+      "expected_behavior": [
+        "Loads engine-route and edits the BUILTIN table in backend/app/services/tasks.py by hand, reading the region first, with no comments",
+        "Leaves POST /api/tasks/run taking a label only and behind the window token, and leaves the trust check in place so an untrusted workspace still answers 403",
+        "Runs a task that prints a Go error in a trusted scratch workspace against a real engine and shows the Problems rows with the task's label as their source",
+        "Logs an entry at the end of backend/app/services/HASHOUT_LOG.md and names the docs/GUIDE.md sentence that lists the built-in matchers in its report"
       ]
     }
   ],
