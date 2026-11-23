@@ -4,6 +4,17 @@ Versions follow `v*.*.*` with dots. Dates are US Eastern. The newest version is 
 
 The app was renamed Substrate (family name FormSubstrate, machine name `formsubstrate`) at 0.17.0. The entries below read with the new name throughout; the git history keeps the former one.
 
+## 0.25.0 · 2026-11-22
+
+Tasks, your own shortcuts, the family's four agent programs, and FormNET.
+
+- Tasks: Run > Run Task... lists the tasks of `.formsubstrate/tasks.json` (or `.vscode/tasks.json` when there is none) and the scripts of `package.json`. Run Build Task is `Shift+Ctrl+B` (`Shift+Cmd+B` on a Mac), Stop Task ends a task, and Configure Tasks writes a starter file. A task runs in a terminal, only in a workspace you have trusted, and its errors appear in Problems.
+- Shortcuts can be changed: Preferences > Keys has Change, Remove, Reset and Reset All, warns when a key belongs to another command, and keeps your changes after a restart.
+- Sessions for Codex, Cursor and Antigravity beside Claude Code: New Session offers the programs found on this computer, each in its own worktree. Codex gets the session's MCP servers; Cursor and Antigravity are started plainly. Gate cards need Claude Code. Preferences > Agents shows what was found and takes a path for each program.
+- Route through FormNET (Preferences > Terminal, off by default): new terminals and sessions use FormNET's proxy on this computer and trust its certificate, so FormNET can show what they send. If FormNET is not running, terminals start without it.
+- Claude Code in the editor (Preferences > Agents, off by default): Claude Code in a Substrate terminal can read Problems, the open files and your selection, and show a change for you to accept or reject. It follows the connection Claude Code documents for VS Code and has not been tried with every version of Claude Code.
+- Removing a workspace's trust stops its running tasks.
+
 ## 0.24.0 · 2026-11-22
 
 More languages, quick fixes, and a debugger with the features people expect.

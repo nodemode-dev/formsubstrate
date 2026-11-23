@@ -1,7 +1,7 @@
 {
   "name": "formsubstrate",
   "private": true,
-  "version": "0.24.0",
+  "version": "0.25.0",
   "description": "FormSubstrate · Substrate, the Form family code and text editor with agents built in",
   "license": "GPL-3.0-only",
   "type": "module",
