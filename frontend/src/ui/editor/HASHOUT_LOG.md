@@ -368,3 +368,11 @@ Right-click in the breakpoint gutter opens a `PopupMenu` on a private `Commands`
 `setBreakpointSupport` receives the running adapter's capabilities; tabs and menu entries it does not support are hidden, and with no session everything is offered. Breakpoints are kept per workspace in `localStorage` under `formsubstrate.breakpoints` (`{workspace path: {file: [breakpoint]}}`, 30 workspaces, 200 files, 500 lines), loaded lazily for the open workspace (`ensure`), so they also survive a restart, which they did not before. `clearBreakpoints` only drops the loaded copy.
 
 Checked in headless Chrome, CPU 4x: menu on an empty line, the input opened (line below moved 36px once), `i == 3` typed (0px while typing) and applied, marker `conditional`, storage written; Disable, Add Logpoint; layout shift without input 0 from these actions, no console errors.
+
+### frontend/src/ui/editor/lsp.ts · setExternal, problems
+
+- refers-to: frontend/src/ui/editor/lsp.ts :: LspManager.external, setExternal, problems; frontend/src/ui/tasks.ts :: apply; frontend/src/extensions/lsp/index.ts :: ProblemsPanel.sync, publish
+- kind: rationale
+- logged: v0.25.0 · 2026-11-22
+
+The window's Problems list and the status bar counts read `lsp.problems()`, which was built from the language-server sessions alone. `setExternal(owner, problems)` keeps one list per owner beside them, `problems()` appends those lists before sorting, and a change emits `diagnostics`, so the panel and the counts repaint through the path they already have. Task problems use the owner `tasks`. They are not merged with a language server's identical row: both are shown, each with its source, as VS Code does. `reset()` leaves them alone; the tasks module replaces them when the workspace changes.

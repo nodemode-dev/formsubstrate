@@ -582,3 +582,9 @@ An installed app has no repository launcher, so the frozen engine itself takes `
 - logged: v0.21.0 · 2026-11-22
 
 The v0.15.0 entry ends: "`/api/skills` lists project and user skills only (`sessions.list_skills`); nothing reads the bundled `skills` folder yet, so that route lists it only if a copy sits in `~/.claude/skills`." That is no longer so. `routers/skills.py` `list_all` takes the project and user skills from `sessions.list_skills`, then scans each folder of `builtin_folders` (`config.BACKEND_DIR / "skills"`, and `_MEIPASS/skills` in a frozen engine, the folder the `skills` data group puts there) with `_scan_skills` under the source `built-in`, and adds every skill whose name is not already listed with that source. Checked on a live unfrozen engine: `GET /api/skills` returned `formsubstrate-graphs` with source `built-in`. The route only lists the skill: nothing copies it into a session's worktree or `.claude/skills`. docs/PARITY.md D4 now says the same.
+
+### backend/app/main.py · ide router and shutdown
+- refers-to: backend/app/main.py :: lifespan, app; backend/app/routers/ide.py :: router; backend/app/services/ide_link.py :: shutdown
+- kind: rationale
+- logged: v0.25.0 · 2026-11-22
+The ide router is included under `/api`, and the lifespan calls `ide_link.shutdown()` after the terminals stop, which closes the socket and removes the lock file. There is no start call: the server starts when the window first reports a workspace.

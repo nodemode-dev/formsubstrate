@@ -115,3 +115,19 @@ The engine now asks for the window token on every git, workspace and session cha
 - logged: v0.24.0 · 2026-11-22
 
 `LspLang` is a built-in name or `custom:<id>`. `customLsp` is the client for `/api/lsp/custom`; add, change and remove go through `owner()` (the window key) and dispatch `formsubstrate:lsp-custom-changed` on success. `syncTrust()` tells the engine whether the open workspace is trusted (`POST /api/lsp/trust`), once per pair of workspace path and trust; `trustSynced()` says whether that pair has been answered, and `forgetTrustSync()` makes the next call send again (Restart Language Servers uses it after an engine restart). The engine no longer believes `trust=1`, so `lspSocketUrl` no longer adds it, and the lang is URL-encoded because a custom lang has a colon. Workspace symbol search awaits `syncTrust()` before its sockets open. Removed: the import of `trustQuery` and `${trustQuery('&')}` at the end of the socket URL.
+
+### frontend/src/io/tasks.ts, frontend/src/io/keybindings.ts · clients
+
+- refers-to: frontend/src/io/tasks.ts :: listTasks, taskState, runTask, stopTask, createTaskFile, OWN_TASK_FILE, VSCODE_TASK_FILE; frontend/src/io/keybindings.ts :: adoptSavedKeys, commitKeys, keysLoaded, KEYS_EVENT
+- kind: rationale
+- logged: v0.25.0 · 2026-11-22
+
+`io/tasks.ts` is the typed client of the five task routes; reads go through `request`, changes through `owner` (the window key, one retry after a 403). `io/keybindings.ts` holds the load and save of the shortcut file and the `loaded` flag the Keys page asks about; it imports the `Commands` type from `ui`, as `io/trust.ts` imports from `ui/prefs`. Anything in the answer that is not a list of text is dropped before `Commands.adopt` sees it.
+
+### frontend/src/io/agents.ts · agents, formnet, AGENT_PROGRAMS, AGENT_MODES
+
+- refers-to: frontend/src/io/agents.ts :: AgentInfo, FormnetStatus, AGENT_PROGRAMS, AGENT_MODES, agentTitle, agents, formnet; frontend/src/io/sessions.ts :: Session.agent, NewSessionBody.agent
+- kind: rationale
+- logged: v0.25.0 · 2026-11-22
+
+`agents.list()` reads `GET /api/agents` and keeps the last answer (`cached()`), so New Session and Preferences paint what is known at once and patch when the fresh answer comes; concurrent callers share one request. `setPath` and `formnet.save` go through `owner` (the window key). `AGENT_PROGRAMS` and `AGENT_MODES` repeat the engine's order and `CAPS` modes so the dialog is complete before any answer; the engine still refuses what it does not allow.
