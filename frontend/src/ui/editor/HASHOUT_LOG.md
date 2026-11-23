@@ -2,7 +2,7 @@
 
 Living log for the code editor (editor.ts, languages.ts, theme.ts) and styles/editor.css. Source files stay comment-free; what they would have said lives here. The shell-wide log is frontend/HASHOUT_LOG.md.
 
-Current build version: v0.20.0
+Current build version: v0.25.1
 Last updated: 2026-11-22
 
 ### frontend/src/ui/editor/theme.ts · gutters

@@ -2,7 +2,7 @@
 
 Living log for backend/app/services/triggers/ and backend/app/routers/triggers.py. Source files stay comment-free.
 
-Current build version: v0.20.0
+Current build version: v0.25.1
 Last updated: 2026-11-22
 
 ### backend/app/services/triggers/manager.py · Triggers

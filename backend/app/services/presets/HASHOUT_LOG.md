@@ -2,7 +2,7 @@
 
 Entries for the unified presets service. Newest at the end.
 
-Current build version: v0.20.0
+Current build version: v0.25.1
 Last updated: 2026-11-22
 
 ### backend/app/services/presets/store.py · four groups, one service

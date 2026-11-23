@@ -2,7 +2,7 @@
 
 Living log for frontend/src/extensions/cogentics/, frontend/src/extensions/console/, frontend/src/ui/dock-panes.ts, frontend/src/io/cogentics.ts and styles/cogentics.css and console.css. Source files stay comment-free; what they would have said lives here.
 
-Current build version: v0.20.0
+Current build version: v0.25.1
 Last updated: 2026-11-22
 
 ### frontend/src/extensions/cogentics/ · panel, ledger, members, insight

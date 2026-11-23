@@ -2,7 +2,7 @@
 
 Living log for the window's engine clients added or changed in F6 to F8: io/formslot.ts, io/sessions.ts (gates), io/debug.ts and io/git.ts. Source files stay comment-free; what they would have said lives here. The window-wide log is frontend/HASHOUT_LOG.md.
 
-Current build version: v0.20.0
+Current build version: v0.25.1
 Last updated: 2026-11-22
 
 ### frontend/src/io/formslot.ts · formslotState

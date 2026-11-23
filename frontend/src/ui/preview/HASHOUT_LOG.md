@@ -2,7 +2,7 @@
 
 Living log for the Markdown preview and the image, video, audio and PDF tabs: sanitize.ts, markdown.ts, md-preview.ts, media.ts, media-tab.ts, index.ts and styles/preview.css. Source files stay comment-free; what they would have said lives here.
 
-Current build version: v0.20.0
+Current build version: v0.25.1
 Last updated: 2026-11-22
 
 ### frontend/src/ui/preview/sanitize.ts · sanitizeHtml

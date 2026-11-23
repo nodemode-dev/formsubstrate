@@ -2,7 +2,7 @@
 
 Living log for the F7 and F8 engine helpers: core/engine_addr.py, core/debug.py and core/lsp.py. Source files stay comment-free; what they would have said lives here. The engine-wide log is backend/HASHOUT_LOG.md; workspace_root.py and binres.py are logged in backend/app/routers/HASHOUT_LOG.md.
 
-Current build version: v0.20.0
+Current build version: v0.25.1
 Last updated: 2026-11-22
 
 ### backend/app/core/engine_addr.py · remember

@@ -2,7 +2,7 @@
 
 Living log for the Studio: the node canvas where agent graphs are built. Covers `frontend/src/ui/studio/`, the graph engine in `frontend/src/engine/`, the saved-graphs sidebar in `frontend/src/extensions/studio/`, the styles in `frontend/src/styles/studio.css` and the engine calls in `frontend/src/io/studio.ts`. Source files stay comment-free; what they would have said lives here.
 
-Current build version: v0.20.0
+Current build version: v0.25.1
 Last updated: 2026-11-22
 
 ### frontend/src/ui/studio/api.ts · studio (API for port-runs)

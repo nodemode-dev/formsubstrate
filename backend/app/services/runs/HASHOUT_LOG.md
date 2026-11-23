@@ -2,7 +2,7 @@
 
 Rationale for the graph run engine, ported from substrata (MIT, the owner's) `backend/app/core/runner*.py`, `agent.py`, `llm.py` and `routers/run.py`, `runs.py`, `presets.py`.
 
-Current build version: v0.20.0
+Current build version: v0.25.1
 Last updated: 2026-11-22
 
 ### backend/app/services/runs/manager.py · RunManager, Run

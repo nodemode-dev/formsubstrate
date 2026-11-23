@@ -2,7 +2,7 @@
 
 Living log for tokens.css, light-mode.css and the theme code that writes their variables: the theme-boot script in frontend/index.html and src/ui/themes.ts. Source files stay comment-free; what they would have said lives here. Older entries for these files are in frontend/HASHOUT_LOG.md.
 
-Current build version: v0.20.0
+Current build version: v0.25.1
 
 ### index.html · theme-boot default theme and accent
 

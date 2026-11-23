@@ -2,7 +2,7 @@
 
 Living log for frontend/src/extensions/recipes/ and frontend/src/styles/recipes.css (shared by the recipes, triggers, approvals and automation panels). Source files stay comment-free.
 
-Current build version: v0.20.0
+Current build version: v0.25.1
 Last updated: 2026-11-22
 
 ### frontend/src/extensions/recipes/index.ts · RecipesPanel
