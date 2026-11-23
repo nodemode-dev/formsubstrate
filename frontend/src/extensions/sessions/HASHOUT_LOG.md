@@ -2,7 +2,7 @@
 
 Living log for the sessions side of Phase F5 in the window: extensions/sessions (Sessions and Skills panels, agent-new and agent-sessions), io/sessions.ts, ui/chat-pane.ts, ui/new-session.ts, ui/desktop-notify.ts and styles/sessions.css. Source files stay comment-free; what they would have said lives here. The shell-wide log is frontend/HASHOUT_LOG.md.
 
-Current build version: v0.20.0
+Current build version: v0.25.1
 Last updated: 2026-11-22
 
 ### frontend/src/app.ts · terminal hook

@@ -2,7 +2,7 @@
 
 Living log for the graph document model, the saved-graph routes and the preset graphs behind the Studio. Source files stay comment-free; what they would have said lives here.
 
-Current build version: v0.20.0
+Current build version: v0.25.1
 Last updated: 2026-11-22
 
 ### backend/app/models/graph.py · GraphDoc, check_doc

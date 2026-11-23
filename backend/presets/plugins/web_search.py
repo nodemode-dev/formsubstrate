@@ -2,6 +2,7 @@ import re
 import urllib.parse
 import urllib.request
 
+from app import __version__
 from app.services.library.registry import Tool
 
 PLUGIN = {
@@ -20,7 +21,7 @@ def strip(text):
 
 def search(query, max_results=5):
     url = "https://html.duckduckgo.com/html/?q=" + urllib.parse.quote(query)
-    req = urllib.request.Request(url, headers={"User-Agent": "formsubstrate/0.17"})
+    req = urllib.request.Request(url, headers={"User-Agent": f"formsubstrate/{__version__}"})
     try:
         with urllib.request.urlopen(req, timeout=12) as res:
             html = res.read().decode("utf-8", "ignore")

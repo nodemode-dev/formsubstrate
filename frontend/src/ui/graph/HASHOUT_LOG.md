@@ -2,7 +2,7 @@
 
 Living log for the graph document tab: graph-view.ts, graph-layout.ts, index.ts, with the styles in styles/graph.css and the engine call in io/graph.ts. Source files stay comment-free; what they would have said lives here.
 
-Current build version: v0.20.0
+Current build version: v0.25.1
 Last updated: 2026-11-22
 
 ### frontend/src/ui/graph/graph-view.ts · GraphTab

@@ -4,8 +4,8 @@ description: "Routing pack for agents changing the formsubstrate repository itse
 license: GPL-3.0-only
 metadata:
   author: nodemode-ai
-  compiled: "2026-10-31"
-  version: "1.1.0"
+  compiled: "2026-11-22"
+  version: "1.2.0"
 ---
 
 # formsubstrate-harness

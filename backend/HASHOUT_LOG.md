@@ -1,6 +1,6 @@
 # HASHOUT_LOG · backend · formsubstrate
 
-Current build version: v0.20.0
+Current build version: v0.25.1
 Last updated: 2026-11-22
 
 ## Org-navi-map
@@ -588,3 +588,13 @@ The v0.15.0 entry ends: "`/api/skills` lists project and user skills only (`sess
 - kind: rationale
 - logged: v0.25.0 · 2026-11-22
 The ide router is included under `/api`, and the lifespan calls `ide_link.shutdown()` after the terminals stop, which closes the socket and removes the lock file. There is no start call: the server starts when the window first reports a workspace.
+
+### backend/presets/plugins/web_search.py · search (user agent)
+- refers-to: backend/presets/plugins/web_search.py :: search; backend/app/__init__.py :: __version__; backend/app/services/library/plugins.py :: _load_one; docs/GUIDE.md :: What Substrate sends over the network
+- kind: fix
+- logged: v0.25.1 · 2026-11-22
+The web search plugin sent a user agent with a version typed in by hand, which had stayed at 0.17 in every release since. It now reads the engine's version: `from app import __version__` and `f"formsubstrate/{__version__}"`. The import is safe where plugins run: `_load_one` loads a plugin file with `importlib` inside the engine process (the file already imports `app.services.library.registry`), in a checkout and in the frozen engine alike, so `app` is always importable. docs/GUIDE.md no longer quotes a number. Removed line:
+
+```
+    req = urllib.request.Request(url, headers={"User-Agent": "formsubstrate/0.17"})
+```

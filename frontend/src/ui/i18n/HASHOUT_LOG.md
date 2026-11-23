@@ -2,7 +2,7 @@
 
 Living log for frontend/src/ui/i18n.ts, frontend/src/ui/i18n/ (the language list and the tables), the LANG_ALIASES map in frontend/src/ui/prefs.ts, frontend/scripts/i18n-check.mjs and the `./formsubstrate i18n` command. Source files stay comment-free; what they would have said lives here.
 
-Current build version: v0.20.0
+Current build version: v0.25.1
 Last updated: 2026-11-22
 
 ### frontend/src/ui/i18n/langs.ts · LANG_CODES, LANG_NAMES, RTL_LANGS, LANG_PARENT

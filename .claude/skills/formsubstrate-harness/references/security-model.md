@@ -43,7 +43,7 @@ The person decides in the window, which keeps the list of trusted folders in pre
 - A task run never carries a command from the window: the body holds a label, and the engine reads the task file again and builds the command itself. A custom problem-matcher regexp comes from the workspace file and Python's `re` has no time limit; matching runs in a worker thread, so a slow pattern cannot stall the event loop but can keep that thread busy.
 - The custom server list (`lsp-servers.json` in the data folder) and the js-debug path (`debug.json`) are changed only through window-token routes (`POST`, `PUT`, `DELETE /api/lsp/custom`, `PUT /api/debug/settings`, `POST /api/debug/launch`); the matching `GET` routes take no key.
 - A launch never passes the window's fields on: the engine rebuilds the `launch` request (`debug.launch_arguments`), reads a chosen configuration from the file again, and confines a Current File launch to the workspace.
-- Other routes still take trust as a statement from the window in the request: the `trust` query on `/api/plugins`, `/api/presets` and the harness import, and the `trusted` body field on runs, sessions and Cogentics. They do not read the engine record.
+- Other routes still take trust as a statement from the window in the request: the `trust` query on `/api/plugins`, `/api/presets` and the harness import, the `trusted` body field on runs, sessions and Cogentics, and the `trust` body field on a recipe run. They do not read the engine record. Every one of them that changes or starts something also needs the window token; `GET /api/plugins` takes no key and never loads workspace plugins on its own (`plugins.listing` reloads without trust).
 
 ## The Claude Code IDE connection
 
@@ -62,7 +62,7 @@ The person decides in the window, which keeps the list of trusted folders in pre
 ## Other fixed rules
 
 - The engine binds 127.0.0.1 only.
-- Secrets live in the OS keyring via `routers/secrets.py`, never in files.
+- Secrets live in the OS keyring under the service name `formsubstrate`, and are saved and removed only through window-token routes. `services/secret_store.py` (behind `routers/secrets.py` and the Cogentics provider key in `services/cogentics/llm.py`) has one fallback: when the computer has no usable keyring (`system_store()` is false, or the keyring answers `NoKeyringError`), `put` writes the value to `secrets-local.json` in the data folder, created with mode 0600 through `_write_private` (on Windows the user profile's permissions protect it). `secrets-index.json` records which names are saved and in which store (`keychain` or `file`), never a value. Plugin secrets (`services/library/plugins.py`), webhook secrets (`services/triggers/hooks.py`) and MCP server headers (`services/library/mcp_client.py`) call the keyring directly and have no fallback, so they are never in a file.
 - Paths from the window are resolved through the workspace root helpers (`real_root`, `resolve`) before use.
 - Child processes get a reduced environment where they run untrusted workspace tools (`minimal_env` in `core/lsp.py`, `ENV_KEEP` in `core/debug.py`).
 - Programs are located through `find_bin`; the engine never shells out through a string. The one exception is a workspace task of type `shell`, which is the person's own command line run through their login shell in a trusted workspace; a `process` task never meets a shell.
@@ -70,4 +70,4 @@ The person decides in the window, which keeps the list of trusted folders in pre
 
 ## Deliberately open
 
-Read-only status routes (`/api/formslot/status`, `/api/system/status`, listings) and most workspace and git routes rely on LocalGuard alone. A new route that mutates something an agent should not mutate on its own should use the window token.
+Read-only status routes (`/api/formslot/status`, `/api/system/status`, listings) and the reading workspace and git routes (tree, file, search, status, diff, review, log, branches) rely on LocalGuard alone; the workspace and git routes that write (`OWNER` in `routers/workspace.py` and `routers/git.py`) need the window token. A new route that mutates something an agent should not mutate on its own should use the window token.

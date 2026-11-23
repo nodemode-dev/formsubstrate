@@ -2,7 +2,7 @@
 
 Living log for frontend/src/extensions/approvals/.
 
-Current build version: v0.20.0
+Current build version: v0.25.1
 Last updated: 2026-11-22
 
 ### frontend/src/extensions/approvals/index.ts · ApprovalsPanel

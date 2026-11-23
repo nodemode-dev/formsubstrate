@@ -1067,7 +1067,7 @@ dependencies = [
 
 [[package]]
 name = "formsubstrate"
-version = "0.25.0"
+version = "0.25.2"
 dependencies = [
  "getrandom 0.3.4",
  "objc2",

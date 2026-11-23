@@ -33,7 +33,7 @@ The engine is `backend/app`: `main.py` wires it, `core/` holds process-level hel
 9. Add shutdown work to `lifespan` in `main.py`.
 10. Frontend client in `io/[name].ts`; HASHOUT entry in `backend/app/routers/HASHOUT_LOG.md` or `services/HASHOUT_LOG.md`.
 
-Note: today the git routes and most others are guarded by LocalGuard alone; the formslot owner routes, `GET /api/gates/notes`, `POST /api/gates/{id}/answer`, every `/api/create/*` route and the change routes of tasks, keybindings, agents, FormNET and the IDE connection use `require_window`. Routes an agent session calls itself (`POST /api/gates`, `POST /api/gates/notes`, `GET /api/gates/waived`, `GET /api/gates/{id}/wait`) verify `X-FormSubstrate-Session` with `gates.verify`. Decide per route and record the decision in HASHOUT.
+Note: today the routes that only read (status, listings, the workspace tree, file and search reads, git status, diff and log) are guarded by LocalGuard alone; the workspace and git routes that write (`OWNER` in `routers/workspace.py` and `routers/git.py`), the session, terminal and run routes that start or stop something, the formslot owner routes, `GET /api/gates/notes`, `POST /api/gates/{id}/answer`, every `/api/create/*` route and the change routes of tasks, keybindings, agents, FormNET and the IDE connection use `require_window`. Routes an agent session calls itself (`POST /api/gates`, `POST /api/gates/notes`, `GET /api/gates/waived`, `GET /api/gates/{id}/wait`) verify `X-FormSubstrate-Session` with `gates.verify`. Decide per route and record the decision in HASHOUT.
 
 ## The MCP route
 

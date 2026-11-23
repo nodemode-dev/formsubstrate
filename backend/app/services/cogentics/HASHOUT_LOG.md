@@ -2,7 +2,7 @@
 
 Living log for backend/app/services/cogentics/ and backend/app/routers/cogentics.py and insight.py. Source files stay comment-free; what they would have said lives here. The engine-wide log is backend/HASHOUT_LOG.md.
 
-Current build version: v0.20.0
+Current build version: v0.25.1
 Last updated: 2026-11-22
 
 ### backend/app/services/cogentics/ · module map
