@@ -4,6 +4,14 @@ Versions follow `v*.*.*` with dots. Dates are US Eastern. The newest version is 
 
 The app was renamed Substrate (family name FormSubstrate, machine name `formsubstrate`) at 0.17.0. The entries below read with the new name throughout; the git history keeps the former one.
 
+## 0.25.2 · 2026-11-22
+
+The community files every Form app carries.
+
+- `CODE_OF_CONDUCT.md`: how people in the project treat each other, and where to report a problem.
+- `CONTRIBUTING.md`: how to set up, the checks to run before a pull request, how changes land and how releases are made.
+- `SECURITY.md` now follows the family's layout: supported versions, private reporting through the repository's Security tab, and what counts as a security problem, ahead of the description of how Substrate protects your computer.
+
 ## 0.25.1 · 2026-11-22
 
 Documents brought up to date; one small fix.

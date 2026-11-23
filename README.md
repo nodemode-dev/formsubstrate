@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="version 0.25.1" src="https://img.shields.io/badge/version-0.25.1-eef0f4?style=flat-square">
+  <img alt="version 0.25.2" src="https://img.shields.io/badge/version-0.25.2-eef0f4?style=flat-square">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-7-3178c6?style=flat-square&logo=typescript&logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-engine-009688?style=flat-square">
   <img alt="Tauri 2" src="https://img.shields.io/badge/Tauri-2-2f7bf5?style=flat-square">
@@ -172,7 +172,7 @@ cd formsubstrate
 > [!IMPORTANT]
 > **Status:** release. Signing and notarization of the desktop app, and the FormCompiler catalogue rows, are still the owner's steps. See [`docs/RELEASE.md`](docs/RELEASE.md).
 
-**Contributing:** branch from `main`, keep changes to source here, and leave packaging and releases to formcompiler. See [`AGENTS.md`](AGENTS.md).
+**Contributing:** fork, branch from `main`, keep changes to source here, and leave packaging and releases to formcompiler. See [`CONTRIBUTING.md`](CONTRIBUTING.md), the [code of conduct](CODE_OF_CONDUCT.md) and [`AGENTS.md`](AGENTS.md). Security problems go through [`SECURITY.md`](SECURITY.md), never a public issue.
 
 ## Repository
 
