@@ -128,7 +128,7 @@ export const vi: Record<string, string> = {
   'Install formslot plugin': 'Cài đặt plugin formslot', 'Install formslot to search the slots of your repositories.': 'Cài đặt formslot để tìm kiếm trong các slot của kho lưu trữ của bạn.',
   'Install one of these': 'Cài đặt một trong các mục sau', 'Install plugin': 'Cài đặt plugin', 'Install the formslot plugin in this repository': 'Cài đặt plugin formslot vào kho lưu trữ này',
   'Installed.': 'Đã cài đặt.', 'Installing': 'Đang cài đặt', 'Interactive sessions ask in the terminal.': 'Phiên tương tác sẽ hỏi trong terminal.',
-  'Interactive: a Claude Code terminal': 'Tương tác: một terminal Claude Code', 'Interface': 'Giao diện',
+  'Interface': 'Giao diện',
   'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while Substrate is open.': 'Các trình kích hoạt theo chu kỳ, một lần sau độ trễ, theo dõi tệp và webhook có chữ ký, khởi chạy công thức khi Substrate đang mở.',
   'It skipped the commit hook. Sign and Push re-signs and cleans it; history is only rewritten when you click.': 'Commit này đã bỏ qua hook commit. Ký và push sẽ ký lại và làm sạch nó; lịch sử chỉ được viết lại khi bạn nhấp.',
   'JSON only': 'Chỉ JSON', 'Jobs': 'Tác vụ nền', 'Just now': 'Vừa xong', 'Keep going': 'Tiếp tục', 'Key': 'Khóa', 'Key removed.': 'Đã gỡ khóa.', 'Keys': 'Khóa',

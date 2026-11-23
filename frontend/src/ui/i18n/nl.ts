@@ -128,7 +128,7 @@ export const nl: Record<string, string> = {
   'Install formslot plugin': 'formslot-plug-in installeren', 'Install formslot to search the slots of your repositories.': 'Installeer formslot om in de slots van uw repository’s te zoeken.',
   'Install one of these': 'Installeer een van deze', 'Install plugin': 'Plug-in installeren', 'Install the formslot plugin in this repository': 'De formslot-plug-in in deze repository installeren',
   'Installed.': 'Geïnstalleerd.', 'Installing': 'Bezig met installeren', 'Interactive sessions ask in the terminal.': 'Interactieve sessies vragen het in de terminal.',
-  'Interactive: a Claude Code terminal': 'Interactief: een Claude Code-terminal', 'Interface': 'Interface',
+  'Interface': 'Interface',
   'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while Substrate is open.': 'Triggers op interval, eenmalig na vertraging, bij bestandswijzigingen en via ondertekende webhook die recepten starten zolang Substrate open is.',
   'It skipped the commit hook. Sign and Push re-signs and cleans it; history is only rewritten when you click.': 'De commit-hook is overgeslagen. Ondertekenen en pushen ondertekent hem opnieuw en schoont hem op; de geschiedenis wordt pas herschreven als u klikt.',
   'JSON only': 'Alleen JSON', 'Jobs': 'Taken', 'Just now': 'Zojuist', 'Keep going': 'Toch doorgaan', 'Key': 'Sleutel', 'Key removed.': 'Sleutel verwijderd.', 'Keys': 'Sleutels',

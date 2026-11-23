@@ -128,7 +128,7 @@ export const fr: Record<string, string> = {
   'Install formslot plugin': 'Installer le module formslot', 'Install formslot to search the slots of your repositories.': 'Installez formslot pour rechercher dans les slots de vos dépôts.',
   'Install one of these': 'Installez l’un de ceux-ci', 'Install plugin': 'Installer le module', 'Install the formslot plugin in this repository': 'Installer le module formslot dans ce dépôt',
   'Installed.': 'Installé.', 'Installing': 'Installation', 'Interactive sessions ask in the terminal.': 'Les sessions interactives demandent dans le terminal.',
-  'Interactive: a Claude Code terminal': 'Interactive : un terminal Claude Code', 'Interface': 'Interface',
+  'Interactive: the agent in a terminal': 'Interactive : l’agent dans un terminal', 'Interface': 'Interface',
   'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while Substrate is open.': 'Déclencheurs par intervalle, unique après délai, surveillance de fichiers et webhook signé, qui lancent des recettes tant que Substrate est ouvert.',
   'It skipped the commit hook. Sign and Push re-signs and cleans it; history is only rewritten when you click.': 'Il a contourné le hook de commit. Signer et envoyer le signe à nouveau et le nettoie ; l’historique n’est réécrit que lorsque vous cliquez.',
   'JSON only': 'JSON seul', 'Jobs': 'Tâches', 'Just now': 'À l’instant', 'Keep going': 'Continuer', 'Key': 'Clé', 'Key removed.': 'Clé supprimée.', 'Keys': 'Clés',

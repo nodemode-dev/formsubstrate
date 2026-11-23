@@ -123,7 +123,7 @@ export const hu: Record<string, string> = {
   'Install formslot Plugin': 'A formslot beépülő modul telepítése', 'Install formslot plugin': 'A formslot beépülő modul telepítése',
   'Install formslot to search the slots of your repositories.': 'Telepítse a formslotot a tárolói slotjainak kereséséhez.', 'Install one of these': 'Telepítse az egyiket',
   'Install plugin': 'Beépülő modul telepítése', 'Install the formslot plugin in this repository': 'A formslot beépülő modul telepítése ebbe a tárolóba', 'Installed.': 'Telepítve.',
-  'Installing': 'Telepítés', 'Interactive sessions ask in the terminal.': 'Az interaktív munkamenetek a terminálban kérdeznek.', 'Interactive: a Claude Code terminal': 'Interaktív: Claude Code terminál',
+  'Installing': 'Telepítés', 'Interactive sessions ask in the terminal.': 'Az interaktív munkamenetek a terminálban kérdeznek.',
   'Interface': 'Felület',
   'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while Substrate is open.': 'Időközönkénti, késleltetés utáni egyszeri, fájlfigyelő és aláírt webhookos eseményindítók, amelyek recepteket indítanak, amíg a Substrate meg van nyitva.',
   'It skipped the commit hook. Sign and Push re-signs and cleans it; history is only rewritten when you click.': 'Kihagyta a commit hookot. Az Aláírás és push újra aláírja és megtisztítja; az előzmények csak az Ön kattintására íródnak át.',

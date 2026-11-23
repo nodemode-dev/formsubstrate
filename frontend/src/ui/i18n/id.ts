@@ -128,7 +128,7 @@ export const id: Record<string, string> = {
   'Install formslot plugin': 'Pasang plugin formslot', 'Install formslot to search the slots of your repositories.': 'Pasang formslot untuk mencari di slot repositori Anda.',
   'Install one of these': 'Pasang salah satu dari ini', 'Install plugin': 'Pasang plugin', 'Install the formslot plugin in this repository': 'Pasang plugin formslot di repositori ini',
   'Installed.': 'Terpasang.', 'Installing': 'Memasang', 'Interactive sessions ask in the terminal.': 'Sesi interaktif bertanya di terminal.',
-  'Interactive: a Claude Code terminal': 'Interaktif: terminal Claude Code', 'Interface': 'Antarmuka',
+  'Interface': 'Antarmuka',
   'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while Substrate is open.': 'Pemicu interval, sekali setelah jeda, pemantauan file, dan webhook bertanda tangan yang memulai resep selama Substrate terbuka.',
   'It skipped the commit hook. Sign and Push re-signs and cleans it; history is only rewritten when you click.': 'Commit ini melewati hook commit. Tanda Tangani dan Push akan menandatangani ulang dan membersihkannya; riwayat hanya ditulis ulang saat Anda mengklik.',
   'JSON only': 'Hanya JSON', 'Jobs': 'Tugas latar', 'Just now': 'Baru saja', 'Keep going': 'Teruskan', 'Key': 'Kunci', 'Key removed.': 'Kunci dihapus.', 'Keys': 'Kunci',

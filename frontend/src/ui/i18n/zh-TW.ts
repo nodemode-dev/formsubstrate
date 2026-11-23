@@ -128,7 +128,7 @@ export const zhTW: Record<string, string> = {
   'Install formslot plugin': '安裝 formslot 外掛程式', 'Install formslot to search the slots of your repositories.': '請安裝 formslot 以搜尋您存放庫中的插槽。',
   'Install one of these': '請安裝下列其中一項', 'Install plugin': '安裝外掛程式', 'Install the formslot plugin in this repository': '在此存放庫中安裝 formslot 外掛程式',
   'Installed.': '已安裝。', 'Installing': '正在安裝', 'Interactive sessions ask in the terminal.': '互動式工作階段會在終端機中詢問。',
-  'Interactive: a Claude Code terminal': '互動式：Claude Code 終端機', 'Interface': '介面',
+  'Interface': '介面',
   'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while Substrate is open.': '在 Substrate 開啟期間啟動配方的觸發程序：定期、延遲後一次、檔案監看和已簽署的 Webhook。',
   'It skipped the commit hook. Sign and Push re-signs and cleans it; history is only rewritten when you click.': '它略過了認可攔截程序。「簽署並推送」會重新簽署並清理它；只有在您按一下後才會重寫歷程記錄。',
   'JSON only': '僅 JSON', 'Jobs': '作業', 'Just now': '剛剛', 'Keep going': '繼續進行', 'Key': '金鑰', 'Key removed.': '金鑰已移除。', 'Keys': '金鑰',
