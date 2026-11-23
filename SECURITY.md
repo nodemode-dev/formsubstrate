@@ -1,27 +1,54 @@
 # Security policy
 
-Substrate is a desktop code editor (repository `nodemode-dev/formsubstrate`). It runs agent programs, language servers and terminals on your computer, so a security problem here matters. Thank you for reporting one privately.
-
-## Reporting a problem
-
-Please do not open a public issue, pull request or discussion for a security problem.
-
-Report it one of two ways:
-
-- **GitHub private vulnerability reporting.** Open the repository's Security tab and choose Report a vulnerability. Only the maintainers see the report.
-- **Email.** Write to the maintainer at mackin@nodemode.ai.
-
-Include what lets us reproduce it:
-
-- the Substrate version (Help > About Substrate, or `./formsubstrate version`) and your operating system;
-- whether you ran the desktop app or a source checkout opened in a browser;
-- the steps, and a request, file or small project that shows the problem;
-- what an attacker gains (which file, token, command or boundary), and what they need first (a web page you visit, a program on the same computer, a project you opened, a project you trusted);
-- any log lines, with secrets removed.
-
 ## Supported versions
 
-Fixes go into the latest release only. Older releases are not patched; update to the latest release to get a fix.
+Security fixes go into the newest release. Please update before reporting, and
+check whether the problem is still there.
+
+| Version | Supported |
+| --- | --- |
+| Latest release | Yes |
+| Anything older | No |
+
+## Reporting a vulnerability
+
+**Do not open a public issue for a security problem.** Use GitHub's private
+reporting instead: on the repository's **Security** tab, choose **Report a
+vulnerability**. Include what you found, the steps to reproduce it, the version
+(Help > About Substrate, or `./formsubstrate version`) and platform, whether you ran
+the desktop app or a source checkout opened in a browser, and what an attacker could
+do with it and what they need first (a web page you visit, a program on the same
+computer, a project you opened, a project you trusted).
+
+You can expect an acknowledgement within a week. We will keep you informed while it
+is fixed and credit you in the release notes, unless you would rather not be named.
+
+## What counts
+
+Substrate runs on your own machine and starts agent programs, language servers,
+tasks and terminals there, so the things that matter most are the ways something
+could get past the person at the window:
+
+- **The engine** listens on loopback (port 5655 in development, a free loopback
+  port in the desktop app). Anything that makes it reachable from another machine,
+  or lets a web page on another origin drive it.
+- **The window key**: anything other than Substrate's own window changing files,
+  git, sessions, terminals, runs, tasks, secrets or settings, or answering a
+  permission gate.
+- **Agent sessions**: a session reaching another session's worktree or terminals
+  through Substrate, answering its own gate, or obtaining the window key in the
+  desktop app.
+- **The MCP server**: an outside client reading without a token the person approved,
+  or getting any tool that writes or reaches a terminal.
+- **Workspace trust**: a project's own language server, task, launch file, Python
+  environment, plugin or hook running before the person trusted the workspace.
+- **Secrets** kept by the engine (provider keys, plugin and webhook secrets, MCP
+  server headers): anything that leaks them.
+- **Files**: opening, saving, searching or replacing in a way that reads or writes
+  outside the workspace or a session's worktree.
+
+Bugs that need someone to already control your machine, or to run a modified build
+of Substrate, are ordinary bugs: please open an issue for those.
 
 ## Trust model
 
