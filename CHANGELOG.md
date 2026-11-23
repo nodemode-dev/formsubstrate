@@ -4,6 +4,15 @@ Versions follow `v*.*.*` with dots. Dates are US Eastern. The newest version is 
 
 The app was renamed Substrate (family name FormSubstrate, machine name `formsubstrate`) at 0.17.0. The entries below read with the new name throughout; the git history keeps the former one.
 
+## 0.25.1 · 2026-11-22
+
+Documents brought up to date; one small fix.
+
+- `SECURITY.md`: how to report a security problem privately, and how Substrate protects your computer (local only, the window key, session and client tokens, workspace trust, where secrets are kept).
+- The README says plainly what Substrate is today and what it does not have.
+- The user guide, the release notes for maintainers and the parity table were checked against the app and corrected.
+- The web search plugin now sends the app's real version in its user agent; it said 0.17.
+
 ## 0.25.0 · 2026-11-22
 
 Tasks, your own shortcuts, the family's four agent programs, and FormNET.

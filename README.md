@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="version 0.25.0" src="https://img.shields.io/badge/version-0.25.0-eef0f4?style=flat-square">
+  <img alt="version 0.25.1" src="https://img.shields.io/badge/version-0.25.1-eef0f4?style=flat-square">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-7-3178c6?style=flat-square&logo=typescript&logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-engine-009688?style=flat-square">
   <img alt="Tauri 2" src="https://img.shields.io/badge/Tauri-2-2f7bf5?style=flat-square">
@@ -61,6 +61,10 @@
 </table>
 
 ## Features
+
+**What Substrate is today.** An editor and review bench for projects in git, built around agent sessions. It edits any text file; language features come from the language servers on your computer (TypeScript, JavaScript and Python are found for you; Rust, JSON, HTML, CSS, YAML and others are added in Preferences); it debugs Python and Node.js; and it does the routine git work, tasks and search an editor is expected to do. Agent sessions run Claude Code, Codex, Cursor or Antigravity in their own worktrees, and you review what they change before it is committed.
+
+**What it does not have.** There is no extension marketplace: extensions are compiled into the app, and plugins and MCP servers are the way to add tools. There is no notebook editor, no remote development over SSH or in containers, and no settings sync. Debugging covers Python and Node.js only. Substrate has no updater of its own; updates come through FormPortal.
 
 <table>
   <tr>
