@@ -39,14 +39,9 @@ def wide_path() -> str:
 
 
 def find_agent(program: str = "claude") -> str | None:
-    from app.services import agent_lookup
+    from app.services import agent_programs
 
-    for folder in vendor_dirs():
-        for name in agent_lookup.PROGRAMS[program]["names"]:
-            for candidate in (folder / name, folder / f"{name}.exe"):
-                if agent_lookup.runnable(candidate):
-                    return str(candidate)
-    return agent_lookup.find(program, override_vars=AGENT_OVERRIDES.get(program, ()), shell_timeout=SHELL_WAIT).path
+    return agent_programs.locate(program).path
 
 
 def agent_env(env: dict[str, str], path: str | None = None) -> dict[str, str]:

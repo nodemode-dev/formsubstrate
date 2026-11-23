@@ -9,11 +9,16 @@ The engine is `backend/app`: `main.py` wires it, `core/` holds process-level hel
 
 ## Existing shape
 
-- `main.py`: `LocalGuard` and CORS are added as middleware, then `include_router(..., prefix="/api")` for system, workspace, secrets, terminal, sessions, formslot, skills, git, debug, lsp, media, graph and create (the New Form app and clone routes, all behind `require_window`); the MCP router is included without a prefix. The sessions and formslot routers add `Depends(remember)` so the engine learns its own port. The built window is mounted at `/` last.
+- `main.py`: `LocalGuard` and CORS are added as middleware, then `include_router(..., prefix="/api")` for system, workspace, secrets, terminal, sessions, formslot, skills, git, debug, lsp, media, graph and create (the New Form app and clone routes, all behind `require_window`), and since v0.25.0 tasks, keybindings, agents and ide; the MCP router is included without a prefix. The sessions and formslot routers add `Depends(remember)` so the engine learns its own port. The built window is mounted at `/` last.
 - `core/config.py`: ports (window 5650, engine 5655), `data_dir()` (override `FORMSUBSTRATE_DATA_DIR`, else portable, else `~/FormSubstrate` if present, else the platform data folder), `dist_dir()` (`FORMSUBSTRATE_DIST`), `cors_origins()`, `window_origins()`, `is_desktop()`.
 - `core/local_guard.py`: `LocalGuard` ASGI middleware, `WINDOW_TOKEN` (the value of `FORMSUBSTRATE_WINDOW_TOKEN` when the desktop shell supplies it, else minted at start), `hand_out_token` (404 when the shell supplied the token), `require_window`.
 - `core/workspace_root.py`: the process-wide workspace root; use `real_root()` and its `Refused`.
-- `core/binres.py` `find_bin`: the single choke point for locating programs the engine runs (git, claude, formslot, language servers, ripgrep).
+- `core/binres.py` `find_bin`: the single choke point for locating programs the engine runs (git, claude, formslot, language servers, ripgrep). `find_agent` answers `agent_programs.locate`, so a path the person set in Preferences, Agents comes first for Claude Code, Codex, Cursor and Antigravity.
+- Routes added in v0.25.0, reads without a key and changes behind `require_window`:
+  - `routers/tasks.py` over `services/tasks.py`: `GET /api/tasks`, `GET /api/tasks/state`, `POST /api/tasks/run` (a label only, never a command; 403 when the workspace is not trusted), `POST /api/tasks/stop`, `POST /api/tasks/file`. A task runs as a terminal through the terminal router's `launch`, and its matched problems go to the store in `core/lsp.py` under a `slot`.
+  - `routers/keybindings.py`: `GET` and `PUT /api/keybindings` over `keybindings.json` in the data folder (64 KiB cap, checked shape, written user-only).
+  - `routers/agents.py`: `GET /api/agents`, `PUT /api/agents/{program}/path` (`agent-paths.json`), `GET` and `PUT /api/formnet` (`formnet.json`).
+  - `routers/ide.py` over `services/ide_link.py`: `GET` and `PUT /api/ide/settings` (`ide.json`, off by default), `POST /api/ide/state`, `/api/ide/reply`, `/api/ide/mention`, and the stream `GET /api/ide/events`. The WebSocket that Claude Code connects to is a second listener on 127.0.0.1 with its own checks; see `references/security-model.md`.
 
 ## Adding a route
 
@@ -28,7 +33,7 @@ The engine is `backend/app`: `main.py` wires it, `core/` holds process-level hel
 9. Add shutdown work to `lifespan` in `main.py`.
 10. Frontend client in `io/[name].ts`; HASHOUT entry in `backend/app/routers/HASHOUT_LOG.md` or `services/HASHOUT_LOG.md`.
 
-Note: today the git routes and most others are guarded by LocalGuard alone; the formslot owner routes, `GET /api/gates/notes`, `POST /api/gates/{id}/answer` and every `/api/create/*` route use `require_window`. Routes an agent session calls itself (`POST /api/gates`, `POST /api/gates/notes`, `GET /api/gates/waived`, `GET /api/gates/{id}/wait`) verify `X-FormSubstrate-Session` with `gates.verify`. Decide per route and record the decision in HASHOUT.
+Note: today the git routes and most others are guarded by LocalGuard alone; the formslot owner routes, `GET /api/gates/notes`, `POST /api/gates/{id}/answer`, every `/api/create/*` route and the change routes of tasks, keybindings, agents, FormNET and the IDE connection use `require_window`. Routes an agent session calls itself (`POST /api/gates`, `POST /api/gates/notes`, `GET /api/gates/waived`, `GET /api/gates/{id}/wait`) verify `X-FormSubstrate-Session` with `gates.verify`. Decide per route and record the decision in HASHOUT.
 
 ## The MCP route
 

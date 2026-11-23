@@ -14,6 +14,7 @@ from pathlib import Path
 
 from app.core import config, workspace_root as ws
 from app.core.binres import find_agent, find_bin
+from app.services import agent_programs
 from app.services import formslot as formslot_service
 from app.services import gitops
 
@@ -43,7 +44,7 @@ ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\
 PROJECT_KEY_RE = re.compile(r"[^A-Za-z0-9]")
 INPUT_TOOLS = ("AskUserQuestion",)
 INPUT_SUBTYPES = ("permission_request", "input_request", "permission_denied")
-SESSION_FIELDS = ("id", "title", "repo", "branch", "worktree", "mode", "state", "terminalId", "claudeSessionId", "created", "updated", "lastMessage", "notes", "repoName", "base", "permissionMode")
+SESSION_FIELDS = ("id", "title", "repo", "branch", "worktree", "mode", "state", "terminalId", "claudeSessionId", "created", "updated", "lastMessage", "notes", "repoName", "base", "permissionMode", "agent")
 PERMISSION_MODES = ("default", "acceptEdits", "plan")
 DEFAULT_PERMISSION_MODE = "acceptEdits"
 RUN_KIND = "run"
@@ -134,6 +135,7 @@ def _save() -> None:
 def public(item: dict) -> dict:
     out = {key: item.get(key) for key in SESSION_FIELDS}
     out["notes"] = list(item.get("notes") or [])
+    out["agent"] = agent_programs.of(item)
     out["comments"] = len(item.get("comments") or [])
     out["snapshots"] = int(item.get("snapshotCount") or 0)
     out["tokensSaved"] = int(item.get("tokensSaved") or 0)
@@ -258,6 +260,15 @@ def _claude() -> str:
     found = find_agent("claude")
     if not found:
         raise Refused(404, "the claude command was not found on this computer; install Claude Code and try again")
+    return found
+
+
+def _agent_bin(program: str) -> str:
+    if program == agent_programs.DEFAULT:
+        return _claude()
+    found = find_agent(program)
+    if not found:
+        raise Refused(404, f"{agent_programs.title(program)} was not found on this computer; install it or give its path in Preferences, Agents")
     return found
 
 
@@ -427,7 +438,10 @@ def _sources(item: dict) -> str:
     return "user,project" if item.get("trusted") is True else "user"
 
 
-async def _start_claude_terminal(item: dict, args: list[str] | None = None) -> str:
+async def _start_claude_terminal(item: dict, args: list[str] | None = None, resume: bool = False) -> str:
+    program = agent_programs.of(item)
+    if program != agent_programs.DEFAULT:
+        return await _launch(item, agent_programs.interactive_argv(program, _agent_bin(program), item, resume), False)
     return await _launch(item, [_claude(), "--setting-sources", _sources(item), *_mcp_arg(item), *(args or [])], False)
 
 
@@ -435,6 +449,9 @@ async def _start_headless(item: dict, prompt: str, resume: str | None = None) ->
     mode = item.get("permissionMode")
     if mode not in PERMISSION_MODES:
         mode = DEFAULT_PERMISSION_MODE
+    program = agent_programs.of(item)
+    if program != agent_programs.DEFAULT:
+        return await _launch(item, agent_programs.headless_argv(program, _agent_bin(program), item, prompt, resume), True)
     argv = [_claude(), "-p", "--output-format", "stream-json", "--verbose", "--setting-sources", _sources(item), "--permission-mode", mode, *_mcp_arg(item), *(["--resume", resume] if resume else []), "--", prompt]
     return await _launch(item, argv, True)
 
@@ -525,6 +542,9 @@ def _on_line(item: dict, stream: dict, line: str) -> None:
         if plain:
             stream["tail"] = (stream["tail"] + "\n" + plain)[-TAIL_MAX:]
         return
+    if agent_programs.own_events(agent_programs.of(item)):
+        _on_own_event(item, stream, agent_programs.read_event(agent_programs.of(item), event))
+        return
     kind = event.get("type")
     subtype = event.get("subtype")
     changed = False
@@ -581,6 +601,31 @@ def _on_line(item: dict, stream: dict, line: str) -> None:
         _changed(item)
 
 
+def _on_own_event(item: dict, stream: dict, read: dict) -> None:
+    changed = False
+    sid = read.get("session")
+    if isinstance(sid, str) and sid and sid != item.get("claudeSessionId"):
+        item["claudeSessionId"] = sid
+        changed = True
+    if read.get("tail"):
+        stream["tail"] = (stream["tail"] + "\n" + read["tail"])[-TAIL_MAX:]
+    text = (read.get("text") or "").strip()
+    end = read.get("end")
+    if end == "done":
+        stream["result"] = True
+        _set_state(item, "done", text or item.get("lastMessage") or "Finished")
+        return
+    if end == "failed":
+        stream["result"] = True
+        _set_state(item, "failed", text or "The run ended with an error")
+        return
+    if text:
+        item["lastMessage"] = _clip(text)
+        changed = True
+    if changed:
+        _changed(item)
+
+
 async def _release(terminal_id: str, headless: bool) -> None:
     op = {"op": "kill", "id": terminal_id} if headless else {"op": "detach", "id": terminal_id}
     try:
@@ -629,7 +674,7 @@ def _finish_exit(session_id: str, terminal_id: str, code: object) -> None:
         if code == 0:
             _set_state(item, "failed", tail or "The run ended without a result")
         else:
-            _set_state(item, "failed", tail or f"The claude process exited with code {code} and printed nothing")
+            _set_state(item, "failed", tail or f"The {agent_programs.title(agent_programs.of(item))} process exited with code {code} and printed nothing")
         return
     _discover_claude_session(item)
     if code == 0:
@@ -639,7 +684,7 @@ def _finish_exit(session_id: str, terminal_id: str, code: object) -> None:
 
 
 def _discover_claude_session(item: dict) -> None:
-    if item.get("claudeSessionId"):
+    if item.get("claudeSessionId") or agent_programs.of(item) != agent_programs.DEFAULT:
         return
     key = PROJECT_KEY_RE.sub("-", os.path.realpath(item["worktree"]))
     folder = Path.home() / ".claude" / "projects" / key
@@ -692,20 +737,26 @@ def _need_title(title: object) -> str:
     return text[:120] if text else "Untitled session"
 
 
-async def create(title: str, mode: str, prompt: str | None, base: str | None, permission_mode: str | None = None, trusted: bool = False) -> dict:
+async def create(title: str, mode: str, prompt: str | None, base: str | None, permission_mode: str | None = None, trusted: bool = False, agent: str | None = None) -> dict:
     _load()
     if mode not in ("interactive", "headless"):
         raise Refused(400, "mode must be interactive or headless")
-    permission_mode = (permission_mode or "").strip() or DEFAULT_PERMISSION_MODE
+    program = (agent or "").strip() or agent_programs.DEFAULT
+    if not agent_programs.known(program):
+        raise Refused(400, "agent must be one of " + ", ".join(agent_programs.ORDER))
+    allowed = agent_programs.modes(program)
+    permission_mode = (permission_mode or "").strip() or (DEFAULT_PERMISSION_MODE if DEFAULT_PERMISSION_MODE in allowed or mode != "headless" else allowed[0])
     if permission_mode not in PERMISSION_MODES:
         raise Refused(400, "permissionMode must be one of " + ", ".join(PERMISSION_MODES))
+    if mode == "headless" and permission_mode not in allowed:
+        raise Refused(400, f"{agent_programs.title(program)} has no documented equivalent of the {permission_mode} permission mode; choose one of " + ", ".join(allowed))
     prompt = (prompt or "").strip()
     if mode == "headless" and not prompt:
         raise Refused(400, "a headless session needs a prompt")
     base = (base or "").strip() or "HEAD"
     if base.startswith("-"):
         raise Refused(400, "bad base")
-    _claude()
+    _agent_bin(program)
     try:
         root = ws.real_root()
     except ws.Refused as err:
@@ -713,8 +764,12 @@ async def create(title: str, mode: str, prompt: str | None, base: str | None, pe
     session_id = new_id()
     branch = f"sf/{session_id}"
     top, name, path, notes = await prepare_worktree(root, base, session_id, branch)
+    lacks = agent_programs.note(program)
+    if lacks:
+        notes.append(lacks)
     item = {
         "id": session_id,
+        "agent": program,
         "title": _need_title(title),
         "repo": top,
         "repoName": name,
@@ -848,7 +903,7 @@ async def resume(session_id: str) -> dict:
     before = item["state"]
     item["state"] = "working"
     try:
-        item["terminalId"] = await _start_claude_terminal(item, args)
+        item["terminalId"] = await _start_claude_terminal(item, args, resume=True)
     except BaseException:
         item["state"] = before
         raise

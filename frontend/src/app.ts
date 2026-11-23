@@ -55,6 +55,8 @@ import { loadXterm, TerminalDock } from './ui/terminal-dock';
 import { THEMES, applyTheme, readChoice, setTheme } from './ui/themes';
 import { TitleTools } from './ui/titlebar-tools';
 import { toast } from './ui/toast';
+import { installTasks } from './ui/tasks';
+import { adoptSavedKeys, KEYS_EVENT } from './io/keybindings';
 import { Workbench } from './ui/workbench';
 import { installReview } from './ui/review/index';
 import { installGraph } from './ui/graph/index';
@@ -289,8 +291,6 @@ export async function startApp(): Promise<void> {
     { id: 'go-to-symbol-workspace', label: 'Go to Symbol in Workspace...', keys: ['Mod+T'], enabled: () => !!store.workspace, run: () => palette.show('#') },
     { id: 'next-tab', label: 'Next Tab', keys: ['Alt+Mod+Right'], enabled: () => store.docs.length > 1, run: () => stepTab(1) },
     { id: 'previous-tab', label: 'Previous Tab', keys: ['Alt+Mod+Left'], enabled: () => store.docs.length > 1, run: () => stepTab(-1) },
-    soon({ id: 'run-task', label: 'Run Task...', keys: ['Shift+Mod+B'], run: () => undefined }),
-    soon({ id: 'run-stop', label: 'Stop Task', run: () => undefined }),
     { id: 'terminal-toggle', label: 'Toggle Terminal', keys: ['Mod+J'], checked: () => dock.isOpen, run: () => dock.toggle() },
     { id: 'terminal-new', label: 'New Terminal', run: () => { void dock.create('shell'); } },
     { id: 'terminal-new-claude', label: 'New Claude Code Terminal', run: () => { void dock.create('claude'); } },
@@ -306,6 +306,8 @@ export async function startApp(): Promise<void> {
     { id: 'focus-search', label: 'Focus Search', run: () => wb.showPanel('search', true) },
   );
   activateAll({ store, commands }, wb);
+  installTasks({ store, commands, reveal: (id) => { void dock.reveal(id); }, openFile: (path) => { wb.openEditorTab(path); } });
+  const keysReady = adoptSavedKeys(commands);
 
   const menus: MenuDef[] = [
     { label: 'File', items: ['open-folder', 'open-file', 'open-recent', 'clone-repo', 'new-form-app', '-', 'save', 'save-all', '-', 'close-tab', '-', 'workspace-trust', 'settings', '-', 'quit'] },
@@ -313,7 +315,7 @@ export async function startApp(): Promise<void> {
     { label: 'Selection', items: ['select-all', '-', 'select-next', 'select-all-occurrences'] },
     { label: 'View', items: ['home-toggle', 'command-palette', '-', 'toggle-sidebar', 'toggle-right-panel', 'toggle-split', 'focus-files', 'focus-search', 'view-graph', 'view-studio', 'studio-new', '-', 'toggle-word-wrap', '-', 'md-preview-toggle', 'md-preview-side', '-', 'toggle-theme', 'menus-in-window', 'custom-title-bar', '-', 'zoom-in', 'zoom-out', 'zoom-reset'] },
     { label: 'Go', items: ['go-to-file', 'go-to-symbol', 'go-to-symbol-workspace', '-', 'lsp-definition', 'lsp-references', 'lsp-rename', 'lsp-format', '-', 'lsp-outline', 'lsp-problems', 'lsp-servers', 'lsp-restart', '-', 'next-tab', 'previous-tab'] },
-    { label: 'Run', items: ['debug-start', 'debug-stop', '-', 'debug-step-over', 'debug-step-into', 'debug-step-out', '-', 'debug-toggle-breakpoint', 'debug-focus', '-', 'run-task', 'run-stop'] },
+    { label: 'Run', items: ['debug-start', 'debug-stop', '-', 'debug-step-over', 'debug-step-into', 'debug-step-out', '-', 'debug-toggle-breakpoint', 'debug-focus', '-', 'run-task', 'run-build-task', 'run-stop', 'tasks-configure'] },
     { label: 'Terminal', items: ['terminal-toggle', '-', 'terminal-new', 'terminal-new-claude'] },
     { label: 'Agents', items: ['agent-new', 'agent-sessions'] },
     { label: 'Git', items: ['git-status', 'git-commit', 'git-commit-all', '-', 'git-snapshot', 'git-review', '-', 'git-push', 'git-sign-push'] },
@@ -370,6 +372,7 @@ export async function startApp(): Promise<void> {
   });
   editor.extensionsFor = lsp.extensionsFor;
   editor.onClosed = (path) => lsp.release(path);
+  void import('./ui/ide-link').then(({ installIdeLink }) => installIdeLink({ store, commands, views, open: (p) => openInEditor(p), save: (p) => editor?.save(p) ?? Promise.resolve(false) })).catch((err: unknown) => console.warn('the Claude Code connection did not load', err));
   preview = installPreview({ store, commands, views, area: wb.editorArea, editor, openFile: (p) => { void openInEditor(p); }, hint: (s) => status.setHint(s) });
   store.on('active', (id) => { if (id && !views.show(id)) editor?.show(id); });
   window.addEventListener(PATHS_CHANGED, (e) => {
@@ -404,6 +407,7 @@ export async function startApp(): Promise<void> {
     if (!leave) e.preventDefault();
   }));
 
+  await keysReady;
   let native: NativeMenus | null = null;
   if (wantsNativeMenus()) {
     native = new NativeMenus(commands, () => menus);
@@ -433,6 +437,7 @@ export async function startApp(): Promise<void> {
   };
   for (const ev of ['workspace', 'docs', 'active', 'sessions'] as const) store.on(ev, syncChrome);
   commands.onRun = syncChrome;
+  window.addEventListener(KEYS_EVENT, () => { syncChrome(); void native?.build().catch((err: unknown) => console.warn('native menu rebuild failed', err)); });
   dock.onChange = syncChrome;
   onLanguage(() => { setText(empty, t('Open a folder or a Form repository to begin')); syncChrome(); });
   syncChrome();

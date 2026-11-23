@@ -118,3 +118,19 @@ The File History section follows the Snapshots and Stashes recipe: a fixed heigh
 - logged: v0.24.0 · 2026-11-22
 
 One block after `.cm-tooltip-lint`. The bulb column is `--space-4` wide whether or not it holds a bulb; the bulb is `--warn` on a `--space-3h` box. The fix row in the lint tooltip has a fixed height (`--ctl-sm`) and `width: 0; min-width: 100%`, so filling it changes neither the tooltip's height nor its width; a long title is cut with an ellipsis and shown whole in the button's title. `.cv-ca-diag` has a minimum width (`--size-w-wide`) so a short message still leaves room for a fix. The action list reuses `.cv-menu` and `.cv-wb-context` (the `--z-context` layer) and only caps its width and cuts long titles. No new token.
+
+### frontend/src/styles/dialogs.css · .cv-keys, .cv-keys-bar, .cv-keys-row, .cv-keys-acts, .cv-keys-change
+
+- refers-to: frontend/src/styles/dialogs.css :: .cv-keys, .cv-keys-bar, .cv-keys .cv-prefs-status, .cv-keys-row, .cv-keys-acts, .cv-keys-change; frontend/src/ui/keys-page.ts :: ROW
+- kind: rationale
+- logged: v0.25.0 · 2026-11-22
+
+The Keys page rows are a three-column grid (name, shortcut, actions) with a minimum height of `--ctl-lg`, so a row is the same height whether its buttons are enabled or not. The status line under the search field is a fixed `2.9em` (two lines at the note's line height, content-box so the note's padding is added and not taken out of it): the prompt and the refusal sentences come and go there and the list below must not move. A changed shortcut is drawn in the accent colour. The task picker adds no rules; it uses the palette's.
+
+### frontend/src/styles/sessions.css · cv-ns-agent rows; frontend/src/styles/dialogs.css · cv-prefs-oneline, cv-prefs-netstatus, cv-prefs-agentstatus
+
+- refers-to: frontend/src/styles/sessions.css :: .cv-ns-agentfield, .cv-ns-agents, .cv-ns-agent, .cv-ns-agent-info, .cv-ns-agentnote; frontend/src/styles/dialogs.css :: .cv-prefs-oneline, .cv-prefs-netstatus, .cv-prefs-agentstatus
+- kind: rationale
+- logged: v0.25.0 · 2026-11-22
+
+Agent rows are a fixed `--ctl-sm` high with a one-line ellipsis info cell, and the note under them reserves two lines, so nothing moves when text arrives. `cv-prefs-oneline` keeps a Preferences value on one line. The two status classes add `--space-0` to their reserved height: `.cv-prefs-status` reserves 1.45em under border-box while `.cv-prefs-dlg .cv-note` has `--space-0` of top padding, so a status line grows 2 px when its first text arrives; the older status lines (key, git, debug) still have that and were not touched here.

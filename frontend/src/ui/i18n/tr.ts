@@ -123,7 +123,7 @@ export const tr: Record<string, string> = {
   'Install formslot Plugin': 'formslot Eklentisini Yükle', 'Install formslot plugin': 'formslot eklentisini yükle',
   'Install formslot to search the slots of your repositories.': 'Depolarınızın slotlarında arama yapmak için formslot’u yükleyin.', 'Install one of these': 'Bunlardan birini yükleyin',
   'Install plugin': 'Eklentiyi yükle', 'Install the formslot plugin in this repository': 'formslot eklentisini bu depoya yükle', 'Installed.': 'Kuruldu.',
-  'Installing': 'Yükleniyor', 'Interactive sessions ask in the terminal.': 'Etkileşimli oturumlar terminalde sorar.', 'Interactive: a Claude Code terminal': 'Etkileşimli: bir Claude Code terminali',
+  'Installing': 'Yükleniyor', 'Interactive sessions ask in the terminal.': 'Etkileşimli oturumlar terminalde sorar.',
   'Interface': 'Arayüz',
   'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while Substrate is open.': 'Substrate açıkken tarifleri başlatan aralıklı, gecikmeden sonra tek seferlik, dosya izleme ve imzalı webhook tetikleyicileri.',
   'It skipped the commit hook. Sign and Push re-signs and cleans it; history is only rewritten when you click.': 'Commit kancasını atladı. İmzala ve Gönder onu yeniden imzalar ve temizler; geçmiş yalnızca siz tıkladığınızda yeniden yazılır.',

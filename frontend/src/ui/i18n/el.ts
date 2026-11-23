@@ -128,7 +128,7 @@ export const el: Record<string, string> = {
   'Install formslot plugin': 'Εγκατάσταση πρόσθετου formslot', 'Install formslot to search the slots of your repositories.': 'Εγκαταστήστε το formslot για να αναζητάτε στις υποδοχές των αποθετηρίων σας.',
   'Install one of these': 'Εγκαταστήστε ένα από αυτά', 'Install plugin': 'Εγκατάσταση πρόσθετου', 'Install the formslot plugin in this repository': 'Εγκατάσταση του πρόσθετου formslot σε αυτό το αποθετήριο',
   'Installed.': 'Εγκαταστάθηκε.', 'Installing': 'Εγκατάσταση σε εξέλιξη', 'Interactive sessions ask in the terminal.': 'Οι διαδραστικές συνεδρίες ρωτούν στο τερματικό.',
-  'Interactive: a Claude Code terminal': 'Διαδραστική: ένα τερματικό Claude Code', 'Interface': 'Περιβάλλον εργασίας',
+  'Interface': 'Περιβάλλον εργασίας',
   'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while Substrate is open.': 'Εναύσματα διαστήματος, μίας φοράς μετά από καθυστέρηση, παρακολούθησης αρχείων και υπογεγραμμένου webhook που ξεκινούν συνταγές όσο το Substrate είναι ανοιχτό.',
   'It skipped the commit hook. Sign and Push re-signs and cleans it; history is only rewritten when you click.': 'Παρέκαμψε το hook δέσμευσης. Η Υπογραφή και προώθηση την υπογράφει ξανά και την καθαρίζει· το ιστορικό ξαναγράφεται μόνο όταν κάνετε κλικ.',
   'JSON only': 'Μόνο JSON', 'Jobs': 'Εργασίες', 'Just now': 'Μόλις τώρα', 'Keep going': 'Συνέχεια', 'Key': 'Κλειδί', 'Key removed.': 'Το κλειδί αφαιρέθηκε.', 'Keys': 'Κλειδιά',

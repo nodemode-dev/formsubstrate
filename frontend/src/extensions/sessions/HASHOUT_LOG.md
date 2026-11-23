@@ -112,3 +112,11 @@ Rules for .cv-ss-* (sessions panel), .cv-chat-* (transcript), .cv-sk-* (skills) 
 - logged: v0.5.0 · 2026-10-30
 
 New filled rounded square for the Stop action. The Sessions rail icon is the existing agent icon and the Skills rail icon the existing pfPlugins icon.
+
+### frontend/src/extensions/sessions/index.ts · the program in a session row
+
+- refers-to: frontend/src/extensions/sessions/index.ts :: SessionsPanel row update (.cv-ss-mode)
+- kind: rationale
+- logged: v0.25.0 · 2026-11-22
+
+A row's mode text is prefixed with the program's name when it is not Claude Code ("Codex interactive"); the name is a product name and is not translated. The command label "New Claude Code Session" was left as it is, because its key is in the language tables.

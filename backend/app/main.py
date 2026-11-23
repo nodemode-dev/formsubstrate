@@ -19,6 +19,8 @@ from app.routers import media as media_router
 from app.routers import create as create_router
 from app.routers import mcp as mcp_router
 from app.routers import mcp_clients as mcp_clients_router
+from app.routers import ide as ide_router
+from app.services import ide_link
 from app.routers import cogentics as cogentics_router
 from app.routers import insight as insight_router
 from app.services.cogentics.hub import hub as cogentics_hub
@@ -32,9 +34,13 @@ from app.routers import triggers as triggers_router
 from app.services.triggers.manager import triggers as trigger_service
 from app.routers import runs as runs_router
 from app.routers import presets as presets_router
+from app.routers import agents as agents_router
 from app.services.runs import manager as runs_manager
 from app.services import create as create_service
 from app.services import sessions as session_service
+from app.routers import tasks as tasks_router
+from app.routers import keybindings as keybindings_router
+from app.services import tasks as task_service
 
 
 def _end_streams_on_signal() -> list[tuple[int, object]]:
@@ -87,7 +93,9 @@ async def lifespan(_: FastAPI):
         except (ValueError, TypeError):
             pass
     await session_service.shutdown()
+    await task_service.shutdown()
     await terminal.shutdown()
+    await ide_link.shutdown()
     await debug_core.shutdown()
     await lsp.shutdown()
     runtime.stop_logging()
@@ -110,6 +118,7 @@ app.include_router(debug.router, prefix="/api")
 app.include_router(lsp_router.router, prefix="/api")
 app.include_router(media_router.router, prefix="/api")
 app.include_router(presets_router.router, prefix="/api")
+app.include_router(agents_router.router, prefix="/api")
 app.include_router(graph_router.router, prefix="/api")
 app.include_router(graphs_router.router, prefix="/api")
 app.include_router(create_router.router, prefix="/api")
@@ -124,6 +133,9 @@ app.include_router(runs_router.router, prefix="/api")
 app.include_router(cogentics_router.router, prefix="/api")
 app.include_router(insight_router.router, prefix="/api")
 app.include_router(mcp_clients_router.router, prefix="/api")
+app.include_router(ide_router.router, prefix="/api")
+app.include_router(tasks_router.router, prefix="/api")
+app.include_router(keybindings_router.router, prefix="/api")
 app.include_router(mcp_router.router)
 
 _dist = config.dist_dir()

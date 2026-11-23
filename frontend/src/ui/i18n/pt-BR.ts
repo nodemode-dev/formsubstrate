@@ -128,7 +128,7 @@ export const ptBR: Record<string, string> = {
   'Install formslot plugin': 'Instalar o plug-in do formslot', 'Install formslot to search the slots of your repositories.': 'Instale o formslot para pesquisar nos slots dos seus repositórios.',
   'Install one of these': 'Instale um destes', 'Install plugin': 'Instalar plug-in', 'Install the formslot plugin in this repository': 'Instalar o plug-in do formslot neste repositório',
   'Installed.': 'Instalado.', 'Installing': 'Instalando', 'Interactive sessions ask in the terminal.': 'Sessões interativas perguntam no terminal.',
-  'Interactive: a Claude Code terminal': 'Interativa: um terminal do Claude Code', 'Interface': 'Interface',
+  'Interface': 'Interface',
   'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while Substrate is open.': 'Gatilhos por intervalo, uma vez após um atraso, monitoramento de arquivos e webhook assinado, que iniciam receitas enquanto o Substrate está aberto.',
   'It skipped the commit hook. Sign and Push re-signs and cleans it; history is only rewritten when you click.': 'O hook de commit foi pulado. Assinar e enviar assina de novo e limpa; o histórico só é reescrito quando você clica.',
   'JSON only': 'Só JSON', 'Jobs': 'Tarefas', 'Just now': 'Agora mesmo', 'Keep going': 'Continuar', 'Key': 'Chave', 'Key removed.': 'Chave removida.', 'Keys': 'Chaves',

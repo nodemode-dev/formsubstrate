@@ -128,7 +128,7 @@ export const srLatn: Record<string, string> = {
   'Install formslot plugin': 'Instaliraj formslot dodatak', 'Install formslot to search the slots of your repositories.': 'Instalirajte formslot da biste pretraživali slotove svojih repozitorijuma.',
   'Install one of these': 'Instalirajte jedan od ovih', 'Install plugin': 'Instaliraj dodatak', 'Install the formslot plugin in this repository': 'Instaliraj formslot dodatak u ovaj repozitorijum',
   'Installed.': 'Instalirano.', 'Installing': 'Instalira se', 'Interactive sessions ask in the terminal.': 'Interaktivne sesije pitaju u terminalu.',
-  'Interactive: a Claude Code terminal': 'Interaktivno: Claude Code terminal', 'Interface': 'Interfejs',
+  'Interface': 'Interfejs',
   'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while Substrate is open.': 'Okidači po intervalu, jednokratno posle odlaganja, praćenjem datoteka i potpisanim webhook-om koji pokreću recepte dok je Substrate otvoren.',
   'It skipped the commit hook. Sign and Push re-signs and cleans it; history is only rewritten when you click.': 'Preskočen je hook za komit. Opcija Potpiši i potisni ponovo ga potpisuje i čisti; istorija se prepisuje tek kada kliknete.',
   'JSON only': 'Samo JSON', 'Jobs': 'Poslovi', 'Just now': 'Upravo sada', 'Keep going': 'Nastavi', 'Key': 'Ključ', 'Key removed.': 'Ključ je uklonjen.', 'Keys': 'Ključevi',

@@ -128,7 +128,7 @@ export const nb: Record<string, string> = {
   'Install formslot plugin': 'Installer formslot-programtillegg', 'Install formslot to search the slots of your repositories.': 'Installer formslot for å søke i slotene i kodelagrene dine.',
   'Install one of these': 'Installer en av disse', 'Install plugin': 'Installer programtillegg', 'Install the formslot plugin in this repository': 'Installer formslot-programtillegget i dette kodelageret',
   'Installed.': 'Installert.', 'Installing': 'Installerer', 'Interactive sessions ask in the terminal.': 'Interaktive økter spør i terminalen.',
-  'Interactive: a Claude Code terminal': 'Interaktiv: en Claude Code-terminal', 'Interface': 'Grensesnitt',
+  'Interface': 'Grensesnitt',
   'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while Substrate is open.': 'Utløsere for intervall, én gang etter forsinkelse, filovervåking og signert webhook som starter oppskrifter mens Substrate er åpent.',
   'It skipped the commit hook. Sign and Push re-signs and cleans it; history is only rewritten when you click.': 'Den hoppet over commit-kroken. Signer og push signerer og rydder den på nytt; historikken skrives bare om når du klikker.',
   'JSON only': 'Bare JSON', 'Jobs': 'Jobber', 'Just now': 'Akkurat nå', 'Keep going': 'Fortsett', 'Key': 'Nøkkel', 'Key removed.': 'Nøkkelen er fjernet.', 'Keys': 'Nøkler',

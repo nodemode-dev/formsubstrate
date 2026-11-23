@@ -128,7 +128,7 @@ export const fi: Record<string, string> = {
   'Install formslot plugin': 'Asenna formslot-lisäosa', 'Install formslot to search the slots of your repositories.': 'Asenna formslot, niin voit hakea tietovarastojesi sloteista.',
   'Install one of these': 'Asenna jokin näistä', 'Install plugin': 'Asenna lisäosa', 'Install the formslot plugin in this repository': 'Asenna formslot-lisäosa tähän tietovarastoon',
   'Installed.': 'Asennettu.', 'Installing': 'Asennetaan', 'Interactive sessions ask in the terminal.': 'Vuorovaikutteiset istunnot kysyvät päätteessä.',
-  'Interactive: a Claude Code terminal': 'Vuorovaikutteinen: Claude Code -pääte', 'Interface': 'Käyttöliittymä',
+  'Interface': 'Käyttöliittymä',
   'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while Substrate is open.': 'Aikaväli-, viive-, tiedostonvalvonta- ja allekirjoitetut webhook-laukaisimet, jotka käynnistävät reseptejä, kun Substrate on auki.',
   'It skipped the commit hook. Sign and Push re-signs and cleans it; history is only rewritten when you click.': 'Se ohitti commit-koukun. Allekirjoita ja lähetä allekirjoittaa ja siistii sen uudelleen; historiaa kirjoitetaan uudelleen vasta, kun napsautat.',
   'JSON only': 'Vain JSON', 'Jobs': 'Työt', 'Just now': 'Juuri nyt', 'Keep going': 'Jatka', 'Key': 'Avain', 'Key removed.': 'Avain poistettu.', 'Keys': 'Avaimet',

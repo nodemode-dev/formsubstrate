@@ -128,7 +128,7 @@ export const ko: Record<string, string> = {
   'Install formslot plugin': 'formslot 플러그인 설치', 'Install formslot to search the slots of your repositories.': '리포지토리의 슬롯을 검색하려면 formslot을 설치하세요.',
   'Install one of these': '다음 중 하나를 설치하세요', 'Install plugin': '플러그인 설치', 'Install the formslot plugin in this repository': '이 리포지토리에 formslot 플러그인 설치',
   'Installed.': '설치되었습니다.', 'Installing': '설치 중', 'Interactive sessions ask in the terminal.': '대화형 세션은 터미널에서 확인을 요청합니다.',
-  'Interactive: a Claude Code terminal': '대화형: Claude Code 터미널', 'Interface': '인터페이스',
+  'Interface': '인터페이스',
   'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while Substrate is open.': 'Substrate가 열려 있는 동안 레시피를 시작하는 트리거: 간격, 지연 후 한 번, 파일 감시, 서명된 Webhook.',
   'It skipped the commit hook. Sign and Push re-signs and cleans it; history is only rewritten when you click.': '커밋 후크를 건너뛰었습니다. 서명 후 푸시는 다시 서명하고 정리합니다. 기록은 클릭할 때만 다시 작성됩니다.',
   'JSON only': 'JSON만', 'Jobs': '백그라운드 작업', 'Just now': '방금', 'Keep going': '계속 진행', 'Key': '키', 'Key removed.': '키가 제거되었습니다.', 'Keys': '키',

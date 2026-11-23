@@ -128,7 +128,7 @@ export const zhCN: Record<string, string> = {
   'Install formslot plugin': '安装 formslot 插件', 'Install formslot to search the slots of your repositories.': '请安装 formslot 以搜索你的仓库中的插槽。',
   'Install one of these': '请安装以下其中之一', 'Install plugin': '安装插件', 'Install the formslot plugin in this repository': '在此仓库中安装 formslot 插件',
   'Installed.': '已安装。', 'Installing': '正在安装', 'Interactive sessions ask in the terminal.': '交互式会话会在终端中询问。',
-  'Interactive: a Claude Code terminal': '交互式：Claude Code 终端', 'Interface': '界面',
+  'Interface': '界面',
   'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while Substrate is open.': '在 Substrate 打开期间启动配方的触发器：按间隔、延迟后一次、文件监视和签名 Webhook。',
   'It skipped the commit hook. Sign and Push re-signs and cleans it; history is only rewritten when you click.': '它跳过了提交钩子。“签名并推送”会重新签名并清理它；只有在你单击后才会重写历史记录。',
   'JSON only': '仅 JSON', 'Jobs': '作业', 'Just now': '刚刚', 'Keep going': '继续进行', 'Key': '密钥', 'Key removed.': '密钥已移除。', 'Keys': '密钥',

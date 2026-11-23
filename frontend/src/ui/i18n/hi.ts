@@ -128,7 +128,7 @@ export const hi: Record<string, string> = {
   'Install formslot plugin': 'formslot प्लगइन इंस्टॉल करें', 'Install formslot to search the slots of your repositories.': 'अपनी रिपॉज़िटरी के स्लॉट खोजने के लिए formslot इंस्टॉल करें।',
   'Install one of these': 'इनमें से एक इंस्टॉल करें', 'Install plugin': 'प्लगइन इंस्टॉल करें', 'Install the formslot plugin in this repository': 'इस रिपॉज़िटरी में formslot प्लगइन इंस्टॉल करें',
   'Installed.': 'इंस्टॉल हो गया।', 'Installing': 'इंस्टॉल हो रहा है', 'Interactive sessions ask in the terminal.': 'इंटरैक्टिव सत्र टर्मिनल में पूछते हैं।',
-  'Interactive: a Claude Code terminal': 'इंटरैक्टिव: एक Claude Code टर्मिनल', 'Interface': 'इंटरफ़ेस',
+  'Interface': 'इंटरफ़ेस',
   'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while Substrate is open.': 'अंतराल, देरी के बाद एक बार, फ़ाइल निगरानी और हस्ताक्षरित webhook वाले ट्रिगर, जो Substrate खुला रहने तक रेसिपी शुरू करते हैं।',
   'It skipped the commit hook. Sign and Push re-signs and cleans it; history is only rewritten when you click.': 'इसने कमिट हुक छोड़ दिया। हस्ताक्षर करें और पुश करें इसे फिर से हस्ताक्षरित और साफ़ करता है; इतिहास तभी फिर से लिखा जाता है जब आप क्लिक करते हैं।',
   'JSON only': 'केवल JSON', 'Jobs': 'जॉब', 'Just now': 'अभी-अभी', 'Keep going': 'जारी रखें', 'Key': 'कुंजी', 'Key removed.': 'कुंजी हटा दी गई।', 'Keys': 'कुंजियाँ',

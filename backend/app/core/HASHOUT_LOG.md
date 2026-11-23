@@ -249,3 +249,19 @@ js-debug is a TCP server, not a stdio adapter, and the session that the client o
 Not supported, said plainly: `attach` configurations in the launch file; browser targets (`pwa-chrome`); when two processes are paused at once the panel shows one, the one that stopped last, and reaches the other after Continue; a breakpoint's verified state for Node is not reported at start (js-debug binds when the script loads and says so in later `breakpoint` events, which the panel does not show). A TypeScript file is passed to `node` as it is, so it runs only where that Node strips types. The port is on 127.0.0.1 and open for the length of the session; another local process could connect to it, which is the same reach a local process already has.
 
 Run in /tmp with js-debug v1.140.0 and Node 22.23.5 through the engine: a conditional breakpoint `i === 3` stopped once with `i * 10` = 30, hit count 5 stopped once at i = 4, a logpoint printed six lines without stopping, the launch file configuration ran with its args and env, and a forked child process stopped at its own breakpoint (42) before the parent stopped at its exit handler; no js-debug or node process was left after the sessions.
+
+### backend/app/core/lsp.py · record_diagnostics (slot), diagnostics_of (merge)
+
+- refers-to: backend/app/core/lsp.py :: record_diagnostics, diagnostics_of, forget_diagnostics; backend/app/services/tasks.py :: _digest, Run.slot; backend/app/services/mcp_tools.py :: _problem_docs
+- kind: warning-context
+- logged: v0.25.0 · 2026-11-22
+
+The store kept one entry per uri, so a second reporter for the same file replaced the first: a task's problems for `a.ts` would have removed the language server's, and the server's next publish would have removed the task's. `record_diagnostics` gained `slot` (default empty, which is what every language server passes, so their behaviour is unchanged): a non-empty slot keys the entry as `uri + NUL + slot` while the stored `uri` stays the real one. `diagnostics_of` now joins entries that share a uri into one document, newest first: `items` are concatenated (cut to `PROBLEM_ITEMS`), `sent` is summed, and `version`, `at` and `seq` are the newest entry's. The MCP reader needs no change and sees one document per file with both sources' rows, each row carrying its own `source`. `forget_diagnostics(owner)` already removes by owner, so it clears one task's rows and leaves the server's. Checked in a /tmp script: server row, task row and a second server publish gave `['from lsp 2', 'from task']`; forgetting the task left the server row; forgetting both removed the root.
+
+### backend/app/core/binres.py · find_agent
+
+- refers-to: backend/app/core/binres.py :: find_agent, AGENT_OVERRIDES; backend/app/services/agent_programs.py :: locate
+- kind: rationale
+- logged: v0.25.0 · 2026-11-22
+
+`find_agent` now answers `agent_programs.locate(program).path`, so the person's path from Preferences, Agents comes first for every caller (sessions, the claude terminal tab, graph runs, the status route, cogentics), then the vendor folders, then the finder as before. With no path set the answer is what it was.

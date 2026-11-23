@@ -1,3 +1,4 @@
+import { agentTitle } from '../../io/agents';
 import { compact, SESSION_SELECTED } from '../../io/formslot';
 import { elapsedLabel, sessionsClient, STATE_ORDER, type NoticeKind, type Session, type SessionState, type Skill } from '../../io/sessions';
 import { detailOf, statusOf } from '../../io/workspace';
@@ -168,7 +169,8 @@ class SessionsPanel {
     setText(q(n, '.cv-ss-elapsed'), elapsedLabel(s));
     setText(q(n, '.cv-ss-branch'), s.branch);
     setTitle(q(n, '.cv-ss-meta'), s.worktree);
-    setText(q(n, '.cv-ss-mode'), t(s.mode === 'headless' ? 'headless' : 'interactive'));
+    const modeText = t(s.mode === 'headless' ? 'headless' : 'interactive');
+    setText(q(n, '.cv-ss-mode'), s.agent && s.agent !== 'claude' ? `${agentTitle(s.agent)} ${modeText}` : modeText);
     const saved = s.tokensSaved ?? 0;
     setText(q(n, '.cv-ss-saved'), saved > 0 ? `${compact(saved)} ${t('saved')}` : '');
     setTitle(q(n, '.cv-ss-saved'), saved > 0 ? `${saved.toLocaleString()} ${t('tokens saved by reusing slots')}` : '');

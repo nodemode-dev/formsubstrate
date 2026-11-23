@@ -439,3 +439,47 @@ Routes: `GET /api/lsp/custom` (no key) answers `root`, `trusted` (the engine's r
 - logged: v0.24.0 · 2026-11-22
 
 Reads take no key: `GET /api/debug/adapters` (now two entries, `python` and `node`, each with `reason` when missing), `GET /api/debug/launch` (the launch file's listing, or why it was not read), `GET /api/debug/settings`. Changes take the window key: `POST /api/debug/launch` (write the starter file) and `PUT /api/debug/settings` (the js-debug path); both answer 403 without it, checked. `/api/debug/ws?adapter=python|node` picks the adapter; trust comes from `trust.is_trusted(root)` and no longer from a `trust` query flag, for the workspace venv and for the launch file alike. The `launch` request is rebuilt in a worker thread by `debug.launch_arguments(raw, root, kind, runtime)`: the window's fields are never passed on, and a configuration of the other adapter's kind is refused.
+
+### backend/app/routers/tasks.py · list_tasks, task_state, run_task, stop_task, create_task_file
+
+- refers-to: backend/app/routers/tasks.py :: OWNER, RunBody, StopBody, list_tasks, task_state, run_task, stop_task, create_task_file; backend/app/services/tasks.py :: listing, state, run, stop, create_file; backend/app/main.py :: tasks_router
+- kind: rationale
+- logged: v0.25.0 · 2026-11-22
+
+Reads take no key: `GET /api/tasks` answers `{root, trusted, file, error, tasks: [{label, origin: file | npm, error, detail, type, group, isDefault, matchers, notes}]}` (`file` is `.formsubstrate/tasks.json`, `.vscode/tasks.json` or null, which is how the window knows to say the VS Code file is in use; untrusted answers `trusted: false`, no tasks and the reason in `error`), and `GET /api/tasks/state` answers `{root, seq, running: [{label, terminal, started}], finished: [{label, terminal, exitCode, stopped, ended, problems}], problems: [{path, line, col, severity, message, code, source}]}` with lines and columns from 1. Changes take `dependencies=OWNER`: `POST /api/tasks/run` `{label, cols?, rows?}` (403 when the workspace is not trusted, 404 for an unknown label, 400 for a task that failed its check, 409 when it is running, and the terminal router's own answers when the terminal cannot start; the answer is `{label, terminal}` with the terminal in the `/api/terminals` shape), `POST /api/tasks/stop` `{label?}` (no label stops every running task of the open workspace; 404 when none runs) and `POST /api/tasks/file` (open or create the task file, answer `{path, created}`). The body never carries a command line: a label is all the window can send. Checked with curl and from the window: all three change routes answer 403 without the key, and run answers 403 with the key while the workspace is untrusted.
+
+### backend/app/routers/keybindings.py · read_keybindings, write_keybindings, clean, load, save
+
+- refers-to: backend/app/routers/keybindings.py :: FILE_NAME, BODY_MAX, COMMANDS_MAX, COMBOS_MAX, ID_RE, COMBO_RE, clean, load, save, read_keybindings, write_keybindings; backend/app/services/secret_store.py :: _write_private; backend/app/main.py :: keybindings_router
+- kind: rationale
+- logged: v0.25.0 · 2026-11-22
+
+The window's changed shortcuts live in `<data>/keybindings.json` as `{"version": 1, "keys": {"<command id>": ["Alt+Shift+Mod+key", ...]}}`, holding only the commands that differ from their defaults; an empty list means the shortcut was removed. `GET /api/keybindings` takes no key and answers the same shape; a missing, oversized or malformed file answers no keys, so a damaged file gives the defaults back and never stops the window. `PUT /api/keybindings` takes `dependencies=OWNER` and replaces the file. The body is read raw and refused over 64 KiB (413, by the declared length first, then by what arrived), then checked: an object with a `keys` object of at most 500 ids matching `[A-Za-z0-9][A-Za-z0-9._:-]{0,79}`, each a list of at most 4 shortcuts written in the order the window's `comboOf` builds them (`Alt+`, `Shift+`, `Mod+`, then one visible character or a key name of 2 to 20 letters and digits); anything else is 400 with one sentence. Unknown top-level fields are dropped. The write is `_write_private` (temp file, fsync, `os.replace`, user-only mode), under a lock, in a worker thread. Checked: 403 without the key, 400 for `B+Mod`, 413 for a 70 KB body, and the file after each change in the window.
+
+### backend/app/routers/lsp.py · announce_trust (running tasks stop when trust is removed)
+
+- refers-to: backend/app/routers/lsp.py :: announce_trust; backend/app/services/tasks.py :: stop
+- kind: rationale
+- logged: v0.25.0 · 2026-11-22
+
+Tasks run only in a trusted workspace, but a task already running kept running after trust was removed. The trust route now stops every running task of the workspace when it becomes untrusted, as it already stops custom language servers. `tasks.stop(None)` answers "no task is running" as a refusal when there is none; that is expected here and is not an error.
+
+### backend/app/routers/agents.py · agents and FormNET routes; sessions.py NewSession.agent; terminal.py launch
+
+- refers-to: backend/app/routers/agents.py :: OWNER, AgentPath, FormnetBody, list_agents, set_agent_path, formnet_status, formnet_save; backend/app/routers/sessions.py :: NewSession, create; backend/app/routers/terminal.py :: launch; backend/app/main.py :: agents_router
+- kind: rationale
+- logged: v0.25.0 · 2026-11-22
+
+Reads without the window key: `GET /api/agents` (the four programs: path, version, finding runs, broken or missing, how it was found, install line, the person's path, whether it gets MCP servers and gates, its headless modes) and `GET /api/formnet` (switch, whether the port answers, certificate found and where it was looked for, bundle, the reason when there is none). Changes with `dependencies=OWNER`: `PUT /api/agents/{program}/path` (`path`, empty clears; 400 for a relative path, a missing file or a file that cannot run, 404 for an unknown program) and `PUT /api/formnet` (`enabled`, `certPath`; 400 for a relative path, a missing file or a file that is not a PEM certificate). `GET /api/agents` runs each found program with `--version` once (the finder keeps the answer until the file changes), in threads, so the route does not block the loop. `POST /api/sessions` gained `agent`. `launch` gained one line that merges `formnet.terminal_env`. All three change routes answered 403 without the key.
+
+### backend/app/routers/ide.py · routes of the IDE connection
+- refers-to: backend/app/routers/ide.py :: read_settings, write_settings, post_state, post_reply, post_mention, events; backend/app/services/ide_link.py :: status, set_enabled, set_state, reply, mention, subscribe; backend/app/services/sessions.py :: subscribe, CLOSE
+- kind: rationale
+- logged: v0.25.0 · 2026-11-22
+`GET /api/ide/settings` (no key) answers `{enabled, running, port, clients, ideName, lockFile}` and never the token. `PUT /api/ide/settings {enabled}`, `POST /api/ide/state`, `POST /api/ide/reply` and `POST /api/ide/mention` take the window key. `GET /api/ide/events` is the read-only stream on which the engine asks the window to open a file, save, show a proposal or close one; it replays proposals that are still waiting, so a reloaded window shows them again. The stream also listens on the sessions service's queue for its close signal, because an open event stream keeps uvicorn from leaving and the signal handler in `main.py` already ends the session streams that way; this needed no edit there.
+
+### backend/app/routers/terminal.py · terminal_env
+- refers-to: backend/app/routers/terminal.py :: terminal_env; backend/app/services/ide_link.py :: add_env
+- kind: rationale
+- logged: v0.25.0 · 2026-11-22
+`terminal_env` calls `ide_link.add_env(env)` after the inherited `*_SSE_PORT` markers of a parent Claude Code were dropped, so plain terminals and every session (all go through `launch`) carry this engine's port. The import is local to the function to keep the edit to one region and to avoid a cycle (sessions imports this router, `ide_link` reads the session worktrees). `sessions.py` was not edited.

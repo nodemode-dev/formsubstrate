@@ -128,7 +128,7 @@ export const ja: Record<string, string> = {
   'Install formslot plugin': 'formslot プラグインをインストール', 'Install formslot to search the slots of your repositories.': 'リポジトリのスロットを検索するには、formslot をインストールしてください。',
   'Install one of these': 'これらのいずれかをインストールしてください', 'Install plugin': 'プラグインをインストール', 'Install the formslot plugin in this repository': 'このリポジトリに formslot プラグインをインストール',
   'Installed.': 'インストールしました。', 'Installing': 'インストールしています', 'Interactive sessions ask in the terminal.': '対話型セッションはターミナルで確認します。',
-  'Interactive: a Claude Code terminal': '対話型: Claude Code ターミナル', 'Interface': 'インターフェイス',
+  'Interface': 'インターフェイス',
   'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while Substrate is open.': 'Substrate が開いている間にレシピを開始するトリガー: 間隔、遅延後に 1 回、ファイル監視、署名付き Webhook。',
   'It skipped the commit hook. Sign and Push re-signs and cleans it; history is only rewritten when you click.': 'コミット フックがスキップされました。[署名してプッシュ] で再署名とクリーンアップを行います。履歴はクリックしたときにのみ書き換えられます。',
   'JSON only': 'JSON のみ', 'Jobs': 'ジョブ', 'Just now': 'たった今', 'Keep going': '続ける', 'Key': 'キー', 'Key removed.': 'キーを削除しました。', 'Keys': 'キー',

@@ -128,7 +128,7 @@ export const da: Record<string, string> = {
   'Install formslot plugin': 'Installér formslot-plugin', 'Install formslot to search the slots of your repositories.': 'Installér formslot for at søge i dine repositories’ slots.',
   'Install one of these': 'Installér en af disse', 'Install plugin': 'Installér plugin', 'Install the formslot plugin in this repository': 'Installér formslot-plugin i dette repository',
   'Installed.': 'Installeret.', 'Installing': 'Installerer', 'Interactive sessions ask in the terminal.': 'Interaktive sessioner spørger i terminalen.',
-  'Interactive: a Claude Code terminal': 'Interaktiv: en Claude Code-terminal', 'Interface': 'Brugerflade',
+  'Interface': 'Brugerflade',
   'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while Substrate is open.': 'Udløsere med interval, én gang efter forsinkelse, filovervågning og signeret webhook, der starter opskrifter, mens Substrate er åben.',
   'It skipped the commit hook. Sign and Push re-signs and cleans it; history is only rewritten when you click.': 'Commit-hooken blev sprunget over. Signér og push signerer det igen og rydder op; historikken omskrives først, når du klikker.',
   'JSON only': 'Kun JSON', 'Jobs': 'Job', 'Just now': 'Lige nu', 'Keep going': 'Fortsæt alligevel', 'Key': 'Nøgle', 'Key removed.': 'Nøgle fjernet.', 'Keys': 'Nøgler',

@@ -24,6 +24,7 @@ export interface Session {
   lastMessage: string | null;
   notes?: string[];
   permissionMode?: string | null;
+  agent?: string | null;
   tokensSaved?: number;
 }
 
@@ -31,7 +32,7 @@ export interface GateNote { path: string; kind: 'slot' | 'skipped'; slot: string
 const OLD_SKIP = 'unchecked, gate skipped:';
 
 export interface SessionNotice { sessionId: string; kind: NoticeKind; text: string }
-export interface NewSessionBody { title: string; mode: SessionMode; prompt?: string; base?: string; permissionMode?: 'default' | 'acceptEdits' | 'plan' }
+export interface NewSessionBody { title: string; mode: SessionMode; prompt?: string; base?: string; permissionMode?: 'default' | 'acceptEdits' | 'plan'; agent?: string }
 export interface Skill { name: string; description: string; path: string; source: 'project' | 'user' }
 
 export interface TranscriptLine {

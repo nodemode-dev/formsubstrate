@@ -128,7 +128,7 @@ export const ar: Record<string, string> = {
   'Install formslot plugin': 'تثبيت إضافة formslot', 'Install formslot to search the slots of your repositories.': 'ثبّت formslot للبحث في خانات مستودعاتك.',
   'Install one of these': 'ثبّت أحد هذه العناصر', 'Install plugin': 'تثبيت الإضافة', 'Install the formslot plugin in this repository': 'تثبيت إضافة formslot في هذا المستودع',
   'Installed.': 'تم التثبيت.', 'Installing': 'جارٍ التثبيت', 'Interactive sessions ask in the terminal.': 'تسأل الجلسات التفاعلية في الطرفية.',
-  'Interactive: a Claude Code terminal': 'تفاعلي: طرفية Claude Code', 'Interface': 'الواجهة',
+  'Interface': 'الواجهة',
   'Interval, once-after-delay, file-watch and signed-webhook triggers that start recipes while Substrate is open.': 'محفّزات الفاصل الزمني، والتشغيل مرة واحدة بعد تأخير، ومراقبة الملفات، وwebhook الموقّع، التي تبدأ الوصفات ما دام Substrate مفتوحًا.',
   'It skipped the commit hook. Sign and Push re-signs and cleans it; history is only rewritten when you click.': 'تخطى خطاف الإيداع. يعيد التوقيع والدفع توقيعه وتنظيفه؛ ولا تتم إعادة كتابة السجل إلا عند النقر.',
   'JSON only': 'JSON فقط', 'Jobs': 'المهام', 'Just now': 'الآن', 'Keep going': 'متابعة', 'Key': 'المفتاح', 'Key removed.': 'تمت إزالة المفتاح.', 'Keys': 'المفاتيح',

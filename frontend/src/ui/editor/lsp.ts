@@ -833,7 +833,17 @@ export class LspManager {
         }
       }
     }
+    for (const list of this.external.values()) out.push(...list);
     return out.sort((a, b) => a.severity - b.severity || a.path.localeCompare(b.path) || a.line - b.line || a.col - b.col);
+  }
+
+  private readonly external = new Map<string, Problem[]>();
+
+  setExternal(owner: string, problems: Problem[]): void {
+    if (!problems.length && !this.external.has(owner)) return;
+    if (problems.length) this.external.set(owner, problems);
+    else this.external.delete(owner);
+    this.emit('diagnostics');
   }
 
   async symbols(path: string): Promise<OutlineItem[] | null> {
