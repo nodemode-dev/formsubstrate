@@ -11,7 +11,7 @@ Help the person answer a waiting gate quickly and correctly, and help an agent u
 
 ## When a gate fires
 
-Before a session's Write, Edit, MultiEdit or Bash writes a file, a hook asks formslot whether something like it already exists. Bash commands are read for write forms (redirections, `cp`, `mv`, `tee`, `sed -i`, `curl -o`, `rsync`, archive extraction and more) and never run by the check. If a slot matches, the write waits and a card appears in the window. Graph runs that edit files pass the same gate.
+Gates need Claude Code: a session run by Codex, Cursor or Antigravity has no gate hook, shows no cards, and its writes are not checked. Before a Claude Code session's Write, Edit, MultiEdit or Bash writes a file, a hook asks formslot whether something like it already exists. Bash commands are read for write forms (redirections, `cp`, `mv`, `tee`, `sed -i`, `curl -o`, `rsync`, archive extraction and more) and never run by the check. If a slot matches, the write waits and a card appears in the window. Graph runs that edit files pass the same gate.
 
 ## Answer it
 

@@ -11,7 +11,7 @@ Get a folder open in Substrate and set its trust correctly, so sessions, languag
 
 ## Before the first start
 
-- Substrate needs `git` and Claude Code (`claude`) on the computer. Language servers are optional. Substrate finds these the way a terminal would (the app's PATH, the usual install folders such as `~/.local/bin` and `~/.claude/local`, then the login shell's PATH) and never bundles or installs them. To force one `claude` program, set `FORMSUBSTRATE_CLAUDE_BIN` to its full path before starting Substrate.
+- Substrate needs `git` and Claude Code (`claude`) on the computer. Language servers are optional. Substrate finds these the way a terminal would (the app's PATH, the usual install folders such as `~/.local/bin` and `~/.claude/local`, then the login shell's PATH) and never bundles or installs them. To force one `claude` program, give its path under Preferences > Agents > Agent programs, or set `FORMSUBSTRATE_CLAUDE_BIN` to its full path before starting Substrate. Codex, Cursor and Antigravity are optional and found the same way.
 - Only one Substrate runs at a time; opening it again brings the running window forward.
 - From a source checkout: `./formsubstrate_oc_install`, then `./formsubstrate` (Windows: the `.bat` files). `./formsubstrate doctor` reports what is missing.
 
@@ -37,6 +37,7 @@ Trust lets Substrate:
 
 - start language servers and debug adapters that live inside the project, and any custom language server added under Preferences > Language Servers > Custom servers;
 - read the project's debug launch file (`.formsubstrate/launch.json`, or `.vscode/launch.json` when that file does not exist);
+- list and run the project's tasks: Run > Run Task..., Run > Run Build Task (`Shift+Ctrl+B`), Run > Stop Task and Run > Configure Tasks. Tasks come from `.formsubstrate/tasks.json` (or `.vscode/tasks.json` when that file does not exist) and from the scripts in the `package.json` at the top of the workspace. Without trust the list says the workspace must be trusted, and revoking trust stops running tasks;
 - run Studio graphs through Claude, and graphs that contain tool nodes (the simulator without tool nodes needs no trust);
 - let Cogentics channels run agent turns;
 - let triggers start recipes;

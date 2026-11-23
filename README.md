@@ -43,7 +43,7 @@
   <tr>
     <td width="25%" valign="top">
       <h3>Agents in worktrees</h3>
-      Claude Code sessions each get their own git worktree, so several agents work on one repository without stepping on each other.
+      Agent sessions each get their own git worktree, so several agents work on one repository without stepping on each other. A session runs Claude Code, or Codex, Cursor or Antigravity when that program is on your computer.
     </td>
     <td width="25%" valign="top">
       <h3>Review before commit</h3>
@@ -51,7 +51,7 @@
     </td>
     <td width="25%" valign="top">
       <h3>FormSlot gates</h3>
-      An agent about to rewrite code that already exists pauses until you choose to use it, adapt it or write new.
+      A Claude Code agent about to rewrite code that already exists pauses until you choose to use it, adapt it or write new.
     </td>
     <td width="25%" valign="top">
       <h3>Agent-ready</h3>
@@ -93,11 +93,11 @@
   <tr>
     <td width="33%" valign="top">
       <h4>Editor</h4>
-      CodeMirror 6 · TypeScript and pyright language servers · custom language servers with presets for Rust, JSON, HTML, CSS and YAML · quick fixes and Organize Imports · Go to File · search and replace across files · folding · multiple cursors · auto save · format on save · Outline · Problems · editor split · Markdown preview · Python debugging with debugpy and Node.js debugging with js-debug · conditional breakpoints, logpoints, Watch and a launch file
+      CodeMirror 6 · TypeScript and pyright language servers · custom language servers with presets for Rust, JSON, HTML, CSS and YAML · quick fixes and Organize Imports · Go to File · search and replace across files · folding · multiple cursors · auto save · format on save · Outline · Problems · editor split · Markdown preview · Python debugging with debugpy and Node.js debugging with js-debug · conditional breakpoints, logpoints, Watch and a launch file · tasks from a task file or package.json scripts, with Run Build Task and problem matchers · keyboard shortcuts you can change
     </td>
     <td width="33%" valign="top">
       <h4>Agents and git</h4>
-      Claude Code terminals · headless chat runs · worktree sessions · hunk review · snapshots · commit audit · Studio graphs
+      Claude Code terminals · headless chat runs · worktree sessions with Claude Code, Codex, Cursor or Antigravity · hunk review · snapshots · commit audit · Studio graphs · an optional Claude Code connection to the editor, off by default
     </td>
     <td width="33%" valign="top">
       <h4>Formats</h4>
@@ -121,7 +121,7 @@ The HTTP endpoint is `POST /mcp`, behind a local guard and a bearer token. It wo
 
 - **Engine:** FastAPI on `127.0.0.1` behind a local guard; owner-only changes need the window token.
 - **Window:** TypeScript and Vite 8 with CodeMirror 6, wrapped by a Tauri 2 desktop shell.
-- **Terminals:** a detached pty-host keeps shells and Claude Code running through an engine restart.
+- **Terminals:** a detached pty-host keeps shells, tasks and agent programs running through an engine restart.
 
 ## What Substrate sends over the network
 
@@ -133,6 +133,10 @@ Nothing leaves your computer unless you use a feature that needs it. Substrate c
 - **MCP servers you add.** An HTTP server gets requests at the address you gave, with the headers you saved. A command server runs on your computer and does whatever that program does.
 - **git.** Clone repo fetches the address you enter (https and ssh only). Push runs `git push` to the remote you pick; Sign and Push runs `git fetch` and then `git push`. Fetch, Pull and pushing a tag in Source Control reach the remotes your repository already names, when you click them. Nothing is fetched or pushed in the background.
 - **Claude Code.** Sessions run the `claude` command found on your computer. Its traffic to Anthropic is Claude Code's own, under its own settings; Substrate does not see or relay it.
+- **Codex, Cursor and Antigravity.** A session with one of these runs that program as found on your computer. Its traffic to its maker is its own, like Claude Code's.
+- **Route through FormNET.** Off by default. With it on, new terminals and agent sessions send their traffic through FormNET's proxy on this computer (`127.0.0.1:8761`). The engine, language servers and git actions are not routed.
+- **Claude Code in the editor.** Off by default. With it on, Substrate listens on `127.0.0.1` only for Claude Code on this computer, and a connection needs a token from a file only your user can read.
+- **Tasks** run the commands in your task file or `package.json` as your programs; what they reach is up to them.
 - **Language servers and debuggers** you installed run as your programs; what they download is up to them. The install commands Substrate shows are text for you to copy; it does not run them.
 - **formslot** is reached on this computer only (`127.0.0.1`).
 - **Links.** The desktop app opens an `http`, `https` or `mailto` link in your browser only when you click it.
@@ -150,7 +154,7 @@ All Substrate builds are compiled and signed by [FormCompiler](https://github.co
 ## Run it from source
 
 Prefer it in your browser, or want to contribute? Run the web UI straight from this repo.
-**Requires:** git, Python 3.13 or later, Node 20.19 or later, and Claude Code for agent sessions.
+**Requires:** git, Python 3.13 or later, Node 20.19 or later, and Claude Code (or Codex, Cursor or Antigravity) for agent sessions.
 
 ```sh
 git clone git@github.com:nodemode-dev/formsubstrate.git

@@ -10,7 +10,7 @@ metadata:
 
 # formsubstrate-harness
 
-formsubstrate is the Form family developer workbench: a code editor in the formvis shell that hosts Claude Code sessions in git worktrees, reviews and commits their work, and shows formslot. The window is vanilla TypeScript 7 strict on Vite 8. The engine is Python 3.13 on FastAPI, bound to 127.0.0.1. The desktop shell is Tauri 2. This pack describes the repository at its current release, whose number is read from `__version__` in `backend/app/__init__.py` (or `./formsubstrate version`) and not from this pack; remotes are `nodemode-dev/[repo]`, environment variables start with `FORMSUBSTRATE_`, and the window token header is `X-FormSubstrate-Window`. This pack is for agents who change that code. Load the sub-skill the table names, keep the laws below, and open a reference only when a sub-skill points at it. `CLAUDE.md` is the authority: the pack restates it, and where they differ `CLAUDE.md` wins.
+formsubstrate is the Form family developer workbench: a code editor in the formvis shell that hosts agent sessions in git worktrees (Claude Code, and Codex, Cursor or Antigravity when found on the computer), reviews and commits their work, and shows formslot. The window is vanilla TypeScript 7 strict on Vite 8. The engine is Python 3.13 on FastAPI, bound to 127.0.0.1. The desktop shell is Tauri 2. This pack describes the repository at its current release, whose number is read from `__version__` in `backend/app/__init__.py` (or `./formsubstrate version`) and not from this pack; remotes are `nodemode-dev/[repo]`, environment variables start with `FORMSUBSTRATE_`, and the window token header is `X-FormSubstrate-Window`. This pack is for agents who change that code. Load the sub-skill the table names, keep the laws below, and open a reference only when a sub-skill points at it. `CLAUDE.md` is the authority: the pack restates it, and where they differ `CLAUDE.md` wins.
 
 ## Routing table
 
@@ -20,10 +20,10 @@ Each sub-skill lives at `sub-skills/[name]/SUB-SKILL.md` beside this file.
 | --- | --- |
 | Run the engine or the window, build into a scratch folder, typecheck, Playwright at 4x throttle, measure layout shift | `run-and-verify` |
 | A new sidebar panel, command, menu entry, search provider or extension in the window; keyed lists; strings, icons, tokens, z-index | `window-extension` |
-| A new engine route or service, LocalGuard, the window token, the session token, config and data folder, the MCP route at /mcp and its tools (listed in `references/tools.md`) | `engine-route` |
+| A new engine route or service, LocalGuard, the window token, the session token, config and data folder, the MCP route at /mcp and its tools (listed in `references/tools.md`), workspace tasks, the saved shortcuts file, the FormNET switch | `engine-route` |
 | formslot status, the bridge client, the existing-slot card, the PreToolUse and PostToolUse gate hook and its Bash write gates, engine-held waivers, loud fail-opens, the terminal gate banner and tab badge, tokens-saved meter | `formslot-bridge` |
 | Language servers, the LSP relay, the debug adapter relay, workspace trust | `lsp-and-debug` |
-| Sessions, worktrees, session environment, `terminal_tail` and the pty-host screen model, the review pane, hunks, snapshots, the commit wrapper, sign and push, git safety | `sessions-and-git` |
+| Sessions, worktrees, the agent programs (Claude Code, Codex, Cursor, Antigravity), the Claude Code IDE connection, session environment, `terminal_tail` and the pty-host screen model, the review pane, hunks, snapshots, the commit wrapper, sign and push, git safety | `sessions-and-git` |
 | HASHOUT entries, NOTICE rows, comments, tests, emoji, em dash, commit identity, versions, the sidecar | `rules-and-logs` |
 
 | Reference | Holds |
