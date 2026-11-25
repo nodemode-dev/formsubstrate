@@ -67,7 +67,7 @@ The offline label appears only after 2.5 s without a connection, so the short ga
 
 ### frontend/src/ui/chat-pane.ts · ChatPane
 
-- refers-to: /home/claude/ref/formvis/frontend/src/ui/chat-pane.ts :: ChatPane
+- refers-to: formvis frontend/src/ui/chat-pane.ts :: ChatPane
 - kind: explainer
 - logged: v0.5.0 · 2026-10-30
 

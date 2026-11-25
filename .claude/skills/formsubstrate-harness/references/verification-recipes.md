@@ -5,7 +5,7 @@ Replace names in square brackets. Scratch work goes under your own scratch folde
 ## Typecheck and build
 
 ```bash
-cd /home/claude/repos/formsubstrate/frontend
+cd [repo]/frontend
 npx tsc --noEmit
 npx vite build --outDir [scratch]/dist
 ```
@@ -13,7 +13,7 @@ npx vite build --outDir [scratch]/dist
 ## Engine
 
 ```bash
-cd /home/claude/repos/formsubstrate/backend
+cd [repo]/backend
 venv/bin/python -c "import app.main"
 FORMSUBSTRATE_DATA_DIR=[scratch]/data FORMSUBSTRATE_DIST=[scratch]/dist \
   venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port [port] &

@@ -1,6 +1,6 @@
 # Feature parity: substrata to formsubstrate
 
-Reference: substrata (MIT, the owner's, `/home/claude/ref2`). Target: formsubstrate (this repository). Written for build turn 11 (v0.14.0). Status words:
+Reference: substrata (MIT, the owner's). Target: formsubstrate (this repository). Written for build turn 11 (v0.14.0). Status words:
 
 - **present**: already in formsubstrate, with the formsubstrate file.
 - **ported (parity)**: ported this turn by the named agent into the named place.
