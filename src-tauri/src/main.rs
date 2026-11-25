@@ -24,7 +24,23 @@ const SCREEN_FRACTION: f64 = 0.9;
 const DEV_ENGINE: &str = "../backend/formsubstrate_engine.py";
 const SHELL_ENV: &str = "FORMSUBSTRATE_SHELL_PID";
 const ADDRESS_WAIT: std::time::Duration = std::time::Duration::from_secs(90);
+const TAIL_LINES: usize = 12;
+const TAIL_WIDTH: usize = 300;
 static FAILED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static TAIL: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+fn keep_lines(text: &str, hidden: &str) {
+    let Ok(mut tail) = TAIL.lock() else { return };
+    for line in text.lines() {
+        let line: String = line.chars().filter(|c| !c.is_control()).take(TAIL_WIDTH).collect();
+        if line.trim().is_empty() || (!hidden.is_empty() && line.contains(hidden)) {
+            continue;
+        }
+        tail.push(line);
+    }
+    let excess = tail.len().saturating_sub(TAIL_LINES);
+    tail.drain(..excess);
+}
 
 fn kill_backend(handle: &tauri::AppHandle) {
     let state = handle.state::<Backend>();
@@ -64,13 +80,22 @@ fn engine_failed(handle: &tauri::AppHandle) {
     if FAILED.swap(true, std::sync::atomic::Ordering::SeqCst) {
         return;
     }
-    close_splash(handle);
+    if let Some(splash) = handle.get_webview_window("splash") {
+        let _ = splash.hide();
+    }
+    let mut text = String::from("The Substrate engine failed to start. Please relaunch the app.");
+    let lines = TAIL.lock().map(|tail| tail.join("\n")).unwrap_or_default();
+    if !lines.is_empty() {
+        text.push_str("\n\nThe engine's last lines:\n");
+        text.push_str(&lines);
+    }
     let _ = handle
         .dialog()
-        .message("The Substrate engine failed to start. Please relaunch the app.")
+        .message(text)
         .title("Substrate")
         .kind(tauri_plugin_dialog::MessageDialogKind::Error)
         .blocking_show();
+    close_splash(handle);
     kill_backend(handle);
     handle.exit(1);
 }
@@ -132,6 +157,7 @@ fn main() {
                 return Ok(());
             };
             let secret = token.value().to_string();
+            let hidden = secret.clone();
             app.manage(token);
             let spawned = engine_command(&handle)
                 .and_then(|engine| {
@@ -166,6 +192,7 @@ fn main() {
                         CommandEvent::Terminated(_) => break,
                         _ => continue,
                     };
+                    keep_lines(&text, &hidden);
                     if let Some(found) = pattern.captures(&text).and_then(|c| c[1].parse::<u16>().ok()) {
                         port = Some(found);
                         break;
