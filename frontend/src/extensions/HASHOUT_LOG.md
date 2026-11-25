@@ -167,7 +167,7 @@ Copy lines and scores come from MCP JSON, so a one-element lines array printed "
 
 ### frontend/src/extensions/lsp/index.ts · outline-right
 
-- refers-to: frontend/src/extensions/lsp/index.ts :: setup; /home/claude/ref2/frontend/src/extensions/lsp/index.ts :: outline right-section
+- refers-to: frontend/src/extensions/lsp/index.ts :: setup; substrata frontend/src/extensions/lsp/index.ts :: outline right-section
 - kind: rationale
 - logged: v0.10.0 · 2026-10-30
 

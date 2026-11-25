@@ -152,11 +152,30 @@ def main() -> int:
     from app.core import runtime
 
     runtime.apply_switches(sys.argv[1:])
-    from app.core import config
+    from pathlib import Path
 
+    from app.core import config, startup
+
+    try:
+        log_file = runtime.start_logging(config.data_dir())
+    except OSError as err:
+        print(f"Substrate cannot use its data folder: {err}", file=sys.stderr)
+        return 5
+    startup.keep_errors(log_file.parent)
+    log = logging.getLogger("formsubstrate")
+    print(f"[formsubstrate] engine log: {log_file}", file=sys.stderr, flush=True)
+    if startup.alone():
+        beside = startup.app_beside(Path(sys.executable))
+        if beside is not None and startup.open_app(beside):
+            log.info("started without its app, so it opened %s and stopped", beside)
+            return 0
+        log.error("started without its app, and no app program was found near %s", sys.executable)
+        print("formsubstrate-engine is a part of Substrate and serves nothing on its own. Open Substrate instead.", file=sys.stderr)
+        return 4
     try:
         runtime.claim(config.data_dir())
     except runtime.AlreadyRunning as err:
+        log.error("%s", err)
         print(err, file=sys.stderr)
         return 2
     watch_parent(config.data_dir())
@@ -188,4 +207,9 @@ if __name__ == "__main__":
     import multiprocessing
 
     multiprocessing.freeze_support()
-    sys.exit(main())
+    try:
+        code = main()
+    except Exception:
+        logging.getLogger("formsubstrate").exception("the engine stopped on an error")
+        raise
+    sys.exit(code)

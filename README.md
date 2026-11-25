@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="version 0.25.2" src="https://img.shields.io/badge/version-0.25.2-eef0f4?style=flat-square">
+  <img alt="version 0.25.3" src="https://img.shields.io/badge/version-0.25.3-eef0f4?style=flat-square">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-7-3178c6?style=flat-square&logo=typescript&logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-engine-009688?style=flat-square">
   <img alt="Tauri 2" src="https://img.shields.io/badge/Tauri-2-2f7bf5?style=flat-square">
@@ -25,7 +25,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/formsubstrate-hero.png" alt="Substrate editing a TypeScript file with the FormSlot panel open on the left, showing the Toast notices slot and the copies of it found in two repositories" width="100%">
+  <img src="docs/images/formsubstrate-hero.png" alt="Substrate editing a TypeScript file with the FormSlot panel open on the left, showing the Prefs slot and the copies of its code found in another repository" width="100%">
   <br>
   <sub>The editor on Substrate's own source, with the FormSlot panel showing a slot and its copies.</sub>
 </p>
@@ -69,7 +69,7 @@
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/images/formsubstrate-formslot.png" alt="Substrate with the FormSlot panel listing slots and code units that match a search for toast notification" width="100%">
+      <img src="docs/images/formsubstrate-formslot.png" alt="Substrate with the FormSlot panel listing slots and code units that match a search for prefs" width="100%">
       <br><sub>Search slots, code and decisions from the side panel.</sub>
       <h3>FormSlot in the editor</h3>
       A status item, a slots panel with search and manifests, and provenance badges in review show what already exists.
@@ -84,7 +84,7 @@
   <tr>
     <td width="50%" valign="top">
       <img src="docs/images/formsubstrate-file-graph.png" alt="File graph of a repository with files as nodes coloured by type and links between them" width="100%">
-      <br><sub>The file graph of this repository: 413 files and 1139 links.</sub>
+      <br><sub>The file graph of this repository: 527 files and 1385 links.</sub>
       <h3>File graph</h3>
       See how a repository's files link to each other, filter by folder or type, and click a node to open the file.
     </td>

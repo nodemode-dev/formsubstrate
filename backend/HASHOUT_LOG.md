@@ -425,7 +425,7 @@ The Windows freeze line had no space between `"...presets\skills;presets/skills"
 - kind: rationale
 - logged: v0.17.1 · 2026-11-22
 
-`build_app.bat` used to go on after a failed engine or window install and fail later at the freeze or at `tauri build`, far from the cause. Now `backend/oc_install.bat` exits 1 with a `[formsubstrate] error:` line when the venv is not made, when pip cannot be upgraded or when `requirements.txt` does not install; `build_app.bat` checks the install's exit code, installs the window with `npm ci` (the lock file is tracked), checks its exit code, and then checks that `frontend\node_modules\.bin\tauri.cmd` exists, because the script runs that file next. The install is skipped when `backend\venv\Scripts\activate.bat` and `tauri.cmd` are already there, as before. The script writes no log file; the messages go to the console the build runs in. The same shape as FormPublisher's 0.3.4 `build_app.bat`. Read only: no Windows here, none of it ran.
+`build_app.bat` used to go on after a failed engine or window install and fail later at the freeze or at `tauri build`, far from the cause. Now `backend/oc_install.bat` exits 1 with a `[formsubstrate] error:` line when the venv is not made, when pip cannot be upgraded or when `requirements.txt` does not install; `build_app.bat` checks the install's exit code, installs the window with `npm ci` (the lock file is tracked), checks its exit code, and then checks that `frontend\node_modules\.bin\tauri.cmd` exists, because the script runs that file next. The install is skipped when `backend\venv\Scripts\activate.bat` and `tauri.cmd` are already there, as before. The script writes no log file; the messages go to the console the build runs in. Read only: no Windows here, none of it ran.
 
 ### backend/requirements_macos.txt · pinned
 
@@ -598,3 +598,15 @@ The web search plugin sent a user agent with a version typed in by hand, which h
 ```
     req = urllib.request.Request(url, headers={"User-Agent": "formsubstrate/0.17"})
 ```
+
+### backend/formsubstrate_engine.py · main (log first, started alone, refusal logged)
+- refers-to: backend/formsubstrate_engine.py :: main, module end; backend/app/core/startup.py :: keep_errors, alone, app_beside, open_app; backend/app/core/runtime.py :: start_logging
+- kind: fix
+- logged: v0.25.3 · 2026-11-25
+The serving path now follows the family's Windows start order (FormTools `formtools_engine.py` :: `serve`). The log file starts before the lock is asked for, so a refusal and a replaced leftover engine are both in the log; a data folder that cannot be made is one sentence and exit 5. `startup.keep_errors` points a missing standard error at `formsubstrate-engine-errors.log` beside the log. The engine prints `[formsubstrate] engine log: <path>` on standard error, which the shell keeps among the last lines it shows when the engine fails.
+
+A frozen engine started with no `FORMSUBSTRATE_SHELL_PID` (a double click, or a launcher that picked the helper) opens the app beside it and stops with exit 0, or says it serves nothing on its own and stops with exit 4; it takes no lock and no port. `FORMSUBSTRATE_NO_SHELL=1` lets a build check serve it alone. `startup.PLACES` reaches the app in all three layouts (`engine\..\formsubstrate.exe` on Windows, `Resources/engine/../../MacOS/formsubstrate` on macOS, `/usr/lib/Substrate/engine/../../../bin/formsubstrate` in a Linux package), which corrects the v0.18.0 note in `app/core/HASHOUT_LOG.md`.
+
+An error that ends `main` is written to the log before it is raised. `lifespan` calls `start_logging` a second time; it removes its own handler first, so the only effect is a second "engine started" line, and it adds the handler back to the uvicorn loggers that uvicorn's log set-up cleared.
+
+Run here on Linux with stand-in shells (`sleep`): a second engine refuses with exit 2 and the refusal is in the log; a stopped engine whose shell is gone is ended (exit 137) and replaced; an engine leaves with its shell and removes the lock; the entry run with `sys.frozen` set and `sys.executable` in a Linux package layout opens a stand-in app and takes no lock, and with no app near exits 4; it serves with standard input, output and error closed, and standard error then goes to the errors file. Not run on Windows or macOS, and not as a really frozen engine.

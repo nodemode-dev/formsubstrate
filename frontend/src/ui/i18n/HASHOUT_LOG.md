@@ -7,7 +7,7 @@ Last updated: 2026-11-22
 
 ### frontend/src/ui/i18n/langs.ts · LANG_CODES, LANG_NAMES, RTL_LANGS, LANG_PARENT
 
-- refers-to: frontend/src/ui/i18n/langs.ts :: LANG_CODES, LANG_NAMES, RTL_LANGS, LANG_PARENT, isLang; /home/claude/nodemode-dev/formvis/frontend/src/ui/i18n/langs.ts
+- refers-to: frontend/src/ui/i18n/langs.ts :: LANG_CODES, LANG_NAMES, RTL_LANGS, LANG_PARENT, isLang; formvis frontend/src/ui/i18n/langs.ts
 - kind: removed-code
 - logged: v0.20.0 · 2026-11-22
 

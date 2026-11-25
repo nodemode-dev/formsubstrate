@@ -416,3 +416,19 @@ Decision: Substrate's bundle carries no `form-app.json`, like FormVis's and Form
 - logged: v0.21.0 · 2026-11-22
 
 The entry above says the owner sets `agents.mcp_launch` with `binary` `formsubstrate-engine`. formcompiler 0.21.0 does not take a `binary`: `docs/REGISTRY.md` (the `agents` table) gives `mcp_launch` as `{"command": "[path]", "args": []}`, a path relative to the folder holding `form-app.json`, to be left out until the bundle carries such a launcher; `scripts/registry.py` checks only `command` and `args`, and `scripts/agents.py build` copies only those two into the release's `form-app.json`. FormPortal installs that file at the top of the install folder, and one relative path cannot name the engine on all three platforms (`Substrate.app/Contents/Resources/engine/formsubstrate-engine` on macOS, `engine\formsubstrate-engine.exe` on Windows, a library folder on Linux). FormPortal itself already accepts `binary` (found by name in the install). So today the registry entry is `"agents": {"skills": ".claude/skills", "mcp": true}` with no `mcp_launch`, and FormPortal reports that the app has an MCP server but no launcher in its install yet. For FormPortal to start Substrate's server from an install, formcompiler's `mcp_launch` needs a `binary` field passed through to `agents.mcp` (a formcompiler change, the owner's); the values are then `binary` `formsubstrate-engine` and `args` `["--mcp"]`.
+
+### src/packaged.rs · engine_folder (the Linux package folder after the rename)
+
+- refers-to: src/packaged.rs :: engine_folder; tauri.conf.json :: productName
+- kind: fix
+- logged: v0.25.3 · 2026-11-25
+
+A Linux package puts the bundle's resources in `/usr/lib/<productName>/` (an AppImage in `$APPDIR/usr/lib/<productName>/`), and Tauri's own `resource_dir` reads the same folder (tauri-utils 2.10.2, `src/platform.rs`, `resource_dir_from`: `exe_dir.join(format!("../lib/{}", package_info.name))`, where `name` is `productName`). Since the rename `productName` is `Substrate`, so the engine is at `../lib/Substrate/engine` from `/usr/bin/formsubstrate`, and the lowercase candidates did not match on a case-sensitive file system: a `.deb`, `.rpm` or AppImage would have shown "The Substrate engine failed to start". `../lib/Substrate/engine` is now the third candidate; the two lowercase ones stay for any package built before. Read from Tauri's source; no Linux package was built here.
+
+### src/main.rs · engine_failed, keep_lines (the dialog comes first, with the engine's last lines)
+
+- refers-to: src/main.rs :: TAIL_LINES, TAIL_WIDTH, TAIL, keep_lines, engine_failed, setup (hidden, the output loop)
+- kind: fix
+- logged: v0.25.3 · 2026-11-25
+
+`engine_failed` closed the splash before it showed the dialog. When the splash is the only window, closing it can end the app before the dialog is seen (the family's Windows fault, `WINDOWS_APP_SPEC.md` part 2, item 5). The splash is now hidden, the dialog shown, and only after it returns is the splash closed, the engine stopped and the app ended. Every line the engine writes before it gives its address is kept, the last 12 at 300 characters each, control characters dropped and any line holding the window key left out (FormTools `engine_start.rs` :: `Tail`). The dialog shows them under its sentence; the engine's first line names its log file (`backend/HASHOUT_LOG.md`, "main (log first, started alone, refusal logged)"), so the dialog says where the log is without the shell having to repeat the engine's data folder rule. Removed line: `close_splash(handle);` before the dialog. The tail logic was compiled and run on its own with rustc here; the shell itself was not compiled here and needs the Windows and macOS shell checks.

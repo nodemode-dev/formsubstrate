@@ -180,7 +180,7 @@ Removed from `runtime.py`: `class AlreadyRunning(RuntimeError): pass` (now `star
 
 The rule now: a lock whose engine is gone, or whose process id belongs to a different process (start times differ), is free. A lock whose engine is alive and whose shell is alive is busy and refuses. A lock whose engine is alive and whose shell is gone is a leftover: the engine is ended (terminate, then kill after five seconds) and the lock is taken. A lock written by 0.17.1 has no `shell`: it is a leftover when this start has a shell, and busy when it has none (two `./formsubstrate boot` in a row still refuse).
 
-`keep_errors`, `alone`, `app_beside` and `open_app` are in the file and not called: Substrate's engine sits in a folder of its own inside the bundle, so FormVis's places for the app program do not apply.
+`keep_errors`, `alone`, `app_beside` and `open_app` are in the file and not called: Substrate's engine sits in a folder of its own inside the bundle, so FormVis's places for the app program do not apply. Corrected in v0.25.3: the places do reach the app from that folder on all three systems, and the entry script now calls all four (`backend/HASHOUT_LOG.md`, "main (log first, started alone, refusal logged)").
 
 ### backend/app/core/lsp.py · record_diagnostics, forget_diagnostics, diagnostics_of
 
