@@ -26,6 +26,49 @@ safe_rm() {
   [ "$(basename "$path")" = "$expected" ] || sf_die "refusing to remove $path: the folder must be named $expected"
   rm -rf "$path"
 }
+flatten_engine() {
+  local dir="$1" fw="$1/_internal/Python.framework" lib="$1/_internal/Python" link f
+  if [ -d "$fw" ]; then
+    [ -f "$fw/Python" ] || sf_die "Python.framework has no Python library: $fw"
+    rm -f "$lib"
+    cp "$fw/Python" "$lib"
+    rm -rf "$fw"
+    install_name_tool -add_rpath @loader_path "$lib" 2>/dev/null || true
+    codesign --force --sign - "$lib"
+  fi
+  while IFS= read -r link; do
+    cp -RL "$link" "$link.flat" && rm -f "$link" && mv "$link.flat" "$link"
+  done < <(find "$dir" -type l)
+  [ -z "$(find "$dir" -type l | head -1)" ] || sf_die "engine still holds symbolic links after flattening: $dir"
+  f="$(find "$dir" -name '*.framework' | head -1)"
+  [ -z "$f" ] || sf_die "engine holds a .framework that cannot ship as Tauri resources: $f"
+  while IFS= read -r f; do
+    [ "$f" = "$lib" ] && continue
+    if file -b "$f" | grep -q 'Mach-O' && otool -L "$f" | grep -q 'Python.framework'; then sf_die "$f links Python.framework, which the engine no longer ships"; fi
+  done < <(find "$dir" -type f)
+}
+sign_engine() {
+  local ent="$FORMSUBSTRATE_ROOT/src-tauri/entitlements.plist" f info signed=0 kept=0
+  local files=()
+  while IFS= read -r f; do
+    if file -b "$f" | grep -Eq 'Mach-O.*(executable|shared library|bundle)'; then files+=("$f"); fi
+  done < <(find "$1" -type f | awk -F/ '{print NF "\t" $0}' | sort -rn | cut -f2-)
+  [ "${#files[@]}" -gt 0 ] || sf_die "no Mach-O file found to sign in $1"
+  for f in "${files[@]}"; do
+    info="$(codesign -d --verbose=4 "$f" 2>&1 || true)"
+    if printf '%s\n' "$info" | grep -q '^Timestamp=' \
+      && printf '%s\n' "$info" | grep -Eq '^CodeDirectory .*flags=[^ ]*runtime' \
+      && ! printf '%s\n' "$info" | grep -q '^Signature=adhoc' \
+      && codesign -d --entitlements - "$f" 2>/dev/null | grep -q 'com.apple.security.cs.disable-library-validation'; then
+      kept=$((kept + 1))
+      continue
+    fi
+    codesign --force --timestamp --options runtime --entitlements "$ent" --sign "$APPLE_SIGNING_IDENTITY" "$f"
+    signed=$((signed + 1))
+  done
+  for f in "${files[@]}"; do codesign --verify --strict "$f" || sf_die "engine file failed its signature check: $f"; done
+  sf_say "engine signed: ${#files[@]} Mach-O files, $signed signed here, $kept already signed by PyInstaller"
+}
 mkdir -p "$work"
 safe_rm pyinstaller "$work/build/pyinstaller"
 safe_rm dist-engine "$work/dist-engine"
@@ -50,5 +93,9 @@ pyinstaller --noconfirm --clean --onedir --name formsubstrate-engine \
 safe_rm engine "$out"
 mkdir -p "$(dirname "$out")"
 cp -R "$work/dist-engine/formsubstrate-engine" "$out"
-"$out/formsubstrate-engine$ext" --selfcheck
+if [ "$(sf_os)" = macos ]; then
+  flatten_engine "$out"
+  [ -z "${APPLE_SIGNING_IDENTITY:-}" ] || sign_engine "$out"
+fi
+"$out/formsubstrate-engine$ext" --selfcheck || sf_die "the frozen engine failed its self-check; see the line above"
 sf_say "engine folder ready: $out ($(du -sh "$out" | awk '{print $1}'))"

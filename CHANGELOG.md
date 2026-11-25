@@ -4,6 +4,13 @@ Versions follow `v*.*.*` with dots. Dates are US Eastern. The newest version is 
 
 The app was renamed Substrate (family name FormSubstrate, machine name `formsubstrate`) at 0.17.0. The entries below read with the new name throughout; the git history keeps the former one.
 
+## 0.25.4 · 2026-11-25
+
+The first public version. 0.25.3 was never published: its Mac builds were refused by Apple's notary service, so everything listed under it below is released here.
+
+- macOS: the app can be notarized. Its engine folder is now bundled with no links and without Python's framework folder, and every program inside it is signed before the app is. In 0.25.3 Apple rejected the Python library inside the engine as having an invalid signature, on Apple silicon and on Intel.
+- macOS: a frozen engine that cannot start now stops the build with a sentence, before anything is bundled.
+
 ## 0.25.3 · 2026-11-25
 
 Starting and stopping, made sturdier before the first public build.
