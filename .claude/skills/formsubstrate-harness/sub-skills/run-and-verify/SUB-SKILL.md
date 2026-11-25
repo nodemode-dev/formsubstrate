@@ -48,7 +48,7 @@ Playwright is installed globally: run node with `NODE_PATH=$(npm root -g)` and `
 4. Collect `pageerror` and console errors.
 5. Report layout shift (target 0), page errors (target none), and what you clicked.
 
-`references/verification-recipes.md` has a full script skeleton, plus recipes for `/mcp` and for running the gate hook by hand. A change to a gated Bash form, `terminal_tail` or the pty-host is verified against the real hook script or a real pty-host, not a mock; the heavy steps (vite build, Playwright, a live `claude` session) go through `flock /home/claude/build/t11/heavy.lock` when the brief says so.
+`references/verification-recipes.md` has a full script skeleton, plus recipes for `/mcp` and for running the gate hook by hand. A change to a gated Bash form, `terminal_tail` or the pty-host is verified against the real hook script or a real pty-host, not a mock; the heavy steps (vite build, Playwright, a live `claude` session) go through a shared lock (`flock [lock file]`) when the brief says so.
 
 ## Common issues
 
