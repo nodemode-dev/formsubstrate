@@ -4,6 +4,16 @@ Versions follow `v*.*.*` with dots. Dates are US Eastern. The newest version is 
 
 The app was renamed Substrate (family name FormSubstrate, machine name `formsubstrate`) at 0.17.0. The entries below read with the new name throughout; the git history keeps the former one.
 
+## 0.25.3 · 2026-11-25
+
+Starting and stopping, made sturdier before the first public build.
+
+- If Substrate's engine cannot start, the message now appears before any window closes and shows the engine's last lines, including where its log is.
+- The Linux packages (`.deb`, `.rpm` and AppImage) find their engine again; since the rename they looked for it in the wrong folder.
+- The engine keeps a log from its first line, so a refused or replaced start is recorded.
+- Opening the engine program on its own (for example by double-clicking it) now opens Substrate instead of running an engine with no window.
+- Logs and guides name repositories instead of folders on a build machine.
+
 ## 0.25.2 · 2026-11-22
 
 The community files every Form app carries.
